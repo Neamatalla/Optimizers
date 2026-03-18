@@ -197,23 +197,102 @@ export default function PartnersAndTools() {
                 </p>
             </div>
 
-            {/* Mobile: Animated icon grid — float + staggered entrance */}
-            <div className="flex lg:hidden flex-wrap justify-center gap-3 mt-6 px-6 order-2">
-                {icons.map((icon, index) => (
-                    <div
-                        key={icon.id}
-                        className={`w-[64px] h-[64px] rounded-full border border-white/20 bg-white/5 backdrop-blur-sm flex items-center justify-center overflow-hidden float-bob float-bob-${index}`}
-                    >
-                        <div className="relative w-[32px] h-[32px] overflow-hidden">
-                            <img
-                                src={icon.image}
-                                alt=""
-                                className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-                                decoding="async"
-                            />
+            {/* Mobile: Glassmorphic scattered icon grid matching Figma design */}
+            <div className="flex lg:hidden flex-col items-center w-full mt-8 order-2 px-4">
+                {/* Row 1: 5 icons — scattered positions */}
+                <div className="flex justify-center items-end gap-[14px] w-full max-w-[360px]">
+                    {[
+                        icons[5], // Google Analytics
+                        icons[4], // WooCommerce
+                        icons[3], // GTM
+                        icons[0], // VWO/Optimizely
+                        icons[1], // Freshmarketer
+                    ].map((icon, i) => (
+                        <div
+                            key={icon.id}
+                            className="mobile-partner-icon"
+                            style={{
+                                animationDelay: `${i * 0.12}s`,
+                                marginBottom: i === 0 ? '8px' : i === 1 ? '0px' : i === 2 ? '12px' : i === 3 ? '4px' : '10px',
+                                ['--icon-border-color' as string]: icon.borderColor,
+                                ['--icon-shadow-color' as string]: icon.shadowColor,
+                                ['--icon-inset-shadow' as string]: icon.insetShadowColor,
+                            } as React.CSSProperties}
+                        >
+                            <div className="mobile-partner-icon-inner">
+                                <div className="relative overflow-hidden shrink-0" style={icon.wrapperSize}>
+                                    <img
+                                        src={icon.image}
+                                        alt=""
+                                        style={{
+                                            ...icon.imageStyle,
+                                            position: 'absolute'
+                                        }}
+                                        className="max-w-none pointer-events-none"
+                                        decoding="async"
+                                    />
+                                </div>
+                            </div>
+                            {/* Inset shadow overlay */}
+                            <div className="absolute inset-0 pointer-events-none rounded-[inherit]"
+                                style={{ boxShadow: `inset 0px 4.5px 6.3px 0px ${icon.insetShadowColor}` }} />
+                            {/* Border + outer glow */}
+                            <div aria-hidden="true"
+                                className="absolute inset-0 pointer-events-none rounded-full"
+                                style={{
+                                    border: `0.45px solid ${icon.borderColor}`,
+                                    boxShadow: `0px 0px 13px 4px ${icon.shadowColor}`,
+                                }} />
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
+
+                {/* Row 2: 4 icons — offset, slightly lower */}
+                <div className="flex justify-center items-start gap-[18px] w-full max-w-[320px] mt-[10px]">
+                    {[
+                        icons[8], // Microsoft Clarity
+                        icons[7], // Hotjar  (was BackgroundOverlayBorderOverlayBlur8 → Clarity positioned left)
+                        icons[6], // Shopify (was BackgroundOverlayBorderOverlayBlur7 → Hotjar)
+                        icons[2], // VWO Images1
+                    ].map((icon, i) => (
+                        <div
+                            key={icon.id}
+                            className="mobile-partner-icon"
+                            style={{
+                                animationDelay: `${(i + 5) * 0.12}s`,
+                                marginTop: i === 0 ? '6px' : i === 1 ? '0px' : i === 2 ? '8px' : '4px',
+                                ['--icon-border-color' as string]: icon.borderColor,
+                                ['--icon-shadow-color' as string]: icon.shadowColor,
+                                ['--icon-inset-shadow' as string]: icon.insetShadowColor,
+                            } as React.CSSProperties}
+                        >
+                            <div className="mobile-partner-icon-inner">
+                                <div className="relative overflow-hidden shrink-0" style={icon.wrapperSize}>
+                                    <img
+                                        src={icon.image}
+                                        alt=""
+                                        style={{
+                                            ...icon.imageStyle,
+                                            position: 'absolute'
+                                        }}
+                                        className="max-w-none pointer-events-none"
+                                        decoding="async"
+                                    />
+                                </div>
+                            </div>
+                            {/* Inset shadow overlay */}
+                            <div className="absolute inset-0 pointer-events-none rounded-[inherit]"
+                                style={{ boxShadow: `inset 0px 4.5px 6.3px 0px ${icon.insetShadowColor}` }} />
+                            {/* Border + outer glow */}
+                            <div aria-hidden="true"
+                                className="absolute inset-0 pointer-events-none rounded-full"
+                                style={{
+                                    border: `0.45px solid ${icon.borderColor}`,
+                                    boxShadow: `0px 0px 13px 4px ${icon.shadowColor}`,
+                                }} />
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Animated Icon Circles - Desktop only */}
