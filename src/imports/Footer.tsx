@@ -436,9 +436,9 @@ function Frame14() {
 
 function Frame15() {
   return (
-    <div className="h-[80px] lg:h-[196px] relative shrink-0 w-[70%] lg:w-full max-w-[1416px] mx-auto">
-      <div className="absolute inset-[-0.2%_0_-0.17%_0]">
-        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 1416 196.726">
+    <div className="relative shrink-0 w-full max-w-[1416px] mx-auto">
+      <div className="w-full h-auto">
+        <svg className="block w-full h-auto" fill="none" viewBox="0 0 1416 196.726">
           <g id="Frame 2147223088">
             <path d={svgPaths.p18f66e80} fill="url(#paint0_linear_1_185)" id="Vector" />
             <path d={svgPaths.p13199580} fill="url(#paint1_linear_1_185)" id="Vector_2" />

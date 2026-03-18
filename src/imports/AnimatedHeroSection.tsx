@@ -22,11 +22,11 @@ import imgMockup5 from "../assets/9f8f278f482336f0475810eb8d279e3e1acb7ca6.webp"
 import imgProfile5 from "../assets/28ae360f5ef1294530a445760980d0b0cc4fce99.webp";
 
 const clientData = [
-    { name: 'Vitrine Furniture', tag: 'Furniture', tagBg: 'rgba(135,162,207,0.2)', tagColor: '#afc1df', accentColor: '#87a2cf', mockup: imgMockup1, profile: imgProfile1, metrics: [{ value: '+64.5%', label: 'Conversion rate' }, { value: '+19.48%', label: 'Avg. order value' }] },
-    { name: 'Ribal Magic', tag: 'Entertainment', tagBg: 'rgba(106,228,153,0.15)', tagColor: '#92ebb4', accentColor: '#6ae499', mockup: imgMockup2, profile: imgProfile2, metrics: [{ value: '+11.9%', label: 'Conversion rate' }, { value: '+5.99%', label: 'Avg. order value' }] },
-    { name: 'Squadio', tag: 'Technology', tagBg: 'rgba(255,107,87,0.15)', tagColor: '#ffa69a', accentColor: '#ff8979', mockup: imgMockup3, profile: imgProfile3, metrics: [{ value: '+833%', label: 'Signup Rate' }, { value: '+44.02%', label: 'Funnel Progression' }] },
-    { name: 'Regal Honey', tag: 'Food & Beverage', tagBg: 'rgba(252,211,77,0.15)', tagColor: '#fde68a', accentColor: '#fcd34d', mockup: imgMockup4, profile: imgProfile4, metrics: [{ value: '+44.15%', label: 'Conversion rate' }, { value: '+34.6%', label: 'Avg. order value' }] },
-    { name: 'Dubai Phone', tag: 'Electronics', tagBg: 'rgba(160,171,187,0.2)', tagColor: '#d0d5dd', accentColor: '#a0abbb', mockup: imgMockup5, profile: imgProfile5, metrics: [{ value: '+65%', label: 'Mobile conversion' }, { value: '+28%', label: 'Retention' }] },
+    { name: 'Vitrine Furniture', tag: 'Furniture', tagBg: 'rgba(135,162,207,0.2)', tagColor: '#afc1df', accentColor: '#87a2cf', mockup: imgMockup1, profile: imgProfile1, goal: 'Increase homepage engagement & conversions.', areas: 'Homepage layout, product visibility.', metrics: [{ value: '+64.5%', label: 'Conversion rate' }, { value: '+19.48%', label: 'Avg. order value' }] },
+    { name: 'Ribal Magic', tag: 'Entertainment', tagBg: 'rgba(106,228,153,0.15)', tagColor: '#92ebb4', accentColor: '#6ae499', mockup: imgMockup2, profile: imgProfile2, goal: 'Reduce cart abandonment & increase AOV.', areas: 'Checkout flow, product pages.', metrics: [{ value: '+11.9%', label: 'E-commerce conversion rate' }, { value: '+5.99%', label: 'Average order value' }] },
+    { name: 'Squadio', tag: 'Technology', tagBg: 'rgba(255,107,87,0.15)', tagColor: '#ffa69a', accentColor: '#ff8979', mockup: imgMockup3, profile: imgProfile3, goal: 'Clarify value proposition & build trust.', areas: 'Homepage navigation, CTAs, trust signals.', metrics: [{ value: '+833%', label: 'Signup Rate' }, { value: '+44.02%', label: 'Funnel Progression' }] },
+    { name: 'Regal Honey', tag: 'Food & Beverage', tagBg: 'rgba(252,211,77,0.15)', tagColor: '#fde68a', accentColor: '#fcd34d', mockup: imgMockup4, profile: imgProfile4, goal: 'Build brand trust & educate customers.', areas: 'Product details, video reviews.', metrics: [{ value: '+44.15%', label: 'Conversion rate' }, { value: '+34.6%', label: 'Avg. order value' }] },
+    { name: 'Dubai Phone', tag: 'Electronics', tagBg: 'rgba(160,171,187,0.2)', tagColor: '#d0d5dd', accentColor: '#a0abbb', mockup: imgMockup5, profile: imgProfile5, goal: 'Optimize mobile shopping experience.', areas: 'Mobile checkout flow, retention.', metrics: [{ value: '+65%', label: 'Mobile conversion' }, { value: '+28%', label: 'Retention' }] },
 ];
 
 const SectionSlide = ({ Section, bgOpacity, contentOpacity, counterY, mockupX, mockupY }: any) => {
@@ -212,14 +212,14 @@ export default function AnimatedHeroSection() {
                     100% { transform: translateX(-50%); }
                 }
             `}</style>
-                <div className="bg-[#020601] w-full pt-24 pb-8 relative" style={{ isolation: 'isolate' }}
+                <div className="bg-[#020601] w-full h-[100dvh] pt-[12dvh] pb-[4dvh] flex flex-col justify-between relative overflow-hidden" style={{ isolation: 'isolate' }}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                 >
                     {/* Section Title */}
-                    <div className="relative px-5 pb-[170px]" style={{ isolation: 'isolate', zIndex: 30 }}>
+                    <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30" style={{ isolation: 'isolate' }}>
                         <p
-                            className="font-['Sora',sans-serif] font-semibold leading-[1.1] text-[24px] tracking-[-0.02em] bg-center bg-clip-text bg-cover bg-no-repeat text-center"
+                            className="font-['Sora',sans-serif] font-bold leading-[1.1] text-[32px] tracking-[-0.04em] bg-center bg-clip-text bg-cover bg-no-repeat text-center"
                             style={{
                                 WebkitTextFillColor: "transparent",
                                 backgroundImage: `url('${imgTopclientsResults4}')`,
@@ -238,24 +238,26 @@ export default function AnimatedHeroSection() {
                                 </>
                             )}
                         </p>
+                        <p className="font-['Sora',sans-serif] font-normal text-[15px] text-white/80 text-center">
+                            {language === 'ar' ? 'مستعد لتكون قصة نجاحنا القادمة؟' : 'Ready to be our next success story?'}
+                        </p>
                     </div>
 
-                    <div className="relative z-10" style={{ overflow: 'visible' }}>
-                        {/* Phone mockup — scaled up visually, card stays untouched */}
-                        <div className="relative z-10 flex justify-center">
-                            <div className="grid w-[65%]" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr', transform: 'scale(1.8)', transformOrigin: 'center bottom' }}>
+                    <div className="relative z-10 flex-1 flex flex-col justify-end w-full max-w-[500px] mx-auto">
+                        {/* Phone mockup — relative flex layout */}
+                        <div className="relative z-20 flex justify-center flex-1 min-h-0 items-end pointer-events-none mb-[-20dvh]">
+                            <div className="relative w-full h-full flex justify-center items-end">
                                 {clientData.map((c, i) => (
                                     <div
                                         key={i}
-                                        className="relative"
+                                        className="absolute bottom-0 w-[65%]"
                                         style={{
-                                            gridColumn: 1,
-                                            gridRow: 1,
                                             opacity: i === activeSlide ? 1 : 0,
-                                            transform: i === activeSlide ? 'scale(1) translateY(0)' : 'scale(0.92) translateY(20px)',
+                                            transform: i === activeSlide ? 'scale(1.45) translateY(0)' : 'scale(1.2) translateY(20px)',
                                             transition: i === activeSlide
                                                 ? 'opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 600ms cubic-bezier(0.16, 1, 0.3, 1)'
-                                                : 'opacity 400ms ease-out, transform 400ms ease-out',
+                                                : 'opacity 300ms ease-out, transform 300ms ease-out',
+                                            transformOrigin: 'bottom center',
                                             pointerEvents: i === activeSlide ? 'auto' : 'none',
                                         }}
                                     >
@@ -270,12 +272,12 @@ export default function AnimatedHeroSection() {
                             </div>
                         </div>
 
-                        {/* Gradient card — slides UP behind the phone via negative margin-top */}
-                        <div className="relative rounded-[28px] overflow-hidden mx-4"
+                        {/* Gradient card — bottom bound via flex-shrink */}
+                        <div className="relative rounded-[28px] overflow-hidden mx-4 flex-shrink-0 pointer-events-auto"
                             style={{
-                                marginTop: '-300px',
-                                background: `linear-gradient(160deg, ${clientData[activeSlide].accentColor}22, ${clientData[activeSlide].accentColor}08 40%, rgba(106,228,153,0.03) 70%, ${clientData[activeSlide].accentColor}15)`,
-                                transition: 'background 800ms ease',
+                                background: `linear-gradient(180deg, ${clientData[activeSlide].accentColor}50 0%, ${clientData[activeSlide].accentColor}1A 100%)`,
+                                boxShadow: `0px 10px 40px -10px ${clientData[activeSlide].accentColor}50`,
+                                transition: 'background 800ms ease, box-shadow 800ms ease',
                             }}
                         >
                             {/* Gradient border */}
@@ -287,7 +289,14 @@ export default function AnimatedHeroSection() {
                             />
 
                             {/* Scrolling watermark text */}
-                            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ paddingTop: '60px' }}>
+                            <div 
+                                className="absolute inset-x-0 overflow-hidden pointer-events-none" 
+                                style={{ 
+                                    paddingTop: '8dvh',
+                                    maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 20%, black 50%, rgba(0,0,0,0.4) 80%, transparent 100%)',
+                                    WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 20%, black 50%, rgba(0,0,0,0.4) 80%, transparent 100%)'
+                                }}
+                            >
                                 <div className="grid" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
                                     {clientData.map((c, i) => (
                                         <div
@@ -296,7 +305,7 @@ export default function AnimatedHeroSection() {
                                             style={{
                                                 gridColumn: 1,
                                                 gridRow: 1,
-                                                opacity: i === activeSlide ? 0.07 : 0,
+                                                opacity: i === activeSlide ? 0.15 : 0,
                                                 transition: 'opacity 800ms ease',
                                                 animation: 'watermarkScroll 25s linear infinite',
                                             }}
@@ -304,26 +313,14 @@ export default function AnimatedHeroSection() {
                                             {[...Array(6)].map((_, j) => (
                                                 <span
                                                     key={j}
-                                                    className="font-['Sora',sans-serif] font-black uppercase select-none inline-flex items-center gap-4"
+                                                    className="font-['Sora',sans-serif] font-bold select-none inline-flex items-center gap-4"
                                                     style={{
-                                                        fontSize: '72px',
-                                                        letterSpacing: '-0.02em',
-                                                        color: c.accentColor,
-                                                        paddingRight: '40px',
+                                                        fontSize: '84px',
+                                                        letterSpacing: '0.05em',
+                                                        color: '#ffffff',
+                                                        paddingRight: '60px',
                                                     }}
                                                 >
-                                                    <img
-                                                        src={c.profile}
-                                                        alt=""
-                                                        className="inline-block rounded-full"
-                                                        style={{
-                                                            width: '72px',
-                                                            height: '72px',
-                                                            opacity: 1.5,
-                                                            filter: `drop-shadow(0 0 12px ${c.accentColor})`,
-                                                            border: `2px solid ${c.accentColor}`,
-                                                        }}
-                                                    />
                                                     {c.name}
                                                 </span>
                                             ))}
@@ -332,16 +329,15 @@ export default function AnimatedHeroSection() {
                                 </div>
                             </div>
 
-                            {/* Card content — large top padding to clear the phone overlap */}
-                            <div className="relative z-[1] pt-[250px] pb-6 px-5">
+                            {/* Card content — dynamic vertical padding */}
+                            <div className="relative z-[1] pt-[22dvh] pb-4 px-5">
 
-
-                                {/* Brand Header */}
+                                {/* Goals and Improvement */}
                                 <div className="grid mb-5" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
                                     {clientData.map((c, i) => (
                                         <div
                                             key={i}
-                                            className="flex items-center gap-3"
+                                            className="flex flex-col gap-3"
                                             style={{
                                                 gridColumn: 1,
                                                 gridRow: 1,
@@ -352,12 +348,13 @@ export default function AnimatedHeroSection() {
                                                     : 'opacity 300ms ease-out, transform 300ms ease-out',
                                             }}
                                         >
-                                            <img alt="" className="size-[44px] rounded-full object-cover shrink-0 ring-2 ring-white/10" src={c.profile} decoding="async" />
-                                            <div className="flex flex-col gap-0.5">
-                                                <p className="font-['Sora',sans-serif] font-semibold text-[18px] text-white tracking-[-0.02em] leading-[1.2]">{c.name}</p>
-                                                <div className="flex items-center justify-center px-[10px] py-[3px] rounded-[100px] w-fit" style={{ background: c.tagBg }}>
-                                                    <p className="font-['Sora',sans-serif] font-normal text-[11px]" style={{ color: c.tagColor }}>{c.tag}</p>
-                                                </div>
+                                            <div>
+                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>Our Goal:</p>
+                                                <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{c.goal}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>Areas of Improvement:</p>
+                                                <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{c.areas}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -381,32 +378,55 @@ export default function AnimatedHeroSection() {
                                         >
                                             {c.metrics.map((m, mi) => (
                                                 <div key={mi}
-                                                    className="flex flex-col items-center gap-1 flex-1 py-3 rounded-[16px]"
-                                                    style={{ background: `${c.accentColor}10` }}
+                                                    className="flex flex-col items-start gap-0.5 flex-1 py-1"
                                                 >
-                                                    <p className="font-['Sora',sans-serif] font-bold text-[28px] tracking-[-0.04em] leading-tight" style={{ color: c.accentColor }}>{m.value}</p>
-                                                    <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/50 text-center">{m.label}</p>
+                                                    <p className="font-['Sora',sans-serif] font-bold text-[30px] tracking-[-0.04em] leading-tight" style={{ color: c.accentColor }}>{m.value}</p>
+                                                    <p className="font-['Sora',sans-serif] font-medium text-[12px] text-white/90 text-left leading-[1.3]">{m.label}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Pagination dots only */}
-                                <div className="flex justify-center gap-2 pt-5">
-                                    {clientData.map((_, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => goToSlide(i)}
-                                            className="rounded-full transition-all duration-300"
-                                            style={{
-                                                width: i === activeSlide ? '24px' : '8px',
-                                                height: '8px',
-                                                background: i === activeSlide ? clientData[activeSlide].accentColor : 'rgba(255,255,255,0.2)',
-                                            }}
-                                            aria-label={`Go to slide ${i + 1}`}
-                                        />
-                                    ))}
+                                {/* Pagination and Arrows */}
+                                <div className="flex items-center justify-between pt-5">
+                                    <button
+                                        onClick={() => goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1)}
+                                        className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                                        style={{ backgroundColor: `${clientData[activeSlide].accentColor}40`, transition: 'background-color 800ms ease' }}
+                                        aria-label="Previous slide"
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                                            <polyline points="15 18 9 12 15 6"></polyline>
+                                        </svg>
+                                    </button>
+
+                                    <div className="flex gap-2">
+                                        {clientData.map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => goToSlide(i)}
+                                                className="rounded-full transition-all duration-300"
+                                                style={{
+                                                    width: i === activeSlide ? '20px' : '8px',
+                                                    height: '8px',
+                                                    background: i === activeSlide ? clientData[activeSlide].accentColor : 'rgba(255,255,255,0.2)',
+                                                }}
+                                                aria-label={`Go to slide ${i + 1}`}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <button
+                                        onClick={() => goToSlide((activeSlide + 1) % sections.length)}
+                                        className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                                        style={{ backgroundColor: `${clientData[activeSlide].accentColor}40`, transition: 'background-color 800ms ease' }}
+                                        aria-label="Next slide"
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                                            <polyline points="9 18 15 12 9 6"></polyline>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
