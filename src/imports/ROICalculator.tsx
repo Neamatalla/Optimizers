@@ -29,7 +29,7 @@ const defaultValues = {
 // ─── Saudi Riyal SVG components ───
 function SarLarge() {
   return (
-    <div className="h-[40px] relative shrink-0 w-[36px]">
+    <div className="h-[22px] lg:h-[40px] relative shrink-0 w-[20px] lg:w-[36px]">
       <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 38.53 40.12">
         <path d={sarPaths.large1} fill="white" />
         <path d={sarPaths.large2} fill="white" />
@@ -40,7 +40,7 @@ function SarLarge() {
 
 function SarMed({ color = "white" }: { color?: string }) {
   return (
-    <div className="h-[28px] relative shrink-0 w-[26px]">
+    <div className="h-[16px] lg:h-[28px] relative shrink-0 w-[14px] lg:w-[26px]">
       <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 26.9 28">
         <path d={sarPaths.med1} fill={color} />
         <path d={sarPaths.med2} fill={color} />
@@ -116,7 +116,7 @@ function StepperInput({
     <div className="flex items-center w-full">
       {/* Editable input */}
       <div
-        className="flex-1 h-[44px] lg:h-[52px] rounded-[12px] relative flex items-center justify-center gap-1"
+        className="flex-1 h-[40px] lg:h-[52px] rounded-[12px] relative flex items-center justify-center gap-1"
         style={{ background: inputBg, border: `0.5px solid ${focused ? "rgba(106,228,153,0.5)" : "rgba(255,255,255,0.2)"}`, transition: "border-color 0.2s" }}
       >
         <input
@@ -126,7 +126,7 @@ function StepperInput({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           onChange={handleChange}
-          className="bg-transparent text-center text-white font-['Sora'] font-semibold text-[16px] focus:outline-none w-full px-2"
+          className="bg-transparent text-center text-white font-['Sora'] font-semibold text-[14px] lg:text-[16px] focus:outline-none w-full px-2"
         />
         {suffix && <span className="text-white/60 font-semibold text-[14px] shrink-0 pr-2">{suffix}</span>}
       </div>
@@ -178,10 +178,10 @@ function CalculatorContent() {
       : { color: "rgba(255,255,255,0.6)", borderRadius: "10px" };
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8 w-full items-center">
+    <div className="flex flex-col gap-[20px] lg:gap-8 w-full items-center">
       {/* ─── Title ─── */}
       <p
-        className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora'] font-semibold text-[32px] lg:text-[56px] text-transparent text-center tracking-[-1.5px] lg:tracking-[-2.5px] leading-tight"
+        className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora'] font-semibold text-[38px] lg:text-[56px] text-transparent text-center tracking-[-1.76px] lg:tracking-[-2.5px] leading-tight whitespace-nowrap max-w-[303px] lg:max-w-none"
         style={{ backgroundImage: `url('${imgRoiCalculator}')` }}
       >
         ROI Calculator
@@ -189,7 +189,7 @@ function CalculatorContent() {
 
       {/* ─── Currency selector ─── */}
       <div
-        className="flex items-center p-[6px] rounded-[16px]"
+        className="flex items-center px-[8px] py-[6px] lg:p-[6px] rounded-[12px] lg:rounded-[16px] w-full max-w-[303px] lg:max-w-none lg:w-auto"
         style={{
           background: "rgba(255,255,255,0.06)",
           border: "1px solid rgba(57,60,55,0.8)",
@@ -199,7 +199,7 @@ function CalculatorContent() {
           <button
             key={c}
             onClick={() => setCurrency(c)}
-            className="px-[20px] lg:px-[32px] py-[10px] text-[16px] lg:text-[18px] font-['Sora'] transition-all duration-200"
+            className="flex-1 lg:flex-none px-[6px] lg:px-[32px] py-[4px] lg:py-[10px] text-[14px] lg:text-[18px] font-['Sora'] transition-all duration-200"
             style={getCurrencyStyle(c)}
           >
             {c}
@@ -208,27 +208,27 @@ function CalculatorContent() {
       </div>
 
       {/* ─── Projected Revenue (big display) ─── */}
-      <div className="flex flex-col items-center gap-4 w-full">
-        <p className="font-['Sora'] font-semibold text-[16px] lg:text-[20px] text-center text-white tracking-[1.5px] uppercase opacity-80">
+      <div className="flex flex-col items-center gap-[12px] lg:gap-4 w-full">
+        <p className="font-['Sora'] font-semibold text-[14px] lg:text-[20px] text-center text-white tracking-[0.56px] lg:tracking-[1.5px] uppercase">
           Projected Monthly Revenue
         </p>
-        <div className="flex items-center gap-4 lg:gap-6 justify-center">
-          <p className="font-['Sora'] font-bold text-[48px] lg:text-[72px] text-white tracking-[-2px] leading-none">
+        <div className="flex items-center gap-[12px] lg:gap-6 justify-center">
+          <p className="font-['Sora'] font-bold text-[32px] lg:text-[72px] text-white tracking-[-2px] leading-none">
             {fmt(results.projectedRevenue)}
           </p>
           {currency === "SAR" ? (
             <CurrencySymbol currency="SAR" size="large" />
           ) : (
-            <span className="font-['Sora'] font-bold text-[36px] lg:text-[48px] text-white opacity-80">{currency}</span>
+            <span className="font-['Sora'] font-bold text-[20px] lg:text-[48px] text-white opacity-80">{currency}</span>
           )}
         </div>
       </div>
 
       {/* ─── 3 Input fields ─── */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-[44px] items-start lg:items-start w-full justify-center">
+      <div className="flex flex-row gap-[9px] lg:gap-[44px] items-start w-full max-w-[303px] lg:max-w-none justify-center">
         {/* Visitors */}
-        <div className="flex flex-col gap-3 w-full lg:w-[220px]">
-          <p className="font-['Sora'] font-normal text-[16px] lg:text-[18px] text-center text-white">Visitors</p>
+        <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">Visitors</p>
           <StepperInput
             value={monthlyUsers}
             onChange={setMonthlyUsers}
@@ -239,8 +239,8 @@ function CalculatorContent() {
         </div>
 
         {/* Conv. % */}
-        <div className="flex flex-col gap-3 w-full lg:w-[220px]">
-          <p className="font-['Sora'] font-normal text-[16px] lg:text-[18px] text-center text-white">Conv. %</p>
+        <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">Conv. %</p>
           <StepperInput
             value={currentCR}
             onChange={setCurrentCR}
@@ -251,8 +251,8 @@ function CalculatorContent() {
         </div>
 
         {/* Avg Order */}
-        <div className="flex flex-col gap-3 w-full lg:w-[220px]">
-          <p className="font-['Sora'] font-normal text-[16px] lg:text-[18px] text-center text-white">Avg Order</p>
+        <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">Avg Order</p>
           <StepperInput
             value={currentAOV}
             onChange={setCurrentAOV}
@@ -265,7 +265,7 @@ function CalculatorContent() {
 
       {/* ─── Lift selector ─── */}
       <div
-        className="flex items-center justify-between px-[16px] lg:px-[24px] py-[10px] rounded-[16px] w-full max-w-[780px]"
+        className="flex items-center justify-between px-[8px] lg:px-[24px] py-[6px] lg:py-[10px] rounded-[12px] lg:rounded-[16px] w-full max-w-[303px] lg:max-w-[780px]"
         style={{
           background: "rgba(255,255,255,0.06)",
           border: "1px solid rgba(57,60,55,0.8)",
@@ -275,7 +275,7 @@ function CalculatorContent() {
           <button
             key={lift}
             onClick={() => setSelectedLift(lift)}
-            className="px-[12px] lg:px-[24px] py-[10px] font-['Sora'] text-[16px] lg:text-[18px] rounded-[12px] transition-all duration-200"
+            className="px-[6px] lg:px-[24px] py-[6px] lg:py-[10px] font-['Sora'] text-[14px] lg:text-[18px] rounded-[8px] lg:rounded-[12px] transition-all duration-200"
             style={
               lift === selectedLift
                 ? { background: "#6ae499", color: "#020601", fontWeight: 600 }
@@ -288,40 +288,40 @@ function CalculatorContent() {
       </div>
 
       {/* ─── Additional metrics row ─── */}
-      <div className="flex items-start justify-between w-full max-w-[780px]">
+      <div className="flex items-start justify-between w-full max-w-[303px] lg:max-w-[780px]">
         {/* Additional Revenue */}
-        <div className="flex flex-col gap-3 items-start">
-          <p className="font-['Sora'] font-normal text-[14px] lg:text-[16px] text-center text-white">Additional Revenue</p>
-          <div className="flex items-center gap-3">
-            <p className="font-['Sora'] font-semibold text-[28px] lg:text-[40px] text-[#6ae499] tracking-[-1px] leading-none">
+        <div className="flex flex-col gap-[4px] lg:gap-3 items-start">
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">Additional Revenue</p>
+          <div className="flex items-center gap-[8px] lg:gap-3">
+            <p className="font-['Sora'] font-semibold text-[20px] lg:text-[40px] text-[#6ae499] tracking-[-0.8px] lg:tracking-[-1px] leading-none">
               +{fmt(results.additionalRevenue)}
             </p>
             {currency === "SAR" ? (
               <CurrencySymbol currency="SAR" size="med" color="#6ae499" />
             ) : (
-              <span className="font-['Sora'] font-semibold text-[20px] text-[#6ae499]">{currency}</span>
+              <span className="font-['Sora'] font-semibold text-[14px] lg:text-[20px] text-[#6ae499]">{currency}</span>
             )}
           </div>
         </div>
 
         {/* Additional Orders */}
-        <div className="flex flex-col gap-3 items-start">
-          <p className="font-['Sora'] font-normal text-[14px] lg:text-[16px] text-center text-white">Additional Orders</p>
-          <div className="flex items-center gap-2 text-white">
-            <p className="font-['Sora'] font-semibold text-[28px] lg:text-[40px] tracking-[-1px] leading-none">
+        <div className="flex flex-col gap-[4px] lg:gap-3 items-end lg:items-start">
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">Additional Orders</p>
+          <div className="flex items-center gap-[8px] lg:gap-2 text-white">
+            <p className="font-['Sora'] font-semibold text-[20px] lg:text-[40px] tracking-[-0.8px] lg:tracking-[-1px] leading-none">
               +{fmt(results.additionalOrders)}
             </p>
-            <p className="font-['Sora'] font-normal text-[14px] lg:text-[16px] opacity-70 self-end pb-1">/month</p>
+            <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] opacity-70 self-end pb-1">/month</p>
           </div>
         </div>
       </div>
 
       {/* ─── Progress bar ─── */}
-      <div className="flex flex-col gap-3 w-full max-w-[780px]">
+      <div className="flex flex-col gap-[8px] lg:gap-3 w-full max-w-[303px] lg:max-w-[780px]">
         {/* Labels */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-['Sora'] font-normal text-[14px] lg:text-[16px] text-white/60">
+          <div className="flex items-center gap-[4px] lg:gap-2">
+            <span className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-white/60">
               {fmt(results.baseRevenue)}
             </span>
             {currency === "SAR" ? (
@@ -329,10 +329,10 @@ function CalculatorContent() {
             ) : (
               <span className="text-[12px] text-white/50">{currency}</span>
             )}
-            <span className="font-['Sora'] text-[14px] text-white/40 ml-1">Base</span>
+            <span className="font-['Sora'] text-[12px] lg:text-[14px] text-white/40">Base</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-['Sora'] font-normal text-[14px] lg:text-[16px] text-[#6ae499]">
+          <div className="flex items-center gap-[4px] lg:gap-2">
+            <span className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-[#6ae499]">
               {fmt(results.projectedRevenue)}
             </span>
             {currency === "SAR" ? (
@@ -340,12 +340,12 @@ function CalculatorContent() {
             ) : (
               <span className="text-[12px] text-[#6ae499]">{currency}</span>
             )}
-            <span className="font-['Sora'] text-[14px] text-[#6ae499] ml-1">Projected</span>
+            <span className="font-['Sora'] text-[12px] lg:text-[14px] text-[#6ae499]">Projected</span>
           </div>
         </div>
 
         {/* Bar */}
-        <div className="relative h-[12px] w-full rounded-[300px] bg-[#505150] overflow-hidden">
+        <div className="relative h-[8px] lg:h-[12px] w-full rounded-[300px] bg-[#505150] overflow-hidden">
           {/* Base portion (grey-blue) */}
           <div
             className="absolute left-0 top-0 h-full rounded-[300px] transition-all duration-500"
@@ -366,7 +366,7 @@ function CalculatorContent() {
           />
         </div>
 
-        <p className="font-['Sora'] font-normal text-[14px] text-white/40 text-center">
+        <p className="font-['Sora'] font-normal text-[12px] lg:text-[14px] text-white/40 text-center">
           Tap values to recalculate
         </p>
       </div>
@@ -398,7 +398,7 @@ function CurrencySmallInline({ green }: { green?: boolean }) {
 function Card() {
   return (
     <div
-      className="content-stretch flex flex-col items-center justify-center px-4 py-10 lg:px-16 lg:py-14 relative rounded-[24px] w-full max-w-[1240px] overflow-hidden"
+      className="content-stretch flex flex-col items-center justify-center px-4 pt-7 pb-9 lg:px-16 lg:py-14 relative rounded-[16px] lg:rounded-[24px] w-full max-w-[1240px] overflow-hidden"
       style={{
         background: "linear-gradient(180deg, rgba(12,18,10,1) 0%, rgba(2,6,1,1) 100%)",
         border: "1.5px solid rgba(255,255,255,0.18)",
@@ -448,7 +448,7 @@ function Card() {
 
 export default function ROICalculator() {
   return (
-    <div className="bg-[#020601] relative w-full flex items-center justify-center py-12 lg:py-16 px-4 overflow-hidden">
+    <div className="bg-[#020601] relative w-full flex items-center justify-center py-2 lg:py-16 px-4 overflow-hidden">
       <div className="w-full max-w-[1240px]">
         <Card />
       </div>

@@ -745,36 +745,6 @@
     }
 }
 
-/* ─── ROI Calculator: Mobile Stacking ──── */
-@media (max-width: 1023px) {
-
-    /* Stack current/new columns vertically on tablet/mobile */
-    [data-name="Card"] .flex.items-start.gap-\[20px\] {
-        flex-direction: column !important;
-        gap: 24px !important;
-    }
-
-    /* Make result columns full width */
-    [data-name="Card"] .flex-1 {
-        width: 100% !important;
-    }
-
-    /* Hide transfer arrow between CURRENT and NEW on mobile */
-    [data-name="Card"] [data-name="Background+Overlay+Border+OverlayBlur"]:has([data-name="Linear / Arrows / Transfer Horizontal"]) {
-        display: none;
-    }
-
-    /* ROI Current column full width on mobile */
-    [data-name="Background+Overlay+Border+OverlayBlur"] {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-
-    /* Input container fixed widths → fluid */
-    [data-name="Card"] .w-\[220px\] {
-        width: 160px !important;
-    }
-}
 
 /* ─── Comparison Table: Mobile Readability ─── */
 @media (max-width: 767px) {
@@ -1019,32 +989,6 @@
 
 
 
-/* ─── ROI Calculator: Stepper Button Width Fix ─── */
-/* The w-[48px] Tailwind class is not being compiled for these buttons,
-   causing them to stretch to 100% parent width. Force them to 48px. */
-[data-name="Card"] .cursor-pointer[data-name="Background+Overlay+Border+OverlayBlur"] {
-    width: 48px !important;
-    min-width: 48px !important;
-    max-width: 48px !important;
-    height: 40px !important;
-    flex-shrink: 0 !important;
-}
-
-/* Reduce stepper button text size on mobile */
-@media (max-width: 1023px) {
-    [data-name="Card"] .cursor-pointer[data-name="Background+Overlay+Border+OverlayBlur"] p {
-        font-size: 20px !important;
-    }
-}
-
-@media (min-width: 1024px) {
-    [data-name="Card"] .cursor-pointer[data-name="Background+Overlay+Border+OverlayBlur"] {
-        width: 64px !important;
-        min-width: 64px !important;
-        max-width: 64px !important;
-        height: 48px !important;
-    }
-}
 
 /* ─── Accessibility: Reduced Motion ────── */
 @media (prefers-reduced-motion: reduce) {
