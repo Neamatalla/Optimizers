@@ -43,8 +43,8 @@ const normalizeWebsiteUrl = (url: string): string => {
 
 function Frame5() {
   return (
-    <div className="relative flex flex-col items-center w-full px-[1.1vw] text-center mt-[4.2vw] lg:mt-[8.3vw]">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[84.026px] relative shrink-0 text-[40px] lg:text-[72.022px] text-center tracking-[-2.8809px] w-full max-w-[1105px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
+    <div className="relative flex flex-col items-center w-full px-[1.1vw] text-center mt-[40px] lg:mt-[8.3vw]">
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[84.026px] relative shrink-0 text-[36px] lg:text-[72.022px] text-center tracking-[-1.44px] lg:tracking-[-2.8809px] w-[335px] lg:w-full max-w-[1105px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
         Book Your Free Strategy Session
       </p>
     </div>
@@ -98,6 +98,25 @@ function StepWrapper({ num, title, subtitle, currentStep, maxStepReached, onStep
   );
 }
 
+function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; isCurrent: boolean; isActive: boolean; onClick: () => void }) {
+  const borderColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
+  const textColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
+  const labelColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
+  const labels = ["", "Conversions", "Objective", "Website", "Contact", "Schedule"];
+
+  return (
+    <div
+      className="flex flex-col gap-[6px] items-center cursor-pointer"
+      onClick={() => isActive && onClick()}
+    >
+      <div className="flex items-center justify-center rounded-full size-[12px]" style={{ border: `0.6px solid ${borderColor}` }}>
+        <span className="font-['Sora:Regular',sans-serif] font-normal text-[4.2px] text-center leading-[5px]" style={{ color: textColor }}>{num}</span>
+      </div>
+      <span className="font-['Sora:Regular',sans-serif] font-normal text-[8px] leading-[10px] text-center whitespace-nowrap" style={{ color: labelColor }}>{labels[num]}</span>
+    </div>
+  );
+}
+
 function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
   const steps = [
     { num: 1, title: "Conversions", subtitle: "Conversion Volume" },
@@ -106,8 +125,6 @@ function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
     { num: 4, title: "Contact", subtitle: "Contact Details" },
     { num: 5, title: "Schedule", subtitle: "Schedule" },
   ];
-
-  const currentStepTitle = steps.find(s => s.num === currentStep)?.title || "";
 
   return (
     <div className="w-full shrink-0" data-name="Stepper">
@@ -128,51 +145,82 @@ function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
         ))}
       </div>
 
-      {/* Mobile: Progress bar + step label */}
-      <div className="flex lg:hidden flex-col items-center gap-2 py-2 w-full px-4">
-        <div className="flex items-center justify-between w-full mb-1">
-          <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[12px] text-white/60">Step {currentStep} of 5</p>
-          <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[12px] text-[#31da72]">{currentStepTitle}</p>
-        </div>
-        <div className="w-full h-[3px] bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-[#31da72] to-[#6ae499] rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${(currentStep / 5) * 100}%` }}
+      {/* Mobile: Horizontal row of numbered step circles matching Figma */}
+      <div className="flex lg:hidden items-start justify-between w-full px-[16px] py-2">
+        {steps.map((s) => (
+          <MobileStepCircle
+            key={s.num}
+            num={s.num}
+            isCurrent={s.num === currentStep}
+            isActive={s.num <= maxStepReached}
+            onClick={() => onStepClick(s.num)}
           />
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
+const MobileRadio = ({ isSelected }: { isSelected: boolean }) => (
+  isSelected ? (
+    <div className="relative rounded-full size-[20px] shrink-0">
+      <svg className="block size-full" fill="none" viewBox="0 0 17 17">
+        <rect height="15.5" rx="7.75" stroke="#31DA72" strokeWidth="1.5" width="15.5" x="0.75" y="0.75" />
+        <circle cx="8.5" cy="8.5" fill="#31DA72" r="5" />
+      </svg>
+    </div>
+  ) : (
+    <div className="relative rounded-full size-[20px] shrink-0">
+      <div className="absolute inset-[3px] rounded-full border-[1.5px] border-white/60" />
+    </div>
+  )
+);
+
 const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: boolean, onClick: () => void }) => (
-  <div onClick={onClick} className={`aspect-square lg:aspect-auto lg:h-[150px] relative rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? '#787878' : '#787878' }}>
-    <div className="flex flex-row items-center justify-start gap-[14px] overflow-clip px-[20px] lg:px-[28px] py-[16px] lg:py-[24px] relative rounded-[inherit] size-full">
-      {/* Radio circle — inline left of text */}
+  <div onClick={onClick} className={`h-[78px] lg:h-[150px] relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? 'linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777' : '#777' }}>
+    {/* Mobile layout: radio above text */}
+    <div className="flex lg:hidden flex-col gap-[6px] items-start justify-center p-[16px] rounded-[inherit] size-full overflow-clip">
+      <MobileRadio isSelected={isSelected} />
+      <p className={`font-['Sora:Regular',sans-serif] font-normal leading-[24px] text-[14px] text-left transition-colors duration-300 text-white`}>{text}</p>
+    </div>
+    {/* Desktop layout: radio inline-left of text */}
+    <div className="hidden lg:flex flex-row items-center justify-start gap-[14px] overflow-clip px-[28px] py-[24px] relative rounded-[inherit] size-full">
       <div className={`flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all duration-200 ${isSelected ? 'bg-[#31da72]' : 'bg-transparent border-2 border-white/30'}`}>
         {isSelected && (
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#020601" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         )}
       </div>
-      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative min-w-0 text-[16px] lg:text-[22px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
+      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative min-w-0 text-[22px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
     </div>
 
-    {/* FAQ-style corner-gradient border (default state) */}
+    {/* Border — default state */}
     {!isSelected && (
-      <div
-        className="absolute inset-0 pointer-events-none rounded-[16px]"
-        style={{
-          padding: "1px",
-          background: "radial-gradient(ellipse 50% 60% at 0% 0%, #4ade80 0%, transparent 100%), radial-gradient(ellipse 50% 60% at 100% 100%, #4ade80 0%, transparent 100%)",
-          WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-          WebkitMaskComposite: "xor",
-          maskComposite: "exclude",
-        }}
-      />
+      <>
+        {/* Mobile: simple white/40 border */}
+        <div aria-hidden="true" className="lg:hidden absolute border border-white/40 border-solid inset-0 pointer-events-none rounded-[12px]" />
+        {/* Desktop: corner-gradient border */}
+        <div
+          className="hidden lg:block absolute inset-0 pointer-events-none rounded-[16px]"
+          style={{
+            padding: "1px",
+            background: "radial-gradient(ellipse 50% 60% at 0% 0%, #4ade80 0%, transparent 100%), radial-gradient(ellipse 50% 60% at 100% 100%, #4ade80 0%, transparent 100%)",
+            WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+          }}
+        />
+      </>
     )}
 
-    {/* Selected state: solid green border + glow */}
-    {isSelected && <div aria-hidden="true" className="absolute border-2 border-[#31da72] border-solid inset-0 pointer-events-none rounded-[16px]" style={{ boxShadow: '0 0 16px rgba(49,218,114,0.25), inset 0 0 12px rgba(49,218,114,0.08)' }} />}
+    {/* Selected state border */}
+    {isSelected && (
+      <>
+        {/* Mobile: solid green border */}
+        <div aria-hidden="true" className="lg:hidden absolute border border-[#31da72] border-solid inset-0 pointer-events-none rounded-[12px]" />
+        {/* Desktop: green border + glow */}
+        <div aria-hidden="true" className="hidden lg:block absolute border-2 border-[#31da72] border-solid inset-0 pointer-events-none rounded-[16px]" style={{ boxShadow: '0 0 16px rgba(49,218,114,0.25), inset 0 0 12px rgba(49,218,114,0.08)' }} />
+      </>
+    )}
   </div>
 );
 
@@ -290,16 +338,16 @@ export default function StrategySession() {
     switch (currentStep) {
       case 1:
         return (
-          <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.3] text-[20px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px]">Number of conversions per MONTH on average?</p>
-            <p className="lg:hidden text-[13px] text-white/40 font-['Sora',sans-serif] -mt-2">👆 Tap to select</p>
+          <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">Number of conversions per MONTH on average?</p>
+            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">Select average:</p>
             <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] items-center w-full">
               <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
                 <OptionCard text="Fewer Than 100" isSelected={formData.conversionVolume === "Fewer Than 100"} onClick={() => handleSelect("conversionVolume", "Fewer Than 100")} />
                 <OptionCard text="From 100 to 1K" isSelected={formData.conversionVolume === "From 100 to 1K"} onClick={() => handleSelect("conversionVolume", "From 100 to 1K")} />
               </div>
               <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
-                <OptionCard text="From 100 to 10K" isSelected={formData.conversionVolume === "From 100 to 10K"} onClick={() => handleSelect("conversionVolume", "From 100 to 10K")} />
+                <OptionCard text="From 1K to 10K" isSelected={formData.conversionVolume === "From 1K to 10K"} onClick={() => handleSelect("conversionVolume", "From 1K to 10K")} />
                 <OptionCard text="10K+" isSelected={formData.conversionVolume === "10K+"} onClick={() => handleSelect("conversionVolume", "10K+")} />
               </div>
             </div>
@@ -307,9 +355,9 @@ export default function StrategySession() {
         );
       case 2:
         return (
-          <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.3] text-[20px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px]">What is your primary conversion objective?</p>
-            <p className="lg:hidden text-[13px] text-white/40 font-['Sora',sans-serif] -mt-2">👇 Tap to select</p>
+          <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">What is your primary conversion objective?</p>
+            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">Select objective:</p>
             {formData.primaryObjective === "Other" ? (
               <div className="w-full max-w-[624px] flex flex-col gap-4">
                 <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder="Specify your objective..." className="bg-white/10 border-[#31da72]/30 text-white placeholder:text-white/40 h-14 w-full" />
@@ -370,13 +418,13 @@ export default function StrategySession() {
   };
 
   return (
-    <div className="bg-[#020601] relative w-full h-auto pb-[13.8vw] flex flex-col">
+    <div className="bg-[#020601] relative w-full h-auto pb-[60px] lg:pb-[13.8vw] flex flex-col">
       <Frame5 />
 
       {/* Card Design - Switched to relative to push sections below it */}
       {/* Card Design - Switched to relative to push sections below it */}
       <div
-        className="relative flex flex-col min-h-[70vh] lg:min-h-[50.9vw] h-auto items-center justify-center mx-[16px] lg:mx-auto rounded-[24px] mt-[24px] lg:mt-[2.8vw] w-auto lg:w-full max-w-[1240px] z-10 animate-wave-fast"
+        className="relative flex flex-col min-h-0 lg:min-h-[50.9vw] h-auto items-center justify-center mx-auto lg:mx-auto rounded-[16px] lg:rounded-[24px] mt-[16px] lg:mt-[2.8vw] w-[335px] lg:w-full max-w-[335px] lg:max-w-[1240px] z-10 animate-wave-fast"
         data-name="Card"
         style={{
           backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.12) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\\'0 0 1240 733\\\' xmlns=\\\'http://www.w3.org/2000/svg\\\' preserveAspectRatio=\\\'none\\\'><rect x=\\\'0\\\' y=\\\'0\\\' height=\\\'100%\\\' width=\\\'100%\\\' fill=\\\'url(%23grad)\\\' opacity=\\\'1\\\'/><defs><radialGradient id=\\\'grad\\\' gradientUnits=\\\'userSpaceOnUse\\\' cx=\\\'0\\\' cy=\\\'0\\\' r=\\\'10\\\' gradientTransform=\\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\\'><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0\\\'/><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0.55823\\\'/><stop stop-color=\\\'rgba(0,0,0,0.3)\\\' offset=\\\'0.73997\\\'/><stop stop-color=\\\'rgba(0,0,0,0)\\\' offset=\\\'1\\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",
@@ -394,18 +442,18 @@ export default function StrategySession() {
             animation: wave-gradient 8s ease-in-out infinite;
           }
         `}</style>
-        <div aria-hidden="true" className="absolute border-[1.5px] border-white/40 border-solid inset-0 pointer-events-none rounded-[24px]" />
+        <div aria-hidden="true" className="absolute border border-transparent lg:border-[1.5px] lg:border-white/40 border-solid inset-0 pointer-events-none rounded-[16px] lg:rounded-[24px]" />
 
-        <div className="content-stretch flex flex-col gap-[40px] min-h-[645px] h-auto items-center relative shrink-0 w-full pt-[40px] px-8">
+        <div className="content-stretch flex flex-col gap-[16px] lg:gap-[40px] min-h-0 lg:min-h-[645px] h-auto items-center relative shrink-0 w-full pt-[24px] lg:pt-[40px] px-[12px] lg:px-8 pb-[20px] lg:pb-0">
           {!showThankYouMessage && <Stepper currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />}
 
           <div
-            className={`flex-1 w-full flex flex-col items-center justify-center relative transition-all duration-500 ${currentStep === 5 ? 'min-h-[850px]' : 'min-h-[400px]'}`}
+            className={`flex-1 w-full flex flex-col items-center justify-center relative transition-all duration-500 ${currentStep === 5 ? 'lg:min-h-[850px]' : 'lg:min-h-[400px]'}`}
           >
             {renderCurrentStepContent()}
           </div>
 
-          <div className="flex items-center justify-center gap-4 py-8 mb-4 w-full h-[100px]">
+          <div className="flex items-center justify-center gap-4 py-4 lg:py-8 mb-0 lg:mb-4 w-full h-auto lg:h-[100px]">
             {currentStep > 1 && !showThankYouMessage && (
               <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-8 py-4 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-lg font-semibold transition-all">Back</Button>
             )}
@@ -417,7 +465,7 @@ export default function StrategySession() {
           </div>
         </div>
 
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_16.5px_36.9px_0px_rgba(255,255,255,0.4)]" />
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-16.5px_36.9px_0px_white] lg:shadow-[inset_0px_16.5px_36.9px_0px_rgba(255,255,255,0.4)]" />
       </div>
     </div>
   );
