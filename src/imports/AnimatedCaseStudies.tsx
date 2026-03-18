@@ -1,11 +1,27 @@
 import { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionValueEvent, animate } from 'motion/react';
+import { motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionValueEvent, animate, AnimatePresence } from 'motion/react';
 import '../styles/case-studies-animations.css';
 
 import CaseStudy3 from './CaseStudy3';
 import CaseStudy4 from './CaseStudy4';
 import CaseStudy5 from './CaseStudy5';
 import CaseStudy6 from './CaseStudy6';
+
+import Component414 from './Component414';
+import CS_Squadio from './CS_Squadio';
+import CS_RibalMagic from './CS_RibalMagic';
+import CS_RegalHoney from './CS_RegalHoney';
+import CS_VitrineFurniture from './CS_VitrineFurniture';
+
+const TimerTrigger = ({ isOpened, onComplete }: { isOpened: boolean, onComplete: () => void }) => {
+    useEffect(() => {
+        if (isOpened) {
+            const timer = setTimeout(onComplete, 6000);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpened, onComplete]);
+    return null;
+};
 
 // Mobile case study data — extracted from CaseStudy3/4/5/6
 const mobileCaseStudies = [
@@ -68,6 +84,28 @@ const BAR_WIDTH = 12;
 
 export default function AnimatedCaseStudies() {
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // ── Mobile State ──
+    const [isOpened, setIsOpened] = useState(false);
+    const [isGateComplete, setIsGateComplete] = useState(false);
+    const [activeMobileIndex, setActiveMobileIndex] = useState(0);
+
+    const mobileComponents = [
+        CS_Squadio,
+        CS_RibalMagic,
+        CS_RegalHoney,
+        CS_VitrineFurniture,
+    ];
+
+    const handleMobileNext = () => {
+        setActiveMobileIndex((prev) => (prev + 1) % mobileComponents.length);
+    };
+
+    const handleMobilePrev = () => {
+        setActiveMobileIndex((prev) => (prev - 1 + mobileComponents.length) % mobileComponents.length);
+    };
+
+    const ActiveMobileComponent = mobileComponents[activeMobileIndex];
 
     // ── Mobile detection ──
     const [isMobile, setIsMobile] = useState(false);
@@ -197,90 +235,47 @@ export default function AnimatedCaseStudies() {
 
     const scrollHintOpacity = useTransform(roundedScroll, [0, 0.05], [1, 0]);
 
-    // ══════ MOBILE: Simple section with entrance animations (zero dead space) ══════
+    // ══════ MOBILE: Interactive mobile case studies ══════
     if (isMobile) {
         return (
-            <div className="relative w-full py-12 px-4" style={{ background: '#020601' }}>
-                {/* Section Header with decorative neon bars */}
-                <motion.div
-                    className="relative flex items-center justify-center mb-8"
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true, amount: 0.5 }}
-                    transition={{ duration: 0.6 }}
-                >
-                    {/* Left neon bar */}
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-[3px] h-[40px] rounded-full"
-                        style={{ color: '#6ae499' }}
-                    >
-                        <div className="t-gate-blur-2" />
-                        <div className="t-gate-blur-1" />
-                        <div className="t-gate-core" />
-                    </div>
+            <div className="min-h-screen flex flex-col items-center bg-[#020601] overflow-hidden">
+                <div className="w-full h-[100dvh] relative flex flex-col items-center justify-center shrink-0">
+                    
+                    {/* Gate and Title Section */}
+                    <AnimatePresence>
+                        {!isGateComplete && (
+                            <motion.div 
+                                className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden"
+                                onMouseEnter={() => setIsOpened(true)}
+                                onTouchStart={() => setIsOpened(true)}
+                                initial={{ opacity: 1 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.8, ease: "easeInOut" }}
+                            >
+                                <Component414 isOpened={isOpened} setIsOpened={setIsOpened} />
+                                
+                                {/* Timer for switching to carousel */}
+                                <TimerTrigger isOpened={isOpened} onComplete={() => setIsGateComplete(true)} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    <h2 className="font-['Sora',sans-serif] font-bold text-[36px] tracking-[-2px] text-center leading-tight"
-                        style={{
-                            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(100,100,100,0.7) 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                        }}
-                    >
-                        Case Studies
-                    </h2>
-
-                    {/* Right neon bar */}
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 w-[3px] h-[40px] rounded-full"
-                        style={{ color: '#6ae499' }}
-                    >
-                        <div className="t-gate-blur-2" />
-                        <div className="t-gate-blur-1" />
-                        <div className="t-gate-core" />
-                    </div>
-                </motion.div>
-
-                {/* Case Study Cards */}
-                <div className="flex flex-col gap-5">
-                    {mobileCaseStudies.map((cs, i) => (
-                        <motion.div
-                            key={i}
-                            className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm overflow-hidden"
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, amount: 0.15 }}
-                            transition={{ duration: 0.5, delay: i * 0.08 }}
-                        >
-                            <div className="p-5 pb-3">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <h3 className="font-['Sora',sans-serif] font-semibold text-[22px] text-white tracking-[-0.02em]">
-                                        {cs.brand}
-                                    </h3>
-                                    <span
-                                        className="text-[12px] font-['Sora',sans-serif] px-3 py-1 rounded-full"
-                                        style={{ backgroundColor: cs.industryBg, color: cs.industryColor }}
-                                    >
-                                        {cs.industry}
-                                    </span>
-                                </div>
-                                <div className="mb-3">
-                                    <p className="font-['Sora',sans-serif] font-semibold text-[13px] mb-1" style={{ color: cs.industryColor }}>Challenge</p>
-                                    <p className="font-['Sora',sans-serif] text-[13px] text-white/70 leading-relaxed">{cs.challenge}</p>
-                                </div>
-                                <div>
-                                    <p className="font-['Sora',sans-serif] font-semibold text-[13px] mb-1" style={{ color: cs.industryColor }}>Hypothesis</p>
-                                    <p className="font-['Sora',sans-serif] text-[13px] text-white/70 leading-relaxed">{cs.hypothesis}</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-4 px-5 py-4 border-t border-white/5">
-                                {cs.stats.map((stat, j) => (
-                                    <div key={j} className="flex-1">
-                                        <p className="font-['Sora',sans-serif] font-bold text-[24px] tracking-[-0.02em]" style={{ color: stat.color }}>{stat.value}</p>
-                                        <p className="font-['Sora',sans-serif] text-[11px] text-white/50">{stat.label}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    ))}
+                    {/* Content Section (Carousel) */}
+                    <AnimatePresence mode="wait">
+                        {isGateComplete && (
+                            <motion.div
+                                key={activeMobileIndex}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.8, delay: 0.2 }}
+                                className="absolute inset-0"
+                            >
+                                <ActiveMobileComponent onNext={handleMobileNext} onPrev={handleMobilePrev} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
         );
