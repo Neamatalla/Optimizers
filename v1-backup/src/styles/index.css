@@ -1,0 +1,206 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+@import './responsive.css';
+
+html {
+    overflow-x: clip;
+}
+
+body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    max-width: 100vw;
+    font-family: 'Sora', sans-serif;
+}
+
+* {
+    font-family: inherit;
+}
+
+#root {
+    width: 100%;
+    max-width: 100vw;
+}
+
+/* ===== Header Scroll-Driven Animation ===== */
+.header-scroll-container {
+    position: relative;
+    height: 250vh;
+    background: #020601;
+    z-index: 10;
+}
+
+.global-persistent-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 2000;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+}
+
+.header-sticky-viewport {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    z-index: 2;
+}
+
+.header-content-box {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: clip;
+    background: #020601;
+    display: flex;
+    justify-content: center;
+}
+
+.header-content-scaler {
+    width: 1440px;
+    height: 1595px;
+    transform-origin: top center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.header-scroll-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.header-bg-layer {
+    z-index: 1;
+}
+
+.header-hero-layer {
+    z-index: 2;
+    will-change: transform, opacity;
+}
+
+.header-tablet-layer {
+    z-index: 3;
+    will-change: transform;
+    pointer-events: none;
+}
+
+.header-tablet-layer video,
+.header-tablet-layer img {
+    pointer-events: auto;
+}
+
+.header-nav-layer {
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* ===== Compact hero spacing for smaller screens (13-inch MacBooks) ===== */
+@media (max-height: 900px) {
+    .hero-frame10 {
+        top: 140px !important;
+        gap: 36px !important;
+        height: 558px !important;
+    }
+
+    .hero-frame9 {
+        gap: 44px !important;
+        height: 388px !important;
+    }
+
+    .hero-frame7 {
+        height: 296px !important;
+    }
+
+    .hero-frame8 {
+        gap: 24px !important;
+    }
+}
+
+/* ===== Client Logo Hover Effect ===== */
+.client-logo {
+    filter: grayscale(1);
+    transition: filter 0.3s ease;
+}
+
+.client-logo:hover {
+    filter: grayscale(0);
+}
+
+.client-logo:hover * {
+    mix-blend-mode: normal !important;
+    filter: none !important;
+}
+
+/* ===== Performance Optimization ===== */
+.content-visibility-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 800px;
+}
+
+/* ===== Scroll To Top Button ===== */
+.scroll-to-top-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 16px;
+    z-index: 1500;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(106, 228, 153, 0.4);
+    background: rgba(2, 6, 1, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #6ae499;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 0 20px rgba(106, 228, 153, 0.15),
+        inset 0 0 12px rgba(106, 228, 153, 0.08);
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+    pointer-events: none;
+    transition:
+        opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 0.25s ease,
+        border-color 0.25s ease,
+        background 0.25s ease;
+}
+
+@media (min-width: 1024px) {
+    .scroll-to-top-btn {
+        bottom: 32px;
+        right: 32px;
+        width: 48px;
+        height: 48px;
+    }
+}
+
+.scroll-to-top-btn.scroll-to-top-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.scroll-to-top-btn:hover {
+    border-color: rgba(106, 228, 153, 0.8);
+    background: rgba(106, 228, 153, 0.12);
+    box-shadow:
+        0 0 30px rgba(106, 228, 153, 0.3),
+        inset 0 0 16px rgba(106, 228, 153, 0.15);
+    transform: translateY(-2px) scale(1.05);
+}
+
+.scroll-to-top-btn:active {
+    transform: translateY(0) scale(0.95);
+    transition-duration: 0.1s;
+}

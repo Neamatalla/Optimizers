@@ -1,0 +1,62 @@
+/* ─── Top Clients: Full-screen sticky scroll wrapper ─────────── */
+.tc-scroll-container {
+    position: relative;
+    width: 100%;
+    min-height: 350vh;
+    background: #020601;
+}
+
+/* Mobile: shorter runway for touch-friendly scrolling */
+@media (max-width: 1023px) {
+    .tc-scroll-container {
+        min-height: 250vh;
+    }
+}
+
+
+.tc-sticky-wrapper {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: clip;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    contain: paint;
+}
+
+/* ─── Slides clip container ─────────────────────────────────── */
+.tc-slides-clip {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: clip;
+    contain: paint;
+}
+
+/* ─── Individual slide wrapper ──────────────────────────────── */
+.tc-slide-wrapper {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* ─── Persistent CTA overlay ───────────────────────────────── */
+.tc-persistent-ui {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+}
+
+.tc-persistent-ui>* {
+    pointer-events: auto;
+}

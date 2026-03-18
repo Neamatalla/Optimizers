@@ -1,0 +1,228 @@
+/* ═══════════════════════════════════════════════
+   SCROLL-REVEAL ANIMATION SYSTEM (Mobile Only)
+   Fizens-inspired entrance animations
+   ═══════════════════════════════════════════════ */
+
+/* ── Base: Hidden state ── */
+.reveal-hidden {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Revealed state ── */
+.reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Scale variant ── */
+.reveal-scale.reveal-hidden {
+    transform: scale(0.94);
+}
+
+.reveal-scale.reveal-visible {
+    transform: scale(1);
+}
+
+/* ── Stagger delays (add these alongside reveal-hidden/visible) ── */
+.reveal-stagger-0 {
+    transition-delay: 0ms;
+}
+
+.reveal-stagger-1 {
+    transition-delay: 80ms;
+}
+
+.reveal-stagger-2 {
+    transition-delay: 160ms;
+}
+
+.reveal-stagger-3 {
+    transition-delay: 240ms;
+}
+
+.reveal-stagger-4 {
+    transition-delay: 320ms;
+}
+
+.reveal-stagger-5 {
+    transition-delay: 400ms;
+}
+
+.reveal-stagger-6 {
+    transition-delay: 480ms;
+}
+
+.reveal-stagger-7 {
+    transition-delay: 560ms;
+}
+
+.reveal-stagger-8 {
+    transition-delay: 640ms;
+}
+
+/* ── Floating / Bob animation (for Partners icons) ── */
+@keyframes float-bob {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+.float-bob {
+    animation: float-bob 3s ease-in-out infinite;
+}
+
+/* Stagger the float so icons aren't all in sync */
+.float-bob-0 {
+    animation-delay: 0s;
+}
+
+.float-bob-1 {
+    animation-delay: 0.3s;
+}
+
+.float-bob-2 {
+    animation-delay: 0.6s;
+}
+
+.float-bob-3 {
+    animation-delay: 0.9s;
+}
+
+.float-bob-4 {
+    animation-delay: 1.2s;
+}
+
+.float-bob-5 {
+    animation-delay: 1.5s;
+}
+
+.float-bob-6 {
+    animation-delay: 1.8s;
+}
+
+.float-bob-7 {
+    animation-delay: 2.1s;
+}
+
+.float-bob-8 {
+    animation-delay: 2.4s;
+}
+
+/* ── CTA Glow Pulse ── */
+@keyframes glow-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 25px rgba(106, 228, 153, 0.3),
+            inset 0 0 30px rgba(106, 228, 153, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 40px rgba(106, 228, 153, 0.5),
+            inset 0 0 40px rgba(106, 228, 153, 0.8);
+    }
+}
+
+.cta-glow-pulse {
+    animation: glow-pulse 2.5s ease-in-out infinite;
+}
+
+/* ── Mobile Nav Link Stagger ── */
+.nav-link-stagger {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-link-stagger.nav-link-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Stagger delays for nav links */
+.nav-link-stagger:nth-child(1) {
+    transition-delay: 0.05s;
+}
+
+.nav-link-stagger:nth-child(2) {
+    transition-delay: 0.10s;
+}
+
+.nav-link-stagger:nth-child(3) {
+    transition-delay: 0.15s;
+}
+
+.nav-link-stagger:nth-child(4) {
+    transition-delay: 0.20s;
+}
+
+.nav-link-stagger:nth-child(5) {
+    transition-delay: 0.25s;
+}
+
+.nav-link-stagger:nth-child(6) {
+    transition-delay: 0.30s;
+}
+
+.nav-link-stagger:nth-child(7) {
+    transition-delay: 0.35s;
+}
+
+.nav-link-stagger:nth-child(8) {
+    transition-delay: 0.40s;
+}
+
+/* ── Spring-like carousel transition (for Top Clients) ── */
+.carousel-spring {
+    transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 600ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 0s !important;
+}
+
+.carousel-spring-hidden {
+    transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 600ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 600ms !important;
+}
+
+/* ── Mobile Tap Feedback (Fizens-inspired) ── */
+@media (max-width: 1023px) {
+    /* Buttons: subtle scale-down on tap */
+    .tap-feedback {
+        transition: transform 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .tap-feedback:active {
+        transform: scale(0.96) !important;
+    }
+
+    /* Cards: gentle press effect on tap */
+    .tap-feedback-card {
+        transition: transform 0.1s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .tap-feedback-card:active {
+        transform: scale(0.98) !important;
+    }
+}
+
+/* ── Desktop override: no entrance animations ── */
+@media (min-width: 1024px) {
+    .reveal-hidden {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
