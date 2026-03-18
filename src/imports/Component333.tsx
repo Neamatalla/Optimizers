@@ -2,6 +2,7 @@ import svgPaths from "./svg-qeyjw9p68s";
 import imgWhyChooseOurCroAgency from "../assets/b17a09a1da837a217fffce56dd8a2a3ec3e8dbd7.webp";
 import WaveConnector from "./WaveConnector";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useIsMobile } from "@/app/components/ui/use-mobile";
 
 function MaskBase() {
   return (
@@ -2071,76 +2072,96 @@ function Frame() {
 }
 
 
-const whyChooseCards = [
+const whyChooseCards: { title: string; description: string; Icon: () => React.JSX.Element }[] = [
   {
     title: "100% Guarantee",
     description: "If we don't improve your conversions, you don't pay",
-    icon: "🛡️",
+    Icon: Group1,
   },
   {
     title: "Fastest Setup, Continuous Growth",
     description: "Your first experiments live in just 14 days, with ongoing testing cycles for sustained impact",
-    icon: "📈",
-  },
-  {
-    title: "Specialized Expertise",
-    description: "Certified CRO specialists with deep understanding of Arabic users, cultural nuances, and GCC market behavior",
-    icon: "🎯",
+    Icon: Group4,
   },
   {
     title: "Proven Track Record",
     description: "8+ years helping brands achieve an average 35% lift in conversion rates",
-    icon: "📊",
+    Icon: Group2,
+  },
+  {
+    title: "Specialized Expertise",
+    description: "Certified CRO specialists with deep understanding of Arabic users, cultural nuances, and GCC market behavior",
+    Icon: Group3,
   },
 ];
 
 function MobileWhyChooseCards() {
-  const [ref, isVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.25, rootMargin: '0px 0px -80px 0px' });
+  const [ref, isVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
   return (
-    <div ref={ref} className="flex flex-col gap-3 px-4 pb-6 md:hidden">
-      {whyChooseCards.map((card, i) => (
-        <div
-          key={i}
-          className="relative rounded-[20px] p-[1px] overflow-hidden"
-          style={{
-            background: 'linear-gradient(to bottom, #6ae499, #fde68a, #ff6b57)',
-            opacity: isVisible ? 1 : 0,
-            transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
-            transition: `opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${i * 150}ms, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${i * 150}ms`,
-          }}
-        >
-          <div className="bg-[#0a0e08] rounded-[19px] px-5 py-5 flex items-center gap-4 tap-feedback-card">
-            <div className="text-3xl shrink-0">{card.icon}</div>
-            <div className="flex flex-col gap-1">
-              <p className="font-['Sora',sans-serif] font-semibold text-[15px] text-white leading-tight">{card.title}</p>
-              <p className="font-['Sora',sans-serif] font-normal text-[12px] text-white/70 leading-snug">{card.description}</p>
+    <div ref={ref} className="grid grid-cols-2 gap-[15px] px-5 pb-8">
+      {whyChooseCards.map((card, i) => {
+        const Icon = card.Icon;
+        return (
+          <div
+            key={i}
+            className="relative rounded-[16px] overflow-hidden p-[1.143px] shadow-[0px_2px_28.8px_0px_rgba(253,230,138,0.1),0px_2px_17.6px_0px_rgba(146,235,180,0.1)]"
+            style={{
+              opacity: isVisible ? 1 : 0,
+              transform: isVisible ? 'translateY(0)' : 'translateY(30px)',
+              transition: `opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 120}ms, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 120}ms`,
+            }}
+          >
+            {/* Gradient Border Overlay */}
+            <div className="absolute inset-0 rounded-[16px] pointer-events-none bg-gradient-to-b from-[#6ae499] via-[#fde68a] to-[#ff6b57] opacity-60 blur-[2px]" />
+            {/* Inner Black Background */}
+            <div className="absolute inset-[1.143px] bg-[#020601] rounded-[15px] z-0" />
+            {/* Content */}
+            <div className="relative z-10 rounded-[15px] overflow-hidden">
+              {/* Lights overlay */}
+              <div className="absolute inset-0 bg-black rounded-[15px]">
+                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_#5b626d]" />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black rounded-[15px]" />
+              {/* Card content */}
+              <div className="relative z-10 flex flex-col items-center gap-5 text-center px-3 py-6">
+                <div className="scale-[0.5] origin-center shrink-0 -my-4">
+                  <Icon />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <p className="font-['Sora',sans-serif] font-semibold text-[14px] text-white leading-[18px]">{card.title}</p>
+                  <p className="font-['Sora',sans-serif] font-normal text-[12px] text-white/80 leading-[17px]">{card.description}</p>
+                </div>
+              </div>
             </div>
+            {/* Inner Glow */}
+            <div className="absolute inset-0 pointer-events-none rounded-[16px] shadow-[inset_0px_0px_20px_rgba(106,228,153,0.15)]" />
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 export default function Component() {
+  const isMobile = useIsMobile();
   return (
     <div className="bg-[#020601] relative w-full min-h-0 lg:min-h-[1000px] shrink-0 overflow-hidden" data-name="Component 333">
       <div className="relative lg:absolute lg:left-1/2 lg:-translate-x-1/2 lg:top-0 lg:w-[1440px] lg:h-full z-10 w-full flex flex-wrap justify-center gap-6 px-4 py-8 lg:block lg:p-0">
         <Frame7 />
         <Frame9 />
         <Frame8 />
-        {/* Desktop cards - hidden on mobile */}
-        <div className="hidden md:contents">
+        {/* Desktop cards - conditionally rendered to avoid duplicate SVG IDs */}
+        {!isMobile && <>
           <Safer />
           <Safer1 />
           <Safer2 />
           <Safer3 />
-        </div>
+        </>}
       </div>
       {/* Heading — renders before mobile cards */}
       <Frame />
-      {/* Mobile cards — shown only on small screens, below heading */}
-      <MobileWhyChooseCards />
+      {/* Mobile cards — conditionally rendered to avoid duplicate SVG IDs */}
+      {isMobile && <MobileWhyChooseCards />}
     </div>
   );
 }
