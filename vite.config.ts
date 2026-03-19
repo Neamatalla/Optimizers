@@ -24,7 +24,7 @@ function apiMiddlewarePlugin() {
         req.on('end', async () => {
           try {
             const env = loadEnv('development', process.cwd(), '');
-            const apiKey = env.RESEND_API_KEY;
+            const apiKey = env.RESEND_API_KEY || "re_ZCdaNrsb_8diHsNULEJzscD2Chs2sEDay";
             if (!apiKey) {
               console.warn("RESEND_API_KEY is missing in .env. Mocking success for development form testing.");
               res.statusCode = 200;
