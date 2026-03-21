@@ -3,6 +3,7 @@ import clsx from "clsx";
 import imgOurProvenConversionOptimizationProcess from "../assets/f107a7f40e4d7ea19ffc42c38dbf8e17414a5f3b.webp";
 import { AnimatedProcessCard } from "./AnimatedProcessCard";
 import { AnimatedBeforeCard } from "./AnimatedBeforeCard";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 type ProcessBackgroundImageProps = {
     additionalClassNames?: string;
@@ -17,29 +18,143 @@ function ProcessBackgroundImage({ children, additionalClassNames = "", noRotatio
     );
 }
 
+/* ──────────── Mobile-specific static cards ──────────── */
+
+const beforeLabels = [
+    "One-size-fits-all", "Generic Best Practices", "Skipping user feedback",
+    "No plan, just tasks", "Pure Guesswork", "No learning loop",
+    "No clear funnel map", "Copying Competitors", "No Testing",
+    "No Tracking Data", "No Research"
+];
+
+const afterLabels = [
+    { name: "Discovery", color: "#4ade80" },
+    { name: "Research", color: "#60a5fa" },
+    { name: "Ideation", color: "#f472b6" },
+    { name: "Prioritization", color: "#facc15" },
+    { name: "Experimentation", color: "#c084fc" },
+    { name: "Results", color: "#fb923c" },
+];
+
+function MobileBeforeCard() {
+    const { language, t } = useLanguage();
+    return (
+        <div className="relative w-full rounded-[24px] bg-[#020601] border border-white/10 p-6 overflow-hidden min-h-[280px]">
+            {/* Subtle red-ish bottom glow */}
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[120%] h-[100px] blur-[60px] opacity-30 bg-red-500/40 pointer-events-none" />
+            {/* Scattered pills */}
+            <div className="flex flex-wrap gap-2 justify-center relative z-10">
+                {beforeLabels.map((label, i) => {
+                    const translatedLabel = language === 'ar' ? (t(label) || label) : label;
+                    return (
+                        <div
+                            key={i}
+                            className="px-4 py-2.5 rounded-xl bg-[#252925] border border-white/20 text-white text-[13px] font-['Sora',sans-serif] whitespace-nowrap"
+                            style={{
+                                transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (2 + (i % 3))}deg)`,
+                            }}
+                        >
+                            {translatedLabel}
+                        </div>
+                    );
+                })}
+            </div>
+            {/* Bottom gradient fade border */}
+            <div
+                className="absolute inset-0 pointer-events-none rounded-[inherit]"
+                style={{
+                    padding: "1.5px",
+                    background: "linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255,255,255,0.1) 60%, rgba(255,255,255,0.3) 100%)",
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                }}
+            />
+            <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-35px_50px_0px_rgba(239,68,68,0.1)]" />
+        </div>
+    );
+}
+
+function MobileAfterCard() {
+    const { language, t } = useLanguage();
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveIndex(prev => (prev + 1) % afterLabels.length);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const activeColor = afterLabels[activeIndex].color;
+
+    return (
+        <div className="relative w-full rounded-[24px] bg-[#020601] border border-white/10 overflow-hidden min-h-[280px] flex flex-col items-center justify-center gap-5 py-8 px-4">
+            {/* Central orb */}
+            <div className="relative flex items-center justify-center">
+                <div className="absolute size-[160px] rounded-full blur-[50px] opacity-20 transition-colors duration-1000" style={{ background: `radial-gradient(circle, ${activeColor} 0%, transparent 70%)` }} />
+                <div className="absolute size-20 rounded-full blur-2xl opacity-40 transition-colors duration-1000" style={{ background: activeColor }} />
+                <div className="relative size-16 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden">
+                    <div className="absolute inset-0 transition-colors duration-1000" style={{ background: `radial-gradient(circle at 35% 35%, ${activeColor} 0%, ${activeColor}66 40%, #000 90%)` }} />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+                </div>
+            </div>
+            {/* Labels */}
+            <div className="flex flex-wrap gap-2.5 justify-center relative z-10 max-w-[340px]">
+                {afterLabels.map((label, i) => {
+                    const translatedLabel = language === 'ar' ? (t(label.name) || label.name) : label.name;
+                    const isActive = i === activeIndex;
+                    return (
+                        <div
+                            key={label.name}
+                            className="px-5 py-2.5 rounded-xl border border-solid transition-all duration-700 ease-out text-white text-[13px] font-['Sora',sans-serif] font-medium whitespace-nowrap"
+                            style={{
+                                backgroundColor: 'rgba(10, 10, 10, 0.96)',
+                                borderColor: isActive ? label.color : 'rgba(255,255,255,0.1)',
+                                boxShadow: isActive
+                                    ? `0 10px 30px -10px rgba(0,0,0,0.5), inset 0px -6px 10px -4px ${label.color}, inset 0 0 8px ${label.color}15`
+                                    : 'none',
+                                transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                            }}
+                        >
+                            {translatedLabel}
+                        </div>
+                    );
+                })}
+            </div>
+            {/* Bottom glow */}
+            <div
+                className="absolute inset-0 rounded-[inherit] opacity-30 pointer-events-none transition-all duration-1000"
+                style={{ boxShadow: `inset 0px -80px 120px -40px ${activeColor}` }}
+            />
+            {/* Fading border */}
+            <div
+                className="absolute inset-0 pointer-events-none rounded-[inherit]"
+                style={{
+                    padding: "1.5px",
+                    background: `linear-gradient(to bottom, transparent 0%, transparent 40%, ${activeColor}1a 60%, ${activeColor}4d 100%)`,
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                }}
+            />
+        </div>
+    );
+}
+
+/* ──────────── Main component ──────────── */
 
 export default function ProcessWithAnimation() {
     const sectionRef = useRef<HTMLDivElement>(null);
     const [sectionVisible, setSectionVisible] = useState(false);
-    const [cardScale, setCardScale] = useState(1);
 
     useEffect(() => {
-        const handleResize = () => {
-            // Apply scale on mobile/tablet (below 1024px), max width 570
-            const screenWidth = window.innerWidth;
-            if (screenWidth < 1024) {
-                // 32px accounts for the 16px horizontal padding on both sides
-                setCardScale(Math.min(1, (screenWidth - 32) / 570));
-            } else {
-                setCardScale(1);
-            }
-        };
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        // On mobile, force-enable animations immediately
+        if (window.innerWidth < 1024) {
+            setSectionVisible(true);
+            return;
+        }
 
-    useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -47,7 +162,7 @@ export default function ProcessWithAnimation() {
                     observer.disconnect();
                 }
             },
-            { threshold: 0.1, rootMargin: '0px' }
+            { threshold: 0.05, rootMargin: '200px 0px' }
         );
 
         if (sectionRef.current) {
@@ -86,27 +201,34 @@ export default function ProcessWithAnimation() {
 
             {/* Cards Section */}
             <div className="flex flex-col lg:flex-row items-center justify-center gap-[40px] lg:gap-20 w-full px-[16px] lg:px-4 relative mt-10 lg:mt-10">
+
                 {/* Before Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px]">
                     <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">Before</p>
-                    <div className="relative z-10 w-full flex justify-center lg:block" style={{ height: cardScale < 1 ? `${589 * cardScale}px` : '589px' }}>
-                        <div className="origin-top flex justify-center lg:origin-top-left" style={{ transform: `scale(${cardScale})`, width: "570px", height: "589px" }}>
-                            <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
-                                <AnimatedBeforeCard sectionVisible={sectionVisible} />
-                            </ProcessBackgroundImage>
-                        </div>
+                    {/* Mobile: static card */}
+                    <div className="lg:hidden relative z-10 w-full">
+                        <MobileBeforeCard />
+                    </div>
+                    {/* Desktop: animated card */}
+                    <div className="hidden lg:flex relative z-10 justify-center">
+                        <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
+                            <AnimatedBeforeCard sectionVisible={sectionVisible} />
+                        </ProcessBackgroundImage>
                     </div>
                 </div>
 
                 {/* After Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px] mt-6 lg:mt-0">
                     <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">After</p>
-                    <div className="relative z-10 w-full flex justify-center lg:block" style={{ height: cardScale < 1 ? `${589 * cardScale}px` : '589px' }}>
-                        <div className="origin-top flex justify-center lg:origin-top-left" style={{ transform: `scale(${cardScale})`, width: "570px", height: "589px" }}>
-                            <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
-                                <AnimatedProcessCard sectionVisible={sectionVisible} />
-                            </ProcessBackgroundImage>
-                        </div>
+                    {/* Mobile: static card */}
+                    <div className="lg:hidden relative z-10 w-full">
+                        <MobileAfterCard />
+                    </div>
+                    {/* Desktop: animated card */}
+                    <div className="hidden lg:flex relative z-10 justify-center">
+                        <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
+                            <AnimatedProcessCard sectionVisible={sectionVisible} />
+                        </ProcessBackgroundImage>
                     </div>
                 </div>
             </div>
