@@ -18,7 +18,7 @@ function ProcessBackgroundImage({ children, additionalClassNames = "", noRotatio
     );
 }
 
-/* ──────────── Mobile-specific static cards ──────────── */
+/* ──────────── Mobile-specific cards ──────────── */
 
 const beforeLabels = [
     "One-size-fits-all", "Generic Best Practices", "Skipping user feedback",
@@ -28,53 +28,114 @@ const beforeLabels = [
 ];
 
 const afterLabels = [
-    { name: "Discovery", color: "#4ade80" },
-    { name: "Research", color: "#60a5fa" },
-    { name: "Ideation", color: "#f472b6" },
-    { name: "Prioritization", color: "#facc15" },
-    { name: "Experimentation", color: "#c084fc" },
-    { name: "Results", color: "#fb923c" },
+    { name: "Discovery", color: "#4ade80", icon: "🔍", step: 1 },
+    { name: "Research", color: "#60a5fa", icon: "📊", step: 2 },
+    { name: "Ideation", color: "#f472b6", icon: "💡", step: 3 },
+    { name: "Prioritization", color: "#facc15", icon: "🎯", step: 4 },
+    { name: "Experimentation", color: "#c084fc", icon: "🧪", step: 5 },
+    { name: "Results", color: "#fb923c", icon: "📈", step: 6 },
 ];
 
+/* ---------- BEFORE: Chaotic, messy, overwhelming ---------- */
 function MobileBeforeCard() {
     const { language, t } = useLanguage();
+
+    // Deterministic "random" positions for chaotic scatter
+    const chaosPositions = [
+        { x: 5, y: 8, rot: -7, z: 3 },
+        { x: 48, y: 2, rot: 12, z: 1 },
+        { x: 15, y: 35, rot: -4, z: 5 },
+        { x: 55, y: 28, rot: 8, z: 2 },
+        { x: 2, y: 58, rot: -11, z: 4 },
+        { x: 42, y: 52, rot: 6, z: 6 },
+        { x: 65, y: 48, rot: -9, z: 1 },
+        { x: 8, y: 78, rot: 14, z: 3 },
+        { x: 50, y: 72, rot: -5, z: 7 },
+        { x: 30, y: 85, rot: 10, z: 2 },
+        { x: 68, y: 80, rot: -8, z: 5 },
+    ];
+
     return (
-        <div className="relative w-full rounded-[24px] bg-[#020601] border border-white/10 p-6 overflow-hidden min-h-[280px]">
-            {/* Subtle red-ish bottom glow */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[120%] h-[100px] blur-[60px] opacity-30 bg-red-500/40 pointer-events-none" />
-            {/* Scattered pills */}
-            <div className="flex flex-wrap gap-2 justify-center relative z-10">
+        <div className="relative w-full rounded-[24px] bg-[#0a0806] border border-red-900/30 overflow-hidden" style={{ minHeight: '360px' }}>
+            {/* Noisy background grain texture */}
+            <div className="absolute inset-0 opacity-[0.04]"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                    backgroundSize: '128px 128px',
+                }}
+            />
+
+            {/* Danger red pulse glow behind everything */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full blur-[100px] opacity-[0.12] bg-red-600 pointer-events-none animate-pulse" />
+
+            {/* Warning/danger diagonal stripes at top */}
+            <div className="absolute top-0 left-0 right-0 h-[3px] opacity-40"
+                style={{
+                    background: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 8px, transparent 8px, transparent 16px)',
+                }}
+            />
+
+            {/* Scattered chaotic pills — absolute positioned for real messiness */}
+            <div className="relative w-full h-full" style={{ minHeight: '360px' }}>
                 {beforeLabels.map((label, i) => {
                     const translatedLabel = language === 'ar' ? (t(label) || label) : label;
+                    const pos = chaosPositions[i];
+                    const opacity = 0.5 + (i % 3) * 0.2; // Varying opacity = depth chaos
+
                     return (
                         <div
                             key={i}
-                            className="px-4 py-2.5 rounded-xl bg-[#252925] border border-white/20 text-white text-[13px] font-['Sora',sans-serif] whitespace-nowrap"
+                            className="absolute px-3.5 py-2 rounded-lg border text-[12px] font-['Sora',sans-serif] whitespace-nowrap"
                             style={{
-                                transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (2 + (i % 3))}deg)`,
+                                left: `${pos.x}%`,
+                                top: `${pos.y}%`,
+                                transform: `rotate(${pos.rot}deg)`,
+                                zIndex: pos.z,
+                                backgroundColor: 'rgba(30, 20, 18, 0.9)',
+                                borderColor: `rgba(239, 68, 68, ${0.15 + (i % 3) * 0.1})`,
+                                color: `rgba(255, 255, 255, ${opacity})`,
+                                boxShadow: i % 3 === 0 ? '0 0 15px rgba(239, 68, 68, 0.08)' : 'none',
                             }}
                         >
                             {translatedLabel}
                         </div>
                     );
                 })}
+
+                {/* Overlapping crossed-out lines for extra chaos feel */}
+                <div className="absolute top-[45%] left-[10%] w-[80%] h-[1px] bg-red-500/10 rotate-[15deg]" />
+                <div className="absolute top-[55%] left-[5%] w-[70%] h-[1px] bg-red-500/8 -rotate-[8deg]" />
+
+                {/* "?" symbols scattered */}
+                <div className="absolute top-[20%] right-[8%] text-red-500/20 text-[28px] font-bold rotate-12">?</div>
+                <div className="absolute bottom-[25%] left-[30%] text-red-500/15 text-[22px] font-bold -rotate-[20deg]">?</div>
+                <div className="absolute top-[60%] right-[25%] text-red-500/12 text-[18px] font-bold rotate-[35deg]">?</div>
             </div>
-            {/* Bottom gradient fade border */}
+
+            {/* Heavy red danger glow from bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-[120px] pointer-events-none"
+                style={{
+                    background: 'linear-gradient(to top, rgba(220, 38, 38, 0.12) 0%, transparent 100%)',
+                }}
+            />
+
+            {/* Fading border with red tint */}
             <div
                 className="absolute inset-0 pointer-events-none rounded-[inherit]"
                 style={{
                     padding: "1.5px",
-                    background: "linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255,255,255,0.1) 60%, rgba(255,255,255,0.3) 100%)",
+                    background: "linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(239,68,68,0.15) 60%, rgba(239,68,68,0.3) 100%)",
                     WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                     WebkitMaskComposite: "xor",
                     maskComposite: "exclude",
                 }}
             />
-            <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-35px_50px_0px_rgba(239,68,68,0.1)]" />
+            <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-40px_60px_0px_rgba(220,38,38,0.12)]" />
         </div>
     );
 }
 
+/* ---------- AFTER: Clean, systematic, step-by-step ---------- */
 function MobileAfterCard() {
     const { language, t } = useLanguage();
     const [activeIndex, setActiveIndex] = useState(0);
@@ -82,51 +143,99 @@ function MobileAfterCard() {
     useEffect(() => {
         const interval = setInterval(() => {
             setActiveIndex(prev => (prev + 1) % afterLabels.length);
-        }, 2000);
+        }, 2500);
         return () => clearInterval(interval);
     }, []);
 
     const activeColor = afterLabels[activeIndex].color;
 
     return (
-        <div className="relative w-full rounded-[24px] bg-[#020601] border border-white/10 overflow-hidden min-h-[280px] flex flex-col items-center justify-center gap-5 py-8 px-4">
-            {/* Central orb */}
-            <div className="relative flex items-center justify-center">
-                <div className="absolute size-[160px] rounded-full blur-[50px] opacity-20 transition-colors duration-1000" style={{ background: `radial-gradient(circle, ${activeColor} 0%, transparent 70%)` }} />
-                <div className="absolute size-20 rounded-full blur-2xl opacity-40 transition-colors duration-1000" style={{ background: activeColor }} />
-                <div className="relative size-16 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden">
-                    <div className="absolute inset-0 transition-colors duration-1000" style={{ background: `radial-gradient(circle at 35% 35%, ${activeColor} 0%, ${activeColor}66 40%, #000 90%)` }} />
+        <div className="relative w-full rounded-[24px] bg-[#020601] border border-white/10 overflow-hidden flex flex-col items-center gap-0 py-7 px-5" style={{ minHeight: '360px' }}>
+
+            {/* Central orb — smaller, above the steps */}
+            <div className="relative flex items-center justify-center mb-6">
+                <div className="absolute size-[120px] rounded-full blur-[40px] opacity-20 transition-all duration-1000" style={{ background: `radial-gradient(circle, ${activeColor} 0%, transparent 70%)` }} />
+                <div className="absolute size-14 rounded-full blur-xl opacity-30 transition-all duration-1000" style={{ background: activeColor }} />
+                <div className="relative size-12 rounded-full shadow-[0_0_25px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden">
+                    <div className="absolute inset-0 transition-all duration-1000" style={{ background: `radial-gradient(circle at 35% 35%, ${activeColor} 0%, ${activeColor}66 40%, #000 90%)` }} />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
                 </div>
             </div>
-            {/* Labels */}
-            <div className="flex flex-wrap gap-2.5 justify-center relative z-10 max-w-[340px]">
+
+            {/* Vertical step flow — the "organized process" feel */}
+            <div className="relative w-full max-w-[300px] flex flex-col items-center z-10">
+                {/* Connecting vertical line */}
+                <div className="absolute left-[24px] top-[20px] bottom-[20px] w-[1px]"
+                    style={{
+                        background: `linear-gradient(to bottom, transparent, ${activeColor}33, ${activeColor}22, transparent)`,
+                    }}
+                />
+
                 {afterLabels.map((label, i) => {
                     const translatedLabel = language === 'ar' ? (t(label.name) || label.name) : label.name;
                     const isActive = i === activeIndex;
+                    const isPast = i < activeIndex;
+
                     return (
                         <div
                             key={label.name}
-                            className="px-5 py-2.5 rounded-xl border border-solid transition-all duration-700 ease-out text-white text-[13px] font-['Sora',sans-serif] font-medium whitespace-nowrap"
+                            className="flex items-center gap-3 w-full py-[10px] transition-all duration-700 ease-out relative"
                             style={{
-                                backgroundColor: 'rgba(10, 10, 10, 0.96)',
-                                borderColor: isActive ? label.color : 'rgba(255,255,255,0.1)',
-                                boxShadow: isActive
-                                    ? `0 10px 30px -10px rgba(0,0,0,0.5), inset 0px -6px 10px -4px ${label.color}, inset 0 0 8px ${label.color}15`
-                                    : 'none',
-                                transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                                opacity: isActive ? 1 : isPast ? 0.65 : 0.4,
+                                transform: isActive ? 'translateX(4px)' : 'translateX(0)',
                             }}
                         >
-                            {translatedLabel}
+                            {/* Step number circle */}
+                            <div
+                                className="relative flex-shrink-0 size-[48px] rounded-full flex items-center justify-center text-[11px] font-['Sora',sans-serif] font-bold transition-all duration-700 border"
+                                style={{
+                                    borderColor: isActive ? label.color : isPast ? `${label.color}55` : 'rgba(255,255,255,0.08)',
+                                    backgroundColor: isActive ? `${label.color}18` : 'rgba(10,10,10,0.8)',
+                                    boxShadow: isActive ? `0 0 20px ${label.color}25, inset 0 0 10px ${label.color}10` : 'none',
+                                }}
+                            >
+                                <span className="text-[16px]">{label.icon}</span>
+                                {/* Active ring pulse */}
+                                {isActive && (
+                                    <div className="absolute inset-[-3px] rounded-full border animate-ping opacity-20" style={{ borderColor: label.color }} />
+                                )}
+                            </div>
+
+                            {/* Label text */}
+                            <div className="flex flex-col gap-0.5">
+                                <span
+                                    className="text-[10px] font-['Sora',sans-serif] font-bold uppercase tracking-[2px] transition-colors duration-700"
+                                    style={{ color: isActive ? label.color : 'rgba(255,255,255,0.3)' }}
+                                >
+                                    Step {label.step}
+                                </span>
+                                <span
+                                    className="text-[15px] font-['Sora',sans-serif] font-semibold text-white transition-all duration-700"
+                                    style={{
+                                        opacity: isActive ? 1 : 0.6,
+                                    }}
+                                >
+                                    {translatedLabel}
+                                </span>
+                            </div>
+
+                            {/* Active indicator arrow */}
+                            {isActive && (
+                                <div className="ml-auto text-[14px] transition-all duration-500" style={{ color: label.color }}>
+                                    ▸
+                                </div>
+                            )}
                         </div>
                     );
                 })}
             </div>
-            {/* Bottom glow */}
+
+            {/* Bottom glow — color follows active step */}
             <div
-                className="absolute inset-0 rounded-[inherit] opacity-30 pointer-events-none transition-all duration-1000"
+                className="absolute inset-0 rounded-[inherit] opacity-25 pointer-events-none transition-all duration-1000"
                 style={{ boxShadow: `inset 0px -80px 120px -40px ${activeColor}` }}
             />
+
             {/* Fading border */}
             <div
                 className="absolute inset-0 pointer-events-none rounded-[inherit]"
@@ -205,7 +314,7 @@ export default function ProcessWithAnimation() {
                 {/* Before Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px]">
                     <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">Before</p>
-                    {/* Mobile: static card */}
+                    {/* Mobile: chaotic card */}
                     <div className="lg:hidden relative z-10 w-full">
                         <MobileBeforeCard />
                     </div>
@@ -220,7 +329,7 @@ export default function ProcessWithAnimation() {
                 {/* After Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px] mt-6 lg:mt-0">
                     <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">After</p>
-                    {/* Mobile: static card */}
+                    {/* Mobile: organized step-by-step card */}
                     <div className="lg:hidden relative z-10 w-full">
                         <MobileAfterCard />
                     </div>
