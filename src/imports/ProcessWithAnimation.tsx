@@ -30,7 +30,7 @@ export default function ProcessWithAnimation() {
                     observer.disconnect();
                 }
             },
-            { threshold: 0, rootMargin: '-80% 0px 0px 0px' }
+            { threshold: 0.1, rootMargin: '0px 0px' }
         );
 
         if (sectionRef.current) {
@@ -68,24 +68,28 @@ export default function ProcessWithAnimation() {
             </div>
 
             {/* Cards Section */}
-            <div className="flex flex-col lg:flex-row items-center justify-center gap-0 lg:gap-20 w-full px-2 lg:px-4 relative mt-0 lg:mt-10">
+            <div className="flex flex-col lg:flex-row items-center justify-center gap-[40px] lg:gap-20 w-full px-[16px] lg:px-4 relative mt-10 lg:mt-10">
                 {/* Before Card */}
-                <div className="flex flex-col items-center relative w-full lg:w-auto">
-                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0">Before</p>
-                    <div className="relative z-10 w-full lg:w-auto flex justify-center">
-                        <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
-                            <AnimatedBeforeCard sectionVisible={sectionVisible} />
-                        </ProcessBackgroundImage>
+                <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px]">
+                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">Before</p>
+                    <div className="relative z-10 w-full aspect-[570/589]" style={{ containerType: 'inline-size' }}>
+                        <div className="origin-top-left" style={{ transform: "scale(min(1, calc(100cqw / 570)))", width: "570px", height: "589px" }}>
+                            <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
+                                <AnimatedBeforeCard sectionVisible={sectionVisible} />
+                            </ProcessBackgroundImage>
+                        </div>
                     </div>
                 </div>
 
                 {/* After Card */}
-                <div className="flex flex-col items-center relative w-full lg:w-auto mt-6 lg:mt-0">
-                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0">After</p>
-                    <div className="relative z-10 w-full lg:w-auto flex justify-center">
-                        <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
-                            <AnimatedProcessCard sectionVisible={sectionVisible} />
-                        </ProcessBackgroundImage>
+                <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px] mt-6 lg:mt-0">
+                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">After</p>
+                    <div className="relative z-10 w-full aspect-[570/589]" style={{ containerType: 'inline-size' }}>
+                        <div className="origin-top-left" style={{ transform: "scale(min(1, calc(100cqw / 570)))", width: "570px", height: "589px" }}>
+                            <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
+                                <AnimatedProcessCard sectionVisible={sectionVisible} />
+                            </ProcessBackgroundImage>
+                        </div>
                     </div>
                 </div>
             </div>
