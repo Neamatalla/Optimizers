@@ -238,9 +238,7 @@ export default function AnimatedHeroSection() {
                                 </>
                             )}
                         </p>
-                        <p className="font-['Sora',sans-serif] font-normal text-[15px] text-white/80 text-center">
-                            {language === 'ar' ? 'مستعد لتكون قصة نجاحنا القادمة؟' : 'Ready to be our next success story?'}
-                        </p>
+
                     </div>
 
                     <div className="relative z-10 flex-1 flex flex-col justify-end w-full max-w-[500px] mx-auto">
@@ -349,12 +347,12 @@ export default function AnimatedHeroSection() {
                                             }}
                                         >
                                             <div>
-                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>Our Goal:</p>
-                                                <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{c.goal}</p>
+                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>{t('Our Goal:')}</p>
+                                                <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{t(c.goal)}</p>
                                             </div>
                                             <div>
-                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>Areas of Improvement:</p>
-                                                <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{c.areas}</p>
+                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>{t('Areas of Improvement:')}</p>
+                                                <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{t(c.areas)}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -381,7 +379,7 @@ export default function AnimatedHeroSection() {
                                                     className="flex flex-col items-start gap-0.5 flex-1 py-1"
                                                 >
                                                     <p className="font-['Sora',sans-serif] font-bold text-[30px] tracking-[-0.04em] leading-tight" style={{ color: c.accentColor }}>{m.value}</p>
-                                                    <p className="font-['Sora',sans-serif] font-medium text-[12px] text-white/90 text-left leading-[1.3]">{m.label}</p>
+                                                    <p className="font-['Sora',sans-serif] font-medium text-[12px] text-white/90 text-left leading-[1.3]">{t(m.label)}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -483,9 +481,7 @@ export default function AnimatedHeroSection() {
                 {/* Persistent CTA */}
                 <div className="tc-persistent-ui hidden lg:block" style={{ zIndex: 50 }}>
                     <div className={`absolute flex flex-col ${language === 'ar' ? 'items-end' : 'items-start'}`} style={{ bottom: '5vw', gap: '1.5vw', ...(language === 'ar' ? { right: '5.5vw' } : { left: '5.5vw' }) }}>
-                        <p className="font-['Sora',sans-serif] font-normal leading-normal text-white" style={{ fontSize: '1.46vw' }}>
-                            {language === 'ar' ? 'مستعد لتكون قصة نجاحنا القادمة؟' : 'Ready to be our next success story?'}
-                        </p>
+
                         <div
                             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
                             className="bg-[rgba(2,6,1,0.7)] backdrop-blur-md h-auto relative rounded-[100px] border border-[#6ae499]/50 cursor-pointer hover:scale-105 hover:bg-[rgba(106,228,153,0.1)] transition-all shadow-[0px_0px_30px_0px_rgba(106,228,153,0.3)]"

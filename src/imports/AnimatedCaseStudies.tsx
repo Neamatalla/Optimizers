@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionValueEvent, animate, AnimatePresence } from 'motion/react';
+import { useLanguage } from '../app/contexts/LanguageContext';
 import '../styles/case-studies-animations.css';
 
 import CaseStudy3 from './CaseStudy3';
@@ -84,6 +85,8 @@ const BAR_WIDTH = 12;
 
 export default function AnimatedCaseStudies() {
     const containerRef = useRef<HTMLDivElement>(null);
+    const mobileSectionRef = useRef<HTMLDivElement>(null);
+    const { t } = useLanguage();
 
     // ── Mobile State ──
     const [isOpened, setIsOpened] = useState(false);
@@ -115,6 +118,21 @@ export default function AnimatedCaseStudies() {
         window.addEventListener('resize', check);
         return () => window.removeEventListener('resize', check);
     }, []);
+
+    // ── Scroll-triggered gate opening for mobile ──
+    useEffect(() => {
+        if (!isMobile || !mobileSectionRef.current) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting && !isOpened) {
+                    setIsOpened(true);
+                }
+            },
+            { threshold: 0.15 }
+        );
+        observer.observe(mobileSectionRef.current);
+        return () => observer.disconnect();
+    }, [isMobile, isOpened]);
 
     // ── Compute scale so the 1440px content fits the viewport exactly ──
     const [scale, setScale] = useState(1);
@@ -238,16 +256,27 @@ export default function AnimatedCaseStudies() {
     // ══════ MOBILE: Interactive mobile case studies ══════
     if (isMobile) {
         return (
-            <div className="min-h-screen flex flex-col items-center bg-[#020601] overflow-hidden">
+            <div className="min-h-screen flex flex-col items-center bg-[#020601] overflow-hidden" ref={mobileSectionRef}>
                 <div className="w-full h-[100dvh] relative flex flex-col items-center justify-center shrink-0">
                     
-                    {/* Gate and Title Section */}
+                    {/* Persistent "CASE STUDIES" title — stays visible during gate, fades after */}
+                    <motion.div
+                        className="absolute inset-0 z-[55] flex items-center justify-center pointer-events-none"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: isGateComplete ? 0 : (isOpened ? 1 : 0) }}
+                        transition={{ duration: isGateComplete ? 0.5 : 0.8, delay: isOpened && !isGateComplete ? 0.3 : 0 }}
+                    >
+                        <div style={{ textAlign: 'center', fontFamily: 'Anton, sans-serif', fontSize: 'clamp(48px, 12vw, 80px)', lineHeight: 1.1, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                            <p style={{ margin: 0 }}>{t('CASE')}</p>
+                            <p style={{ margin: 0 }}>{t('STUDIES')}</p>
+                        </div>
+                    </motion.div>
+
+                    {/* Gate and Animation Section */}
                     <AnimatePresence>
                         {!isGateComplete && (
                             <motion.div 
                                 className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden"
-                                onMouseEnter={() => setIsOpened(true)}
-                                onTouchStart={() => setIsOpened(true)}
                                 initial={{ opacity: 1 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
@@ -351,8 +380,8 @@ export default function AnimatedCaseStudies() {
                                 style={{ opacity: titleOpacity, clipPath: titleClipPath, y: titleY }}
                             >
                                 <div className="cs-title-inner">
-                                    <p style={{ margin: 0 }}>CASE</p>
-                                    <p style={{ margin: 0 }}>STUDIES</p>
+                                    <p style={{ margin: 0 }}>{t('CASE')}</p>
+                                    <p style={{ margin: 0 }}>{t('STUDIES')}</p>
                                 </div>
                             </motion.div>
                         </div>
@@ -365,7 +394,7 @@ export default function AnimatedCaseStudies() {
                     style={{ opacity: scrollHintOpacity }}
                 >
                     <div className="cs-scroll-hint-line" />
-                    <span className="cs-scroll-hint-text">Scroll to Open</span>
+                    <span className="cs-scroll-hint-text">{t('Scroll to Open')}</span>
                 </motion.div>
             </div>
         </div>

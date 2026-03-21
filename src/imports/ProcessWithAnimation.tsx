@@ -207,7 +207,7 @@ function MobileAfterCard() {
                                     className="text-[10px] font-['Sora',sans-serif] font-bold uppercase tracking-[2px] transition-colors duration-700"
                                     style={{ color: isActive ? label.color : 'rgba(255,255,255,0.3)' }}
                                 >
-                                    Step {label.step}
+                                    {language === 'ar' ? `خطوة ${label.step}` : `Step ${label.step}`}
                                 </span>
                                 <span
                                     className="text-[15px] font-['Sora',sans-serif] font-semibold text-white transition-all duration-700"
@@ -254,6 +254,7 @@ function MobileAfterCard() {
 /* ──────────── Main component ──────────── */
 
 export default function ProcessWithAnimation() {
+  const { t } = useLanguage();
     const sectionRef = useRef<HTMLDivElement>(null);
     const [sectionVisible, setSectionVisible] = useState(false);
 
@@ -289,16 +290,16 @@ export default function ProcessWithAnimation() {
             {/* Title Section */}
             <div className="flex flex-col gap-[24px] lg:gap-[32px] items-center text-center z-10 px-4 max-w-full">
                 <p className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] relative shrink-0 text-[32px] lg:text-[72px] text-center tracking-[-2px] lg:tracking-[-2.88px] w-full max-w-[935px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgOurProvenConversionOptimizationProcess}')` }}>
-                    Our Proven Conversion Optimization Process
+                    {t("Our Proven Conversion Optimization Process")}
                 </p>
-                <p className="font-['Sora:Regular',sans-serif] font-normal leading-[22px] lg:leading-[28px] relative shrink-0 text-[14px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.</p>
+                <p className="font-['Sora:Regular',sans-serif] font-normal leading-[22px] lg:leading-[28px] relative shrink-0 text-[14px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">{t('We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.')}</p>
                 {/* CTA button — hidden on mobile to reduce CTA spam */}
                 <div className="hidden lg:block">
                     <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
                         <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
                             <div className="content-stretch flex items-start justify-center pl-0 pr-[0.5px] py-0 relative shrink-0" data-name="div.btn-label">
                                 <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-nowrap text-white">
-                                    <p className="leading-[21.6px]">Book a Free CRO Audit</p>
+                                    <p className="leading-[21.6px]">{t('Book a Free CRO Audit')}</p>
                                 </div>
                             </div>
                         </div>
@@ -313,7 +314,7 @@ export default function ProcessWithAnimation() {
 
                 {/* Before Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px]">
-                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">Before</p>
+                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">{t('Before')}</p>
                     {/* Mobile: chaotic card */}
                     <div className="lg:hidden relative z-10 w-full">
                         <MobileBeforeCard />
@@ -328,7 +329,7 @@ export default function ProcessWithAnimation() {
 
                 {/* After Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px] mt-6 lg:mt-0">
-                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">After</p>
+                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">{t('After')}</p>
                     {/* Mobile: organized step-by-step card */}
                     <div className="lg:hidden relative z-10 w-full">
                         <MobileAfterCard />

@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import svgPaths from "./svg-zxbzk3g5sf";
+import { useLanguage } from '../app/contexts/LanguageContext';
 
 function Group4() {
   return (
@@ -238,6 +239,7 @@ interface ComponentProps {
 }
 
 export default function Component({ isOpened, setIsOpened }: ComponentProps) {
+  const { t } = useLanguage();
   const cornerVariants = {
     closed: (yOffset: number) => ({
       y: yOffset, 
@@ -286,8 +288,6 @@ export default function Component({ isOpened, setIsOpened }: ComponentProps) {
     <div 
       className="bg-[#020601] relative size-full overflow-hidden" 
       data-name="Component 414"
-      onMouseEnter={() => setIsOpened?.(true)}
-      onTouchStart={() => setIsOpened?.(true)}
     >
       <motion.div 
         variants={cornerVariants as any} 
@@ -383,8 +383,8 @@ export default function Component({ isOpened, setIsOpened }: ComponentProps) {
         animate={isOpened ? "opened" : "closed"}
         className="-translate-x-1/2 -translate-y-1/2 absolute flex flex-col font-['Sora'] font-semibold justify-center leading-[64px] left-[50%] text-[56px] text-white text-center top-[50%] tracking-[-2.24px] w-[318px] z-[999] pointer-events-none"
       >
-        <p className="mb-0">Case</p>
-        <p>Studies</p>
+        <p className="mb-0">{t('Case')}</p>
+        <p>{t('Studies')}</p>
       </motion.div>
     </div>
   );

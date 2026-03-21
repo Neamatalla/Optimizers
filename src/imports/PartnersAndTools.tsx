@@ -9,6 +9,7 @@ import img3583589718ShopifyLogoWhiteTransparent from "../assets/b87711c4af26e07d
 import imgHotjarIcon from "../assets/539bc2eb95b4f05acea0b086987528846d075244.webp";
 import imgMicrosoftClarityIcon from "../assets/7812f405b5a3033730572bd6dae6c5acebab4ea4.webp";
 import imgOurPartnersTools from "../assets/e527242af51a4a3d5a76a9787b060a26b6da4a95.webp";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 // Define all icons with their fixed positions and properties
 const icons = [
@@ -182,6 +183,7 @@ function AnimatedIcon({ icon, index }: AnimatedIconProps) {
 }
 
 export default function PartnersAndTools() {
+    const { t } = useLanguage();
     return (
         <div className="relative w-full h-auto lg:h-screen min-h-[300px] lg:min-h-[600px] bg-[#020601] overflow-hidden py-10 lg:py-0 flex flex-col items-center">
             {/* Content Section — on mobile, show first (default flow order) */}
@@ -190,10 +192,10 @@ export default function PartnersAndTools() {
                     className="font-['Sora',sans-serif] font-semibold text-[28px] lg:text-[4.1vw] leading-[1.2] lg:leading-[4.8vw] tracking-[-0.16vw] bg-cover bg-center bg-no-repeat bg-clip-text text-transparent w-full"
                     style={{ backgroundImage: `url('${imgOurPartnersTools}')` }}
                 >
-                    Our Partners & Tools
+                    {t('Our Partners & Tools')}
                 </h1>
                 <p className="font-['Sora',sans-serif] font-normal text-[14px] lg:text-[1.4vw] leading-[1.5] lg:leading-[1.9vw] text-[rgba(255,255,255,0.8)] w-full max-w-[90%] lg:max-w-[53vw]">
-                    We work with the most trusted tools and platforms in the GCC and globally to ensure accurate tracking, effective testing, and scalable growth.
+                    {t('We work with the most trusted tools and platforms in the GCC and globally to ensure accurate tracking, effective testing, and scalable growth.')}
                 </p>
             </div>
 

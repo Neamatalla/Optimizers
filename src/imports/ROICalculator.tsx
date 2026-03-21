@@ -137,6 +137,7 @@ function StepperInput({
 
 // ─── Main Calculator content ───
 function CalculatorContent() {
+  const { t } = useLanguage();
   const [currency, setCurrency] = useState(defaultValues.currency);
   const [monthlyUsers, setMonthlyUsers] = useState(defaultValues.monthlyUsers);
   const [currentCR, setCurrentCR] = useState(defaultValues.currentCR);
@@ -184,7 +185,7 @@ function CalculatorContent() {
         className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora'] font-semibold text-[38px] lg:text-[56px] text-transparent text-center tracking-[-1.76px] lg:tracking-[-2.5px] leading-tight whitespace-nowrap max-w-[303px] lg:max-w-none"
         style={{ backgroundImage: `url('${imgRoiCalculator}')` }}
       >
-        ROI Calculator
+        {t('ROI Calculator')}
       </p>
 
       {/* ─── Currency selector ─── */}
@@ -210,7 +211,7 @@ function CalculatorContent() {
       {/* ─── Projected Revenue (big display) ─── */}
       <div className="flex flex-col items-center gap-[12px] lg:gap-4 w-full">
         <p className="font-['Sora'] font-semibold text-[14px] lg:text-[20px] text-center text-white tracking-[0.56px] lg:tracking-[1.5px] uppercase">
-          Projected Monthly Revenue
+          {t('Projected Monthly Revenue')}
         </p>
         <div className="flex items-center gap-[12px] lg:gap-6 justify-center">
           <p className="font-['Sora'] font-bold text-[32px] lg:text-[72px] text-white tracking-[-2px] leading-none">
@@ -228,7 +229,7 @@ function CalculatorContent() {
       <div className="flex flex-row gap-[9px] lg:gap-[44px] items-start w-full max-w-[303px] lg:max-w-none justify-center">
         {/* Visitors */}
         <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">Visitors</p>
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">{t('Visitors')}</p>
           <StepperInput
             value={monthlyUsers}
             onChange={setMonthlyUsers}
@@ -240,7 +241,7 @@ function CalculatorContent() {
 
         {/* Conv. % */}
         <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">Conv. %</p>
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">{t('Conv. %')}</p>
           <StepperInput
             value={currentCR}
             onChange={setCurrentCR}
@@ -252,7 +253,7 @@ function CalculatorContent() {
 
         {/* Avg Order */}
         <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">Avg Order</p>
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">{t('Avg Order')}</p>
           <StepperInput
             value={currentAOV}
             onChange={setCurrentAOV}
@@ -282,7 +283,7 @@ function CalculatorContent() {
                 : { color: "rgba(255,255,255,0.6)" }
             }
           >
-            {lift}%{lift === selectedLift ? " Lift" : ""}
+            {lift}%{lift === selectedLift ? ` ${t('Lift')}` : ""}
           </button>
         ))}
       </div>
@@ -291,7 +292,7 @@ function CalculatorContent() {
       <div className="flex items-start justify-between w-full max-w-[303px] lg:max-w-[780px]">
         {/* Additional Revenue */}
         <div className="flex flex-col gap-[4px] lg:gap-3 items-start">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">Additional Revenue</p>
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">{t('Additional Revenue')}</p>
           <div className="flex items-center gap-[8px] lg:gap-3">
             <p className="font-['Sora'] font-semibold text-[20px] lg:text-[40px] text-[#6ae499] tracking-[-0.8px] lg:tracking-[-1px] leading-none">
               +{fmt(results.additionalRevenue)}
@@ -306,12 +307,12 @@ function CalculatorContent() {
 
         {/* Additional Orders */}
         <div className="flex flex-col gap-[4px] lg:gap-3 items-end lg:items-start">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">Additional Orders</p>
+          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">{t('Additional Orders')}</p>
           <div className="flex items-center gap-[8px] lg:gap-2 text-white">
             <p className="font-['Sora'] font-semibold text-[20px] lg:text-[40px] tracking-[-0.8px] lg:tracking-[-1px] leading-none">
               +{fmt(results.additionalOrders)}
             </p>
-            <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] opacity-70 self-end pb-1">/month</p>
+            <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] opacity-70 self-end pb-1">{t('/month')}</p>
           </div>
         </div>
       </div>
@@ -329,7 +330,7 @@ function CalculatorContent() {
             ) : (
               <span className="text-[12px] text-white/50">{currency}</span>
             )}
-            <span className="font-['Sora'] text-[12px] lg:text-[14px] text-white/40">Base</span>
+            <span className="font-['Sora'] text-[12px] lg:text-[14px] text-white/40">{t('Base')}</span>
           </div>
           <div className="flex items-center gap-[4px] lg:gap-2">
             <span className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-[#6ae499]">
@@ -340,7 +341,7 @@ function CalculatorContent() {
             ) : (
               <span className="text-[12px] text-[#6ae499]">{currency}</span>
             )}
-            <span className="font-['Sora'] text-[12px] lg:text-[14px] text-[#6ae499]">Projected</span>
+            <span className="font-['Sora'] text-[12px] lg:text-[14px] text-[#6ae499]">{t('Projected')}</span>
           </div>
         </div>
 
@@ -367,7 +368,7 @@ function CalculatorContent() {
         </div>
 
         <p className="font-['Sora'] font-normal text-[12px] lg:text-[14px] text-white/40 text-center">
-          Tap values to recalculate
+          {t('Tap values to recalculate')}
         </p>
       </div>
 
@@ -376,7 +377,7 @@ function CalculatorContent() {
         onClick={handleReset}
         className="text-white/40 font-['Sora'] text-[13px] font-medium underline underline-offset-2 self-center active:text-white/60 transition-colors hover:text-white/60"
       >
-        Reset to defaults
+        {t('Reset to defaults')}
       </button>
     </div>
   );

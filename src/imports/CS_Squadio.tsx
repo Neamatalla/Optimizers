@@ -1,6 +1,7 @@
 import svgPaths from "./svg-cs2";
 import imgProfilePhoto from "../assets/2cc5b00674c967ea21dbba5d55af8fe6d3656772.png";
 import imgIPhone16Pro from "../assets/2ad077971799010c352d92d5752938507aa3d67b.png";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 interface CSProps {
   onNext?: () => void;
@@ -8,6 +9,7 @@ interface CSProps {
 }
 
 export default function CS_Squadio({ onNext, onPrev }: CSProps) {
+  const { t } = useLanguage();
   return (
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       
@@ -159,7 +161,7 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
             </div>
             <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
               <div className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[12px] w-[92px]">
-                <p className="leading-[17px]">Hiring Industry</p>
+                <p className="leading-[17px]">{t('Hiring Industry')}</p>
               </div>
             </div>
           </div>
@@ -170,31 +172,31 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
           
           {/* Challenge */}
           <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-            <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full">Challenge</p>
-            <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">Low conversions due to unclear value, distractions, weak CTAs, and no trust.</p>
+            <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full">{t('Challenge')}</p>
+            <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">{t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}</p>
           </div>
 
           {/* Results */}
           <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-            <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full">Results</p>
+            <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full">{t('Results')}</p>
             <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
               <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
                 <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[24px] tracking-[-0.96px] w-[102px]">
                   <p className="leading-[56px]">+44.02%</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[102px]">Funnel Progression</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[102px]">{t('Funnel Progression')}</p>
               </div>
               <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
                 <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[24px] tracking-[-0.96px] w-[98px]">
                   <p className="leading-[56px]">+4.33%</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">Conversion Rate</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Conversion Rate')}</p>
               </div>
               <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
                 <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[24px] tracking-[-0.96px] w-[98px]">
                   <p className="leading-[56px]">+6.49%</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">Boost Engagement</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Boost Engagement')}</p>
               </div>
             </div>
           </div>
@@ -205,14 +207,14 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
       {/* Before text */}
       <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px]">
         <div className="flex-none rotate-[-15.07deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">Before</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
         </div>
       </div>
 
       {/* After text */}
       <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px]">
         <div className="flex-none rotate-[11.21deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">After</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
         </div>
       </div>
 

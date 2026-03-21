@@ -1,11 +1,13 @@
+import { useLanguage } from "../app/contexts/LanguageContext";
 import svgPaths from "./svg-8wsjqhowl2";
 import imgBeOurNextSuccessStory from "../assets/835347f279bfb9f2ab07e91b8dc25069bcb6dcb2.webp";
 
 function DivBtnLabel() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
       <div className="css-g0mm18 flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-white">
-        <p className="css-ew64yg leading-[21.6px]">Let’s Write Your Success Story</p>
+        <p className="css-ew64yg leading-[21.6px]">{t("Let's Write Your Success Story")}</p>
       </div>
     </div>
   );
@@ -24,19 +26,21 @@ function Link() {
 }
 
 function Frame16() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[24px] items-center relative shrink-0 w-full px-4">
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[1.4] lg:leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.9)] text-center w-full max-w-[690px]">See how we’ve helped e-commerce stores like yours boost conversions, lower costs, and unlock hidden revenue.</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[1.4] lg:leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.9)] text-center w-full max-w-[690px]">{t("See how we've helped e-commerce stores like yours boost conversions, lower costs, and unlock hidden revenue.")}</p>
       <Link />
     </div>
   );
 }
 
 function Frame1() {
+  const { t } = useLanguage();
   return (
     <div className="backdrop-blur-[20px] content-stretch flex flex-col gap-[32px] items-center justify-center relative rounded-[12px] shrink-0">
       <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[92px] relative shrink-0 text-[40px] lg:text-[72.022px] tracking-[-1px] lg:tracking-[-2.8809px] text-center p-2" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBeOurNextSuccessStory}')` }}>
-        Be Our Next Success Story
+        {t('Be Our Next Success Story')}
       </p>
       <Frame16 />
     </div>
@@ -232,11 +236,12 @@ function DivSocialMediaContainer() {
 }
 
 function Frame() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[18px] items-start py-px relative shrink-0" data-name="frame">
       <Frame3 />
       <div className="flex flex-col font-['Sora:Regular',sans-serif] font-normal justify-center leading-[0] relative shrink-0 text-[14px] text-white w-[250px]">
-        <p className="css-4hzbpn leading-[17px]">{`Leading CRO agency specializing in GCC e-commerce optimization. `}</p>
+        <p className="css-4hzbpn leading-[17px]">{t('Leading CRO agency specializing in GCC e-commerce optimization. ')}</p>
       </div>
       <DivSocialMediaContainer />
     </div>
@@ -244,29 +249,31 @@ function Frame() {
 }
 
 function Frame4() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 text-[14px] w-full">
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-        <p className="css-4hzbpn leading-[17px]">About</p>
+        <p className="css-4hzbpn leading-[17px]">{t('About')}</p>
       </div>
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
-        <p className="css-4hzbpn leading-[17px]">Services</p>
+        <p className="css-4hzbpn leading-[17px]">{t('Services')}</p>
       </div>
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>
-        <p className="css-4hzbpn leading-[17px]">ROI Calculator</p>
+        <p className="css-4hzbpn leading-[17px]">{t('ROI Calculator')}</p>
       </div>
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
-        <p className="css-4hzbpn leading-[17px]">Contact</p>
+        <p className="css-4hzbpn leading-[17px]">{t('Contact')}</p>
       </div>
     </div>
   );
 }
 
 function Frame5() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col font-['Sora:Regular',sans-serif] font-normal gap-[24px] items-start leading-[0] relative shrink-0 text-white w-[109px]">
       <div className="flex flex-col justify-center relative shrink-0 text-[18px] w-full">
-        <p className="css-4hzbpn leading-[21.6px]">Quick Links</p>
+        <p className="css-4hzbpn leading-[21.6px]">{t('Quick Links')}</p>
       </div>
       <Frame4 />
     </div>
@@ -274,29 +281,31 @@ function Frame5() {
 }
 
 function Frame7() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 text-[14px]">
       <div className="css-g0mm18 flex flex-col justify-center relative shrink-0">
-        <p className="css-ew64yg leading-[17px]">Conversion Rate Optimization</p>
+        <p className="css-ew64yg leading-[17px]">{t('Conversion Rate Optimization')}</p>
       </div>
       <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content]">
-        <p className="css-4hzbpn leading-[17px]">A/B Testing</p>
+        <p className="css-4hzbpn leading-[17px]">{t('A/B Testing')}</p>
       </div>
       <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content]">
-        <p className="css-4hzbpn leading-[17px]">User Experience Design</p>
+        <p className="css-4hzbpn leading-[17px]">{t('User Experience Design')}</p>
       </div>
       <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content]">
-        <p className="css-4hzbpn leading-[17px]">{`Analytics & Tracking`}</p>
+        <p className="css-4hzbpn leading-[17px]">{t('Analytics & Tracking')}</p>
       </div>
     </div>
   );
 }
 
 function Frame6() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col font-['Sora:Regular',sans-serif] font-normal gap-[24px] items-start leading-[0] relative shrink-0 text-white">
       <div className="flex flex-col justify-center min-w-full relative shrink-0 text-[18px] w-[min-content]">
-        <p className="css-4hzbpn leading-[21.6px]">Services</p>
+        <p className="css-4hzbpn leading-[21.6px]">{t('Services')}</p>
       </div>
       <Frame7 />
     </div>
@@ -318,11 +327,12 @@ function CommunicationLocationOn() {
 }
 
 function Frame8() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex gap-[8px] items-start relative shrink-0 w-full">
       <CommunicationLocationOn />
       <div className="flex flex-col font-['Sora:Regular',sans-serif] font-normal justify-center leading-[0] relative self-stretch shrink-0 text-[14px] text-white w-[268px]">
-        <p className="css-4hzbpn leading-[17px]">Ras Al Khaimah Economic Zone Office</p>
+        <p className="css-4hzbpn leading-[17px]">{t('Ras Al Khaimah Economic Zone Office')}</p>
       </div>
     </div>
   );
@@ -343,11 +353,12 @@ function CommunicationLocationOn1() {
 }
 
 function Frame9() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex gap-[8px] items-start relative shrink-0 w-full">
       <CommunicationLocationOn1 />
       <div className="flex flex-col font-['Sora:Regular',sans-serif] font-normal justify-center leading-[0] relative self-stretch shrink-0 text-[14px] text-white w-[271px]">
-        <p className="css-4hzbpn leading-[17px]">Office Business Hub, New Cairo, Egypt</p>
+        <p className="css-4hzbpn leading-[17px]">{t('Office Business Hub, New Cairo, Egypt')}</p>
       </div>
     </div>
   );
@@ -413,10 +424,11 @@ function Frame13() {
 }
 
 function Frame10() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[24px] items-start relative shrink-0">
       <div className="flex flex-col font-['Sora:Regular',sans-serif] font-normal justify-center leading-[0] min-w-full relative shrink-0 text-[18px] text-white w-[min-content]">
-        <p className="css-4hzbpn leading-[21.6px]">Contact Us</p>
+        <p className="css-4hzbpn leading-[21.6px]">{t('Contact Us')}</p>
       </div>
       <Frame13 />
     </div>

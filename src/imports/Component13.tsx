@@ -2,9 +2,10 @@ import imgOurServices from "../assets/462979b8a94cb599bf6cf91c5d11489a30eeae28.w
 import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Frame() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">Landing Page Optimization</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{t('Landing Page Optimization')}</p>
       <div className="h-0 relative shrink-0 w-full">
         <div className="absolute inset-[-1px_0_0_0]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 468 1">
@@ -12,7 +13,7 @@ function Frame() {
           </svg>
         </div>
       </div>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">Design and refine landing pages built to maximize conversions</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">{t('Design and refine landing pages built to maximize conversions')}</p>
     </div>
   );
 }
@@ -88,9 +89,10 @@ function Card() {
 }
 
 function Frame1() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">CRO Audits</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{t('CRO Audits')}</p>
       <div className="h-0 relative shrink-0 w-full">
         <div className="absolute inset-[-1px_0_0_0]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 468 1">
@@ -98,7 +100,7 @@ function Frame1() {
           </svg>
         </div>
       </div>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">Analyze your funnel to spot leaks, friction points, and hidden opportunities</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">{t('Analyze your funnel to spot leaks, friction points, and hidden opportunities')}</p>
     </div>
   );
 }
@@ -174,9 +176,10 @@ function Card1() {
 }
 
 function Frame2() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">Data-Driven Design (UI/UX)</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{t('Data-Driven Design (UI/UX)')}</p>
       <div className="h-0 relative shrink-0 w-full">
         <div className="absolute inset-[-1px_0_0_0]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 468 1">
@@ -184,7 +187,7 @@ function Frame2() {
           </svg>
         </div>
       </div>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">Designs built for customers, rooted in analytics, consumer psychology, and Arabic UX best practices</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">{t('Designs built for customers, rooted in analytics, consumer psychology, and Arabic UX best practices')}</p>
     </div>
   );
 }
@@ -260,9 +263,10 @@ function Card2() {
 }
 
 function Frame3() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">A/B Testing</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{t('A/B Testing')}</p>
       <div className="h-0 relative shrink-0 w-full">
         <div className="absolute inset-[-1px_0_0_0]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 468 1">
@@ -270,7 +274,7 @@ function Frame3() {
           </svg>
         </div>
       </div>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">Run systematic experiments to discover which design, copy, or flow converts best</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">{t('Run systematic experiments to discover which design, copy, or flow converts best')}</p>
     </div>
   );
 }
@@ -346,9 +350,10 @@ function Card3() {
 }
 
 function Frame4() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{`GA4 Implementation & Tracking`}</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{t('GA4 Implementation & Tracking')}</p>
       <div className="h-0 relative shrink-0 w-full">
         <div className="absolute inset-[-1px_0_0_0]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 468 1">
@@ -356,7 +361,7 @@ function Frame4() {
           </svg>
         </div>
       </div>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">Set up advanced tracking to measure every step of the customer journey</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">{t('Set up advanced tracking to measure every step of the customer journey')}</p>
     </div>
   );
 }
@@ -432,9 +437,10 @@ function Card4() {
 }
 
 function Frame5() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">Ongoing CRO Programs</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[34px] relative shrink-0 text-[28px] text-white tracking-[-0.56px] w-full max-w-[450px]">{t('Ongoing CRO Programs')}</p>
       <div className="h-0 relative shrink-0 w-full">
         <div className="absolute inset-[-1px_0_0_0]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 468 1">
@@ -442,7 +448,7 @@ function Frame5() {
           </svg>
         </div>
       </div>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">A continuous cycle of research, testing, and improvement that boost results over time</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative shrink-0 text-[18px] text-[rgba(255,255,255,0.7)] w-full max-w-[468px]">{t('A continuous cycle of research, testing, and improvement that boost results over time')}</p>
     </div>
   );
 }
@@ -555,10 +561,11 @@ function Frame6({ isRTL }: { isRTL: boolean }) {
 }
 
 function DivBtnLabel() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
       <div className="css-g0mm18 flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-white">
-        <p className="css-ew64yg leading-[21.6px]">Book a Free CRO Audit</p>
+        <p className="css-ew64yg leading-[21.6px]">{t('Book a Free CRO Audit')}</p>
       </div>
     </div>
   );
@@ -577,7 +584,7 @@ function Link() {
 }
 
 function Text() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isRTL = language === 'ar';
   return (
     <div className={`content-stretch flex flex-col gap-[32px] ${isRTL ? 'items-end' : 'items-start'} pointer-events-auto py-[120px] lg:py-[120px] sticky top-0 translate-y-[-50%] w-full max-w-[538px] px-4 lg:px-0`} data-name="Text">
@@ -591,7 +598,7 @@ function Text() {
           </>
         )}
       </div>
-      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] w-full max-w-[460px] ${isRTL ? 'text-right' : ''}`}>We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.</p>
+      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] w-full max-w-[460px] ${isRTL ? 'text-right' : ''}`}>{t('We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.')}</p>
       <Link />
     </div>
   );

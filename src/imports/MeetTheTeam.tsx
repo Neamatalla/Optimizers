@@ -6,6 +6,7 @@ import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.we
 import imgRectangle4 from "../assets/2360b5bdc64c7364378a5a9d57d3b75bc52915d7.webp";
 import imgRectangle5 from "../assets/74dadc14d70527de322c8a12cd44546b63f3fcd5.webp";
 import imgLiftapp from "../assets/3ea05da11c2980d6a66b2e7e7d24667e55eea21a.webp";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Lights() {
     return (
@@ -58,6 +59,7 @@ function BgElements() {
 }
 
 function Text() {
+    const { t } = useLanguage();
     return (
         <div className="absolute contents left-[calc(50%-97.41px)] top-[15.18px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[208px] items-center justify-center left-[calc(50%-82.91px)] top-[15.98px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "157.59375", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -69,7 +71,7 @@ function Text() {
             </div>
             <div className="absolute flex h-[107px] items-center justify-center left-[calc(50%-114.91px)] top-[65.98px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "111.984375", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{`Founder & CEO`}</p>
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('Founder & CEO')}</p>
                 </div>
             </div>
         </div>
@@ -157,6 +159,7 @@ function BgElements1() {
 }
 
 function Text1() {
+    const { t } = useLanguage();
     return (
         <div className="absolute contents left-[calc(50%-97.42px)] top-[50.19px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[111px] items-center justify-center left-[calc(50%-82.92px)] top-[64.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "85.15625", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -168,7 +171,7 @@ function Text1() {
             </div>
             <div className="absolute flex h-[138px] items-center justify-center left-[calc(50%-114.92px)] top-[50.99px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "139.875", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">Operation Manager</p>
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('Operation Manager')}</p>
                 </div>
             </div>
         </div>
@@ -258,6 +261,7 @@ function BgElements2() {
 }
 
 function Text2() {
+    const { t } = useLanguage();
     return (
         <div className="absolute contents left-[calc(50%-97.42px)] top-[57.19px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[123px] items-center justify-center left-[calc(50%-82.92px)] top-[57.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "94.09375", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -269,7 +273,7 @@ function Text2() {
             </div>
             <div className="absolute flex h-[99px] items-center justify-center left-[calc(50%-114.92px)] top-[69.99px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "102.796875", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">Tech Manager</p>
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('Tech Manager')}</p>
                 </div>
             </div>
         </div>
@@ -357,6 +361,7 @@ function BgElements3() {
 }
 
 function Text3() {
+    const { t } = useLanguage();
     return (
         <div className="absolute contents left-[calc(50%-98.04px)] top-[50.21px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[137px] items-center justify-center left-[calc(50%-82.92px)] top-[51.01px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "103.46875", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -368,7 +373,7 @@ function Text3() {
             </div>
             <div className="absolute flex h-[78px] items-center justify-center left-[calc(50%-116.16px)] top-[79.23px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "81.46875", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">UI/UX Lead</p>
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('UI/UX Lead')}</p>
                 </div>
             </div>
         </div>
@@ -458,6 +463,7 @@ function BgElements4() {
 }
 
 function Text4() {
+    const { t } = useLanguage();
     return (
         <div className="absolute contents left-[calc(50%-97.42px)] top-[53.19px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[131px] items-center justify-center left-[calc(50%-82.92px)] top-[53.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "99.03125", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -469,7 +475,7 @@ function Text4() {
             </div>
             <div className="absolute flex h-[129px] items-center justify-center left-[calc(50%-114.92px)] top-[54.99px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "131.09375", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">Quality Assurance</p>
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('Quality Assurance')}</p>
                 </div>
             </div>
         </div>
@@ -577,6 +583,7 @@ function MobileBgElements() {
 }
 
 function MobileText() {
+  const { t } = useLanguage();
   return (
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.28px)] top-[9.89px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[139px] items-center justify-center left-[calc(50%-55.61px)] top-[10.65px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -586,7 +593,7 @@ function MobileText() {
       </div>
       <div className="-translate-x-1/2 absolute flex h-[84px] items-center justify-center left-[calc(50%-76.95px)] top-[37.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.334px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{`Founder & CEO`}</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.334px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('Founder & CEO')}</p>
         </div>
       </div>
     </div>
@@ -664,6 +671,7 @@ function MobileBgElements1() {
 }
 
 function MobileText1() {
+  const { t } = useLanguage();
   return (
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.14px)] top-[25.22px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[74px] items-center justify-center left-[calc(50%-55.5px)] top-[43.22px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -673,7 +681,7 @@ function MobileText1() {
       </div>
       <div className="-translate-x-1/2 absolute flex h-[109px] items-center justify-center left-[calc(50%-76.77px)] top-[25.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.306px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">Operation Manager</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.306px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('Operation Manager')}</p>
         </div>
       </div>
     </div>
@@ -753,6 +761,7 @@ function MobileBgElements2() {
 }
 
 function MobileText2() {
+  const { t } = useLanguage();
   return (
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.43px)] top-[37.99px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[82px] items-center justify-center left-[calc(50%-55.73px)] top-[38.76px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -762,7 +771,7 @@ function MobileText2() {
       </div>
       <div className="-translate-x-1/2 absolute flex h-[78px] items-center justify-center left-[calc(50%-77.13px)] top-[40.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.362px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">Tech Manager</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.362px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('Tech Manager')}</p>
         </div>
       </div>
     </div>
@@ -840,6 +849,7 @@ function MobileBgElements3() {
 }
 
 function MobileText3() {
+  const { t } = useLanguage();
   return (
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.28px)] top-[29.22px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[88px] items-center justify-center left-[calc(50%-55.61px)] top-[36px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -849,7 +859,7 @@ function MobileText3() {
       </div>
       <div className="-translate-x-1/2 absolute flex h-[101px] items-center justify-center left-[calc(50%-76.95px)] top-[29.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.334px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">Quality Assurance</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.334px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('Quality Assurance')}</p>
         </div>
       </div>
     </div>
@@ -927,6 +937,7 @@ function MobileBgElements4() {
 }
 
 function MobileText4() {
+  const { t } = useLanguage();
   return (
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.19px)] top-[33.24px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[92px] items-center justify-center left-[calc(50%-55.61px)] top-[34.01px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -936,7 +947,7 @@ function MobileText4() {
       </div>
       <div className="-translate-x-1/2 absolute flex h-[62px] items-center justify-center left-[calc(50%-76.77px)] top-[48.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.333px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">UI/UX Lead</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.333px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('UI/UX Lead')}</p>
         </div>
       </div>
     </div>
@@ -970,6 +981,7 @@ const CANVAS_WIDTH = 1440;
 const CANVAS_HEIGHT = 650;
 
 export default function MeetTheTeam() {
+    const { t } = useLanguage();
     const [scale, setScale] = useState(1);
 
     useEffect(() => {
@@ -999,7 +1011,7 @@ export default function MeetTheTeam() {
             {/* Mobile: Responsive Grid from Figma */}
             <div className="lg:hidden relative w-full h-[760px] max-w-[375px] mx-auto overflow-hidden">
                 <p className="absolute top-[40px] left-1/2 -translate-x-1/2 w-[335px] text-center font-['Sora',sans-serif] font-semibold text-[46px] leading-[48px] tracking-[-1.84px] bg-clip-text text-transparent bg-gradient-to-b from-[rgba(255,255,255,0.6)] to-[rgba(20,23,19,0.5)] z-10">
-                    Meet The Team
+                    {t('Meet The Team')}
                 </p>
                 <MobileSafer />
                 <MobileSafer1 />
@@ -1020,7 +1032,7 @@ export default function MeetTheTeam() {
                     }}
                 >
                     <p className="bg-clip-text bg-gradient-to-b font-['Sora',sans-serif] font-semibold from-[rgba(255,255,255,0.5)] leading-[165px] text-[168px] text-center to-[rgba(20,23,19,0.5)] tracking-[-6.72px] text-transparent w-full z-0 mb-[1px] select-none pointer-events-none mt-[40px]">
-                        Meet The Team
+                        {t('Meet The Team')}
                     </p>
                     <div className="relative z-10 w-full">
                         <Frame1 />

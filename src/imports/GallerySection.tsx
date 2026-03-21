@@ -11,6 +11,7 @@ import imgRectangle16 from "../assets/5950a3ddf2a6ec9b701c5efd3ec463328161175a.w
 import imgRectangle17 from "../assets/0f2c3f5ca49e9394bfe08c7f7dd7175f5ef586bd.webp";
 import imgRectangle18 from "../assets/eb353270e89d942c0cb7aca6776f63e80f7bbe5e.webp";
 import imgRectangle19 from "../assets/212c2c3f9e91b0f640a3c4744397715ee2bd1eb1.webp";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 const ALL_IMAGES = [
     imgRectangle14, imgRectangle12, imgRectangle9, imgRectangle10,
@@ -118,13 +119,12 @@ function MobileGalleryGrid() {
 }
 
 export default function GallerySection() {
+  const { t } = useLanguage();
     return (
         <div className="bg-[#000000] relative w-full h-[339px] lg:h-screen overflow-hidden flex flex-col items-center justify-center">
             {/* Static Header */}
             <p className="absolute z-30 bg-clip-text bg-gradient-to-b css-4hzbpn font-['Sora',sans-serif] font-semibold from-[rgba(255,255,255,0.8)] leading-none left-0 text-[37px] lg:text-[145px] text-center to-[rgba(255,255,255,0.1)] top-[40px] lg:top-[-0.05em] tracking-[-1.48px] lg:tracking-[-6.5px] w-full pointer-events-none select-none"
-                style={{ WebkitTextFillColor: "transparent", textShadow: '0 10px 40px rgba(0,0,0,0.6)' }}>
-                Behind The Scenes
-            </p>
+                style={{ WebkitTextFillColor: "transparent", textShadow: '0 10px 40px rgba(0,0,0,0.6)' }}>{t("Behind The Scenes")}</p>
 
             {/* ========== DESKTOP: 3D Cylindrical Gallery (lg+) ========== */}
             <div className="hidden lg:flex relative w-full h-full items-center justify-center overflow-visible"

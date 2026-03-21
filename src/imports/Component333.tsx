@@ -3,6 +3,7 @@ import imgWhyChooseOurCroAgency from "../assets/b17a09a1da837a217fffce56dd8a2a3e
 import WaveConnector from "./WaveConnector";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useIsMobile } from "@/app/components/ui/use-mobile";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 function MaskBase() {
   return (
@@ -1368,12 +1369,12 @@ function Group1() {
 }
 
 function Frame2() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 text-center w-full">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] relative shrink-0 text-[18px] text-white w-full">100% Guarantee</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] relative shrink-0 text-[18px] text-white w-full">{t('100% Guarantee')}</p>
       <div className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] w-full">
-        <p className="css-4hzbpn mb-0">{`If we don’t improve your conversions, you don’t `}</p>
-        <p className="css-4hzbpn">pay</p>
+        <p className="css-4hzbpn">{t("If we don’t improve your conversions, you don’t pay")}</p>
       </div>
     </div>
   );
@@ -1509,12 +1510,12 @@ function Group4() {
 }
 
 function Frame4() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 text-center w-full">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] relative shrink-0 text-[18px] text-white w-full">Fastest Setup, Continuous Growth</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] relative shrink-0 text-[18px] text-white w-full">{t('Fastest Setup, Continuous Growth')}</p>
       <div className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] w-full">
-        <p className="css-4hzbpn mb-0">{`Your first experiments live in just 14 days, with ongoing `}</p>
-        <p className="css-4hzbpn">testing cycles for sustained impact</p>
+        <p className="css-4hzbpn">{t('Your first experiments live in just 14 days, with ongoing testing cycles for sustained impact')}</p>
       </div>
     </div>
   );
@@ -1684,10 +1685,11 @@ function Group3() {
 }
 
 function Frame6() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 text-center w-full">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] relative shrink-0 text-[18px] text-white w-full">Specialized Expertise</p>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] w-full">Certified CRO specialists with deep understanding of Arabic users, cultural nuances, and GCC market behavior</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] relative shrink-0 text-[18px] text-white w-full">{t('Specialized Expertise')}</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] w-full">{t('Certified CRO specialists with deep understanding of Arabic users, cultural nuances, and GCC market behavior')}</p>
     </div>
   );
 }
@@ -1984,10 +1986,11 @@ function Group2() {
 }
 
 function Frame10() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center relative shrink-0 text-center w-full">
-      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[18px] text-white w-[min-content]">Proven Track Record</p>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] w-[205px]">8+ years helping brands achieve an average 35% lift in conversion rates</p>
+      <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[18px] text-white w-[min-content]">{t('Proven Track Record')}</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] w-[205px]">{t('8+ years helping brands achieve an average 35% lift in conversion rates')}</p>
     </div>
   );
 }
@@ -2038,10 +2041,11 @@ function Safer3() {
 }
 
 function DivBtnLabel() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
       <div className="css-g0mm18 flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-white">
-        <p className="css-ew64yg leading-[21.6px]">Get Your Free CRO Audit</p>
+        <p className="css-ew64yg leading-[21.6px]">{t('Get Your Free CRO Audit')}</p>
       </div>
     </div>
   );
@@ -2060,12 +2064,13 @@ function Link() {
 }
 
 function Frame() {
+  const { t } = useLanguage();
   return (
     <div className="relative lg:absolute content-stretch flex flex-col gap-[32px] items-center lg:left-[calc(50%+0.5px)] lg:top-[calc(50%-212px)] lg:translate-x-[-50%] lg:translate-y-[-50%] z-10 p-6 lg:p-0">
       <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[72px] relative shrink-0 text-[40px] lg:text-[72px] text-center tracking-[-2.88px] w-full max-w-[900px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
-        Why Choose Our CRO Agency?
+        {t('Why Choose Our CRO Agency?')}
       </p>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">We don’t just run tests - we deliver measurable business growth.</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">{t("We don’t just run tests - we deliver measurable business growth.")}</p>
       <Link />
     </div>
   );
@@ -2097,6 +2102,7 @@ const whyChooseCards: { title: string; description: string; Icon: () => React.JS
 
 function MobileWhyChooseCards() {
   const [ref, isVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+  const { t } = useLanguage();
   return (
     <div ref={ref} className="grid grid-cols-2 gap-[15px] px-5 pb-8">
       {whyChooseCards.map((card, i) => {
@@ -2128,8 +2134,8 @@ function MobileWhyChooseCards() {
                   <Icon />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <p className="font-['Sora',sans-serif] font-semibold text-[14px] text-white leading-[18px]">{card.title}</p>
-                  <p className="font-['Sora',sans-serif] font-normal text-[12px] text-white/80 leading-[17px]">{card.description}</p>
+                  <p className="font-['Sora',sans-serif] font-semibold text-[14px] text-white leading-[18px]">{t(card.title)}</p>
+                  <p className="font-['Sora',sans-serif] font-normal text-[12px] text-white/80 leading-[17px]">{t(card.description)}</p>
                 </div>
               </div>
             </div>

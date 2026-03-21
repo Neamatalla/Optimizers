@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import clsx from 'clsx';
+import { useLanguage } from '../app/contexts/LanguageContext';
 
 type ColorScheme = {
   bg: string;
@@ -106,6 +107,7 @@ function AnimatedLabel({ children, angle, colorIndex, isActive }: AnimatedLabelP
 }
 
 export function AnimatedProcessCard({ sectionVisible = false }: { sectionVisible?: boolean }) {
+  const { t } = useLanguage();
   const [rotation, setRotation] = useState(0);
 
   useEffect(() => {
@@ -221,7 +223,7 @@ export function AnimatedProcessCard({ sectionVisible = false }: { sectionVisible
             colorIndex={labelColorIndex}
             isActive={isCurrentlyActive}
           >
-            {label.name}
+            {t(label.name)}
           </AnimatedLabel>
         );
       })}

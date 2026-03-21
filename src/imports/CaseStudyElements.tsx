@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../app/contexts/LanguageContext';
 import svgCs2 from './svg-cs2';
 import svgCs3 from './svg-cs3';
 import svgCs4 from './svg-cs4';
@@ -111,28 +112,34 @@ export const ClientHeader = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => (
   </div>
 );
 
-export const ChallengeBlock = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => (
+export const ChallengeBlock = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => {
+  const { t } = useLanguage();
+  return (
   <div className="flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-    <p style={{ color: data.headerTextColor }} className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[16px] w-full">Challenge</p>
-    <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">{data.challenge}</p>
+    <p style={{ color: data.headerTextColor }} className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[16px] w-full">{t('Challenge')}</p>
+    <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">{t(data.challenge)}</p>
   </div>
 );
+};
 
-export const MetricsBlock = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => (
+export const MetricsBlock = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => {
+  const { t } = useLanguage();
+  return (
   <div className="flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-    <p style={{ color: data.headerTextColor }} className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[16px] w-full">Results</p>
+    <p style={{ color: data.headerTextColor }} className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[16px] w-full">{t('Results')}</p>
     <div className="flex items-start justify-between relative shrink-0 text-center w-full">
       {data.metrics.map((metric, idx) => (
         <div key={idx} className="flex flex-col gap-[4px] items-start justify-center relative shrink-0">
           <div style={{ color: data.themeColor }} className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[24px] tracking-[-0.96px]">
             <p className="leading-[56px]">{metric.value}</p>
           </div>
-          <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white text-left w-[85px]">{metric.label}</p>
+          <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white text-left w-[85px]">{t(metric.label)}</p>
         </div>
       ))}
     </div>
   </div>
 );
+};
 
 export const PhoneStack = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => {
   // Special positioning and sizing for Vitrine Furniture's phone as requested

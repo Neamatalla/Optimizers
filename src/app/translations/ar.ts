@@ -151,6 +151,8 @@ export const arTranslations: Record<string, string> = {
   "pay": "تدفع",
   "testing cycles for sustained impact": "دورات اختبار لتحقيق تأثير مستدام",
   "Fastest Setup, Continuous Growth": "أسرع إعداد، نمو مستمر",
+  "Your first experiments live in just 14 days, with ongoing testing cycles for sustained impact": "تجاربك الأولى تنطلق خلال ١٤ يوماً فقط، مع دورات اختبار مستمرة لتحقيق تأثير مستدام",
+  "If we don't improve your conversions, you don't pay": "إذا لم نحسّن تحويلاتك، فلن تدفع شيئاً",
   "We don't just run tests - we deliver measurable business growth.": "لا نكتفي بالاختبارات — بل نحقق نمواً تجارياً ملموساً وقابلاً للقياس.",
   "Built for leading platforms:": "مصمم لأبرز المنصات:",
 
@@ -209,6 +211,18 @@ export const arTranslations: Record<string, string> = {
   "Number of conversions per MONTH on average?": "ما متوسط عدد التحويلات شهرياً؟",
   "E-commerce conversion rate": "معدل تحويل التجارة الإلكترونية",
   "Increase": "زيادة",
+  "Projected Monthly Revenue": "الإيرادات الشهرية المتوقعة",
+  "Visitors": "الزوار",
+  "Conv. %": "نسبة التحويل",
+  "Avg Order": "متوسط الطلب",
+  "Lift": "زيادة",
+  "Additional Revenue": "الإيرادات الإضافية",
+  "Additional Orders": "الطلبات الإضافية",
+  "/month": "/ شهرياً",
+  "Base": "الأساسي",
+  "Projected": "المتوقع",
+  "Tap values to recalculate": "اضغط على القيم لإعادة الحساب",
+  "Reset to defaults": "إعادة تعيين القيم الافتراضية",
 
   // ═══════════════════════════════════════════════
   // Partners Section
@@ -230,6 +244,7 @@ export const arTranslations: Record<string, string> = {
   "What is your primary conversion objective?": "ما هو هدف التحويل الرئيسي لديك؟",
   "What is your website?": "ما هو موقعك الإلكتروني؟",
   "Still have questions? Book a Call": "لا تزال لديك أسئلة؟ احجز مكالمة",
+  "Frequently Asked Questions": "الأسئلة الشائعة",
   "Start  Entering Your Data": "ابدأ بإدخال بياناتك",
   "Start Entering Your Data": "ابدأ بإدخال بياناتك",
   "If we don't improve your conversions, you don't ": "إذا لم نحسن تحويلاتك، فلن ",
@@ -335,4 +350,40 @@ export const arTranslations: Record<string, string> = {
   "Sidebar": "القائمة الجانبية",
   "Enter email address": "أدخل بريدك الإلكتروني",
   "Displays the mobile sidebar.": "يعرض القائمة الجانبية للجوال.",
+
+  // ═══════════════════════════════════════════════
+  // Strategy Session — Extra Labels
+  // ═══════════════════════════════════════════════
+  "Select average:": "اختر المتوسط:",
+  "Select objective:": "اختر الهدف:",
+  "From 1K to 10K": "من ١,٠٠٠ إلى ١٠,٠٠٠",
+  "Go Back": "العودة",
+  "Unfortunately, given the current low conversion volume of your business, our services might not be the optimal fit at this time.": "نعتذر، نظراً لانخفاض حجم التحويلات الحالي لنشاطك التجاري، قد لا تكون خدماتنا الخيار الأمثل في الوقت الحالي.",
+
+  // ═══════════════════════════════════════════════
+  // Case Studies — Mobile Card Content
+  // ═══════════════════════════════════════════════
+  "The homepage had low conversions due to unclear value proposition, distracting navigation, weak CTAs, and missing trust signals.": "عانت الصفحة الرئيسية من تحويلات منخفضة بسبب عرض قيمة غير واضح، وتنقل مُشتت، وأزرار CTA ضعيفة، وغياب إشارات الثقة.",
+  "Clarifying the value proposition, simplifying navigation, enhancing CTAs, and showcasing credibility would improve conversions.": "توضيح عرض القيمة، وتبسيط التنقل، وتعزيز أزرار CTA، وإبراز المصداقية سيحسّن التحويلات.",
+  "PDPs lacked visual clarity and structure, failed to create urgency, and weak CTAs caused users to bounce.": "افتقرت صفحات المنتجات للوضوح البصري والتنظيم، ولم تخلق إحساساً بالاستعجال، وتسببت أزرار CTA الضعيفة في مغادرة المستخدمين.",
+  "Improving PDP clarity with better imagery, structured info, reviews, and stronger CTAs would drive conversions.": "تحسين وضوح صفحات المنتجات بصور أفضل ومعلومات منظمة ومراجعات وأزرار CTA أقوى سيدفع التحويلات.",
+  "Customers hesitated to buy; unclear product info and low brand trust left questions about quality and benefits.": "تردد العملاء في الشراء؛ معلومات المنتج غير الواضحة وضعف الثقة بالعلامة التجارية أثارت تساؤلات حول الجودة والفوائد.",
+  "Using transparent videos and clear explanations of ingredients and benefits would build trust and drive purchases.": "استخدام مقاطع فيديو شفافة وشروحات واضحة للمكونات والفوائد سيبني الثقة ويدفع المشتريات.",
+  "The homepage buried products too deeply, limiting visibility and missing opportunities to guide users toward conversion.": "دفنت الصفحة الرئيسية المنتجات بعمق شديد، مما حدّ من رؤيتها وفوّت فرص توجيه المستخدمين نحو التحويل.",
+  "Surfacing products on the homepage with ratings, CTAs, and best sellers would boost engagement and conversions.": "إبراز المنتجات على الصفحة الرئيسية مع التقييمات وأزرار CTA والأكثر مبيعاً سيعزز التفاعل والتحويلات.",
+  "Home Appliances": "الأجهزة المنزلية",
+  "Low conversions due to unclear value, distractions, weak CTAs, and no trust.": "تحويلات منخفضة بسبب عرض قيمة غير واضح، ومشتتات، وأزرار CTA ضعيفة، وغياب الثقة.",
+  "PDPs lacked clarity and urgency; weak CTAs led users to bounce early.": "افتقرت صفحات المنتجات للوضوح والاستعجال؛ وأدت أزرار CTA الضعيفة لمغادرة المستخدمين مبكراً.",
+  "Customers browsed but hesitated to buy due to unclear info and low trust.": "تصفح العملاء لكن ترددوا في الشراء بسبب معلومات غير واضحة وثقة منخفضة.",
+  "Users skipping PLPs converted more; homepage buried products too deep.": "المستخدمون الذين تجاوزوا صفحات القوائم حققوا تحويلات أعلى؛ الصفحة الرئيسية دفنت المنتجات بعمق.",
+
+  // Top Clients — Mobile Card Labels
+  "Increase homepage engagement & conversions.": "زيادة التفاعل والتحويلات على الصفحة الرئيسية.",
+  "Homepage layout, product visibility.": "تصميم الصفحة الرئيسية، ظهور المنتجات.",
+  "Clarify value proposition & build trust.": "توضيح عرض القيمة وبناء الثقة.",
+  "Homepage navigation, CTAs, trust signals.": "التنقل في الصفحة الرئيسية، أزرار CTA، إشارات الثقة.",
+  "Build brand trust & educate customers.": "بناء ثقة العلامة التجارية وتثقيف العملاء.",
+  "Product details, video reviews.": "تفاصيل المنتج، مراجعات الفيديو.",
+  "Optimize mobile shopping experience.": "تحسين تجربة التسوق عبر الجوال.",
+  "Mobile checkout flow, retention.": "مسار الدفع عبر الجوال، الاحتفاظ بالعملاء.",
 };

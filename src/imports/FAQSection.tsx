@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "../app/contexts/LanguageContext";
 import {
     Accordion,
     AccordionContent,
@@ -8,56 +9,51 @@ import {
 import imgFrequentlyAskedQuestions from "../assets/666a6dfa4c8f6032da118c9f1f873233b2397282.webp";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
-const faqData = [
+const faqDataKeys = [
     {
         id: "item-1",
-        question: "What ROI can I expect?",
-        answer:
-            "On average, our clients see a 10–30% increase in annual revenue and cover the cost of our services within 6 months.",
+        questionKey: "What ROI can I expect?",
+        answerKey: "On average, our clients see a 10–30% increase in annual revenue and cover the cost of our services within 6 months.",
         defaultOpen: true,
     },
     {
         id: "item-2",
-        question: "How quickly will I see results?",
-        answer:
-            "Most stores see measurable improvements in as little as 3 months — with bigger gains from continuous testing.",
+        questionKey: "How quickly will I see results?",
+        answerKey: "Most stores see measurable improvements in as little as 3 months — with bigger gains from continuous testing.",
         defaultOpen: false,
     },
     {
         id: "item-3",
-        question: "What's the minimum commitment?",
-        answer:
-            "Just 6 months — enough to run real experiments and lock in lasting results. Many clients stay for years because of consistent growth.",
+        questionKey: "What's the minimum commitment?",
+        answerKey: "Just 6 months — enough to run real experiments and lock in lasting results. Many clients stay for years because of consistent growth.",
         defaultOpen: false,
     },
     {
         id: "item-4",
-        question: "Why is CRO a monthly service?",
-        answer:
-            "Because conversion optimization is not a one-time fix — it's a continuous cycle of research, testing, and scaling what works.",
+        questionKey: "Why is CRO a monthly service?",
+        answerKey: "Because conversion optimization is not a one-time fix — it's a continuous cycle of research, testing, and scaling what works.",
         defaultOpen: false,
     },
     {
         id: "item-5",
-        question: "Is CRO only for big stores?",
-        answer:
-            "Not at all. Any store spending on ads or getting steady traffic can benefit from CRO. Smaller stores often see ROI even faster.",
+        questionKey: "Is CRO only for big stores?",
+        answerKey: "Not at all. Any store spending on ads or getting steady traffic can benefit from CRO. Smaller stores often see ROI even faster.",
         defaultOpen: false,
     },
     {
         id: "item-6",
-        question: "What metrics do you track?",
-        answer:
-            "Conversion rate, revenue per visitor, average order value, cart abandonment, and customer lifetime value.",
+        questionKey: "What metrics do you track?",
+        answerKey: "Conversion rate, revenue per visitor, average order value, cart abandonment, and customer lifetime value.",
         defaultOpen: false,
     },
 ];
 
 function DivBtnLabel() {
+    const { t } = useLanguage();
     return (
         <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
             <div className="css-g0mm18 flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[14px] lg:text-[18px] text-center text-white whitespace-nowrap lg:whitespace-normal">
-                <p className="css-ew64yg leading-[21.6px]">Still have questions? Book a Call</p>
+                <p className="css-ew64yg leading-[21.6px]">{t("Still have questions? Book a Call")}</p>
             </div>
         </div>
     );
@@ -76,10 +72,11 @@ function Link() {
 }
 
 function Frame19() {
+    const { t } = useLanguage();
     return (
         <div className="relative flex flex-col gap-[20px] lg:gap-[2.2vw] xl:gap-[3.3vw] items-center lg:items-start w-full lg:w-[31.25vw] shrink-0">
             <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[1.1] min-w-full relative shrink-0 text-[36px] lg:text-[78px] text-center lg:text-left tracking-[-1.44px] lg:tracking-[-2px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgFrequentlyAskedQuestions}')` }}>
-                Frequently{" "}Asked{" "}Questions
+                {t("Frequently Asked Questions")}
             </p>
             <Link />
         </div>
@@ -87,6 +84,12 @@ function Frame19() {
 }
 
 export default function FAQSection() {
+    const { t } = useLanguage();
+    const faqData = faqDataKeys.map(item => ({
+        ...item,
+        question: t(item.questionKey),
+        answer: t(item.answerKey),
+    }));
     const [headingRef, headingVisible] = useScrollReveal<HTMLDivElement>();
     const [accordionRef, accordionVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.08 });
 

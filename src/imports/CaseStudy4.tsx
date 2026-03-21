@@ -1,3 +1,4 @@
+import { useLanguage } from "../app/contexts/LanguageContext";
 import svgPaths from "./svg-4plbhhjwac";
 import imgIPhone13Pro from "../assets/01caa01f59a90a1fc47fc99cb9de81dd712f6cf9.webp";
 import imgIPhone13Pro1 from "../assets/47cf6c1f5f2938f229d8dfb3795b681538560092.webp";
@@ -13,9 +14,10 @@ import imgProfilePhoto2 from "../assets/bea2fb523d6f14c71d06c08b5857b1e8c2afdc71
 import imgProfilePhoto3 from "../assets/1fb7a1bc395f06ecca7c56a97e4c19f322f1f606.webp";
 
 function Frame25() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[446px] left-[280.11px] top-0 w-[213px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">After</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('After')}</p>
       <div className="absolute h-[410px] left-0 top-[36px] w-[213px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[129.23%] left-[-63.43%] max-w-none top-[-13.76%] w-[331.68%]" src={imgIPhone13Pro} decoding="async" />
@@ -26,9 +28,10 @@ function Frame25() {
 }
 
 function Frame26() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[447px] left-0 top-0 w-[213px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">Before</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('Before')}</p>
       <div className="absolute h-[411px] left-0 top-[36px] w-[213px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[128.92%] left-[-63.43%] max-w-none top-[-13.59%] w-[331.68%]" src={imgIPhone13Pro1} decoding="async" />
@@ -48,9 +51,10 @@ function Frame27() {
 }
 
 function Frame45() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[446px] left-[280.11px] top-0 w-[213px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">After</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('After')}</p>
       <div className="absolute h-[410px] left-0 top-[36px] w-[213px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[129.23%] left-[-63.43%] max-w-none top-[-13.74%] w-[331.68%]" src={imgIPhone13Pro2} decoding="async" />
@@ -61,9 +65,10 @@ function Frame45() {
 }
 
 function Frame44() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[446px] left-0 top-0 w-[213px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">Before</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('Before')}</p>
       <div className="absolute h-[410px] left-0 top-[36px] w-[213px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[129.23%] left-[-63.43%] max-w-none top-[-13.73%] w-[331.68%]" src={imgIPhone13Pro3} decoding="async" />
@@ -83,9 +88,10 @@ function Frame46() {
 }
 
 function Frame48() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[447px] left-[280.11px] top-0 w-[213px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">After</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('After')}</p>
       <div className="absolute h-[411px] left-0 top-[36px] w-[213px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[128.92%] left-[-63.43%] max-w-none top-[-13.64%] w-[331.68%]" src={imgIPhone13Pro4} decoding="async" />
@@ -96,9 +102,10 @@ function Frame48() {
 }
 
 function Frame47() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[447px] left-0 top-0 w-[213px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">Before</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('Before')}</p>
       <div className="absolute h-[411px] left-0 top-[36px] w-[213px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[128.92%] left-[-63.43%] max-w-none top-[-13.58%] w-[331.68%]" src={imgIPhone13Pro5} decoding="async" />
@@ -118,9 +125,10 @@ function Frame49() {
 }
 
 function Frame50() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[447px] left-[280.11px] top-0 w-[213.513px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">After</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.64px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('After')}</p>
       <div className="absolute h-[411px] left-0 top-[36px] w-[213.513px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[129.01%] left-[-63.13%] max-w-none top-[-13.53%] w-[331.13%]" src={imgIPhone13Pro6} decoding="async" />
@@ -131,9 +139,10 @@ function Frame50() {
 }
 
 function Frame51() {
+  const { t } = useLanguage();
   return (
     <div className="absolute h-[447px] left-0 top-0 w-[213.513px]">
-      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">Before</p>
+      <p className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] left-[106.76px] text-[48px] text-[rgba(255,255,255,0.2)] text-center top-0 w-[184px] whitespace-pre-wrap">{t('Before')}</p>
       <div className="absolute h-[411px] left-0 top-[36px] w-[213.513px]" data-name="iPhone 13 Pro">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[129.01%] left-[-63.13%] max-w-none top-[-13.53%] w-[331.13%]" src={imgIPhone13Pro7} decoding="async" />
@@ -164,28 +173,31 @@ function Frame43() {
 }
 
 function Frame9() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#6ae499] text-[48px] tracking-[-1.92px] w-full">+8.95%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Conversion Rate</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Conversion Rate')}</p>
     </div>
   );
 }
 
 function Frame10() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#6ae499] text-[48px] tracking-[-1.92px] w-full">+9.41%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Revenue Growth</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Revenue Growth')}</p>
     </div>
   );
 }
 
 function Frame11() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#6ae499] text-[48px] tracking-[-1.92px] w-full">+9.43%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Products per Visitor</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Products per Visitor')}</p>
     </div>
   );
 }
@@ -201,28 +213,31 @@ function Frame37() {
 }
 
 function Frame12() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#ff8979] text-[48px] tracking-[-1.92px] w-full">+44.02%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Funnel Progression</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Funnel Progression')}</p>
     </div>
   );
 }
 
 function Frame13() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#ff8979] text-[48px] tracking-[-1.92px] w-full">+4.33%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Conversion Rate</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Conversion Rate')}</p>
     </div>
   );
 }
 
 function Frame14() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#ff8979] text-[48px] tracking-[-1.92px] w-full">+6.49%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Boost Engagement</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Boost Engagement')}</p>
     </div>
   );
 }
@@ -238,28 +253,31 @@ function Frame8() {
 }
 
 function Frame15() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#fcd34d] text-[48px] tracking-[-1.92px] w-full">+6.4%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Conversion Rate</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Conversion Rate')}</p>
     </div>
   );
 }
 
 function Frame16() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#fcd34d] text-[48px] tracking-[-1.92px] w-full">+8.03%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Revenue per Visitor</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Revenue per Visitor')}</p>
     </div>
   );
 }
 
 function Frame17() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#fcd34d] text-[48px] tracking-[-1.92px] w-full">+6.42%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Products per Visitor</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Products per Visitor')}</p>
     </div>
   );
 }
@@ -275,28 +293,31 @@ function Frame38() {
 }
 
 function Frame18() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#87a2cf] text-[48px] tracking-[-1.92px] w-full">+28.47%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Conversion Rate</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Conversion Rate')}</p>
     </div>
   );
 }
 
 function Frame19() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#87a2cf] text-[48px] tracking-[-1.92px] w-full">{`+70.73% `}</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Revenue per Visitor</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Revenue per Visitor')}</p>
     </div>
   );
 }
 
 function Frame20() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-center justify-center relative shrink-0">
       <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[56px] relative shrink-0 text-[#87a2cf] text-[48px] tracking-[-1.92px] w-full">+23.88%</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">Products per Visitor</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[25.38px] relative shrink-0 text-[23px] text-white w-full">{t('Products per Visitor')}</p>
     </div>
   );
 }
@@ -370,9 +391,10 @@ function Frame29() {
 }
 
 function Frame1() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[rgba(106,228,153,0.15)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#92ebb4] text-[14px]">Home Appliances Industry</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#92ebb4] text-[14px]">{t('Home Appliances Industry')}</p>
     </div>
   );
 }
@@ -398,9 +420,10 @@ function Frame24() {
 }
 
 function Frame3() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#ffa69a] text-[14px]">Hiring Industry</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#ffa69a] text-[14px]">{t('Hiring Industry')}</p>
     </div>
   );
 }
@@ -426,9 +449,10 @@ function Frame21() {
 }
 
 function Frame5() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[rgba(252,211,77,0.15)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#fde68a] text-[14px]">Honey Industry</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#fde68a] text-[14px]">{t('Honey Industry')}</p>
     </div>
   );
 }
@@ -454,9 +478,10 @@ function Frame34() {
 }
 
 function Frame7() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[rgba(135,162,207,0.2)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#afc1df] text-[14px]">Furniture Industry</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[#afc1df] text-[14px]">{t('Furniture Industry')}</p>
     </div>
   );
 }
@@ -493,37 +518,41 @@ function Frame36() {
 }
 
 function Frame23() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#cdf6dd] text-[18px] w-[min-content]">Hypothesis</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">Improving PDP clarity with better imagery, structured info, reviews, urgency cues, and stronger CTAs would increase engagement and drive conversions</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#cdf6dd] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Improving PDP clarity with better imagery, structured info, reviews, urgency cues, and stronger CTAs would increase engagement and drive conversions')}</p>
     </div>
   );
 }
 
 function Frame32() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#ffc4bc] text-[18px] w-[min-content]">Hypothesis</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">Clarifying the value proposition, simplifying navigation, enhancing CTAs, and showcasing client credibility early would improve engagement and conversions</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#ffc4bc] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Clarifying the value proposition, simplifying navigation, enhancing CTAs, and showcasing client credibility early would improve engagement and conversions')}</p>
     </div>
   );
 }
 
 function Frame41() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#fef3c7] text-[18px] w-[min-content]">Hypothesis</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">Using transparent, authentic videos and clear explanations of ingredients, benefits, and production would build trust, boost confidence, and drive purchases</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#fef3c7] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Using transparent, authentic videos and clear explanations of ingredients, benefits, and production would build trust, boost confidence, and drive purchases')}</p>
     </div>
   );
 }
 
 function Frame42() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#afc1df] text-[18px] w-[min-content]">Hypothesis</p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">Surfacing products on the homepage with ratings, CTAs, best sellers, and banners would speed journeys, boost engagement, and increase conversions and revenue</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#afc1df] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Surfacing products on the homepage with ratings, CTAs, best sellers, and banners would speed journeys, boost engagement, and increase conversions and revenue')}</p>
     </div>
   );
 }
@@ -540,11 +569,12 @@ function Frame33() {
 }
 
 export default function Component() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[#020601] relative size-full" data-name="Component 324">
       <div className="-translate-x-1/2 absolute font-['Sora:SemiBold',sans-serif] font-semibold leading-[165px] left-1/2 opacity-0 text-[168px] text-[rgba(255,255,255,0.6)] text-center top-[-237px] tracking-[-6.72px] w-[644px] whitespace-pre-wrap">
-        <p className="mb-0">Case</p>
-        <p>Studies</p>
+        <p className="mb-0">{t('Case')}</p>
+        <p>{t('Studies')}</p>
       </div>
       <Frame43 />
       <Frame40 />

@@ -802,12 +802,13 @@ function Frame2() {
 }
 
 function Frame1() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[rgba(255,255,255,0.05)] relative rounded-[100px] shrink-0 w-full max-w-[555.25px] overflow-hidden">
       <div aria-hidden="true" className="absolute border-[#b1b1b1] border-[0.5px] border-solid inset-0 pointer-events-none rounded-[100px]" />
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex flex-col sm:flex-row gap-[8px] sm:gap-[16px] items-center px-[12px] sm:px-[20px] py-[10px] relative w-full">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] sm:text-[14px] text-white whitespace-nowrap">Built for leading platforms:</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] sm:text-[14px] text-white whitespace-nowrap">{t('Built for leading platforms:')}</p>
           <Frame2 />
         </div>
       </div>
@@ -817,13 +818,14 @@ function Frame1() {
 }
 
 function Frame6() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[26px] items-center relative shrink-0 text-center w-full">
       <div className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora:SemiBold',sans-serif] font-semibold leading-[1] relative shrink-0 text-[clamp(28px,6vw,72px)] tracking-[-0.04em] hero-title-text" style={{ backgroundImage: `url('${imgYourAdsBringVisitorsWeTurnThemIntoBuyers}')`, WebkitTextFillColor: "transparent" }}>
-        <p className="mb-0">Your ads bring visitors,</p>
-        <p>we turn them into buyers</p>
+        <p className="mb-0">{t('Your ads bring visitors,')}</p>
+        <p>{t('we turn them into buyers')}</p>
       </div>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[1.5] relative shrink-0 text-[clamp(15px,2.2vw,23px)] text-[rgba(255,255,255,0.8)] w-full max-w-[828px] px-4 md:px-0">If you’re investing in ads but not seeing enough sales, we’ll find the leaks in your funnel, fix them, and maximize your returns.</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[1.5] relative shrink-0 text-[clamp(15px,2.2vw,23px)] text-[rgba(255,255,255,0.8)] w-full max-w-[828px] px-4 md:px-0">{t("If you're investing in ads but not seeing enough sales, we'll find the leaks in your funnel, fix them, and maximize your returns.")}</p>
     </div>
   );
 }
@@ -1096,37 +1098,36 @@ function HeaderVideo() {
 
 function Frame3() {
   return (
-    <div className="h-[22px] relative shrink-0 w-[119px]">
-      <div className="absolute inset-[0_-26.89%_0_0]">
-        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 150.998 22">
-          <g id="Frame 2131328421">
-            <path d={svgPaths.p22963780} fill="var(--fill-0, white)" id="Vector" />
-            <path d={svgPaths.pd2f9600} fill="var(--fill-0, white)" id="Vector_2" />
-            <path d={svgPaths.p10199c10} fill="var(--fill-0, white)" id="Vector_3" />
-            <path d={svgPaths.pbc5c200} fill="var(--fill-0, white)" id="Vector_4" />
-            <path d={svgPaths.p274a7f80} fill="var(--fill-0, white)" id="Vector_5" />
-            <path d={svgPaths.p1231c500} fill="var(--fill-0, white)" id="Vector_6" />
-            <path d={svgPaths.p2e01a300} fill="var(--fill-0, white)" id="Vector_7" />
-            <path d={svgPaths.p2d4d8490} fill="var(--fill-0, white)" id="Vector_8" />
-            <path d={svgPaths.p5665ef0} fill="var(--fill-0, white)" id="Vector_9" />
-            <path d={svgPaths.p23c8ab00} fill="var(--fill-0, white)" id="Vector_10" />
-            <path d={svgPaths.p27a98480} fill="var(--fill-0, white)" id="Vector_11" />
-            <path d={svgPaths.p9fa0000} fill="var(--fill-0, white)" id="Vector_12" />
-          </g>
-        </svg>
-      </div>
+    <div className="h-[22px] relative shrink-0" style={{ width: 'clamp(100px, 25vw, 151px)' }}>
+      <svg className="block h-full w-auto" fill="none" viewBox="0 0 150.998 22">
+        <g id="Frame 2131328421">
+          <path d={svgPaths.p22963780} fill="var(--fill-0, white)" id="Vector" />
+          <path d={svgPaths.pd2f9600} fill="var(--fill-0, white)" id="Vector_2" />
+          <path d={svgPaths.p10199c10} fill="var(--fill-0, white)" id="Vector_3" />
+          <path d={svgPaths.pbc5c200} fill="var(--fill-0, white)" id="Vector_4" />
+          <path d={svgPaths.p274a7f80} fill="var(--fill-0, white)" id="Vector_5" />
+          <path d={svgPaths.p1231c500} fill="var(--fill-0, white)" id="Vector_6" />
+          <path d={svgPaths.p2e01a300} fill="var(--fill-0, white)" id="Vector_7" />
+          <path d={svgPaths.p2d4d8490} fill="var(--fill-0, white)" id="Vector_8" />
+          <path d={svgPaths.p5665ef0} fill="var(--fill-0, white)" id="Vector_9" />
+          <path d={svgPaths.p23c8ab00} fill="var(--fill-0, white)" id="Vector_10" />
+          <path d={svgPaths.p27a98480} fill="var(--fill-0, white)" id="Vector_11" />
+          <path d={svgPaths.p9fa0000} fill="var(--fill-0, white)" id="Vector_12" />
+        </g>
+      </svg>
     </div>
   );
 }
 
 function Links() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex font-normal gap-[20px] items-start leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)]" data-name="Links">
-      <p className="font-['Sora:Regular',sans-serif] relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>Services</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>ROI Calculator</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>Case Studies</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}>Team</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>Contact</p>
+      <p className="font-['Sora:Regular',sans-serif] relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>{t('Services')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>{t('ROI Calculator')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>{t('Case Studies')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}>{t('Team')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>{t('Contact')}</p>
     </div>
   );
 }
@@ -1208,7 +1209,39 @@ function User() {
       onClick={toggleLanguage}
       data-name="User"
     >
-      {language === 'en' ? <EnSvg /> : <div className="flex items-center justify-center size-[24px] text-white font-semibold font-['Sora'] text-sm">عربي</div>}
+      {language === 'en' ? <EnSvg /> : (
+        <div className="overflow-clip relative shrink-0 size-[24px]" style={{ borderRadius: '50%' }}>
+          <svg className="block size-full" viewBox="0 0 512 512" fill="none">
+            <defs>
+              <clipPath id="egFlagClip">
+                <circle cx="256" cy="256" r="256" />
+              </clipPath>
+            </defs>
+            <g clipPath="url(#egFlagClip)">
+              {/* Red top band */}
+              <rect y="0" width="512" height="170.7" fill="#CE1126" />
+              {/* White middle band */}
+              <rect y="170.7" width="512" height="170.6" fill="#FFFFFF" />
+              {/* Black bottom band */}
+              <rect y="341.3" width="512" height="170.7" fill="#000000" />
+              {/* Eagle of Saladin — simplified golden emblem */}
+              <g transform="translate(206, 186)">
+                {/* Eagle body */}
+                <path d="M50 0C44 0 39 5 39 11V28C39 28 20 22 10 35C4 43 2 52 2 60C2 68 5 78 12 85L30 100H70L88 85C95 78 98 68 98 60C98 52 96 43 90 35C80 22 61 28 61 28V11C61 5 56 0 50 0Z" fill="#C09300" />
+                {/* Eagle head */}
+                <ellipse cx="50" cy="8" rx="8" ry="8" fill="#C09300" />
+                {/* Shield on chest */}
+                <rect x="38" y="40" width="24" height="30" rx="4" fill="#CE1126" stroke="#C09300" strokeWidth="2" />
+                {/* Tail feathers */}
+                <path d="M30 100L20 115H80L70 100" fill="#C09300" />
+                {/* Wings spread */}
+                <path d="M2 60L-15 45L-10 70L2 60Z" fill="#C09300" />
+                <path d="M98 60L115 45L110 70L98 60Z" fill="#C09300" />
+              </g>
+            </g>
+          </svg>
+        </div>
+      )}
       <div className="flex items-center justify-center relative shrink-0 size-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "153.5" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
           <OutlineArrowsAltArrowRight />
@@ -1219,10 +1252,11 @@ function User() {
 }
 
 function DivBtnLabel() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
       <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[14px] text-center text-white whitespace-nowrap">
-        <p className="leading-[17px]">Get Free Audit</p>
+        <p className="leading-[17px]">{t('Get Free Audit')}</p>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import videoThumbnail from "../assets/video_thumbnail.webp";
 import { useState, useRef, useEffect } from "react";
 import imgLearnCroFromOurCeo from "../assets/48c0908a5973996950b53feb47622625902ab2fe.webp";
 import { imgGroup, imgGroup1 } from "./svg-s0pg2";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Group() {
   return (
@@ -578,12 +579,13 @@ function Background() {
 }
 
 function Frame() {
+  const { t } = useLanguage();
   return (
     <div className="relative flex flex-col gap-[24px] items-center text-center w-full max-w-[800px] px-4 lg:px-0">
       <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[86px] min-w-full relative shrink-0 text-[40px] lg:text-[72.022px] tracking-[-2.8809px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgLearnCroFromOurCeo}')` }}>
-        Learn CRO From Our CEO
+        {t('Learn CRO From Our CEO')}
       </p>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.9)] w-full">Get insider insights into the strategies that have generated millions in additional revenue for Gulf-based e-commerce brands.</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.9)] w-full">{t('Get insider insights into the strategies that have generated millions in additional revenue for Gulf-based e-commerce brands.')}</p>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { InlineWidget } from "react-calendly";
+import { useLanguage } from "../app/contexts/LanguageContext";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -42,10 +43,11 @@ const normalizeWebsiteUrl = (url: string): string => {
 // --- Original Design Components (Modified for Props) ---
 
 function Frame5() {
+  const { t } = useLanguage();
   return (
     <div className="relative flex flex-col items-center w-full px-[1.1vw] text-center mt-[40px] lg:mt-[8.3vw]">
       <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[84.026px] relative shrink-0 text-[36px] lg:text-[72.022px] text-center tracking-[-1.44px] lg:tracking-[-2.8809px] w-[335px] lg:w-full max-w-[1105px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
-        Book Your Free Strategy Session
+        {t('Book Your Free Strategy Session')}
       </p>
     </div>
   );
@@ -99,10 +101,11 @@ function StepWrapper({ num, title, subtitle, currentStep, maxStepReached, onStep
 }
 
 function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; isCurrent: boolean; isActive: boolean; onClick: () => void }) {
+  const { t } = useLanguage();
   const borderColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
   const textColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
   const labelColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
-  const labels = ["", "Conversions", "Objective", "Website", "Contact", "Schedule"];
+  const labels = ["", t("Conversions"), t("Objective"), t("Website"), t("Contact"), t("Schedule")];
 
   return (
     <div
@@ -118,12 +121,13 @@ function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; 
 }
 
 function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
+  const { t } = useLanguage();
   const steps = [
-    { num: 1, title: "Conversions", subtitle: "Conversion Volume" },
-    { num: 2, title: "Objective", subtitle: "Business Objective" },
-    { num: 3, title: "Website", subtitle: "Website" },
-    { num: 4, title: "Contact", subtitle: "Contact Details" },
-    { num: 5, title: "Schedule", subtitle: "Schedule" },
+    { num: 1, title: t("Conversions"), subtitle: t("Conversion Volume") },
+    { num: 2, title: t("Objective"), subtitle: t("Business Objective") },
+    { num: 3, title: t("Website"), subtitle: t("Website") },
+    { num: 4, title: t("Contact"), subtitle: t("Contact Details") },
+    { num: 5, title: t("Schedule"), subtitle: t("Schedule") },
   ];
 
   return (
@@ -229,6 +233,7 @@ const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: b
 
 export default function StrategySession() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [maxStepReached, setMaxStepReached] = useState(1);
   const [showThankYouMessage, setShowThankYouMessage] = useState(false);
@@ -321,15 +326,15 @@ export default function StrategySession() {
     if (showThankYouMessage) {
       return (
         <div className="flex flex-col items-center gap-8 py-16 text-center w-full">
-          <h2 className="text-white text-[34px] font-semibold">Thank you</h2>
+          <h2 className="text-white text-[34px] font-semibold">{t('Thank you')}</h2>
           <p className="text-white opacity-80 max-w-[700px] text-[20px] leading-relaxed">
-            Unfortunately, given the current low conversion volume of your business, our services might not be the optimal fit at this time.
+            {t('Unfortunately, given the current low conversion volume of your business, our services might not be the optimal fit at this time.')}
           </p>
           <Button
             onClick={() => { setShowThankYouMessage(false); setCurrentStep(1); setMaxStepReached(1); }}
             className="mt-4 px-8 py-4 bg-transparent border border-[#31da72] text-[#31da72] hover:bg-[#31da72]/10 rounded-xl"
           >
-            Go Back
+            {t('Go Back')}
           </Button>
         </div>
       );
@@ -339,16 +344,16 @@ export default function StrategySession() {
       case 1:
         return (
           <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
-            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">Number of conversions per MONTH on average?</p>
-            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">Select average:</p>
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">{t('Number of conversions per MONTH on average?')}</p>
+            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select average:')}</p>
             <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] items-center w-full">
               <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
-                <OptionCard text="Fewer Than 100" isSelected={formData.conversionVolume === "Fewer Than 100"} onClick={() => handleSelect("conversionVolume", "Fewer Than 100")} />
-                <OptionCard text="From 100 to 1K" isSelected={formData.conversionVolume === "From 100 to 1K"} onClick={() => handleSelect("conversionVolume", "From 100 to 1K")} />
+                <OptionCard text={t('Fewer Than 100')} isSelected={formData.conversionVolume === "Fewer Than 100"} onClick={() => handleSelect("conversionVolume", "Fewer Than 100")} />
+                <OptionCard text={t('From 100 to 1K')} isSelected={formData.conversionVolume === "From 100 to 1K"} onClick={() => handleSelect("conversionVolume", "From 100 to 1K")} />
               </div>
               <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
-                <OptionCard text="From 1K to 10K" isSelected={formData.conversionVolume === "From 1K to 10K"} onClick={() => handleSelect("conversionVolume", "From 1K to 10K")} />
-                <OptionCard text="10K+" isSelected={formData.conversionVolume === "10K+"} onClick={() => handleSelect("conversionVolume", "10K+")} />
+                <OptionCard text={t('From 1K to 10K')} isSelected={formData.conversionVolume === "From 1K to 10K"} onClick={() => handleSelect("conversionVolume", "From 1K to 10K")} />
+                <OptionCard text={t('10K+')} isSelected={formData.conversionVolume === "10K+"} onClick={() => handleSelect("conversionVolume", "10K+")} />
               </div>
             </div>
           </div>
@@ -356,21 +361,21 @@ export default function StrategySession() {
       case 2:
         return (
           <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
-            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">What is your primary conversion objective?</p>
-            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">Select objective:</p>
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">{t('What is your primary conversion objective?')}</p>
+            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select objective:')}</p>
             {formData.primaryObjective === "Other" ? (
               <div className="w-full max-w-[624px] flex flex-col gap-4">
-                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder="Specify your objective..." className="bg-white/10 border-[#31da72]/30 text-white placeholder:text-white/40 h-14 w-full" />
+                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder={t('Specify your objective...')} className="bg-white/10 border-[#31da72]/30 text-white placeholder:text-white/40 h-14 w-full" />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] w-full">
                 <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
-                  <OptionCard text="Signups (SaaS/eLearning)" isSelected={formData.primaryObjective === "Signups"} onClick={() => handleSelect("primaryObjective", "Signups")} />
-                  <OptionCard text="Online Sales (eCommerce)" isSelected={formData.primaryObjective === "Online Sales"} onClick={() => handleSelect("primaryObjective", "Online Sales")} />
+                  <OptionCard text={t('Signups (SaaS/eLearning)')} isSelected={formData.primaryObjective === "Signups"} onClick={() => handleSelect("primaryObjective", "Signups")} />
+                  <OptionCard text={t('Online Sales (eCommerce)')} isSelected={formData.primaryObjective === "Online Sales"} onClick={() => handleSelect("primaryObjective", "Online Sales")} />
                 </div>
                 <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
-                  <OptionCard text="Lead Gen (Professional Services)" isSelected={formData.primaryObjective === "Lead Gen"} onClick={() => handleSelect("primaryObjective", "Lead Gen")} />
-                  <OptionCard text="Other" isSelected={formData.primaryObjective === "Other"} onClick={() => handleSelect("primaryObjective", "Other")} />
+                  <OptionCard text={t('Lead Gen (Professional Services)')} isSelected={formData.primaryObjective === "Lead Gen"} onClick={() => handleSelect("primaryObjective", "Lead Gen")} />
+                  <OptionCard text={t('Other')} isSelected={formData.primaryObjective === "Other"} onClick={() => handleSelect("primaryObjective", "Other")} />
                 </div>
               </div>
             )}
@@ -379,7 +384,7 @@ export default function StrategySession() {
       case 3:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="font-semibold text-[20px] lg:text-[2.4vw] text-white">What is your website?</p>
+            <p className="font-semibold text-[20px] lg:text-[2.4vw] text-white">{t('What is your website?')}</p>
             <div className="w-full max-w-[500px] flex flex-col gap-2">
               <Input name="website" value={formData.website} onChange={handleInputChange} placeholder="https://yourwebsite.com" className={`bg-white/10 border-2 ${validationErrors.website ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-14`} />
               {validationErrors.website && <p className="text-red-500 text-sm">{validationErrors.website}</p>}
@@ -389,11 +394,11 @@ export default function StrategySession() {
       case 4:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="font-semibold text-[20px] lg:text-[2.4vw] text-white">Contact Information</p>
+            <p className="font-semibold text-[20px] lg:text-[2.4vw] text-white">{t('Contact Information')}</p>
             <div className="w-full max-w-[500px] flex flex-col gap-6">
-              <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="First Name" className="bg-white/10 border-[#31da72]/30 text-white h-14" />
+              <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className="bg-white/10 border-[#31da72]/30 text-white h-14" />
               <div className="flex flex-col gap-2">
-                <Input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-14`} />
+                <Input name="email" value={formData.email} onChange={handleInputChange} placeholder={t('Email')} className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-14`} />
                 {validationErrors.email && <p className="text-red-500 text-sm">{validationErrors.email}</p>}
               </div>
             </div>
@@ -402,7 +407,7 @@ export default function StrategySession() {
       case 5:
         return (
           <div className="flex flex-col items-center gap-6 w-full py-8">
-            <p className="font-semibold text-[24px] lg:text-[34px] text-white">Schedule Your Strategy Call</p>
+            <p className="font-semibold text-[24px] lg:text-[34px] text-white">{t('Schedule Your Strategy Call')}</p>
             <div className="w-full">
               <InlineWidget
                 url="https://calendly.com/neamatalla/cro"
@@ -455,11 +460,11 @@ export default function StrategySession() {
 
           <div className="flex items-center justify-center gap-4 py-4 lg:py-8 mb-0 lg:mb-4 w-full h-auto lg:h-[100px]">
             {currentStep > 1 && !showThankYouMessage && (
-              <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-8 py-4 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-lg font-semibold transition-all">Back</Button>
+              <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-8 py-4 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-lg font-semibold transition-all">{t('Back')}</Button>
             )}
             {((currentStep === 2 && formData.primaryObjective === "Other") || (currentStep >= 3 && currentStep < 5)) && !showThankYouMessage && (
               <Button onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-8 py-4 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-lg font-semibold min-w-[120px] transition-all">
-                {submitContactMutation.isPending ? "Submitting..." : "Next"}
+                {submitContactMutation.isPending ? t('Submitting...') : t('Next')}
               </Button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import svgPaths from "./svg-cs5";
 import imgProfilePhoto4 from "../assets/e4f4c75f98a50211733a99f07e7b06ed4444b841.png";
 import imgIPhone16Pro from "../assets/226f5471c2ace7a43fd3bc806eb9213e795a038b.png";
+import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Group2() {
   return (
@@ -143,10 +144,11 @@ function Blue({ onNext, onPrev }: CSProps) {
 }
 
 function Frame4() {
+  const { t } = useLanguage();
   return (
     <div className="bg-[rgba(135,162,207,0.2)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#afc1df] text-[12px] w-[110px]">
-        <p className="leading-[17px]">Furniture Industry</p>
+        <p className="leading-[17px]">{t('Furniture Industry')}</p>
       </div>
     </div>
   );
@@ -175,43 +177,47 @@ function Frame7() {
 }
 
 function Frame5() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#afc1df] text-[16px] w-full">Challenge</p>
-      <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">Users skipping PLPs converted more; homepage buried products too deep.</p>
+      <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#afc1df] text-[16px] w-full">{t('Challenge')}</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">{t('Users skipping PLPs converted more; homepage buried products too deep.')}</p>
     </div>
   );
 }
 
 function Frame8() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#87a2cf] text-[24px] tracking-[-0.96px] w-[98px]">
         <p className="leading-[56px]">+28.47%</p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">Conversion Rate</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Conversion Rate')}</p>
     </div>
   );
 }
 
 function Frame10() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#87a2cf] text-[24px] tracking-[-0.96px] w-[98px]">
         <p className="leading-[56px]">{`+70.73% `}</p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">Revenue per Visitor</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Revenue per Visitor')}</p>
     </div>
   );
 }
 
 function Frame9() {
+  const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#87a2cf] text-[24px] tracking-[-0.96px] w-[98px]">
         <p className="leading-[56px]">+23.88%</p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">Products per Visitor</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Products per Visitor')}</p>
     </div>
   );
 }
@@ -259,18 +265,19 @@ interface CSProps {
 }
 
 export default function CS_VitrineFurniture({ onNext, onPrev }: CSProps) {
+  const { t } = useLanguage();
   return (
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       <Blue onNext={onNext} onPrev={onPrev} />
       <Frame2 />
       <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px]">
         <div className="flex-none rotate-[-15.07deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">Before</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px]">
         <div className="flex-none rotate-[11.21deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">After</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
         </div>
       </div>
       <div className="absolute flex h-[346.994px] items-center justify-center left-[calc(33.33%+19px)] top-[343px] w-[212.438px]">
