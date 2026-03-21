@@ -21,6 +21,23 @@ function ProcessBackgroundImage({ children, additionalClassNames = "", noRotatio
 export default function ProcessWithAnimation() {
     const sectionRef = useRef<HTMLDivElement>(null);
     const [sectionVisible, setSectionVisible] = useState(false);
+    const [cardScale, setCardScale] = useState(1);
+
+    useEffect(() => {
+        const handleResize = () => {
+            // Apply scale on mobile/tablet (below 1024px), max width 570
+            const screenWidth = window.innerWidth;
+            if (screenWidth < 1024) {
+                // 32px accounts for the 16px horizontal padding on both sides
+                setCardScale(Math.min(1, (screenWidth - 32) / 570));
+            } else {
+                setCardScale(1);
+            }
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -30,7 +47,7 @@ export default function ProcessWithAnimation() {
                     observer.disconnect();
                 }
             },
-            { threshold: 0.1, rootMargin: '0px 0px' }
+            { threshold: 0.1, rootMargin: '0px' }
         );
 
         if (sectionRef.current) {
@@ -72,8 +89,8 @@ export default function ProcessWithAnimation() {
                 {/* Before Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px]">
                     <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">Before</p>
-                    <div className="relative z-10 w-full aspect-[570/589]" style={{ containerType: 'inline-size' }}>
-                        <div className="origin-top-left" style={{ transform: "scale(min(1, calc(100cqw / 570)))", width: "570px", height: "589px" }}>
+                    <div className="relative z-10 w-full flex justify-center lg:block" style={{ height: cardScale < 1 ? `${589 * cardScale}px` : '589px' }}>
+                        <div className="origin-top flex justify-center lg:origin-top-left" style={{ transform: `scale(${cardScale})`, width: "570px", height: "589px" }}>
                             <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
                                 <AnimatedBeforeCard sectionVisible={sectionVisible} />
                             </ProcessBackgroundImage>
@@ -84,8 +101,8 @@ export default function ProcessWithAnimation() {
                 {/* After Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px] mt-6 lg:mt-0">
                     <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[24px] lg:text-[88px] text-[rgba(255,255,255,0.2)] text-center tracking-[3.5px] -mb-[12px] lg:-mb-[50px] relative z-0 pl-[12px] lg:pl-0 self-start lg:self-center">After</p>
-                    <div className="relative z-10 w-full aspect-[570/589]" style={{ containerType: 'inline-size' }}>
-                        <div className="origin-top-left" style={{ transform: "scale(min(1, calc(100cqw / 570)))", width: "570px", height: "589px" }}>
+                    <div className="relative z-10 w-full flex justify-center lg:block" style={{ height: cardScale < 1 ? `${589 * cardScale}px` : '589px' }}>
+                        <div className="origin-top flex justify-center lg:origin-top-left" style={{ transform: `scale(${cardScale})`, width: "570px", height: "589px" }}>
                             <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
                                 <AnimatedProcessCard sectionVisible={sectionVisible} />
                             </ProcessBackgroundImage>
