@@ -104,7 +104,7 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
       </div>
 
       {/* Navigation buttons */}
-      <div className="-translate-x-1/2 absolute flex gap-[36px] items-center left-[calc(50%+0.5px)] top-[697.5px] z-[100]">
+      <div className="-translate-x-1/2 absolute flex gap-[36px] items-center left-[calc(50%+0.5px)] bottom-[24px] z-[100]">
         {/* Prev Button */}
         <div className="cursor-pointer" onClick={onPrev}>
           <div className="bg-[rgba(255,137,121,0.2)] content-stretch flex flex-col items-center justify-center p-[8px] relative rounded-[116.667px] hover:bg-[rgba(255,137,121,0.4)] transition-colors">

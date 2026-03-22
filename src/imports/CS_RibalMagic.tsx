@@ -148,7 +148,7 @@ function BackgroundOverlayBorderOverlayBlur1() {
 
 function Frame2({ onNext, onPrev }: CSProps) {
   return (
-    <div className="-translate-x-1/2 absolute content-stretch flex gap-[36px] items-center left-[calc(50%+0.5px)] top-[697.5px] z-[100]">
+    <div className="-translate-x-1/2 absolute content-stretch flex gap-[36px] items-center left-[calc(50%+0.5px)] bottom-[24px] z-[100]">
       <div className="cursor-pointer" onClick={onPrev}>
         <BackgroundOverlayBorderOverlayBlur />
       </div>
