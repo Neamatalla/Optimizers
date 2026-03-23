@@ -275,86 +275,89 @@ export default function App() {
         <HeaderSection />
         <div style={{ position: 'relative', background: '#020601' }}>
           
-          {/* MOBILE ONLY (< lg) - Pure Vertical Stack */}
-          <div className="flex lg:hidden flex-col items-center w-full bg-[#020601] py-10" id="services-mobile">
-            {/* Mobile Header elements using imported services.css styles */}
-            <div className="header-section">
-              <h1 className="services-title" style={{ backgroundImage: `url('${imgOurServices}')` }}>
-                Our Services
-              </h1>
-              <p className="services-description">
-                We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
-              </p>
-              <button
-                onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-                className="audit-button hidden lg:block"
-              >
-                Book a Free CRO Audit
-              </button>
-            </div>
-            
-            {/* Mobile Cards rendering vertically with CSS classes */}
-            <div className="cards-container z-10">
-              {services.map((service, idx) => (
-                <MobileServiceCard key={idx} {...service} />
-              ))}
-            </div>
-          </div>
-
-          {/* DESKTOP ONLY (>= lg) - Sticky Left / Scrolling Right */}
-          <div className="hidden lg:flex flex-row gap-[7vw] p-[7vw] items-start" id="services" style={{ scrollMarginTop: '100px' }}>
-            {/* Left Side - Text */}
-            <div className="flex flex-col gap-[2.2vw] w-[37.3vw] shrink-0 items-start text-left sticky top-10 self-start h-fit z-10">
-              <div
-                className="relative min-w-full w-[min-content]"
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                  fontWeight: 600,
-                  fontSize: 'clamp(60px, 10vw, 100px)',
-                  lineHeight: '1.1',
-                  letterSpacing: '-4px',
-                  backgroundImage: `url('${imgOurServices}')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent'
-                }}
-              >
-                <p className="mb-0 m-0">Our</p>
-                <p className="m-0">Services</p>
+          {/* Unified Services Section for Navigation */}
+          <div id="services" style={{ scrollMarginTop: '100px' }}>
+            {/* MOBILE ONLY (< lg) - Pure Vertical Stack */}
+            <div className="flex lg:hidden flex-col items-center w-full bg-[#020601] py-10">
+              {/* Mobile Header elements using imported services.css styles */}
+              <div className="header-section">
+                <h1 className="services-title" style={{ backgroundImage: `url('${imgOurServices}')` }}>
+                  Our Services
+                </h1>
+                <p className="services-description">
+                  We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
+                </p>
+                <button
+                  onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="audit-button hidden lg:block"
+                >
+                  Book a Free CRO Audit
+                </button>
               </div>
-              <p
-                className="m-0 w-[460px]"
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                  fontWeight: 400,
-                  fontSize: '20px',
-                  lineHeight: '28px',
-                  color: 'rgba(255,255,255,0.8)'
-                }}
-              >
-                We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
-              </p>
-              <button
-                onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-[#020601] h-[50px] rounded-[100px] px-[28px] py-[12px] border border-[#6ae499] relative overflow-hidden w-fit cursor-pointer hover:scale-105 transition-transform"
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                  fontWeight: 600,
-                  fontSize: '18px',
-                  lineHeight: '21.6px',
-                  color: 'white',
-                  boxShadow: 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
-                }}
-              >
-                Book a Free CRO Audit
-              </button>
+
+              {/* Mobile Cards rendering vertically with CSS classes */}
+              <div className="cards-container z-10">
+                {services.map((service, idx) => (
+                  <MobileServiceCard key={idx} {...service} />
+                ))}
+              </div>
             </div>
 
-            {/* Right Side - Service Cards */}
-            <RevealServiceCards services={services} />
+            {/* DESKTOP ONLY (>= lg) - Sticky Left / Scrolling Right */}
+            <div className="hidden lg:flex flex-row gap-[7vw] p-[7vw] items-start">
+              {/* Left Side - Text */}
+              <div className="flex flex-col gap-[2.2vw] w-[37.3vw] shrink-0 items-start text-left sticky top-10 self-start h-fit z-10">
+                <div
+                  className="relative min-w-full w-[min-content]"
+                  style={{
+                    fontFamily: "'Sora', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 'clamp(60px, 10vw, 100px)',
+                    lineHeight: '1.1',
+                    letterSpacing: '-4px',
+                    backgroundImage: `url('${imgOurServices}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    color: 'transparent'
+                  }}
+                >
+                  <p className="mb-0 m-0">Our</p>
+                  <p className="m-0">Services</p>
+                </div>
+                <p
+                  className="m-0 w-[460px]"
+                  style={{
+                    fontFamily: "'Sora', sans-serif",
+                    fontWeight: 400,
+                    fontSize: '20px',
+                    lineHeight: '28px',
+                    color: 'rgba(255,255,255,0.8)'
+                  }}
+                >
+                  We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
+                </p>
+                <button
+                  onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-[#020601] h-[50px] rounded-[100px] px-[28px] py-[12px] border border-[#6ae499] relative overflow-hidden w-fit cursor-pointer hover:scale-105 transition-transform"
+                  style={{
+                    fontFamily: "'Sora', sans-serif",
+                    fontWeight: 600,
+                    fontSize: '18px',
+                    lineHeight: '21.6px',
+                    color: 'white',
+                    boxShadow: 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
+                  }}
+                >
+                  Book a Free CRO Audit
+                </button>
+              </div>
+
+              {/* Right Side - Service Cards */}
+              <RevealServiceCards services={services} />
+            </div>
           </div>
           
           <div id="case-studies">

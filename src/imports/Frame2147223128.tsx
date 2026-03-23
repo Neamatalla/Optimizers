@@ -1284,6 +1284,7 @@ function Frame() {
 }
 
 function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
   const navItems = [
     { label: 'Services', id: 'services' },
     { label: 'ROI Calculator', id: 'roi-calculator' },
@@ -1352,7 +1353,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
               onClose();
             }}
           >
-            {item.label}
+            {t(item.label)}
           </p>
         ))}
       </div>

@@ -51,38 +51,43 @@ function translateTextNode(node: Node): void {
     if (!text || !text.trim()) return;
     if (shouldSkipNode(node)) return;
 
-    // Store original if not already stored
-    if (!(node as any).__origEN) {
-        (node as any).__origEN = text;
-    }
+    const trimmed = text.trim().replace(/\s+/g, ' ');
 
-    const original = (node as any).__origEN as string;
-    const trimmed = original.trim().replace(/\s+/g, ' ');
+    // CRITICAL: If the current text is already in Arabic (exists in reverseMap), 
+    // do NOT store it as the original English source. This prevents the "stuck" bug.
+    if (reverseMap[trimmed]) return;
+
     const normalized = normalizeQuotes(trimmed);
+    if (reverseMap[normalized]) return;
 
-    // 1) Direct full match (most common case)
+    // 1) Direct full match
     if (arTranslations[trimmed]) {
-        node.nodeValue = original.replace(trimmed, arTranslations[trimmed]);
+        if (!(node as any).__origEN) {
+            (node as any).__origEN = text;
+        }
+        node.nodeValue = text.replace(trimmed, arTranslations[trimmed]);
         return;
     }
 
-    // 1b) Try with normalized quotes (curly → straight)
+    // 1b) Try with normalized quotes
     if (normalized !== trimmed && arTranslations[normalized]) {
+        if (!(node as any).__origEN) {
+            (node as any).__origEN = text;
+        }
         node.nodeValue = arTranslations[normalized];
         return;
     }
 
-    // 2) Try dynamic patterns on the full trimmed string
+    // 2) Try dynamic patterns
     for (const [pattern, replacer] of dynamicPatterns) {
         if (pattern.test(trimmed)) {
+            if (!(node as any).__origEN) {
+                (node as any).__origEN = text;
+            }
             node.nodeValue = trimmed.replace(pattern, replacer as any);
             return;
         }
     }
-
-    // 3) No partial substring replacement — this prevents corruption
-    //    where short keys like "Case", "Our", "Your" match inside other words.
-    //    All translations should be full-node matches.
 }
 
 function restoreTextNode(node: Node): void {
