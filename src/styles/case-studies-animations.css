@@ -259,6 +259,239 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   MOBILE SCROLL-DRIVEN CASE STUDIES
+   A separate scroll-driven section for mobile that mirrors the desktop
+   gate → title → cards progression using useScroll/useTransform.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Tall scrollable container — user scrolls through this to drive animation */
+/* 500vh gives 400vh of physical scroll: ~40vh gate, ~74vh title, 4×~74vh slides */
+.cs-mobile-scroll-container {
+    position: relative;
+    width: 100%;
+    height: 500vh;
+    min-height: 500vh;
+    flex-shrink: 0;
+    background: #020601;
+}
+
+/* Sticky viewport — stays fixed while user scrolls through container */
+.cs-mobile-sticky-viewport {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #020601;
+}
+
+/* Vignette overlay for atmosphere */
+.cs-mobile-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+    background: radial-gradient(
+        ellipse 65% 70% at 50% 45%,
+        transparent 0%,
+        rgba(0, 0, 0, 0.1) 40%,
+        rgba(0, 0, 0, 0.45) 70%,
+        rgba(0, 0, 0, 0.75) 100%
+    );
+}
+
+/* ── Gate Bars (3-div glow structure matching desktop) ── */
+.cs-mobile-gate-bar {
+    position: absolute;
+    top: 10%;
+    height: 55%;
+    width: 8px;
+    left: 50%;
+    margin-left: -4px;
+    z-index: 60;
+    border-radius: 100px;
+    will-change: transform, opacity;
+}
+
+/* Core: bright colored strip */
+.cs-mobile-gate-core {
+    position: absolute;
+    inset: 5% 20%;
+    background-color: currentColor;
+    border-radius: 100px;
+    opacity: 0.9;
+    box-shadow: 0 0 12px currentColor, 0 0 25px currentColor;
+}
+
+/* Inner glow halo */
+.cs-mobile-gate-blur-1 {
+    position: absolute;
+    inset: 0;
+    background-color: currentColor;
+    border-radius: 100px;
+    filter: blur(16px);
+    opacity: 0.4;
+}
+
+/* Outer wide glow */
+.cs-mobile-gate-blur-2 {
+    position: absolute;
+    inset: -4px;
+    background-color: currentColor;
+    border-radius: 100px;
+    filter: blur(28px);
+    opacity: 0.25;
+}
+
+/* ── Ground Reflection Glows ── */
+/* Both glows share the same left:50% base; motion x drives them apart */
+.cs-mobile-ground-glow {
+    position: absolute;
+    left: 50%;
+    margin-left: -5px;
+    top: 63%;
+    width: 10px;
+    height: 37%;
+    border-radius: 4px;
+    filter: blur(4px);
+    opacity: 1;
+    z-index: 11;
+    pointer-events: none;
+    transform-origin: top center;
+}
+
+/* Bright connection point where glow meets bar */
+.cs-mobile-ground-glow::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 24px;
+    border-radius: 50%;
+    background: inherit;
+    filter: blur(10px);
+    opacity: 1;
+}
+
+/* ── Floor Ellipse ── */
+.cs-mobile-floor-ellipse {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 8px;
+    border-radius: 50%;
+    filter: blur(25px);
+    opacity: 0.9;
+    z-index: 11;
+    pointer-events: none;
+    mix-blend-mode: screen;
+}
+
+/* ── Title Text ── */
+.cs-mobile-title-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 65%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    pointer-events: none;
+    will-change: transform, opacity, clip-path;
+}
+
+.cs-mobile-title-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    font-size: clamp(52px, 14vw, 80px);
+    line-height: 1;
+    letter-spacing: -2px;
+    text-align: center;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(140, 140, 140, 0.7) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.cs-mobile-title-inner p {
+    margin: 0;
+}
+
+/* ── Scroll Hint ── */
+.cs-mobile-scroll-hint {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    animation: cs-bounce 2s ease-in-out infinite;
+}
+
+.cs-mobile-scroll-hint-line {
+    width: 1px;
+    height: 20px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.5), transparent);
+}
+
+.cs-mobile-scroll-hint-text {
+    font-family: 'Sora', sans-serif;
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+/* ── Cards Container (below bars z-60, above vignette z-15) ── */
+.cs-mobile-cards-container {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    will-change: opacity;
+}
+
+/* Clips slides so y-translate doesn't overflow the viewport */
+.cs-mobile-slides-clip {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+/* Each slide fills the sticky viewport, stacked — motion y/opacity drive transitions */
+.cs-mobile-slide-wrapper {
+    position: absolute;
+    inset: 0;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Hide prev/next nav buttons rendered by CS_* components in scroll-driven mobile mode */
+.cs-mobile-slide-wrapper .z-\[100\] {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    MOBILE RESPONSIVE OVERRIDES (<1024px)
    Redesigns the 1440px fixed canvas into a proper stacked mobile layout.
    

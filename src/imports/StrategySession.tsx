@@ -46,7 +46,7 @@ function Frame5() {
   const { t } = useLanguage();
   return (
     <div className="relative flex flex-col items-center w-full px-[1.1vw] text-center mt-[40px] lg:mt-[8.3vw]">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[84.026px] relative shrink-0 text-[36px] lg:text-[72.022px] text-center tracking-[-1.44px] lg:tracking-[-2.8809px] w-[335px] lg:w-full max-w-[1105px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[84.026px] relative shrink-0 text-[36px] lg:text-[72.022px] text-center tracking-[-1.44px] lg:tracking-[-2.8809px] w-[94%] md:w-[90%] lg:w-full max-w-[1105px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
         {t('Book Your Free Strategy Session')}
       </p>
     </div>
@@ -429,7 +429,7 @@ export default function StrategySession() {
       {/* Card Design - Switched to relative to push sections below it */}
       {/* Card Design - Switched to relative to push sections below it */}
       <div
-        className="relative flex flex-col min-h-0 lg:min-h-[50.9vw] h-auto items-center justify-center mx-auto lg:mx-auto rounded-[16px] lg:rounded-[24px] mt-[16px] lg:mt-[2.8vw] w-[335px] lg:w-full max-w-[335px] lg:max-w-[1240px] z-10 animate-wave-fast"
+        className="relative flex flex-col min-h-0 lg:min-h-[50.9vw] h-auto items-center justify-center mx-auto lg:mx-auto rounded-[16px] lg:rounded-[24px] mt-[16px] lg:mt-[2.8vw] w-[94%] md:w-[90%] lg:w-full max-w-[340px] md:max-w-[800px] lg:max-w-[1240px] z-10 animate-wave-fast"
         data-name="Card"
         style={{
           backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.12) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\\'0 0 1240 733\\\' xmlns=\\\'http://www.w3.org/2000/svg\\\' preserveAspectRatio=\\\'none\\\'><rect x=\\\'0\\\' y=\\\'0\\\' height=\\\'100%\\\' width=\\\'100%\\\' fill=\\\'url(%23grad)\\\' opacity=\\\'1\\\'/><defs><radialGradient id=\\\'grad\\\' gradientUnits=\\\'userSpaceOnUse\\\' cx=\\\'0\\\' cy=\\\'0\\\' r=\\\'10\\\' gradientTransform=\\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\\'><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0\\\'/><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0.55823\\\'/><stop stop-color=\\\'rgba(0,0,0,0.3)\\\' offset=\\\'0.73997\\\'/><stop stop-color=\\\'rgba(0,0,0,0)\\\' offset=\\\'1\\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",

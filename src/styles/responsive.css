@@ -139,16 +139,30 @@
         padding: 12px 16px !important;
     }
 
-    /* Language + CTA group */
+    /* Language + CTA group — tighter on mobile */
     [data-name="Header"]>div:last-child {
-        gap: 8px !important;
+        gap: 6px !important;
     }
 
-    /* CTA button smaller */
+    /* CTA button — compact pill on mobile */
     [data-name="Header"] .rounded-\[100px\] {
-        font-size: 12px !important;
-        padding: 8px 16px !important;
         height: auto !important;
+    }
+    [data-name="Header"] .rounded-\[100px\] > div:first-child {
+        padding: 6px 10px !important;
+    }
+    [data-name="Header"] [data-name="div.btn-label"] > div {
+        font-size: 11px !important;
+        line-height: 15px !important;
+    }
+
+    /* Language switcher — hide dropdown arrow, tighten padding */
+    [data-name="Header"] [data-name="User"] {
+        gap: 4px !important;
+        padding: 4px !important;
+    }
+    [data-name="Header"] [data-name="User"] .rotate-90 {
+        display: none !important;
     }
 
     /* Services section stack */
@@ -318,8 +332,10 @@
     .mobile-hero-container {
         position: relative;
         width: 100%;
-        overflow: hidden;
         background: #020601;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
     }
 
     /* Background — absolute, fills entire section */
@@ -333,12 +349,12 @@
         pointer-events: none;
     }
 
-    /* Hero text content — natural flow */
+    /* Hero text content — shrinks to fit its content */
     .mobile-hero-content {
         position: relative;
         z-index: 2;
         width: 100%;
-        overflow: hidden;
+        flex: 0 0 auto;
     }
 
     /* Override the absolute positioning from Frame10's Tailwind classes */
@@ -408,12 +424,23 @@
         transform-origin: center;
     }
 
-    /* ═══ HERO VIDEO: Visible on mobile (above fold) ═══ */
+    /* ═══ HERO VIDEO: Visible on mobile (below content, fills remaining space) ═══ */
     .mobile-hero-video {
         position: relative;
         z-index: 3;
         width: 100%;
-        padding: 70px 16px 16px 16px;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 0 16px 24px 16px;
+    }
+
+    /* Video frame fills the flex space */
+    .mobile-hero-video .mobile-video-frame {
+        flex: 1 !important;
+        aspect-ratio: unset !important;
+        min-height: 0;
     }
 
     /* Override the Tailwind `hidden md:block` class */
@@ -448,6 +475,11 @@
     .mobile-hero-video [data-name="Header Video"]>div:last-child {
         border-radius: 14px;
         overflow: hidden;
+    }
+
+    /* Tighter logo gaps inside platforms pill on mobile */
+    .mobile-hero-text .content-stretch.flex.gap-\[16px\].items-start {
+        gap: 8px !important;
     }
 
     /* ═══ SERVICES: Compact cards ═══ */

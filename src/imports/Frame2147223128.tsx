@@ -807,8 +807,8 @@ function Frame1() {
     <div className="bg-[rgba(255,255,255,0.05)] relative rounded-[100px] shrink-0 w-full max-w-[555.25px] overflow-hidden">
       <div aria-hidden="true" className="absolute border-[#b1b1b1] border-[0.5px] border-solid inset-0 pointer-events-none rounded-[100px]" />
       <div className="flex flex-row items-center size-full">
-        <div className="content-stretch flex flex-col sm:flex-row gap-[8px] sm:gap-[16px] items-center px-[12px] sm:px-[20px] py-[10px] relative w-full">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] sm:text-[14px] text-white whitespace-nowrap">{t('Built for leading platforms:')}</p>
+        <div className="content-stretch flex flex-row gap-[8px] sm:gap-[16px] items-center px-[12px] sm:px-[20px] py-[10px] relative w-full">
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[10px] sm:text-[14px] text-white whitespace-nowrap">{t('Our services support:')}</p>
           <Frame2 />
         </div>
       </div>
@@ -1440,11 +1440,14 @@ export function MobileHeroContent() {
       flexDirection: 'column',
       alignItems: 'center',
       gap: '20px',
-      padding: '70px 16px 24px 16px',
+      padding: '70px 16px 20px 16px',
       width: '100%',
     }}>
-      <Frame9 />
-      <Frame8 />
+      {/* 1 — Hero heading + subtitle */}
+      <Frame7 />
+
+      {/* 2 — Platforms pill */}
+      <Frame1 />
     </div>
   );
 }

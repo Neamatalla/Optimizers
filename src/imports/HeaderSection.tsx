@@ -71,14 +71,14 @@ export default function HeaderSection() {
                     <BackgroundLayer />
                 </div>
 
-                {/* Video — above fold, before hero text */}
-                <div className="mobile-hero-video">
-                    <MobileTabletLayer />
-                </div>
-
-                {/* Content — natural flow, below video */}
+                {/* Content — text + platforms pill first */}
                 <div className="mobile-hero-content">
                     <MobileHeroContent />
+                </div>
+
+                {/* Video — below content */}
+                <div className="mobile-hero-video">
+                    <MobileTabletLayer />
                 </div>
             </div>
         );

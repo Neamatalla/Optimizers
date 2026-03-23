@@ -14,7 +14,7 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       
       {/* Red gradient decorative elements at bottom */}
-      <div className="absolute h-[132.791px] left-[calc(75%-18.72px)] top-[657.52px] w-[148.475px]">
+      <div className="absolute h-[100px] right-[-20px] top-[350px] w-[120px] opacity-60">
         <div className="absolute inset-[-77.6%_-77.69%_-82.79%_-55.57%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 346.345 345.773">
             <g opacity="0.8">
@@ -41,7 +41,7 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      <div className="absolute h-[131.904px] left-[-35px] top-[646px] w-[157.89px]">
+      <div className="absolute h-[100px] left-[-30px] top-[340px] w-[120px] opacity-60">
         <div className="absolute inset-[-79.15%_-55.72%_-71.46%_-73.83%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 362.438 330.568">
             <g opacity="0.8">
@@ -68,7 +68,7 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      <div className="absolute h-[3.643px] left-[calc(25%+28.25px)] top-[660.56px] w-[138.669px]">
+      <div className="absolute h-[3px] left-[25%] top-[440px] w-[50%]">
         <div className="absolute inset-[-966.66%_-25.39%_-966.67%_-25.39%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 209.097 74.0703">
             <g>
@@ -147,8 +147,8 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      {/* Main content card */}
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-start left-[20px] top-[40px] w-[335px]">
+      {/* Main content card — positioned BELOW phones to avoid header overlap */}
+      <div className="absolute content-stretch flex flex-col gap-[12px] items-start left-[20px] top-[480px] w-[calc(100%-40px)] z-[60]">
         
         {/* Header with profile and company info */}
         <div className="content-stretch flex gap-[12px] h-[62px] items-center relative shrink-0 w-full">
@@ -172,31 +172,31 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
           
           {/* Challenge */}
           <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-            <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full">{t('Challenge')}</p>
-            <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-full">{t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}</p>
+            <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Challenge')}</p>
+            <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full">{t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}</p>
           </div>
 
           {/* Results */}
           <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-            <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full">{t('Results')}</p>
+            <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Results')}</p>
             <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
               <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[24px] tracking-[-0.96px] w-[102px]">
-                  <p className="leading-[56px]">+44.02%</p>
+                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
+                  <p className="leading-[40px]">+44.02%</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[102px]">{t('Funnel Progression')}</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Funnel Progression')}</p>
               </div>
               <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[24px] tracking-[-0.96px] w-[98px]">
-                  <p className="leading-[56px]">+4.33%</p>
+                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
+                  <p className="leading-[40px]">+4.33%</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Conversion Rate')}</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Conversion Rate')}</p>
               </div>
               <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[24px] tracking-[-0.96px] w-[98px]">
-                  <p className="leading-[56px]">+6.49%</p>
+                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
+                  <p className="leading-[40px]">+6.49%</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Boost Engagement')}</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Boost Engagement')}</p>
               </div>
             </div>
           </div>
@@ -205,21 +205,21 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
       </div>
 
       {/* Before text */}
-      <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px]">
+      <div className="absolute flex h-[40px] items-center justify-center left-[20%] top-[120px] w-[80px] z-[20]">
         <div className="flex-none rotate-[-15.07deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[28px] relative text-[20px] text-[rgba(255,255,255,0.2)] text-center">{t('Before')}</p>
         </div>
       </div>
 
       {/* After text */}
-      <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px]">
+      <div className="absolute flex h-[40px] items-center justify-center right-[20%] top-[120px] w-[80px] z-[20]">
         <div className="flex-none rotate-[11.21deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[28px] relative text-[20px] text-[rgba(255,255,255,0.2)] text-center">{t('After')}</p>
         </div>
       </div>
 
-      {/* Right phone (After) */}
-      <div className="absolute flex h-[348.351px] items-center justify-center left-[calc(33.33%+18px)] top-[343px] w-[213.013px]">
+      {/* Right phone (After) — keep original sprite dimensions */}
+      <div className="absolute flex h-[348px] items-center justify-center left-[48%] top-[150px] w-[213px] z-[20]">
         <div className="flex-none rotate-[13.09deg]">
           <div className="h-[324.328px] relative w-[143.281px]">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -229,8 +229,8 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      {/* Left phone (Before) */}
-      <div className="absolute flex h-[349.499px] items-center justify-center left-[16px] top-[329px] w-[225.541px]">
+      {/* Left phone (Before) — keep original sprite dimensions */}
+      <div className="absolute flex h-[349px] items-center justify-center left-[-2%] top-[140px] w-[225px] z-[20]">
         <div className="flex-none rotate-[-15.59deg]">
           <div className="h-[322.631px] relative w-[144.136px]">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">

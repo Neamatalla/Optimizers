@@ -30,7 +30,7 @@ function Frame16() {
   return (
     <div className="content-stretch flex flex-col gap-[24px] items-center relative shrink-0 w-full px-4">
       <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[1.4] lg:leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.9)] text-center w-full max-w-[690px]">{t("See how we've helped e-commerce stores like yours boost conversions, lower costs, and unlock hidden revenue.")}</p>
-      <Link />
+      <div className="hidden lg:block"><Link /></div>
     </div>
   );
 }

@@ -5,7 +5,7 @@
 /* ── Global font override for Arabic ── */
 body.lang-ar,
 body.lang-ar * {
-    font-family: 'Noto Sans Arabic', 'Sora', sans-serif !important;
+    font-family: 'Sora', 'Noto Sans Arabic', sans-serif !important;
 }
 
 /* ── Direction override for html[dir=rtl] ── */

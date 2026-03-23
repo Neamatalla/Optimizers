@@ -287,7 +287,7 @@ export default function App() {
               </p>
               <button
                 onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-                className="audit-button"
+                className="audit-button hidden lg:block"
               >
                 Book a Free CRO Audit
               </button>

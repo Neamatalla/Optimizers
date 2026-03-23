@@ -182,7 +182,7 @@ function CalculatorContent() {
     <div className="flex flex-col gap-[20px] lg:gap-8 w-full items-center">
       {/* ─── Title ─── */}
       <p
-        className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora'] font-semibold text-[38px] lg:text-[56px] text-transparent text-center tracking-[-1.76px] lg:tracking-[-2.5px] leading-tight whitespace-nowrap max-w-[303px] lg:max-w-none"
+        className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora'] font-semibold text-[38px] lg:text-[56px] text-transparent text-center tracking-[-1.76px] lg:tracking-[-2.5px] leading-tight w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-none"
         style={{ backgroundImage: `url('${imgRoiCalculator}')` }}
       >
         {t('ROI Calculator')}
@@ -190,7 +190,7 @@ function CalculatorContent() {
 
       {/* ─── Currency selector ─── */}
       <div
-        className="flex items-center px-[8px] py-[6px] lg:p-[6px] rounded-[12px] lg:rounded-[16px] w-full max-w-[303px] lg:max-w-none lg:w-auto"
+        className="flex items-center px-[8px] py-[6px] lg:p-[6px] rounded-[12px] lg:rounded-[16px] w-[94%] md:w-[90%] lg:w-auto max-w-[350px] md:max-w-[800px] lg:max-w-none"
         style={{
           background: "rgba(255,255,255,0.06)",
           border: "1px solid rgba(57,60,55,0.8)",
@@ -226,7 +226,7 @@ function CalculatorContent() {
       </div>
 
       {/* ─── 3 Input fields ─── */}
-      <div className="flex flex-row gap-[9px] lg:gap-[44px] items-start w-full max-w-[303px] lg:max-w-none justify-center">
+      <div className="flex flex-row gap-[9px] lg:gap-[44px] items-start w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-none justify-center">
         {/* Visitors */}
         <div className="flex flex-col gap-[6px] lg:gap-3 flex-1 lg:flex-none lg:w-[220px]">
           <p className="font-['Sora'] font-normal text-[12px] lg:text-[18px] text-center text-white">{t('Visitors')}</p>
@@ -266,7 +266,7 @@ function CalculatorContent() {
 
       {/* ─── Lift selector ─── */}
       <div
-        className="flex items-center justify-between px-[8px] lg:px-[24px] py-[6px] lg:py-[10px] rounded-[12px] lg:rounded-[16px] w-full max-w-[303px] lg:max-w-[780px]"
+        className="flex items-center justify-between px-[8px] lg:px-[24px] py-[6px] lg:py-[10px] rounded-[12px] lg:rounded-[16px] w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-[780px]"
         style={{
           background: "rgba(255,255,255,0.06)",
           border: "1px solid rgba(57,60,55,0.8)",
@@ -289,7 +289,7 @@ function CalculatorContent() {
       </div>
 
       {/* ─── Additional metrics row ─── */}
-      <div className="flex items-start justify-between w-full max-w-[303px] lg:max-w-[780px]">
+      <div className="flex items-start justify-between w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-[780px]">
         {/* Additional Revenue */}
         <div className="flex flex-col gap-[4px] lg:gap-3 items-start">
           <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">{t('Additional Revenue')}</p>
@@ -318,7 +318,7 @@ function CalculatorContent() {
       </div>
 
       {/* ─── Progress bar ─── */}
-      <div className="flex flex-col gap-[8px] lg:gap-3 w-full max-w-[303px] lg:max-w-[780px]">
+      <div className="flex flex-col gap-[8px] lg:gap-3 w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-[780px]">
         {/* Labels */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-[4px] lg:gap-2">

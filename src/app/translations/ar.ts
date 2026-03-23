@@ -154,7 +154,7 @@ export const arTranslations: Record<string, string> = {
   "Your first experiments live in just 14 days, with ongoing testing cycles for sustained impact": "تجاربك الأولى تنطلق خلال ١٤ يوماً فقط، مع دورات اختبار مستمرة لتحقيق تأثير مستدام",
   "If we don't improve your conversions, you don't pay": "إذا لم نحسّن تحويلاتك، فلن تدفع شيئاً",
   "We don't just run tests - we deliver measurable business growth.": "لا نكتفي بالاختبارات — بل نحقق نمواً تجارياً ملموساً وقابلاً للقياس.",
-  "Built for leading platforms:": "مصمم لأبرز المنصات:",
+  "Our services support:": "خدماتنا تدعم :",
 
   // ═══════════════════════════════════════════════
   // Table / Comparison

@@ -212,12 +212,12 @@ export default function AnimatedHeroSection() {
                     100% { transform: translateX(-50%); }
                 }
             `}</style>
-                <div className="bg-[#020601] w-full h-[100dvh] pt-[12dvh] pb-[4dvh] flex flex-col justify-between relative overflow-hidden" style={{ isolation: 'isolate' }}
+                <div className="bg-[#020601] w-full h-[100dvh] pt-[8dvh] pb-[4dvh] flex flex-col justify-between relative overflow-hidden" style={{ isolation: 'isolate' }}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                 >
                     {/* Section Title */}
-                    <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30" style={{ isolation: 'isolate' }}>
+                    <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30 mb-4" style={{ isolation: 'isolate' }}>
                         <p
                             className="font-['Sora',sans-serif] font-bold leading-[1.1] text-[32px] tracking-[-0.04em] bg-center bg-clip-text bg-cover bg-no-repeat text-center"
                             style={{
@@ -241,21 +241,22 @@ export default function AnimatedHeroSection() {
 
                     </div>
 
-                    <div className="relative z-10 flex-1 flex flex-col justify-end w-full max-w-[500px] mx-auto">
+                    {/* Removed fixed spacer to use relative flow */}
+
+                    <div className="relative z-10 flex-1 flex flex-col justify-end w-full max-w-[500px] mx-auto mt-2">
                         {/* Phone mockup — relative flex layout */}
-                        <div className="relative z-20 flex justify-center flex-1 min-h-0 items-end pointer-events-none mb-[-20dvh]">
+                        <div className="relative z-20 flex justify-center w-full min-h-0 items-end pointer-events-none mb-[-12vh]">
                             <div className="relative w-full h-full flex justify-center items-end">
                                 {clientData.map((c, i) => (
                                     <div
                                         key={i}
-                                        className="absolute bottom-0 w-[65%]"
+                                        className="absolute bottom-0 w-[85%]"
                                         style={{
                                             opacity: i === activeSlide ? 1 : 0,
-                                            transform: i === activeSlide ? 'scale(1.45) translateY(0)' : 'scale(1.2) translateY(20px)',
+                                            transform: i === activeSlide ? 'translateY(0)' : 'translateY(20px)',
                                             transition: i === activeSlide
                                                 ? 'opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 600ms cubic-bezier(0.16, 1, 0.3, 1)'
                                                 : 'opacity 300ms ease-out, transform 300ms ease-out',
-                                            transformOrigin: 'bottom center',
                                             pointerEvents: i === activeSlide ? 'auto' : 'none',
                                         }}
                                     >
@@ -328,7 +329,7 @@ export default function AnimatedHeroSection() {
                             </div>
 
                             {/* Card content — dynamic vertical padding */}
-                            <div className="relative z-[1] pt-[22dvh] pb-4 px-5">
+                            <div className="relative z-[1] pt-[12vh] pb-4 px-5">
 
                                 {/* Goals and Improvement */}
                                 <div className="grid mb-5" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
@@ -387,7 +388,7 @@ export default function AnimatedHeroSection() {
                                 </div>
 
                                 {/* Pagination and Arrows */}
-                                <div className="flex items-center justify-between pt-5">
+                                <div className={`flex items-center justify-between pt-5 ${language === 'ar' ? 'flex-row-reverse' : ''}`}>
                                     <button
                                         onClick={() => goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1)}
                                         className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"

@@ -78,7 +78,7 @@ function Frame19() {
             <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[1.1] min-w-full relative shrink-0 text-[36px] lg:text-[78px] text-center lg:text-left tracking-[-1.44px] lg:tracking-[-2px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgFrequentlyAskedQuestions}')` }}>
                 {t("Frequently Asked Questions")}
             </p>
-            <Link />
+            <div className="hidden lg:block"><Link /></div>
         </div>
     );
 }
@@ -99,7 +99,7 @@ export default function FAQSection() {
                 <div ref={headingRef} className={headingVisible ? 'reveal-visible' : 'reveal-hidden'}>
                     <Frame19 />
                 </div>
-                <div ref={accordionRef} className={`flex flex-col w-full max-w-[335px] lg:max-w-none gap-[12px] lg:gap-4 ${accordionVisible ? 'reveal-visible' : 'reveal-hidden'} reveal-stagger-1`}>
+                <div ref={accordionRef} className={`flex flex-col w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-none gap-[12px] lg:gap-4 ${accordionVisible ? 'reveal-visible' : 'reveal-hidden'} reveal-stagger-1`}>
                     <Accordion
                         type="single"
                         collapsible
@@ -138,6 +138,10 @@ export default function FAQSection() {
                             </AccordionItem>
                         ))}
                     </Accordion>
+                </div>
+                {/* CTA below FAQ questions on mobile */}
+                <div className="lg:hidden flex justify-center w-full pt-4">
+                    <Link />
                 </div>
             </div>
         </div>

@@ -2071,7 +2071,7 @@ function Frame() {
         {t('Why Choose Our CRO Agency?')}
       </p>
       <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">{t("We don’t just run tests - we deliver measurable business growth.")}</p>
-      <Link />
+      <div className="hidden lg:block"><Link /></div>
     </div>
   );
 }
