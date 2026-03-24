@@ -370,9 +370,11 @@ export default function App() {
           <div className="content-visibility-auto">
             <Table />
           </div>
-          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <AnimatedCaseStudies />
-          </Suspense>
+          <div id="case-studies-section" style={{ position: 'relative', zIndex: 0 }}>
+            <Suspense fallback={<div className="w-full min-h-[100px]" />}>
+              <AnimatedCaseStudies />
+            </Suspense>
+          </div>
           <div className="content-visibility-auto">
             <Frame2147223150 />
           </div>

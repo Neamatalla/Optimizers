@@ -1,3 +1,4 @@
+import React from "react";
 import svgPaths from "./svg-cs2";
 import imgProfilePhoto from "../assets/2cc5b00674c967ea21dbba5d55af8fe6d3656772.png";
 import imgIPhone16Pro from "../assets/2ad077971799010c352d92d5752938507aa3d67b.png";
@@ -147,8 +148,8 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      {/* Main content card — positioned BELOW phones to avoid header overlap */}
-      <div className="absolute content-stretch flex flex-col gap-[12px] items-start left-[20px] top-[480px] w-[calc(100%-40px)] z-[60]">
+      {/* Main content card */}
+      <div className="absolute content-stretch flex flex-col gap-[20px] items-start left-[20px] top-[40px] w-[calc(100%-40px)] z-[60]">
         
         {/* Header with profile and company info */}
         <div className="content-stretch flex gap-[12px] h-[62px] items-center relative shrink-0 w-full">
@@ -205,23 +206,23 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
       </div>
 
       {/* Before text */}
-      <div className="absolute flex h-[40px] items-center justify-center left-[20%] top-[120px] w-[80px] z-[20]">
+      <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px] z-[20]">
         <div className="flex-none rotate-[-15.07deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[28px] relative text-[20px] text-[rgba(255,255,255,0.2)] text-center">{t('Before')}</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
         </div>
       </div>
 
       {/* After text */}
-      <div className="absolute flex h-[40px] items-center justify-center right-[20%] top-[120px] w-[80px] z-[20]">
+      <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px] z-[20]">
         <div className="flex-none rotate-[11.21deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[28px] relative text-[20px] text-[rgba(255,255,255,0.2)] text-center">{t('After')}</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
         </div>
       </div>
 
-      {/* Right phone (After) — keep original sprite dimensions */}
-      <div className="absolute flex h-[348px] items-center justify-center left-[48%] top-[150px] w-[213px] z-[20]">
+      {/* Right phone (After) */}
+      <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px] z-[20]">
         <div className="flex-none rotate-[13.09deg]">
-          <div className="h-[324.328px] relative w-[143.281px]">
+          <div className="h-[321px] relative w-[143px]">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <img alt="" className="absolute h-[141.07%] left-[-104.26%] max-w-none top-[-8.05%] w-[425.75%]" src={imgIPhone16Pro} />
             </div>
@@ -229,10 +230,10 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      {/* Left phone (Before) — keep original sprite dimensions */}
-      <div className="absolute flex h-[349px] items-center justify-center left-[-2%] top-[140px] w-[225px] z-[20]">
+      {/* Left phone (Before) */}
+      <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px] z-[20]">
         <div className="flex-none rotate-[-15.59deg]">
-          <div className="h-[322.631px] relative w-[144.136px]">
+          <div className="h-[320px] relative w-[142px]">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <img alt="" className="absolute h-[141.81%] left-[-219.03%] max-w-none top-[-34.12%] w-[423.23%]" src={imgIPhone16Pro} />
             </div>

@@ -4,10 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "dev": "vite --port 5173 --host",
     "build": "vite build",
-    "dev": "vite",
-    "start": "vite",
-    "share": "ngrok http 9000",
+    "preview": "vite preview --port 4173 --host",
+    "start": "vite preview --port 4173 --host",
+    "share": "ngrok http 5173",
     "compress-images": "node scripts/compress-images.js"
   },
   "dependencies": {

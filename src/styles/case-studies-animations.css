@@ -1,4 +1,11 @@
 /* ─── Full-screen sticky wrapper ────────────────────────────── */
+.cs-mobile-scroll-container {
+    position: relative;
+    width: 100%;
+    min-height: 800vh;
+    background-color: #020601;
+}
+
 .cs-scroll-container {
     position: relative;
     width: 100%;
@@ -11,7 +18,7 @@
     top: 0;
     width: 100%;
     height: 100vh;
-    overflow: clip;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -264,29 +271,31 @@
    gate → title → cards progression using useScroll/useTransform.
    ═══════════════════════════════════════════════════════════════════ */
 
-/* Tall scrollable container — user scrolls through this to drive animation */
-/* 500vh gives 400vh of physical scroll: ~40vh gate, ~74vh title, 4×~74vh slides */
+/* ── New Mobile Architecture (JS Scroll Locked) ── */
 .cs-mobile-scroll-container {
     position: relative;
     width: 100%;
-    height: 500vh;
-    min-height: 500vh;
-    flex-shrink: 0;
-    background: #020601;
+    /* 500vh provides a long enough scroll duration for 4 slides + gate */
+    min-height: 700vh;
+    background-color: #020601;
+    /* Must be visible for sticky children to work */
+    overflow: visible;
 }
 
-/* Sticky viewport — stays fixed while user scrolls through container */
 .cs-mobile-sticky-viewport {
     position: sticky;
     top: 0;
     width: 100%;
     height: 100vh;
-    height: 100dvh;
+    height: 100svh;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #020601;
+    /* Use flex-start to allow sticking inside flex containers */
+    align-self: flex-start;
+    z-index: 50;
 }
 
 /* Vignette overlay for atmosphere */
@@ -304,17 +313,12 @@
     );
 }
 
-/* ── Gate Bars (3-div glow structure matching desktop) ── */
+/* ── Gate Bars — horizontal bars, position/size set by JS inline styles ── */
 .cs-mobile-gate-bar {
     position: absolute;
-    top: 10%;
-    height: 55%;
-    width: 8px;
-    left: 50%;
-    margin-left: -4px;
     z-index: 60;
-    border-radius: 100px;
     will-change: transform, opacity;
+    pointer-events: none;
 }
 
 /* Core: bright colored strip */
@@ -398,10 +402,7 @@
 /* ── Title Text ── */
 .cs-mobile-title-wrapper {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 65%;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -504,8 +505,22 @@
 
     /* Reduce scroll distance on mobile */
     .cs-scroll-container {
-        min-height: 200vh;
+        min-height: 350vh;
+        /* Critical: remove any transforms/will-change that break sticky on mobile */
+        will-change: auto;
+        transform: none;
     }
+
+    /* Mobile sticky wrapper - must not have will-change or transform */
+    .cs-sticky-wrapper {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        will-change: auto;
+        transform: none;
+        overflow: hidden;
+    }
+
 
     /* Override the fixed 1440px scaler — use full viewport on mobile */
     .cs-content-scaler {
