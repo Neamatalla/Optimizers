@@ -162,7 +162,7 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
         ref={canvasRef}
         width={570}
         height={589}
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        className="absolute inset-0 cursor-grab active:cursor-grabbing touch-none"
       />
       <div
         className="absolute inset-0 pointer-events-none rounded-[43px] blur-[4px]"

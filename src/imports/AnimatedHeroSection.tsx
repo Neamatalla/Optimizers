@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionValueEvent, animate } from "motion/react";
 import { useLanguage } from "../app/contexts/LanguageContext";
 import Section1 from "./Section1";
@@ -172,7 +172,7 @@ export default function AnimatedHeroSection() {
     useEffect(() => {
         if (!isMobile) return;
         autoPlayRef.current = setInterval(() => {
-            setActiveSlide(prev => (prev + 1) % sections.length);
+            setActiveSlide((prev: number) => (prev + 1) % sections.length);
         }, 4000);
         return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current); };
     }, [isMobile]);
@@ -180,7 +180,7 @@ export default function AnimatedHeroSection() {
     const resetAutoPlay = () => {
         if (autoPlayRef.current) clearInterval(autoPlayRef.current);
         autoPlayRef.current = setInterval(() => {
-            setActiveSlide(prev => (prev + 1) % sections.length);
+            setActiveSlide((prev: number) => (prev + 1) % sections.length);
         }, 4000);
     };
 
@@ -212,12 +212,12 @@ export default function AnimatedHeroSection() {
                     100% { transform: translateX(-50%); }
                 }
             `}</style>
-                <div className="bg-[#020601] w-full h-[100dvh] pt-[8dvh] pb-[4dvh] flex flex-col justify-between relative overflow-hidden" style={{ isolation: 'isolate' }}
+                <div ref={containerRef} className="bg-[#020601] w-full min-h-[100svh] pt-[8svh] pb-[12svh] flex flex-col justify-start relative overflow-x-hidden" style={{ isolation: 'isolate', touchAction: 'pan-y' }}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                 >
                     {/* Section Title */}
-                    <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30 mb-4" style={{ isolation: 'isolate' }}>
+                    <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30 mb-8" style={{ isolation: 'isolate' }}>
                         <p
                             className="font-['Sora',sans-serif] font-bold leading-[1.1] text-[32px] tracking-[-0.04em] bg-center bg-clip-text bg-cover bg-no-repeat text-center"
                             style={{
@@ -243,14 +243,17 @@ export default function AnimatedHeroSection() {
 
                     {/* Removed fixed spacer to use relative flow */}
 
-                    <div className="relative z-10 flex-1 flex flex-col justify-end w-full max-w-[500px] mx-auto mt-2">
-                        {/* Phone mockup — relative flex layout */}
-                        <div className="relative z-20 flex justify-center w-full min-h-0 items-end pointer-events-none mb-[-12vh]">
-                            <div className="relative w-full h-full flex justify-center items-end">
+                    <div className="relative z-10 flex flex-col w-full max-w-[500px] mx-auto mt-[4svh] mb-[4svh]">
+                        {/* Phone mockup — uses placeholder for natural height */}
+                        <div className="relative z-20 flex justify-center w-full pointer-events-none mb-[-20svh]">
+                            {/* Invisible placeholder avoids absolute overlap upwards */}
+                            <img src={clientData[0].mockup} className="w-[115%] h-auto opacity-0 pointer-events-none" aria-hidden="true" alt="" />
+                            
+                            <div className="absolute inset-0 w-full h-full flex justify-center items-end">
                                 {clientData.map((c, i) => (
                                     <div
                                         key={i}
-                                        className="absolute bottom-0 w-[85%]"
+                                        className="absolute bottom-0 w-[115%] left-1/2 -translate-x-1/2"
                                         style={{
                                             opacity: i === activeSlide ? 1 : 0,
                                             transform: i === activeSlide ? 'translateY(0)' : 'translateY(20px)',
@@ -291,9 +294,9 @@ export default function AnimatedHeroSection() {
                             <div 
                                 className="absolute inset-x-0 overflow-hidden pointer-events-none" 
                                 style={{ 
-                                    paddingTop: '8dvh',
-                                    maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 20%, black 50%, rgba(0,0,0,0.4) 80%, transparent 100%)',
-                                    WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 20%, black 50%, rgba(0,0,0,0.4) 80%, transparent 100%)'
+                                    paddingTop: '16svh',
+                                    maskImage: 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)',
+                                    WebkitMaskImage: 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)'
                                 }}
                             >
                                 <div className="grid" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
@@ -304,7 +307,7 @@ export default function AnimatedHeroSection() {
                                             style={{
                                                 gridColumn: 1,
                                                 gridRow: 1,
-                                                opacity: i === activeSlide ? 0.15 : 0,
+                                                opacity: i === activeSlide ? 0.6 : 0,
                                                 transition: 'opacity 800ms ease',
                                                 animation: 'watermarkScroll 25s linear infinite',
                                             }}
@@ -329,7 +332,7 @@ export default function AnimatedHeroSection() {
                             </div>
 
                             {/* Card content — dynamic vertical padding */}
-                            <div className="relative z-[1] pt-[12vh] pb-4 px-5">
+                            <div className="relative z-[1] pt-[30svh] pb-[6svh] px-5">
 
                                 {/* Goals and Improvement */}
                                 <div className="grid mb-5" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>

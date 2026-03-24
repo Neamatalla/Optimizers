@@ -141,10 +141,7 @@ body {
 }
 
 /* ===== Performance Optimization ===== */
-.content-visibility-auto {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 800px;
-}
+/* Eliminated content-visibility-auto due to layout jumps */
 
 /* ===== Scroll To Top Button ===== */
 .scroll-to-top-btn {

@@ -26,7 +26,7 @@ export default function AnimatedCaseStudies() {
     const { t } = useLanguage();
 
     // ── Mobile detection ──
-    const [isMobile, setIsMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1100 : false);
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 1100);
         check();
@@ -35,7 +35,7 @@ export default function AnimatedCaseStudies() {
     }, []);
 
     // ── Viewport height (Stabilized for mobile address bar jitter) ──
-    const [viewportHeight, setViewportHeight] = useState(844);
+    const [viewportHeight, setViewportHeight] = useState(() => typeof window !== 'undefined' ? window.innerHeight : 844);
     const lastWidthRef = useRef(0);
 
     useEffect(() => {
@@ -141,9 +141,9 @@ export default function AnimatedCaseStudies() {
     const mSlideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
     const mSlideYs = [useMotionValue('15%'), useMotionValue('15%'), useMotionValue('15%'), useMotionValue('15%')];
 
-    const scaleValue = useMotionValue(1);
+    const scaleValue = useMotionValue(typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 800) : 1);
     const smoothScale = useSpring(scaleValue, { stiffness: 50, damping: 20 });
-    const [mobileScale, setMobileScale] = useState(1);
+    const [mobileScale, setMobileScale] = useState(() => typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 800) : 1);
     const lastScaleWidthRef = useRef(0);
 
     useEffect(() => {
@@ -167,7 +167,8 @@ export default function AnimatedCaseStudies() {
 
     useMotionValueEvent(mobileScrollProgress, 'change', (v) => {
         let idx = -1;
-        // Threshold-based triggers: once crossed, the index changes and useEffect handles the 2s animation
+        // Adjusted thresholds for exact 20% bands:
+        // 0.15-0.35 (Slide 1), 0.35-0.55 (Slide 2), 0.55-0.75 (Slide 3), 0.75-1.0 (Slide 4)
         if (v > 0.15 && v <= 0.35) idx = 0;
         else if (v > 0.35 && v <= 0.55) idx = 1;
         else if (v > 0.55 && v <= 0.75) idx = 2;
@@ -177,6 +178,84 @@ export default function AnimatedCaseStudies() {
             setActiveMobileIndex_M(idx);
         }
     });
+
+    // ── Strict 1-Slide-Per-Scroll Logic (Mobile) ──
+    const isSnappingRef = useRef(false);
+    const startYRef = useRef(0);
+    const lastVRef = useRef(0);
+    useMotionValueEvent(mobileScrollProgress, 'change', (v) => { lastVRef.current = v; });
+
+    useEffect(() => {
+        if (!isMobile || !mobileContainerRef.current) return;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            startYRef.current = e.touches[0].clientY;
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (isSnappingRef.current) return;
+            
+            const deltaY = startYRef.current - e.changedTouches[0].clientY;
+            const direction = deltaY > 0 ? 'down' : 'up';
+            const v = lastVRef.current;
+            
+            // ── Boundary Logic (Exit Allowed) ──
+            // Case 1: Scrolling down past the last slide -> allow normal scroll
+            if (direction === 'down' && v > 0.78) return;
+            // Case 2: Scrolling up past the first slide -> allow normal scroll
+            // Widened to 0.25 to make exiting from Squadio (Slide 1) effortless
+            if (direction === 'up' && v < 0.25) return;
+
+            // ── Snap Logic (One Slide Per Scroll) ──
+            if (Math.abs(deltaY) > 40) { // Threshold for swipe
+                let targetV = -1;
+                
+                if (direction === 'down') {
+                    // Slide thresholds (starts): 0.15 (S1), 0.35 (S2), 0.55 (S3), 0.75 (S4)
+                    if (v < 0.15) targetV = 0.15;
+                    else if (v < 0.35) targetV = 0.35;
+                    else if (v < 0.55) targetV = 0.55;
+                    else if (v < 0.75) targetV = 0.75;
+                } else {
+                    if (v > 0.75) targetV = 0.55;
+                    else if (v > 0.55) targetV = 0.35;
+                    else if (v > 0.35) targetV = 0.15;
+                    // No targetV for v < 0.35 means we fall through and allow free scroll up
+                }
+
+                if (targetV !== -1) {
+                    isSnappingRef.current = true;
+                    // Calculate absolute scroll position for targetV
+                    const rect = mobileContainerRef.current.getBoundingClientRect();
+                    const containerTop = rect.top + window.pageYOffset;
+                    const containerHeight = rect.height;
+                    const offsetStart = containerHeight * 0.6 * -1; // Mirroring start 0.6 offset
+                    // Actually useScroll offset start 0.6 means v=0 is when start of section is 60% down viewport
+                    
+                    // Simple approach: animate to target v using motion value?
+                    // Better: use window.scrollTo calculation
+                    // Fix: Use containerTop (absolute) instead of offsetTop (relative)
+                    const currentTargetY = containerTop + (targetV * containerHeight);
+                    
+                    animate(window.scrollY, currentTargetY, {
+                        type: 'spring',
+                        stiffness: 45,
+                        damping: 20,
+                        onUpdate: (latest) => window.scrollTo(0, latest),
+                        onComplete: () => { isSnappingRef.current = false; }
+                    });
+                }
+            }
+        };
+
+        const container = mobileContainerRef.current;
+        container.addEventListener('touchstart', handleTouchStart);
+        container.addEventListener('touchend', handleTouchEnd);
+        return () => {
+            container.removeEventListener('touchstart', handleTouchStart);
+            container.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [isMobile, activeMobileIndex_M]);
 
     useEffect(() => {
         // Updated to 2 seconds as requested by the user

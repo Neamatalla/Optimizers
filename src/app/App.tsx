@@ -364,47 +364,35 @@ export default function App() {
             <AnimatedHeroSection />
           </div>
           <Component333 />
-          <div className="content-visibility-auto">
-            <ProcessWithAnimation />
-          </div>
-          <div className="content-visibility-auto">
-            <Table />
-          </div>
+          <ProcessWithAnimation />
+          <Table />
           <div id="case-studies-section" style={{ position: 'relative', zIndex: 0 }}>
             <Suspense fallback={<div className="w-full min-h-[100px]" />}>
               <AnimatedCaseStudies />
             </Suspense>
           </div>
-          <div className="content-visibility-auto">
-            <Frame2147223150 />
-          </div>
-          <div id="roi-calculator" className="content-visibility-auto">
+          <Frame2147223150 />
+          <div id="roi-calculator">
             <Suspense fallback={<div className="w-full min-h-[100px]" />}>
               <ROICalculator />
             </Suspense>
           </div>
           <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <div className="content-visibility-auto">
-              <PartnersAndTools />
-            </div>
+            <PartnersAndTools />
           </Suspense>
-          <div className="relative w-full h-auto content-visibility-auto" id="contact">
+          <div className="relative w-full h-auto" id="contact">
             <StrategySession />
           </div>
-          <div id="team" className="content-visibility-auto">
+          <div id="team">
             <Suspense fallback={<div className="w-full min-h-[100px]" />}>
               <MeetTheTeam />
             </Suspense>
           </div>
           <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <div className="content-visibility-auto">
-              <FAQSection />
-            </div>
+            <FAQSection />
           </Suspense>
           <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <div className="content-visibility-auto">
-              <GallerySection />
-            </div>
+            <GallerySection />
           </Suspense>
           <Footer />
         </div>

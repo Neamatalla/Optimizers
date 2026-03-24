@@ -89,7 +89,7 @@ function MobileColumn({ colIndex }: { colIndex: number }) {
 function MobileGalleryGrid() {
     return (
         <div
-            className="absolute overflow-auto"
+            className="absolute overflow-visible"
             style={{
                 width: '718.574px',
                 height: '474.002px',
@@ -214,28 +214,35 @@ export default function GallerySection() {
                         className="absolute inset-0" 
                         style={{ transformStyle: 'preserve-3d', transformOrigin: 'center center' }}
                         animate={{
-                            rotateY: [-22, 22],
+                            rotateY: [-15, 15],
                             rotateX: [-5, 5],
                             x: [-200, 200],
+                            y: [-100, 100],
                         }}
                         transition={{
                             rotateY: {
-                                duration: 15,
+                                duration: 12,
                                 repeat: Infinity,
-                                repeatType: "reverse",
-                                ease: [0.4, 0, 0.2, 1]
+                                repeatType: "mirror",
+                                ease: "easeInOut"
                             },
                             rotateX: {
-                                duration: 18,
+                                duration: 15,
                                 repeat: Infinity,
-                                repeatType: "reverse",
+                                repeatType: "mirror",
                                 ease: "easeInOut"
                             },
                             x: {
-                                duration: 15,
+                                duration: 18,
                                 repeat: Infinity,
-                                repeatType: "reverse",
-                                ease: [0.4, 0, 0.2, 1]
+                                repeatType: "mirror",
+                                ease: "easeInOut"
+                            },
+                            y: {
+                                duration: 22,
+                                repeat: Infinity,
+                                repeatType: "mirror",
+                                ease: "easeInOut"
                             }
                         }}
                     >
@@ -264,56 +271,6 @@ export default function GallerySection() {
             <div className="hidden lg:block absolute inset-y-0 left-0 w-[20%] z-25 bg-gradient-to-r from-black to-transparent pointer-events-none" />
             <div className="hidden lg:block absolute inset-y-0 right-0 w-[20%] z-25 bg-gradient-to-l from-black to-transparent pointer-events-none" />
 
-            {/* Mobile atmospheric effects - bottom ellipse blur + side fades */}
-            <div className="lg:hidden absolute bottom-[-0.33px] left-1/2 -translate-x-1/2 w-[762px] h-[87.331px] z-20 pointer-events-none">
-                <div className="absolute inset-[-51.81%_-5.94%]">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 852.499 177.83">
-                        <g filter="url(#filter_mob_bot)">
-                            <ellipse cx="426.249" cy="88.9151" fill="#000000" rx="381" ry="43.6657" />
-                        </g>
-                        <defs>
-                            <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="177.83" id="filter_mob_bot" width="852.499" x="0" y="0">
-                                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
-                                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="22.625" />
-                            </filter>
-                        </defs>
-                    </svg>
-                </div>
-            </div>
-            {/* Mobile side fades - rotated ellipses */}
-            <div className="lg:hidden absolute right-[-15px] top-1/2 -translate-y-1/2 w-[114.888px] h-[309px] z-20 pointer-events-none -rotate-90 origin-center" style={{ transform: 'translateY(-50%) rotate(-90deg)' }}>
-                <div className="absolute inset-[-25.45%_-9.46%]">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 367.467 173.356">
-                        <g filter="url(#filter_mob_r)">
-                            <ellipse cx="183.734" cy="86.6779" fill="#000000" rx="154.5" ry="57.4442" />
-                        </g>
-                        <defs>
-                            <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="173.356" id="filter_mob_r" width="367.467" x="0" y="0">
-                                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
-                                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="14.6168" />
-                            </filter>
-                        </defs>
-                    </svg>
-                </div>
-            </div>
-            <div className="lg:hidden absolute left-[-50px] top-1/2 -translate-y-1/2 w-[114.888px] h-[309px] z-20 pointer-events-none" style={{ transform: 'translateY(-50%) rotate(-90deg)' }}>
-                <div className="absolute inset-[-25.45%_-9.46%]">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 367.467 173.356">
-                        <g filter="url(#filter_mob_l)">
-                            <ellipse cx="183.734" cy="86.6779" fill="#000000" rx="154.5" ry="57.4442" />
-                        </g>
-                        <defs>
-                            <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="173.356" id="filter_mob_l" width="367.467" x="0" y="0">
-                                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
-                                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="14.6168" />
-                            </filter>
-                        </defs>
-                    </svg>
-                </div>
-            </div>
         </div>
     );
 }

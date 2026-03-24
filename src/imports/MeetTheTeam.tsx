@@ -602,7 +602,17 @@ function MobileText() {
 
 function MobileCard() {
   return (
-    <div className="border-[#5f82bf] border-[0.762px] border-solid h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+    <div className="h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+      <div
+          className="absolute inset-0 pointer-events-none rounded-[12.188px]"
+          style={{
+              padding: "0.762px",
+              background: "linear-gradient(to left, #5f82bf 0%, #5f82bf 30%, transparent 100%)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+          }}
+      />
       <MobileBgElements />
       <MobileText />
     </div>
@@ -690,7 +700,17 @@ function MobileText1() {
 
 function MobileCard1() {
   return (
-    <div className="border-[#ffa69a] border-[0.76px] border-solid h-[159.586px] overflow-clip relative rounded-[12.159px] w-[204.423px]" data-name="MobileCard">
+    <div className="h-[159.586px] overflow-clip relative rounded-[12.159px] w-[204.423px]" data-name="MobileCard">
+      <div
+          className="absolute inset-0 pointer-events-none rounded-[12.159px]"
+          style={{
+              padding: "0.76px",
+              background: "linear-gradient(to left, #ffa69a 0%, #ffa69a 30%, transparent 100%)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+          }}
+      />
       <MobileBgElements1 />
       <MobileText1 />
     </div>
@@ -780,7 +800,17 @@ function MobileText2() {
 
 function MobileCard2() {
   return (
-    <div className="border-[#fcd34d] border-[0.764px] border-solid h-[160.373px] overflow-clip relative rounded-[12.219px] w-[205.43px]" data-name="MobileCard">
+    <div className="h-[160.373px] overflow-clip relative rounded-[12.219px] w-[205.43px]" data-name="MobileCard">
+      <div
+          className="absolute inset-0 pointer-events-none rounded-[12.219px]"
+          style={{
+              padding: "0.764px",
+              background: "linear-gradient(to left, #fcd34d 0%, #fcd34d 30%, transparent 100%)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+          }}
+      />
       <MobileBgElements2 />
       <MobileText2 />
     </div>
@@ -868,7 +898,17 @@ function MobileText3() {
 
 function MobileCard3() {
   return (
-    <div className="border-[#92ebb4] border-[0.762px] border-solid h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+    <div className="h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+      <div
+          className="absolute inset-0 pointer-events-none rounded-[12.188px]"
+          style={{
+              padding: "0.762px",
+              background: "linear-gradient(to left, #92ebb4 0%, #92ebb4 30%, transparent 100%)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+          }}
+      />
       <MobileBgElements3 />
       <MobileText3 />
     </div>
@@ -956,7 +996,17 @@ function MobileText4() {
 
 function MobileCard4() {
   return (
-    <div className="border-[0.762px] border-[rgba(255,164,55,0.7)] border-solid h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+    <div className="h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+      <div
+          className="absolute inset-0 pointer-events-none rounded-[12.188px]"
+          style={{
+              padding: "0.762px",
+              background: "linear-gradient(to left, rgba(255,164,55,0.7) 0%, rgba(255,164,55,0.7) 30%, transparent 100%)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+          }}
+      />
       <MobileBgElements4 />
       <MobileText4 />
     </div>

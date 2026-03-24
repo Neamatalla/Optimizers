@@ -209,8 +209,8 @@ function Frame6() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora',sans-serif] font-semibold leading-[24px] min-w-full relative shrink-0 text-[#fef3c7] text-[16px] w-[min-content]">{t('Challenge')}</p>
-      <p className="font-['Sora',sans-serif] font-normal leading-[19px] relative shrink-0 text-[14px] text-white w-[313px]">{t('Customers browsed but hesitated to buy due to unclear info and low trust.')}</p>
+      <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#fef3c7] text-[14px] w-full">{t('Challenge')}</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full">{t('Customers browsed but hesitated to buy due to unclear info and low trust.')}</p>
     </div>
   );
 }
@@ -219,10 +219,10 @@ function Frame9() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[24px] tracking-[-0.96px] w-[98px]">
-        <p className="leading-[56px]">+6.4%</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[20px] tracking-[-0.96px] w-auto">
+        <p className="leading-[40px]">+6.4%</p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Conversion Rate')}</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Conversion Rate')}</p>
     </div>
   );
 }
@@ -231,10 +231,10 @@ function Frame11() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[24px] tracking-[-0.96px] w-[98px]">
-        <p className="leading-[56px]">+8.03%</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[20px] tracking-[-0.96px] w-auto">
+        <p className="leading-[40px]">+8.03%</p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Revenue per Visitor')}</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Revenue per Visitor')}</p>
     </div>
   );
 }
@@ -243,10 +243,10 @@ function Frame10() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[26px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[24px] tracking-[-0.96px] w-[98px]">
-        <p className="leading-[56px]">+6.42%</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[20px] tracking-[-0.96px] w-auto">
+        <p className="leading-[40px]">+6.42%</p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[14px] text-white w-[98px]">{t('Products per Visitor')}</p>
+      <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Products per Visitor')}</p>
     </div>
   );
 }
@@ -264,7 +264,7 @@ function Frame1() {
 function Frame7() {
   return (
     <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora',sans-serif] font-semibold leading-[24px] relative shrink-0 text-[#fef3c7] text-[16px] w-full">Hypothesis</p>
+      <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#fef3c7] text-[14px] w-full">Hypothesis</p>
       <Frame1 />
     </div>
   );

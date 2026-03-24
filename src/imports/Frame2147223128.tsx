@@ -780,19 +780,19 @@ function Bg() {
 
 function Frame2() {
   return (
-    <div className="content-stretch flex gap-[16px] items-start relative">
-      <div className="h-[27.788px] relative w-[52px]" data-name="6687d1be6301f78fecf93bc7_63bd507de1ccf48089402fa4_uOYhhM4z-weg3akxNwMMdc44TbzMuFvnANywZTCYIzg">
+    <div className="content-stretch flex gap-[4px] sm:gap-[16px] items-start relative">
+      <div className="h-[16px] sm:h-[27.788px] relative w-[32px] sm:w-[52px]" data-name="6687d1be6301f78fecf93bc7_63bd507de1ccf48089402fa4_uOYhhM4z-weg3akxNwMMdc44TbzMuFvnANywZTCYIzg">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={img6687D1Be6301F78Fecf93Bc763Bd507De1Ccf48089402Fa4UOYhhM4ZWeg3AkxNwMMdc44TbzMuFvnANywZtcyIzg} decoding="async" />
       </div>
-      <div className="h-[28.042px] mix-blend-plus-lighter relative w-[64px]" data-name="b9b3c47f-590c-9afc-97bc-b866bad86a72">
+      <div className="h-[16px] sm:h-[28.042px] mix-blend-plus-lighter relative w-[40px] sm:w-[64px]" data-name="b9b3c47f-590c-9afc-97bc-b866bad86a72">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[151.69%] left-[-8.92%] max-w-none top-[-26.4%] w-[118.15%]" src={imgB9B3C47F590C9Afc97BcB866Bad86A72} decoding="async" />
         </div>
       </div>
-      <div className="h-[27.885px] relative w-[97.5px]" data-name="358-3589718_shopify-logo-white-transparent 1">
+      <div className="h-[16.5px] sm:h-[27.885px] relative w-[65px] sm:w-[97.5px]" data-name="358-3589718_shopify-logo-white-transparent 1">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={img3583589718ShopifyLogoWhiteTransparent1} decoding="async" />
       </div>
-      <div className="h-[27.857px] relative w-[48.75px]" data-name="Woocommerce_logo 1">
+      <div className="h-[16.5px] sm:h-[27.857px] relative w-[30px] sm:w-[48.75px]" data-name="Woocommerce_logo 1">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img alt="" className="absolute h-[99.69%] left-0 max-w-none top-0 w-[282.86%]" src={imgWoocommerceLogo1} decoding="async" />
         </div>
@@ -807,7 +807,7 @@ function Frame1() {
     <div className="bg-[rgba(255,255,255,0.05)] relative rounded-[100px] shrink-0 w-full max-w-[555.25px] overflow-hidden">
       <div aria-hidden="true" className="absolute border-[#b1b1b1] border-[0.5px] border-solid inset-0 pointer-events-none rounded-[100px]" />
       <div className="flex flex-row items-center size-full">
-        <div className="content-stretch flex flex-row gap-[8px] sm:gap-[16px] items-center px-[12px] sm:px-[20px] py-[10px] relative w-full">
+        <div className="content-stretch flex flex-row gap-[4px] sm:gap-[16px] items-center px-[8px] sm:px-[20px] py-[10px] relative w-full">
           <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[10px] sm:text-[14px] text-white whitespace-nowrap">{t('Our services support:')}</p>
           <Frame2 />
         </div>
@@ -1071,10 +1071,10 @@ function Hero() {
   }, []);
 
   return (
-    <div className="absolute h-[89.7%] left-[3.8%] rounded-[14px] top-[5.1%] w-[92.5%]" data-name="Hero">
+    <div className="absolute h-[89.7%] left-[3.8%] rounded-[24px] overflow-hidden top-[5.1%] w-[92.5%]" data-name="Hero">
       <video
         ref={videoRef}
-        className="absolute max-w-none object-cover rounded-[14px] size-full"
+        className="absolute max-w-none object-cover rounded-[24px] size-full"
         muted
         loop
         playsInline

@@ -3,13 +3,14 @@ import svgPaths from "./svg-8x44mv6a2l";
 import imgWhatMakesCroTheSmarterInvestment from "../assets/1495296c1372cb62f4b13afc83f9acb3d1d29faf.webp";
 import { imgAnimatedBeam } from "./svg-cfo9w";
 
+// Constants for legacy scaling (not used in current responsive layout)
 const CANVAS_WIDTH = 1440;
 const CANVAS_HEIGHT = 1000;
 
 function Frame() {
   return (
-    <div className="relative lg:absolute content-stretch flex flex-col items-center lg:left-0 w-full p-4 lg:p-0">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[69.35px] relative shrink-0 text-[32px] lg:text-[59.443px] text-center tracking-[-2.3777px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhatMakesCroTheSmarterInvestment}')` }}>
+    <div className="relative lg:absolute content-stretch flex flex-col items-center lg:left-0 w-full p-4 lg:px-10 lg:py-0">
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[69.35px] relative shrink-0 text-[32px] lg:text-[59.443px] text-center tracking-[-2.3777px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhatMakesCroTheSmarterInvestment}')` }}>
         What Makes CRO the Smarter Investment
       </p>
     </div>
@@ -65,53 +66,52 @@ function BorderBeam() {
 
 function Head() {
   return (
-    <div className="content-stretch flex h-[72px] items-center overflow-clip p-[8px] lg:p-[16px] relative shrink-0 w-[30%]" data-name="Head">
-      <p className="css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[16px] lg:leading-[28px] relative shrink-0 text-[12px] lg:text-[21px] text-white tracking-[-0.42px]">Feature / Pain Point</p>
+    <div className="content-stretch flex items-center p-[4px] lg:p-[16px] relative shrink-0 w-[40%] lg:w-[30%]" data-name="Head">
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[28px] relative shrink-0 text-[10px] lg:text-[21px] text-white tracking-tight whitespace-normal">Feature / Pain Point</p>
     </div>
   );
 }
 
 function Head1() {
   return (
-    <div className="content-stretch flex h-[72px] items-center justify-center overflow-clip p-[4px] lg:p-[16px] relative shrink-0 w-[23.33%]" data-name="Head">
-      <p className="css-4hzbpn flex-[1_0_0] font-['Sora:SemiBold',sans-serif] font-semibold leading-[16px] lg:leading-[21.6px] min-h-px min-w-px relative text-[12px] lg:text-[21px] text-center text-white tracking-[-0.42px]">Running Ads</p>
+    <div className="content-stretch flex items-center justify-center p-[4px] lg:p-[16px] relative shrink-0 w-[20%] lg:w-[23.33%]" data-name="Head">
+      <p className="flex-[1_0_0] font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[21.6px] min-h-px min-w-px relative text-[9px] lg:text-[21px] text-center text-white tracking-tight whitespace-normal">Running Ads</p>
     </div>
   );
 }
 
 function Head2() {
   return (
-    <div className="content-stretch flex h-[72px] items-center justify-center overflow-clip p-[4px] lg:p-[16px] relative shrink-0 w-[23.33%]" data-name="Head">
-      <p className="css-4hzbpn flex-[1_0_0] font-['Sora:SemiBold',sans-serif] font-semibold leading-[16px] lg:leading-[21.6px] min-h-px min-w-px relative text-[12px] lg:text-[21px] text-center text-white tracking-[-0.42px]">Website Redesign</p>
+    <div className="content-stretch flex items-center justify-center p-[4px] lg:p-[16px] relative shrink-0 w-[20%] lg:w-[23.33%]" data-name="Head">
+      <p className="flex-[1_0_0] font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[21.6px] min-h-px min-w-px relative text-[9px] lg:text-[21px] text-center text-white tracking-tight whitespace-normal">Website Redesign</p>
     </div>
   );
 }
 
 function Head3() {
   return (
-    <div className="content-stretch flex h-[72px] items-center justify-center overflow-clip p-[4px] lg:p-[16px] relative shrink-0 w-[23.33%]" data-name="Head">
-      <p className="css-4hzbpn flex-[1_0_0] font-['Sora:SemiBold',sans-serif] font-semibold leading-[16px] lg:leading-[28px] min-h-px min-w-px relative text-[12px] lg:text-[21px] text-center text-white tracking-[-0.42px]">Conversion Optimization</p>
+    <div className="content-stretch flex items-center justify-center p-[4px] lg:p-[16px] relative shrink-0 w-[20%] lg:w-[23.33%]" data-name="Head">
+      <p className="flex-[1_0_0] font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[28px] min-h-px min-w-px relative text-[9px] lg:text-[21px] text-center text-white tracking-tight whitespace-normal">Conversion Optimization</p>
     </div>
   );
 }
 
 function Frame1() {
   return (
-    <div className="content-stretch flex h-[88px] items-center relative shrink-0 w-full">
+    <div className="content-stretch flex min-h-[72px] items-center relative shrink-0 w-full border-b border-white/[0.08] pb-2">
       <Head />
       <Head1 />
       <Head2 />
       <Head3 />
-      <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-1px_0px_0px_#0a391c]" />
     </div>
   );
 }
 
-function Item() {
+function Item({ label }: { label: string }) {
   return (
-    <div className="content-stretch flex h-[56px] items-center overflow-clip px-[16px] relative shrink-0 w-[30%]" data-name="Item">
-      <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[#b8c0cc] text-[18px] w-full">
-        <p className="css-4hzbpn leading-[21.6px]">Revenue Growth Without More Ad Spend</p>
+    <div className="content-stretch flex items-center px-[4px] lg:px-[16px] relative shrink-0 w-[40%] lg:w-[30%]" data-name="Item">
+      <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-tight relative shrink-0 text-[#b8c0cc] text-[11px] lg:text-[18px] w-full">
+        <p className="whitespace-normal">{label}</p>
       </div>
     </div>
   );
@@ -119,7 +119,7 @@ function Item() {
 
 function CloseCircle() {
   return (
-    <div className="relative shrink-0 size-[44px]">
+    <div className="relative shrink-0 size-[24px] lg:size-[44px]">
       <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
         <g>
           <g filter="url(#filter-close)">
@@ -151,7 +151,7 @@ function CloseCircle() {
 
 function CheckCircle() {
   return (
-    <div className="relative shrink-0 size-[44px]">
+    <div className="relative shrink-0 size-[24px] lg:size-[44px]">
       <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
         <g>
           <g filter="url(#filter-check)">
@@ -183,35 +183,18 @@ function CheckCircle() {
 
 function TableRow({ label, ads, redesign, cro }: { label: string; ads: boolean; redesign: boolean; cro: boolean }) {
   return (
-    <div className="content-stretch flex min-h-[60px] lg:h-[80px] items-center relative shrink-0 w-full py-2 lg:py-0">
-      <div className="content-stretch flex items-center px-[8px] lg:px-[16px] w-[30%]">
-        <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[#b8c0cc] text-[13px] lg:text-[18px] leading-[17px] lg:leading-[22px]">{label}</p>
-      </div>
-      <div className="flex justify-center items-center w-[23.33%]">{ads ? <CheckCircle /> : <CloseCircle />}</div>
-      <div className="flex justify-center items-center w-[23.33%]">{redesign ? <CheckCircle /> : <CloseCircle />}</div>
-      <div className="flex justify-center items-center w-[23.33%]">{cro ? <CheckCircle /> : <CloseCircle />}</div>
+    <div className="content-stretch flex min-h-[50px] lg:min-h-[80px] items-center relative shrink-0 w-full py-3 lg:py-6 border-b border-white/[0.08]">
+      <Item label={label} />
+      <div className="flex justify-center items-center w-[20%] lg:w-[23.33%] *:flex *:justify-center">{ads ? <CheckCircle /> : <CloseCircle />}</div>
+      <div className="flex justify-center items-center w-[20%] lg:w-[23.33%] *:flex *:justify-center">{redesign ? <CheckCircle /> : <CloseCircle />}</div>
+      <div className="flex justify-center items-center w-[20%] lg:w-[23.33%] *:flex *:justify-center">{cro ? <CheckCircle /> : <CloseCircle />}</div>
     </div>
   );
 }
 
+// Divider is no longer used, replaced with border-b on TableRow
 function Divider() {
-  return (
-    <div className="h-0 relative shrink-0 w-full">
-      <div className="absolute inset-[-1px_0_0_0]">
-        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 1176 1">
-          <line stroke="url(#paint0_linear_divider)" strokeOpacity="0.17" x2="1176" y1="0.5" y2="0.5" />
-          <defs>
-            <linearGradient gradientUnits="userSpaceOnUse" id="paint0_linear_divider" x1="0" x2="1176" y1="1.5" y2="1.5">
-              <stop stopColor="#6AE499" />
-              <stop offset="0.298077" stopColor="#FF8979" />
-              <stop offset="0.615385" stopColor="#FCD34D" />
-              <stop offset="1" stopColor="#FEF3C7" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 const tableData = [
@@ -225,13 +208,12 @@ const tableData = [
 
 function Frame9() {
   return (
-    <div className="relative lg:absolute flex flex-col items-start lg:left-0 w-full overflow-x-auto pb-8 lg:pb-0 px-4 lg:px-0 scrollbar-hide">
-      <div className="w-full px-4 lg:px-10">
+    <div className="relative flex flex-col items-start w-full overflow-x-auto pb-8 px-4 lg:px-10 scrollbar-hide">
+      <div className="w-full">
         <Frame1 />
         {tableData.map((row, idx) => (
           <div key={idx} className="w-full">
             <TableRow {...row} />
-            {idx < tableData.length - 1 && <Divider />}
           </div>
         ))}
       </div>
@@ -241,7 +223,7 @@ function Frame9() {
 
 function Frame8() {
   return (
-    <div className="relative lg:absolute flex flex-col items-start lg:left-0 overflow-x-auto lg:overflow-visible lg:rounded-[8px] lg:top-[44px] w-full scrollbar-hide">
+    <div className="relative flex flex-col items-start overflow-x-auto lg:overflow-visible lg:rounded-[8px] w-full scrollbar-hide">
       <div className="w-full">
         <Frame9 />
       </div>
@@ -251,48 +233,34 @@ function Frame8() {
 
 function OverlayBorderShadow() {
   return (
-    <div className="absolute h-[640px] left-[30px] right-[30px] max-w-[1200px] mx-auto rounded-[24px] top-[8vw]" data-name="Overlay+Border+Shadow">
-      <div className="overflow-clip relative rounded-[inherit] size-full">
+    <div className="relative h-auto lg:left-[30px] lg:right-[30px] max-w-[1200px] mx-auto rounded-[16px] lg:rounded-[24px] z-10" data-name="Overlay+Border+Shadow">
+      <div className="overflow-visible relative rounded-[inherit] size-full bg-[#0a0f0a]/50 backdrop-blur-sm p-4 lg:p-8">
         <Frame8 />
+        <div aria-hidden="true" className="absolute border border-white/10 border-solid inset-[-1px] pointer-events-none rounded-[inherit] shadow-[0px_4px_48px_0px_rgba(255,255,255,0.05),0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+        <BorderBeam />
       </div>
-      <div aria-hidden="true" className="absolute border border-[#282b27] border-solid inset-[-1px] pointer-events-none rounded-[25px] shadow-[0px_4px_48px_0px_rgba(255,255,255,0.05),0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
-      <BorderBeam />
     </div>
   );
 }
 
 export default function Table() {
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const update = () => {
-      const scaleX = window.innerWidth / CANVAS_WIDTH;
-      const scaleY = window.innerHeight / CANVAS_HEIGHT;
-      setScale(Math.min(scaleX, scaleY, 1));
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
   return (
     <div className="bg-[#020601] relative w-full shrink-0 overflow-hidden" data-name="Table">
       {/* Mobile View */}
       <div className="lg:hidden flex flex-col gap-10 py-10 px-4">
         <Frame />
         <div className="mt-4">
-          <Frame8 />
+          <OverlayBorderShadow />
         </div>
       </div>
 
       {/* Desktop View — full width layout */}
       <div
         className="hidden lg:block relative w-full overflow-hidden"
-        style={{ minHeight: `${950}px` }}
       >
-        <div className="relative w-full h-full pt-[5.5vw] pb-[7vw]">
+        <div className="relative w-full h-full pt-[5.5vw] pb-[7vw] flex flex-col">
           <Frame />
-          <div className="relative h-[55.5vw] mt-[2vw]">
+          <div className="relative h-auto mt-[40px] lg:mt-[80px]">
             <OverlayBorderShadow />
           </div>
         </div>
