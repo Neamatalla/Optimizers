@@ -129,7 +129,8 @@ export default function AnimatedCaseStudies() {
     // Trigger Logic
     useMotionValueEvent(mobileScrollProgress, "change", (v) => {
         if (!isMobile) return;
-        if (v > 0.02 && !hasOpened) {
+        // Start almost immediately on touch (0.005)
+        if (v > 0.005 && !hasOpened) {
             setHasOpened(true);
             
             // 1. Gate Opens (Timed)
@@ -146,8 +147,8 @@ export default function AnimatedCaseStudies() {
             animate(titleOpacity_Time, 0, { delay: 1.8, duration: 0.5 });
         }
         
-        // Optionally reset if they scroll back to absolute top
-        if (v < 0.01 && hasOpened) {
+        // Reset if scrolled back to absolute top
+        if (v < 0.002 && hasOpened) {
             setHasOpened(false);
             animate(gateY_Top_Time, 0, { duration: 0.5 });
             animate(gateY_Bot_Time, 0, { duration: 0.5 });
@@ -157,22 +158,22 @@ export default function AnimatedCaseStudies() {
         }
     });
 
-    // 3. CASE STUDY SLIDES (Scroll-based starting at 0.15)
-    // Slide 1: 0.15 -> 0.35
-    const s1Opacity = useTransform(smoothProgress_M, [0.15, 0.20, 0.30, 0.35], [0, 1, 1, 0]);
-    const s1Y       = useTransform(smoothProgress_M, [0.15, 0.20, 0.30, 0.35], ["15%", "0%", "0%", "-15%"]);
+    // 3. CASE STUDY SLIDES (Scroll-based starting at 0.10)
+    // Slide 1: 0.10 -> 0.28
+    const s1Opacity = useTransform(smoothProgress_M, [0.10, 0.15, 0.23, 0.28], [0, 1, 1, 0]);
+    const s1Y       = useTransform(smoothProgress_M, [0.10, 0.15, 0.23, 0.28], ["15%", "0%", "0%", "-15%"]);
     
-    // Slide 2: 0.36 -> 0.56
-    const s2Opacity = useTransform(smoothProgress_M, [0.36, 0.41, 0.51, 0.56], [0, 1, 1, 0]);
-    const s2Y       = useTransform(smoothProgress_M, [0.36, 0.41, 0.51, 0.56], ["15%", "0%", "0%", "-15%"]);
+    // Slide 2: 0.30 -> 0.48
+    const s2Opacity = useTransform(smoothProgress_M, [0.30, 0.35, 0.43, 0.48], [0, 1, 1, 0]);
+    const s2Y       = useTransform(smoothProgress_M, [0.30, 0.35, 0.43, 0.48], ["15%", "0%", "0%", "-15%"]);
     
-    // Slide 3: 0.57 -> 0.77
-    const s3Opacity = useTransform(smoothProgress_M, [0.57, 0.62, 0.72, 0.77], [0, 1, 1, 0]);
-    const s3Y       = useTransform(smoothProgress_M, [0.57, 0.62, 0.72, 0.77], ["15%", "0%", "0%", "-15%"]);
+    // Slide 3: 0.50 -> 0.68
+    const s3Opacity = useTransform(smoothProgress_M, [0.50, 0.55, 0.63, 0.68], [0, 1, 1, 0]);
+    const s3Y       = useTransform(smoothProgress_M, [0.50, 0.55, 0.63, 0.68], ["15%", "0%", "0%", "-15%"]);
     
-    // Slide 4: 0.78 -> 1.0
-    const s4Opacity = useTransform(smoothProgress_M, [0.78, 0.83, 0.98, 1.0], [0, 1, 1, 1]);
-    const s4Y       = useTransform(smoothProgress_M, [0.78, 0.83, 0.98, 1.0], ["15%", "0%", "0%", "0%"]);
+    // Slide 4: 0.70 -> 1.0
+    const s4Opacity = useTransform(smoothProgress_M, [0.70, 0.75, 0.98, 1.0], [0, 1, 1, 1]);
+    const s4Y       = useTransform(smoothProgress_M, [0.70, 0.75, 0.98, 1.0], ["15%", "0%", "0%", "0%"]);
 
     const hintOpacity_M = useTransform(mobileScrollProgress, [0, 0.05], [1, 0]);
 
