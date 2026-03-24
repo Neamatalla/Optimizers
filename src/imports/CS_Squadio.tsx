@@ -7,14 +7,15 @@ import { useLanguage } from "../app/contexts/LanguageContext";
 interface CSProps {
   onNext?: () => void;
   onPrev?: () => void;
+  contentScale?: number;
 }
 
-export default function CS_Squadio({ onNext, onPrev }: CSProps) {
+export default function CS_Squadio({ onNext, onPrev, contentScale = 1 }: CSProps) {
   const { t } = useLanguage();
   return (
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       
-      {/* Red gradient decorative elements at bottom */}
+      {/* Background Gradients (Unscaled) */}
       <div className="absolute h-[100px] right-[-20px] top-[350px] w-[120px] opacity-60">
         <div className="absolute inset-[-77.6%_-77.69%_-82.79%_-55.57%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 346.345 345.773">
@@ -104,9 +105,8 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      {/* Navigation buttons */}
+      {/* Navigation buttons (Unscaled) */}
       <div className="-translate-x-1/2 absolute flex gap-[36px] items-center left-[calc(50%+0.5px)] bottom-[24px] z-[100]">
-        {/* Prev Button */}
         <div className="cursor-pointer" onClick={onPrev}>
           <div className="bg-[rgba(255,137,121,0.2)] content-stretch flex flex-col items-center justify-center p-[8px] relative rounded-[116.667px] hover:bg-[rgba(255,137,121,0.4)] transition-colors">
             <div aria-hidden="true" className="absolute border-[#ffc5be] border-[0.583px] border-solid inset-0 pointer-events-none rounded-[116.667px]" />
@@ -125,7 +125,6 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
             </div>
           </div>
         </div>
-        {/* Next Button */}
         <div className="cursor-pointer" onClick={onNext}>
           <div className="-scale-y-100 flex-none rotate-180">
             <div className="bg-[rgba(255,137,121,0.2)] content-stretch flex flex-col items-center justify-center p-[8px] relative rounded-[116.667px] hover:bg-[rgba(255,137,121,0.4)] transition-colors">
@@ -148,94 +147,91 @@ export default function CS_Squadio({ onNext, onPrev }: CSProps) {
         </div>
       </div>
 
-      {/* Main content card */}
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-start left-[20px] top-[40px] w-[calc(100%-40px)] z-[60]">
-        
-        {/* Header with profile and company info */}
-        <div className="content-stretch flex gap-[12px] h-[62px] items-center relative shrink-0 w-full">
-          <div className="relative shrink-0 size-[62px]">
-            <img alt="" className="absolute block max-w-none size-full" height="62" src={imgProfilePhoto} width="62" />
-          </div>
-          <div className="content-stretch flex flex-[1_0_0] flex-col gap-[8px] items-start justify-center min-h-px min-w-px relative">
-            <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full">
-              <p className="leading-[47px]">Squadio</p>
-            </div>
-            <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
-              <div className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[12px] w-[92px]">
-                <p className="leading-[17px]">{t('Hiring Industry')}</p>
+      {/* Scalable Content Layer */}
+      <div style={{ 
+        transform: `scale(${contentScale})`, 
+        transformOrigin: 'center center',
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none'
+      }}>
+        <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', position: 'relative' }}>
+          {/* Main content card */}
+          <div className="absolute content-stretch flex flex-col gap-[20px] items-start left-[20px] top-[40px] w-[calc(100%-40px)] z-[60]">
+            <div className="content-stretch flex gap-[12px] h-[62px] items-center relative shrink-0 w-full">
+              <div className="relative shrink-0 size-[62px]">
+                <img alt="" className="absolute block max-w-none size-full" height="62" src={imgProfilePhoto} width="62" />
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Challenge and Results sections */}
-        <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-          
-          {/* Challenge */}
-          <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-            <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Challenge')}</p>
-            <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full">{t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}</p>
-          </div>
-
-          {/* Results */}
-          <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-            <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Results')}</p>
-            <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
-              <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
-                  <p className="leading-[40px]">+44.02%</p>
+              <div className="content-stretch flex flex-[1_0_0] flex-col gap-[8px] items-start justify-center min-h-px min-w-px relative">
+                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full">
+                  <p className="leading-[47px]">Squadio</p>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Funnel Progression')}</p>
-              </div>
-              <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
-                  <p className="leading-[40px]">+4.33%</p>
+                <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
+                  <div className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[12px] w-[92px]">
+                    <p className="leading-[17px]">{t('Hiring Industry')}</p>
+                  </div>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Conversion Rate')}</p>
               </div>
-              <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
-                  <p className="leading-[40px]">+6.49%</p>
+            </div>
+            <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
+              <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
+                <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Challenge')}</p>
+                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full">{t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}</p>
+              </div>
+              <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
+                <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Results')}</p>
+                <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
+                  <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
+                      <p className="leading-[40px]">+44.02%</p>
+                    </div>
+                    <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Funnel Progression')}</p>
+                  </div>
+                  <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
+                      <p className="leading-[40px]">+4.33%</p>
+                    </div>
+                    <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Conversion Rate')}</p>
+                  </div>
+                  <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
+                      <p className="leading-[40px]">+6.49%</p>
+                    </div>
+                    <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Boost Engagement')}</p>
+                  </div>
                 </div>
-                <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Boost Engagement')}</p>
               </div>
             </div>
           </div>
 
-        </div>
-      </div>
-
-      {/* Before text */}
-      <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px] z-[20]">
-        <div className="flex-none rotate-[-15.07deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
-        </div>
-      </div>
-
-      {/* After text */}
-      <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px] z-[20]">
-        <div className="flex-none rotate-[11.21deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
-        </div>
-      </div>
-
-      {/* Right phone (After) */}
-      <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px] z-[20]">
-        <div className="flex-none rotate-[13.09deg]">
-          <div className="h-[321px] relative w-[143px]">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <img alt="" className="absolute h-[141.07%] left-[-104.26%] max-w-none top-[-8.05%] w-[425.75%]" src={imgIPhone16Pro} />
+          <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px] z-[20]">
+            <div className="flex-none rotate-[-15.07deg]">
+              <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Left phone (Before) */}
-      <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px] z-[20]">
-        <div className="flex-none rotate-[-15.59deg]">
-          <div className="h-[320px] relative w-[142px]">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <img alt="" className="absolute h-[141.81%] left-[-219.03%] max-w-none top-[-34.12%] w-[423.23%]" src={imgIPhone16Pro} />
+          <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px] z-[20]">
+            <div className="flex-none rotate-[11.21deg]">
+              <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
+            </div>
+          </div>
+          <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px] z-[20]">
+            <div className="flex-none rotate-[13.09deg]">
+              <div className="h-[321px] relative w-[143px]">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <img alt="" className="absolute h-[141.07%] left-[-104.26%] max-w-none top-[-8.05%] w-[425.75%]" src={imgIPhone16Pro} />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px] z-[20]">
+            <div className="flex-none rotate-[-15.59deg]">
+              <div className="h-[320px] relative w-[142px]">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <img alt="" className="absolute h-[141.81%] left-[-219.03%] max-w-none top-[-34.12%] w-[423.23%]" src={imgIPhone16Pro} />
+                </div>
+              </div>
             </div>
           </div>
         </div>

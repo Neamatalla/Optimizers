@@ -34,10 +34,18 @@ export default function AnimatedCaseStudies() {
         return () => window.removeEventListener('resize', check);
     }, []);
 
-    // ── Viewport height ──
+    // ── Viewport height (Stabilized for mobile address bar jitter) ──
     const [viewportHeight, setViewportHeight] = useState(844);
+    const lastWidthRef = useRef(0);
+
     useEffect(() => {
-        const update = () => setViewportHeight(window.innerHeight);
+        const update = () => {
+            const currentWidth = window.innerWidth;
+            if (currentWidth !== lastWidthRef.current) {
+                lastWidthRef.current = currentWidth;
+                setViewportHeight(window.innerHeight);
+            }
+        };
         update();
         window.addEventListener('resize', update);
         return () => window.removeEventListener('resize', update);
@@ -68,20 +76,20 @@ export default function AnimatedCaseStudies() {
         if (idx !== activeIndex) setActiveIndex(idx);
     });
 
-    const gateProgress_D   = useTransform(scrollYProgress, [0, 0.12], [0, 1]);
-    const leftBarX_D       = useTransform(gateProgress_D, [0, 1], [-BAR_WIDTH / 2, -BAR_OPEN_PX - BAR_WIDTH / 2]);
-    const rightBarX_D      = useTransform(gateProgress_D, [0, 1], [BAR_WIDTH / 2, BAR_OPEN_PX + BAR_WIDTH / 2]);
-    const leftSkew_D       = useTransform(gateProgress_D, [0, 1], [0, -40]);
-    const rightSkew_D      = useTransform(gateProgress_D, [0, 1], [0, 40]);
-    const titleClipPct_D   = useTransform(gateProgress_D, [0, 1], [50, 3]);
-    const titleClipPath_D  = useTransform(titleClipPct_D, (v: number) => `inset(0 ${v}% 0 ${v}%)`);
-    const titleOpacity_D   = useTransform(scrollYProgress, [0, 0.06, 0.10, 0.15], [0, 1, 1, 0]);
-    const titleY_D         = useTransform(gateProgress_D, [0, 1], ['40%', '0%']);
-    const barColor_D       = useTransform(roundedScroll, [0.10, 0.20, 0.38, 0.62, 0.82], ['#ffffff', '#ff8979', '#6ae499', '#fcd34d', '#5a8cd6']);
+    const gateProgress_D = useTransform(scrollYProgress, [0, 0.12], [0, 1]);
+    const leftBarX_D = useTransform(gateProgress_D, [0, 1], [-BAR_WIDTH / 2, -BAR_OPEN_PX - BAR_WIDTH / 2]);
+    const rightBarX_D = useTransform(gateProgress_D, [0, 1], [BAR_WIDTH / 2, BAR_OPEN_PX + BAR_WIDTH / 2]);
+    const leftSkew_D = useTransform(gateProgress_D, [0, 1], [0, -40]);
+    const rightSkew_D = useTransform(gateProgress_D, [0, 1], [0, 40]);
+    const titleClipPct_D = useTransform(gateProgress_D, [0, 1], [50, 3]);
+    const titleClipPath_D = useTransform(titleClipPct_D, (v: number) => `inset(0 ${v}% 0 ${v}%)`);
+    const titleOpacity_D = useTransform(scrollYProgress, [0, 0.06, 0.10, 0.15], [0, 1, 1, 0]);
+    const titleY_D = useTransform(gateProgress_D, [0, 1], ['40%', '0%']);
+    const barColor_D = useTransform(roundedScroll, [0.10, 0.20, 0.38, 0.62, 0.82], ['#ffffff', '#ff8979', '#6ae499', '#fcd34d', '#5a8cd6']);
     const scrollHintOpacity_D = useTransform(roundedScroll, [0, 0.05], [1, 0]);
 
     // Desktop slides states
-    const slideYs       = [useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%')];
+    const slideYs = [useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%')];
     const slideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
     useEffect(() => {
         if (activeIndex < 0) return;
@@ -107,7 +115,7 @@ export default function AnimatedCaseStudies() {
     }, []);
 
     // ══════════════════════════════════════════════════════
-    // MOBILE TIMED OPENING — Triggered by scroll
+    // MOBILE SCROLL-DRIVEN ANIMATION
     // ══════════════════════════════════════════════════════
     const { scrollYProgress: mobileScrollProgress } = useScroll({
         target: mobileContainerRef,
@@ -116,64 +124,71 @@ export default function AnimatedCaseStudies() {
 
     const smoothProgress_M = useSpring(mobileScrollProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
 
-    const [hasOpened, setHasOpened] = useState(false);
-    
-    // Motion Values for timed animation
-    const gateY_Top_Time = useMotionValue(0);
-    const gateY_Bot_Time = useMotionValue(0);
-    const gateOpacity_Time = useMotionValue(1);
-    const titleOpacity_Time = useMotionValue(0);
-    const titleScale_Time = useMotionValue(0.85);
-    const titleClip_Time = useMotionValue("inset(50% 0 50% 0)");
+    // 1. GATE BARS: Open from 0.0 to 0.10
+    const gateY_Top_Time = useTransform(smoothProgress_M, [0, 0.10], [0, -viewportHeight * 0.6]);
+    const gateY_Bot_Time = useTransform(smoothProgress_M, [0, 0.10], [0, viewportHeight * 0.6]);
+    const gateOpacity_Time = useTransform(smoothProgress_M, [0.06, 0.10], [1, 0]);
 
-    // Trigger Logic
-    useMotionValueEvent(mobileScrollProgress, "change", (v) => {
-        if (!isMobile) return;
-        // Start trigger once section top reaches 40% visibility (0.6 viewport)
-        if (v > 0.01 && !hasOpened) {
-            setHasOpened(true);
-            
-            // 1. Gate Opens (Faster, proactive)
-            animate(gateY_Top_Time, -viewportHeight * 0.55, { duration: 0.6, ease: [0.33, 1, 0.68, 1] });
-            animate(gateY_Bot_Time, viewportHeight * 0.55, { duration: 0.6, ease: [0.33, 1, 0.68, 1] });
-            animate(gateOpacity_Time, 0, { delay: 0.6, duration: 0.4 });
+    // 2. TITLE: Reveal 0.02->0.08, fade-out 0.10->0.14
+    const titleOpacity_Time = useTransform(smoothProgress_M, [0.02, 0.08, 0.10, 0.14], [0, 1, 1, 0]);
+    const titleScale_Time   = useTransform(smoothProgress_M, [0.02, 0.08], [0.85, 1]);
+    const titleClip_Time    = useTransform(smoothProgress_M, [0, 0.08], ["inset(40% 0 40% 0)", "inset(0% 0 0% 0)"]);
+    const barMidColor_M     = useTransform(smoothProgress_M, [0.15, 0.35, 0.55, 0.75, 0.90], ['#ffffff', '#ff8979', '#6ae499', '#fcd34d', '#5a8cd6']);
 
-            // 2. Title Sequence (Synchronized with gate)
-            animate(titleOpacity_Time, 1, { delay: 0.1, duration: 0.6 });
-            animate(titleScale_Time, 1, { delay: 0.1, duration: 0.6 });
-            animate(titleClip_Time, "inset(0% 0 0% 0)", { delay: 0.1, duration: 0.8 });
-            
-            // 3. Title Fades (Longer hold for visibility)
-            animate(titleOpacity_Time, 0, { delay: 3.0, duration: 0.8 });
-        }
+
+    // 3. CASE STUDY SLIDES (Scroll-Triggered + Responsive Scaling)
+    const [activeMobileIndex_M, setActiveMobileIndex_M] = useState(-1);
+    const mSlideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
+    const mSlideYs = [useMotionValue('15%'), useMotionValue('15%'), useMotionValue('15%'), useMotionValue('15%')];
+
+    const scaleValue = useMotionValue(1);
+    const smoothScale = useSpring(scaleValue, { stiffness: 50, damping: 20 });
+    const [mobileScale, setMobileScale] = useState(1);
+    const lastScaleWidthRef = useRef(0);
+
+    useEffect(() => {
+        const update = () => {
+            const currentWidth = window.innerWidth;
+            if (currentWidth !== lastScaleWidthRef.current) {
+                lastScaleWidthRef.current = currentWidth;
+                const BASE_MOBILE_HEIGHT = 800;
+                const newScale = Math.min(1, (window.innerHeight - 60) / BASE_MOBILE_HEIGHT);
+                scaleValue.set(newScale);
+            }
+        };
+        update();
+        window.addEventListener('resize', update);
+        const unsubscribe = smoothScale.on("change", (v) => setMobileScale(v));
+        return () => {
+            window.removeEventListener('resize', update);
+            unsubscribe();
+        };
+    }, [smoothScale, scaleValue]);
+
+    useMotionValueEvent(mobileScrollProgress, 'change', (v) => {
+        let idx = -1;
+        // Threshold-based triggers: once crossed, the index changes and useEffect handles the 2s animation
+        if (v > 0.15 && v <= 0.35) idx = 0;
+        else if (v > 0.35 && v <= 0.55) idx = 1;
+        else if (v > 0.55 && v <= 0.75) idx = 2;
+        else if (v > 0.75) idx = 3;
         
-        // Reset if scrolled back to absolute top
-        if (v < 0.002 && hasOpened) {
-            setHasOpened(false);
-            animate(gateY_Top_Time, 0, { duration: 0.5 });
-            animate(gateY_Bot_Time, 0, { duration: 0.5 });
-            animate(gateOpacity_Time, 1, { duration: 0.3 });
-            animate(titleOpacity_Time, 0, { duration: 0.3 });
-            animate(titleClip_Time, "inset(50% 0 50% 0)", { duration: 0.1 });
+        if (idx !== activeMobileIndex_M) {
+            setActiveMobileIndex_M(idx);
         }
     });
 
-    // 3. CASE STUDY SLIDES (Scroll-based starting at 0.12)
-    // Slide 1: 0.12 -> 0.32
-    const s1Opacity = useTransform(smoothProgress_M, [0.12, 0.17, 0.27, 0.32], [0, 1, 1, 0]);
-    const s1Y       = useTransform(smoothProgress_M, [0.12, 0.17, 0.27, 0.32], ["15%", "0%", "0%", "-15%"]);
-    
-    // Slide 2: 0.34 -> 0.54
-    const s2Opacity = useTransform(smoothProgress_M, [0.34, 0.39, 0.49, 0.54], [0, 1, 1, 0]);
-    const s2Y       = useTransform(smoothProgress_M, [0.34, 0.39, 0.49, 0.54], ["15%", "0%", "0%", "-15%"]);
-    
-    // Slide 3: 0.56 -> 0.76
-    const s3Opacity = useTransform(smoothProgress_M, [0.56, 0.61, 0.71, 0.76], [0, 1, 1, 0]);
-    const s3Y       = useTransform(smoothProgress_M, [0.56, 0.61, 0.71, 0.76], ["15%", "0%", "0%", "-15%"]);
-    
-    // Slide 4: 0.78 -> 0.98
-    const s4Opacity = useTransform(smoothProgress_M, [0.78, 0.83, 0.92, 0.98], [0, 1, 1, 1]);
-    const s4Y       = useTransform(smoothProgress_M, [0.78, 0.83, 0.92, 0.98], ["15%", "0%", "0%", "0%"]);
+    useEffect(() => {
+        // Updated to 2 seconds as requested by the user
+        const D = 2.0, E = 'easeInOut';
+        mSlideOpacities.forEach((op, i) => {
+            const isActive = i === activeMobileIndex_M;
+            const isPast = i < activeMobileIndex_M;
+            
+            animate(op, isActive ? 1 : 0, { duration: D, ease: E });
+            animate(mSlideYs[i], isActive ? '0%' : isPast ? '-15%' : '15%', { duration: D, ease: E });
+        });
+    }, [activeMobileIndex_M]);
 
     const hintOpacity_M = useTransform(mobileScrollProgress, [0, 0.05], [1, 0]);
 
@@ -183,8 +198,8 @@ export default function AnimatedCaseStudies() {
     return (
         <div className="cs-unified-wrapper" style={{ position: 'relative', width: '100%' }}>
             {/* ── MOBILE VIEW ── */}
-            <div 
-                ref={mobileContainerRef} 
+            <div
+                ref={mobileContainerRef}
                 className={`cs-mobile-scroll-container ${!isMobile ? 'cs-hidden' : ''}`}
                 style={{ display: isMobile ? 'block' : 'none' }}
             >
@@ -192,17 +207,17 @@ export default function AnimatedCaseStudies() {
                     <div className="cs-mobile-vignette" />
 
                     <div className="cs-mobile-slides-clip">
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: s1Opacity, y: s1Y }}>
-                            <CS_Squadio />
+                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[0], y: mSlideYs[0] }}>
+                            <CS_Squadio contentScale={mobileScale} />
                         </motion.div>
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: s2Opacity, y: s2Y }}>
-                            <CS_RibalMagic />
+                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[1], y: mSlideYs[1] }}>
+                            <CS_RibalMagic contentScale={mobileScale} />
                         </motion.div>
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: s3Opacity, y: s3Y }}>
-                            <CS_RegalHoney />
+                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[2], y: mSlideYs[2] }}>
+                            <CS_RegalHoney contentScale={mobileScale} />
                         </motion.div>
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: s4Opacity, y: s4Y }}>
-                            <CS_VitrineFurniture />
+                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[3], y: mSlideYs[3] }}>
+                            <CS_VitrineFurniture contentScale={mobileScale} />
                         </motion.div>
                     </div>
 
@@ -211,16 +226,13 @@ export default function AnimatedCaseStudies() {
                         style={{
                             y: gateY_Top_Time,
                             opacity: gateOpacity_Time,
-                            backgroundColor: '#ffffff',
-                            width: '100vw',
-                            height: '12px',
-                            left: 0,
-                            top: '50%',
-                            marginTop: '-16px',
+                            color: barMidColor_M,
                             zIndex: 100,
                         }}
                     >
-                        <div style={{ position: 'absolute', inset: 0, background: 'white', boxShadow: '0 0 15px rgba(255,255,255,0.4)' }} />
+                        <div className="cs-mobile-gate-blur-2" />
+                        <div className="cs-mobile-gate-blur-1" />
+                        <div className="cs-mobile-gate-core" />
                     </motion.div>
 
                     <motion.div
@@ -228,16 +240,13 @@ export default function AnimatedCaseStudies() {
                         style={{
                             y: gateY_Bot_Time,
                             opacity: gateOpacity_Time,
-                            backgroundColor: '#ffffff',
-                            width: '100vw',
-                            height: '12px',
-                            left: 0,
-                            top: '50%',
-                            marginTop: '-16px',
+                            color: barMidColor_M,
                             zIndex: 100,
                         }}
                     >
-                        <div style={{ position: 'absolute', inset: 0, background: 'white', boxShadow: '0 0 15px rgba(255,255,255,0.4)' }} />
+                        <div className="cs-mobile-gate-blur-2" />
+                        <div className="cs-mobile-gate-blur-1" />
+                        <div className="cs-mobile-gate-core" />
                     </motion.div>
 
                     <motion.div
@@ -246,12 +255,13 @@ export default function AnimatedCaseStudies() {
                             opacity: titleOpacity_Time,
                             scale: titleScale_Time,
                             clipPath: titleClip_Time,
-                            zIndex: 80
+                            zIndex: 110
                         }}
                     >
-                        <h2 className="cs-mobile-headline">
-                            CASE STUDIES
-                        </h2>
+                        <div className="cs-mobile-title-inner">
+                            <p>{t('CASE')}</p>
+                            <p>{t('STUDIES')}</p>
+                        </div>
                     </motion.div>
 
                     <motion.div className="cs-mobile-scroll-hint" style={{ opacity: hintOpacity_M }}>
@@ -264,8 +274,8 @@ export default function AnimatedCaseStudies() {
             </div>
 
             {/* ── DESKTOP VIEW (managed by CSS visibility) ── */}
-            <div 
-                ref={desktopRef} 
+            <div
+                ref={desktopRef}
                 className={`cs-scroll-container ${isMobile ? 'cs-hidden' : ''}`}
                 style={{ display: !isMobile ? 'block' : 'none' }}
             >
@@ -292,11 +302,11 @@ export default function AnimatedCaseStudies() {
                                     </motion.div>
                                 </div>
 
-                                <motion.div className="cs-ground-glow cs-ground-glow--left"  style={{ backgroundColor: barColor_D, x: leftBarX_D,  skewX: leftSkew_D  }} />
+                                <motion.div className="cs-ground-glow cs-ground-glow--left" style={{ backgroundColor: barColor_D, x: leftBarX_D, skewX: leftSkew_D }} />
                                 <motion.div className="cs-ground-glow cs-ground-glow--right" style={{ backgroundColor: barColor_D, x: rightBarX_D, skewX: rightSkew_D }} />
                                 <motion.div className="cs-floor-ellipse" style={{ backgroundColor: barColor_D }} />
 
-                                <motion.div className="t-gate-wrapper t-gate-wrapper--left"  style={{ color: barColor_D, x: leftBarX_D  }}>
+                                <motion.div className="t-gate-wrapper t-gate-wrapper--left" style={{ color: barColor_D, x: leftBarX_D }}>
                                     <div className="t-gate-blur-2" /><div className="t-gate-blur-1" /><div className="t-gate-core" />
                                 </motion.div>
                                 <motion.div className="t-gate-wrapper t-gate-wrapper--right" style={{ color: barColor_D, x: rightBarX_D }}>

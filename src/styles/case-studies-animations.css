@@ -2,14 +2,14 @@
 .cs-mobile-scroll-container {
     position: relative;
     width: 100%;
-    min-height: 800vh;
+    min-height: 400vh;
     background-color: #020601;
 }
 
 .cs-scroll-container {
     position: relative;
     width: 100%;
-    min-height: 350vh;
+    min-height: 400vh;
     background: #000000;
 }
 
@@ -275,8 +275,8 @@
 .cs-mobile-scroll-container {
     position: relative;
     width: 100%;
-    /* 500vh provides a long enough scroll duration for 4 slides + gate */
-    min-height: 850vh;
+    /* 400vh provides a tighter, more responsive scroll duration for 4 slides + gate */
+    min-height: 400vh;
     background-color: #020601;
     /* Must be visible for sticky children to work */
     overflow: visible;
@@ -316,6 +316,11 @@
 /* ── Gate Bars — horizontal bars, position/size set by JS inline styles ── */
 .cs-mobile-gate-bar {
     position: absolute;
+    width: 100vw;
+    height: 12px;
+    left: 0;
+    top: 50%;
+    margin-top: -6px;
     z-index: 60;
     will-change: transform, opacity;
     pointer-events: none;

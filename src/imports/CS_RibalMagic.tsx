@@ -291,38 +291,53 @@ function Frame3() {
 interface CSProps {
   onNext?: () => void;
   onPrev?: () => void;
+  contentScale?: number;
 }
 
-export default function CS_RibalMagic({ onNext, onPrev }: CSProps) {
+export default function CS_RibalMagic({ onNext, onPrev, contentScale = 1 }: CSProps) {
   const { t } = useLanguage();
   return (
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       <Green onNext={onNext} onPrev={onPrev} />
-      <Frame3 />
-      <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px]">
-        <div className="flex-none rotate-[-15.07deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
-        </div>
-      </div>
-      <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px]">
-        <div className="flex-none rotate-[11.21deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
-        </div>
-      </div>
-      <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px]">
-        <div className="flex-none rotate-[13.09deg]">
-          <div className="h-[321px] relative w-[143px]">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <img alt="" className="absolute h-[142.53%] left-[-104.9%] max-w-none top-[-8.41%] w-[426.59%]" src={imgIPhone16Pro} />
+      
+      {/* Scalable Content Layer */}
+      <div style={{ 
+        transform: `scale(${contentScale})`, 
+        transformOrigin: 'center center',
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none'
+      }}>
+        <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', position: 'relative' }}>
+          <Frame3 />
+          <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px]">
+            <div className="flex-none rotate-[-15.07deg]">
+              <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
             </div>
           </div>
-        </div>
-      </div>
-      <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px]">
-        <div className="flex-none rotate-[-15.59deg]">
-          <div className="h-[320px] relative w-[142px]">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <img alt="" className="absolute h-[142.97%] left-[-223.94%] max-w-none top-[-34.69%] w-[429.59%]" src={imgIPhone16Pro} />
+          <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px]">
+            <div className="flex-none rotate-[11.21deg]">
+              <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
+            </div>
+          </div>
+          <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px]">
+            <div className="flex-none rotate-[13.09deg]">
+              <div className="h-[321px] relative w-[143px]">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <img alt="" className="absolute h-[142.53%] left-[-104.9%] max-w-none top-[-8.41%] w-[426.59%]" src={imgIPhone16Pro} />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px]">
+            <div className="flex-none rotate-[-15.59deg]">
+              <div className="h-[320px] relative w-[142px]">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <img alt="" className="absolute h-[142.97%] left-[-223.94%] max-w-none top-[-34.69%] w-[429.59%]" src={imgIPhone16Pro} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
