@@ -111,7 +111,7 @@ export default function AnimatedCaseStudies() {
     // ══════════════════════════════════════════════════════
     const { scrollYProgress: mobileScrollProgress } = useScroll({
         target: mobileContainerRef,
-        offset: ["start 0.9", "end end"]
+        offset: ["start 0.95", "end end"]
     });
 
     const smoothProgress_M = useSpring(mobileScrollProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
@@ -129,8 +129,8 @@ export default function AnimatedCaseStudies() {
     // Trigger Logic
     useMotionValueEvent(mobileScrollProgress, "change", (v) => {
         if (!isMobile) return;
-        // Start proactive trigger
-        if (v > 0.005 && !hasOpened) {
+        // Start focused proactive trigger (5% before arrival)
+        if (v > 0.01 && !hasOpened) {
             setHasOpened(true);
             
             // 1. Gate Opens (Faster, proactive)
