@@ -111,7 +111,7 @@ export default function AnimatedCaseStudies() {
     // ══════════════════════════════════════════════════════
     const { scrollYProgress: mobileScrollProgress } = useScroll({
         target: mobileContainerRef,
-        offset: ["start start", "end end"]
+        offset: ["start 0.9", "end end"]
     });
 
     const smoothProgress_M = useSpring(mobileScrollProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
@@ -129,22 +129,22 @@ export default function AnimatedCaseStudies() {
     // Trigger Logic
     useMotionValueEvent(mobileScrollProgress, "change", (v) => {
         if (!isMobile) return;
-        // Start almost immediately on touch (0.005)
+        // Start proactive trigger
         if (v > 0.005 && !hasOpened) {
             setHasOpened(true);
             
-            // 1. Gate Opens (Timed)
-            animate(gateY_Top_Time, -viewportHeight * 0.55, { duration: 0.8, ease: [0.33, 1, 0.68, 1] });
-            animate(gateY_Bot_Time, viewportHeight * 0.55, { duration: 0.8, ease: [0.33, 1, 0.68, 1] });
-            animate(gateOpacity_Time, 0, { delay: 0.8, duration: 0.4 });
+            // 1. Gate Opens (Faster, proactive)
+            animate(gateY_Top_Time, -viewportHeight * 0.55, { duration: 0.6, ease: [0.33, 1, 0.68, 1] });
+            animate(gateY_Bot_Time, viewportHeight * 0.55, { duration: 0.6, ease: [0.33, 1, 0.68, 1] });
+            animate(gateOpacity_Time, 0, { delay: 0.6, duration: 0.4 });
 
-            // 2. Title Sequence (Timed & Staggered)
-            animate(titleOpacity_Time, 1, { delay: 0.5, duration: 0.6 });
-            animate(titleScale_Time, 1, { delay: 0.5, duration: 0.6 });
-            animate(titleClip_Time, "inset(0% 0 0% 0)", { delay: 0.5, duration: 0.8 });
+            // 2. Title Sequence (Synchronized with gate)
+            animate(titleOpacity_Time, 1, { delay: 0.1, duration: 0.6 });
+            animate(titleScale_Time, 1, { delay: 0.1, duration: 0.6 });
+            animate(titleClip_Time, "inset(0% 0 0% 0)", { delay: 0.1, duration: 0.8 });
             
-            // 3. Title Fades (After it's seen)
-            animate(titleOpacity_Time, 0, { delay: 1.8, duration: 0.5 });
+            // 3. Title Fades (Longer hold for visibility)
+            animate(titleOpacity_Time, 0, { delay: 3.0, duration: 0.8 });
         }
         
         // Reset if scrolled back to absolute top
