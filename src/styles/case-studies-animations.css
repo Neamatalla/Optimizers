@@ -276,7 +276,7 @@
     position: relative;
     width: 100%;
     /* 500vh provides a long enough scroll duration for 4 slides + gate */
-    min-height: 700vh;
+    min-height: 850vh;
     background-color: #020601;
     /* Must be visible for sticky children to work */
     overflow: visible;

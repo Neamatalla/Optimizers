@@ -158,22 +158,22 @@ export default function AnimatedCaseStudies() {
         }
     });
 
-    // 3. CASE STUDY SLIDES (Scroll-based starting at 0.10)
-    // Slide 1: 0.10 -> 0.28
-    const s1Opacity = useTransform(smoothProgress_M, [0.10, 0.15, 0.23, 0.28], [0, 1, 1, 0]);
-    const s1Y       = useTransform(smoothProgress_M, [0.10, 0.15, 0.23, 0.28], ["15%", "0%", "0%", "-15%"]);
+    // 3. CASE STUDY SLIDES (Scroll-based starting at 0.12)
+    // Slide 1: 0.12 -> 0.32
+    const s1Opacity = useTransform(smoothProgress_M, [0.12, 0.17, 0.27, 0.32], [0, 1, 1, 0]);
+    const s1Y       = useTransform(smoothProgress_M, [0.12, 0.17, 0.27, 0.32], ["15%", "0%", "0%", "-15%"]);
     
-    // Slide 2: 0.30 -> 0.48
-    const s2Opacity = useTransform(smoothProgress_M, [0.30, 0.35, 0.43, 0.48], [0, 1, 1, 0]);
-    const s2Y       = useTransform(smoothProgress_M, [0.30, 0.35, 0.43, 0.48], ["15%", "0%", "0%", "-15%"]);
+    // Slide 2: 0.34 -> 0.54
+    const s2Opacity = useTransform(smoothProgress_M, [0.34, 0.39, 0.49, 0.54], [0, 1, 1, 0]);
+    const s2Y       = useTransform(smoothProgress_M, [0.34, 0.39, 0.49, 0.54], ["15%", "0%", "0%", "-15%"]);
     
-    // Slide 3: 0.50 -> 0.68
-    const s3Opacity = useTransform(smoothProgress_M, [0.50, 0.55, 0.63, 0.68], [0, 1, 1, 0]);
-    const s3Y       = useTransform(smoothProgress_M, [0.50, 0.55, 0.63, 0.68], ["15%", "0%", "0%", "-15%"]);
+    // Slide 3: 0.56 -> 0.76
+    const s3Opacity = useTransform(smoothProgress_M, [0.56, 0.61, 0.71, 0.76], [0, 1, 1, 0]);
+    const s3Y       = useTransform(smoothProgress_M, [0.56, 0.61, 0.71, 0.76], ["15%", "0%", "0%", "-15%"]);
     
-    // Slide 4: 0.70 -> 1.0
-    const s4Opacity = useTransform(smoothProgress_M, [0.70, 0.75, 0.98, 1.0], [0, 1, 1, 1]);
-    const s4Y       = useTransform(smoothProgress_M, [0.70, 0.75, 0.98, 1.0], ["15%", "0%", "0%", "0%"]);
+    // Slide 4: 0.78 -> 0.98
+    const s4Opacity = useTransform(smoothProgress_M, [0.78, 0.83, 0.92, 0.98], [0, 1, 1, 1]);
+    const s4Y       = useTransform(smoothProgress_M, [0.78, 0.83, 0.92, 0.98], ["15%", "0%", "0%", "0%"]);
 
     const hintOpacity_M = useTransform(mobileScrollProgress, [0, 0.05], [1, 0]);
 
