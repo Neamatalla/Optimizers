@@ -111,7 +111,7 @@ export default function AnimatedCaseStudies() {
     // ══════════════════════════════════════════════════════
     const { scrollYProgress: mobileScrollProgress } = useScroll({
         target: mobileContainerRef,
-        offset: ["start 0.95", "end end"]
+        offset: ["start 0.6", "end end"]
     });
 
     const smoothProgress_M = useSpring(mobileScrollProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
@@ -129,7 +129,7 @@ export default function AnimatedCaseStudies() {
     // Trigger Logic
     useMotionValueEvent(mobileScrollProgress, "change", (v) => {
         if (!isMobile) return;
-        // Start focused proactive trigger (5% before arrival)
+        // Start trigger once section top reaches 40% visibility (0.6 viewport)
         if (v > 0.01 && !hasOpened) {
             setHasOpened(true);
             
