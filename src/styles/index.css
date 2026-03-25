@@ -140,6 +140,16 @@ body {
     filter: none !important;
 }
 
+@media (max-width: 1023px) {
+    .client-logo {
+        filter: grayscale(0);
+    }
+    .client-logo * {
+        mix-blend-mode: normal !important;
+        filter: none !important;
+    }
+}
+
 /* ===== Performance Optimization ===== */
 /* Eliminated content-visibility-auto due to layout jumps */
 

@@ -58,7 +58,7 @@ const sections = [Section1, Section2, Section3, Section4, Section5];
 
 export default function AnimatedHeroSection() {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isMobile, setIsMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 1024 : false);
     const { language, t } = useLanguage();
 
     useEffect(() => {
@@ -219,7 +219,7 @@ export default function AnimatedHeroSection() {
                     {/* Section Title */}
                     <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30 mb-8" style={{ isolation: 'isolate' }}>
                         <p
-                            className="font-['Sora',sans-serif] font-bold leading-[1.1] text-[32px] tracking-[-0.04em] bg-center bg-clip-text bg-cover bg-no-repeat text-center"
+                            className="font-['Sora',sans-serif] font-bold leading-tight text-[22px] min-[360px]:text-[26px] min-[400px]:text-[30px] sm:text-[32px] tracking-tight bg-center bg-clip-text bg-cover bg-no-repeat text-center px-1 whitespace-nowrap"
                             style={{
                                 WebkitTextFillColor: "transparent",
                                 backgroundImage: `url('${imgTopclientsResults4}')`,
@@ -238,7 +238,13 @@ export default function AnimatedHeroSection() {
                                 </>
                             )}
                         </p>
-
+                        <p className="font-['Sora',sans-serif] font-normal text-[14px] min-[360px]:text-[16px] text-white/70 text-center max-w-[280px] min-[360px]:max-w-none mt-2">
+                            {language === 'ar' ? (
+                                "هل أنت مستعد لتكون قصة نجاحنا التالية؟"
+                            ) : (
+                                "Ready to be our next success story?"
+                            )}
+                        </p>
                     </div>
 
                     {/* Removed fixed spacer to use relative flow */}

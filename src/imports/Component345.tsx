@@ -764,11 +764,11 @@ function Link() {
 
 function Frame() {
   return (
-    <div className="-translate-x-1/2 -translate-y-1/2 absolute content-stretch flex flex-col gap-[20px] items-center left-1/2 top-[calc(50%-271.5px)] w-[335px]">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] min-w-full relative shrink-0 text-[36px] text-[transparent] text-center tracking-[-1.44px] w-[min-content]" style={{ backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
+    <div className="-translate-x-1/2 -translate-y-1/2 absolute content-stretch flex flex-col gap-[20px] items-center left-1/2 top-[calc(50%-271.5px)] w-full max-w-[400px] sm:max-w-[335px] px-4">
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora:SemiBold',sans-serif] font-semibold leading-tight sm:leading-[40px] relative shrink-0 text-[17px] min-[360px]:text-[19px] min-[400px]:text-[21px] sm:text-[36px] text-[transparent] text-center tracking-tight sm:tracking-[-1.44px] w-full" style={{ backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
         Why Choose Our CRO Agency?
       </p>
-      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[20px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] text-center w-[311px]">We don’t just run tests - we deliver measurable business growth</p>
+      <p className="font-['Sora:Regular',sans-serif] font-normal leading-[20px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[311px]">We don’t just run tests - we deliver measurable business growth</p>
       <Link />
     </div>
   );

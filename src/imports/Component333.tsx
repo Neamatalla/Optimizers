@@ -2066,11 +2066,11 @@ function Link() {
 function Frame() {
   const { t } = useLanguage();
   return (
-    <div className="relative lg:absolute content-stretch flex flex-col gap-[32px] items-center lg:left-[calc(50%+0.5px)] lg:top-[calc(50%-212px)] lg:translate-x-[-50%] lg:translate-y-[-50%] z-10 p-6 lg:p-0">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[72px] relative shrink-0 text-[40px] lg:text-[72px] text-center tracking-[-2.88px] w-full max-w-[900px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
+    <div className="relative lg:absolute content-stretch flex flex-col gap-[32px] items-center lg:left-[calc(50%+0.5px)] lg:top-[calc(50%-212px)] lg:translate-x-[-50%] lg:translate-y-[-50%] z-10 p-6 lg:p-0 w-full max-w-[420px] lg:max-w-[900px]">
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[72px] relative shrink-0 text-[18px] min-[360px]:text-[22px] min-[400px]:text-[26px] lg:text-[72px] text-center tracking-tight lg:tracking-[-2.88px] w-full whitespace-nowrap px-1" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
         {t('Why Choose Our CRO Agency?')}
       </p>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">{t("We don’t just run tests - we deliver measurable business growth.")}</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[311px] lg:max-w-[797px]">{t("We don’t just run tests - we deliver measurable business growth.")}</p>
       <div className="hidden lg:block"><Link /></div>
     </div>
   );
@@ -2104,7 +2104,7 @@ function MobileWhyChooseCards() {
   const [ref, isVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
   const { t } = useLanguage();
   return (
-    <div ref={ref} className="grid grid-cols-2 gap-[15px] px-5 pb-8">
+    <div ref={ref} className="grid grid-cols-2 gap-3 px-4 pb-6">
       {whyChooseCards.map((card, i) => {
         const Icon = card.Icon;
         return (
@@ -2129,11 +2129,11 @@ function MobileWhyChooseCards() {
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black rounded-[15px]" />
               {/* Card content */}
-              <div className="relative z-10 flex flex-col items-center gap-5 text-center px-3 py-6">
+              <div className="relative z-10 flex flex-col items-center gap-3 text-center px-2 py-4">
                 <div className="scale-[0.5] origin-center shrink-0 -my-4">
                   <Icon />
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
                   <p className="font-['Sora',sans-serif] font-semibold text-[14px] text-white leading-[18px]">{t(card.title)}</p>
                   <p className="font-['Sora',sans-serif] font-normal text-[12px] text-white/80 leading-[17px]">{t(card.description)}</p>
                 </div>

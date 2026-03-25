@@ -181,20 +181,20 @@ const MobileRadio = ({ isSelected }: { isSelected: boolean }) => (
 );
 
 const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: boolean, onClick: () => void }) => (
-  <div onClick={onClick} className={`h-[78px] lg:h-[150px] relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? 'linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777' : '#777' }}>
+  <div onClick={onClick} className={`min-h-[78px] lg:min-h-[150px] py-1.5 lg:py-2 relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? 'linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777' : '#777' }}>
     {/* Mobile layout: radio above text */}
-    <div className="flex lg:hidden flex-col gap-[6px] items-start justify-center p-[16px] rounded-[inherit] size-full overflow-clip">
+    <div className="flex lg:hidden flex-col gap-[6px] items-start justify-center p-[16px] rounded-[inherit] w-full min-h-full">
       <MobileRadio isSelected={isSelected} />
-      <p className={`font-['Sora:Regular',sans-serif] font-normal leading-[24px] text-[14px] text-left transition-colors duration-300 text-white`}>{text}</p>
+      <p className={`font-['Sora:Regular',sans-serif] font-normal leading-snug text-[14px] text-left transition-colors duration-300 text-white`}>{text}</p>
     </div>
     {/* Desktop layout: radio inline-left of text */}
-    <div className="hidden lg:flex flex-row items-center justify-start gap-[14px] overflow-clip px-[28px] py-[24px] relative rounded-[inherit] size-full">
+    <div className="hidden lg:flex flex-row items-center justify-start gap-[14px] px-[28px] py-[24px] relative rounded-[inherit] w-full min-h-full">
       <div className={`flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all duration-200 ${isSelected ? 'bg-[#31da72]' : 'bg-transparent border-2 border-white/30'}`}>
         {isSelected && (
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#020601" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         )}
       </div>
-      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[21.6px] relative min-w-0 text-[22px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
+      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-tight relative min-w-0 text-[18px] lg:text-[20px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
     </div>
 
     {/* Border — default state */}
@@ -364,8 +364,8 @@ export default function StrategySession() {
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">{t('What is your primary conversion objective?')}</p>
             <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select objective:')}</p>
             {formData.primaryObjective === "Other" ? (
-              <div className="w-full max-w-[624px] flex flex-col gap-4">
-                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder={t('Specify your objective...')} className="bg-white/10 border-[#31da72]/30 text-white placeholder:text-white/40 h-14 w-full" />
+              <div className="w-full max-w-[400px] flex flex-col gap-4">
+                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder={t('Specify your objective...')} className="bg-white/10 border-[#31da72]/30 text-white placeholder:text-white/40 h-9 w-full" />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] w-full">
@@ -384,9 +384,9 @@ export default function StrategySession() {
       case 3:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="font-semibold text-[20px] lg:text-[2.4vw] text-white">{t('What is your website?')}</p>
-            <div className="w-full max-w-[500px] flex flex-col gap-2">
-              <Input name="website" value={formData.website} onChange={handleInputChange} placeholder="https://yourwebsite.com" className={`bg-white/10 border-2 ${validationErrors.website ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-14`} />
+            <p className="font-semibold text-[18px] lg:text-[2.2vw] text-white">{t('What is your website?')}</p>
+            <div className="w-full max-w-[380px] flex flex-col gap-2">
+              <Input name="website" value={formData.website} onChange={handleInputChange} placeholder="https://yourwebsite.com" className={`bg-white/10 border-2 ${validationErrors.website ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
               {validationErrors.website && <p className="text-red-500 text-sm">{validationErrors.website}</p>}
             </div>
           </div>
@@ -394,11 +394,11 @@ export default function StrategySession() {
       case 4:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="font-semibold text-[20px] lg:text-[2.4vw] text-white">{t('Contact Information')}</p>
-            <div className="w-full max-w-[500px] flex flex-col gap-6">
-              <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className="bg-white/10 border-[#31da72]/30 text-white h-14" />
+            <p className="font-semibold text-[18px] lg:text-[2.2vw] text-white">{t('Contact Information')}</p>
+            <div className="w-full max-w-[380px] flex flex-col gap-6">
+              <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className="bg-white/10 border-[#31da72]/30 text-white h-9" />
               <div className="flex flex-col gap-2">
-                <Input name="email" value={formData.email} onChange={handleInputChange} placeholder={t('Email')} className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-14`} />
+                <Input name="email" value={formData.email} onChange={handleInputChange} placeholder={t('Email')} className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
                 {validationErrors.email && <p className="text-red-500 text-sm">{validationErrors.email}</p>}
               </div>
             </div>
@@ -458,12 +458,12 @@ export default function StrategySession() {
             {renderCurrentStepContent()}
           </div>
 
-          <div className="flex items-center justify-center gap-4 py-4 lg:py-8 mb-0 lg:mb-4 w-full h-auto lg:h-[100px]">
+          <div className="flex items-center justify-center gap-4 py-4 lg:py-4 mb-0 lg:mb-2 w-full h-auto lg:h-[60px]">
             {currentStep > 1 && !showThankYouMessage && (
-              <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-8 py-4 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-lg font-semibold transition-all">{t('Back')}</Button>
+              <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">{t('Back')}</Button>
             )}
             {((currentStep === 2 && formData.primaryObjective === "Other") || (currentStep >= 3 && currentStep < 5)) && !showThankYouMessage && (
-              <Button onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-8 py-4 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-lg font-semibold min-w-[120px] transition-all">
+              <Button onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold min-w-[80px] transition-all">
                 {submitContactMutation.isPending ? t('Submitting...') : t('Next')}
               </Button>
             )}

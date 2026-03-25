@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "motion/react";
 import svgPaths from "./svg-cs2";
 import imgProfilePhoto from "../assets/2cc5b00674c967ea21dbba5d55af8fe6d3656772.png";
 import imgIPhone16Pro from "../assets/2ad077971799010c352d92d5752938507aa3d67b.png";
@@ -8,15 +9,22 @@ interface CSProps {
   onNext?: () => void;
   onPrev?: () => void;
   contentScale?: number;
+  contentY?: any;
+  status?: 'past' | 'active' | 'future';
 }
 
-export default function CS_Squadio({ onNext, onPrev, contentScale = 1 }: CSProps) {
+const CLIP_EASE: any = [0.16, 1, 0.3, 1];
+
+export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY, status = 'future' }: CSProps) {
   const { t } = useLanguage();
+  const isActive = status === 'active';
+  const yPos = status === 'active' ? "0%" : status === 'past' ? "-100%" : "100%";
+
   return (
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       
       {/* Background Gradients (Unscaled) */}
-      <div className="absolute h-[100px] right-[-20px] top-[350px] w-[120px] opacity-60">
+      <div className="absolute h-[132.791px] left-[calc(75%-18.73px)] top-[657.52px] w-[148.475px]">
         <div className="absolute inset-[-77.6%_-77.69%_-82.79%_-55.57%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 346.345 345.773">
             <g opacity="0.8">
@@ -43,7 +51,7 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1 }: CSProps
         </div>
       </div>
 
-      <div className="absolute h-[100px] left-[-30px] top-[340px] w-[120px] opacity-60">
+      <div className="absolute h-[134.193px] left-[-35px] top-[646px] w-[159.107px]">
         <div className="absolute inset-[-79.15%_-55.72%_-71.46%_-73.83%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 362.438 330.568">
             <g opacity="0.8">
@@ -70,7 +78,7 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1 }: CSProps
         </div>
       </div>
 
-      <div className="absolute h-[3px] left-[25%] top-[440px] w-[50%]">
+      <div className="absolute h-[3.643px] left-[calc(25%+28.26px)] top-[660.55px] w-[138.669px]">
         <div className="absolute inset-[-966.66%_-25.39%_-966.67%_-25.39%]">
           <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 209.097 74.0703">
             <g>
@@ -105,48 +113,6 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1 }: CSProps
         </div>
       </div>
 
-      {/* Navigation buttons (Unscaled) */}
-      <div className="-translate-x-1/2 absolute flex gap-[36px] items-center left-[calc(50%+0.5px)] bottom-[24px] z-[100]">
-        <div className="cursor-pointer" onClick={onPrev}>
-          <div className="bg-[rgba(255,137,121,0.2)] content-stretch flex flex-col items-center justify-center p-[8px] relative rounded-[116.667px] hover:bg-[rgba(255,137,121,0.4)] transition-colors">
-            <div aria-hidden="true" className="absolute border-[#ffc5be] border-[0.583px] border-solid inset-0 pointer-events-none rounded-[116.667px]" />
-            <div className="flex items-center justify-center relative shrink-0 size-[24px]">
-              <div className="-rotate-90 -scale-y-100 flex-none">
-                <div className="overflow-clip relative size-[24px]">
-                  <div className="absolute inset-[37.5%_20.83%]">
-                    <div className="absolute inset-[-12.76%_-5.47%]">
-                      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 15.5313 7.53126">
-                        <path d={svgPaths.p193e1500} stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.53125" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="cursor-pointer" onClick={onNext}>
-          <div className="-scale-y-100 flex-none rotate-180">
-            <div className="bg-[rgba(255,137,121,0.2)] content-stretch flex flex-col items-center justify-center p-[8px] relative rounded-[116.667px] hover:bg-[rgba(255,137,121,0.4)] transition-colors">
-              <div aria-hidden="true" className="absolute border-[#ffc5be] border-[0.583px] border-solid inset-0 pointer-events-none rounded-[116.667px]" />
-              <div className="flex items-center justify-center relative shrink-0 size-[24px]">
-                <div className="-rotate-90 -scale-y-100 flex-none">
-                  <div className="overflow-clip relative size-[24px]">
-                    <div className="absolute inset-[37.5%_20.83%]">
-                      <div className="absolute inset-[-12.76%_-5.47%]">
-                        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 15.5313 7.53126">
-                          <path d={svgPaths.p193e1500} stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.53125" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Scalable Content Layer */}
       <div style={{ 
         transform: `scale(${contentScale})`, 
@@ -155,86 +121,201 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1 }: CSProps
         height: '100%',
         position: 'absolute',
         inset: 0,
+        overflow: 'hidden',
         pointerEvents: 'none'
       }}>
-        <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', position: 'relative' }}>
+        <motion.div style={{ y: contentY, pointerEvents: 'auto', width: '100%', height: '100%', position: 'relative' }}>
           {/* Main content card */}
           <div className="absolute content-stretch flex flex-col gap-[20px] items-start left-[20px] top-[40px] w-[calc(100%-40px)] z-[60]">
             <div className="content-stretch flex gap-[12px] h-[62px] items-center relative shrink-0 w-full">
-              <div className="relative shrink-0 size-[62px]">
-                <img alt="" className="absolute block max-w-none size-full" height="62" src={imgProfilePhoto} width="62" />
+              <div className="relative shrink-0 size-[62px] overflow-hidden">
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: yPos }}
+                  transition={{ duration: 0.8, ease: CLIP_EASE }}
+                  className="size-full"
+                >
+                  <img alt="" className="absolute block max-w-none size-full" height="62" src={imgProfilePhoto} width="62" />
+                </motion.div>
               </div>
               <div className="content-stretch flex flex-[1_0_0] flex-col gap-[8px] items-start justify-center min-h-px min-w-px relative">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full">
-                  <p className="leading-[47px]">Squadio</p>
+                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full overflow-hidden">
+                  <motion.p 
+                    initial={{ y: "100%" }}
+                    animate={{ y: yPos }}
+                    transition={{ duration: 0.8, ease: CLIP_EASE }}
+                    className="leading-[47px]"
+                  >
+                    Squadio
+                  </motion.p>
                 </div>
-                <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
-                  <div className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[12px] w-[92px]">
+                <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0 overflow-hidden">
+                  <motion.div 
+                    initial={{ y: "100%" }}
+                    animate={{ y: yPos }}
+                    transition={{ duration: 0.8, ease: CLIP_EASE }}
+                    className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[12px] w-[92px]"
+                  >
                     <p className="leading-[17px]">{t('Hiring Industry')}</p>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
             <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
               <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-                <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Challenge')}</p>
-                <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full">{t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}</p>
+                <div className="overflow-hidden w-full">
+                  <motion.p 
+                    initial={{ y: "100%" }}
+                    animate={{ y: yPos }}
+                    transition={{ duration: 0.8, ease: CLIP_EASE }}
+                    className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full"
+                  >
+                    {t('Challenge')}
+                  </motion.p>
+                </div>
+                <div className="overflow-hidden w-full">
+                  <motion.p 
+                    initial={{ y: "100%" }}
+                    animate={{ y: yPos }}
+                    transition={{ duration: 0.8, ease: CLIP_EASE }}
+                    className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full"
+                  >
+                    {t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}
+                  </motion.p>
+                </div>
               </div>
               <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-                <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full">{t('Results')}</p>
+                <div className="overflow-hidden w-full">
+                  <motion.p 
+                    initial={{ y: "100%" }}
+                    animate={{ y: yPos }}
+                    transition={{ duration: 0.8, ease: CLIP_EASE }}
+                    className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full"
+                  >
+                    {t('Results')}
+                  </motion.p>
+                </div>
                 <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
                   <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
-                      <p className="leading-[40px]">+44.02%</p>
+                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
+                      <motion.p 
+                        initial={{ y: "100%" }}
+                        animate={{ y: yPos }}
+                        transition={{ duration: 0.8, ease: CLIP_EASE }}
+                        className="leading-[40px]"
+                      >
+                        +44.02%
+                      </motion.p>
                     </div>
-                    <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Funnel Progression')}</p>
+                    <div className="overflow-hidden">
+                      <motion.p 
+                        initial={{ y: "100%" }}
+                        animate={{ y: yPos }}
+                        transition={{ duration: 0.8, ease: CLIP_EASE }}
+                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+                      >
+                        {t('Funnel Progression')}
+                      </motion.p>
+                    </div>
                   </div>
                   <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
-                      <p className="leading-[40px]">+4.33%</p>
+                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
+                      <motion.p 
+                        initial={{ y: "100%" }}
+                        animate={{ y: yPos }}
+                        transition={{ duration: 0.8, ease: CLIP_EASE }}
+                        className="leading-[40px]"
+                      >
+                        +4.33%
+                      </motion.p>
                     </div>
-                    <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Conversion Rate')}</p>
+                    <div className="overflow-hidden">
+                      <motion.p 
+                        initial={{ y: "100%" }}
+                        animate={{ y: yPos }}
+                        transition={{ duration: 0.8, ease: CLIP_EASE }}
+                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+                      >
+                        {t('Conversion Rate')}
+                      </motion.p>
+                    </div>
                   </div>
                   <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto">
-                      <p className="leading-[40px]">+6.49%</p>
+                    <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
+                      <motion.p 
+                        initial={{ y: "100%" }}
+                        animate={{ y: yPos }}
+                        transition={{ duration: 0.8, ease: CLIP_EASE }}
+                        className="leading-[40px]"
+                      >
+                        +6.49%
+                      </motion.p>
                     </div>
-                    <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Boost Engagement')}</p>
+                    <div className="overflow-hidden">
+                      <motion.p 
+                        initial={{ y: "100%" }}
+                        animate={{ y: yPos }}
+                        transition={{ duration: 0.8, ease: CLIP_EASE }}
+                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+                      >
+                        {t('Boost Engagement')}
+                      </motion.p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px] z-[20]">
-            <div className="flex-none rotate-[-15.07deg]">
+          <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px] z-[20] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: -15.07 }}
+              animate={{ y: yPos, rotate: -15.07 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
-            </div>
+            </motion.div>
           </div>
-          <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px] z-[20]">
-            <div className="flex-none rotate-[11.21deg]">
+          <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px] z-[20] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: 11.21 }}
+              animate={{ y: yPos, rotate: 11.21 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
-            </div>
+            </motion.div>
           </div>
-          <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px] z-[20]">
-            <div className="flex-none rotate-[13.09deg]">
+          <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px] z-[20] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: 13.09 }}
+              animate={{ y: yPos, rotate: 13.09 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <div className="h-[321px] relative w-[143px]">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   <img alt="" className="absolute h-[141.07%] left-[-104.26%] max-w-none top-[-8.05%] w-[425.75%]" src={imgIPhone16Pro} />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-          <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px] z-[20]">
-            <div className="flex-none rotate-[-15.59deg]">
+          <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px] z-[20] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: -15.59 }}
+              animate={{ y: yPos, rotate: -15.59 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <div className="h-[320px] relative w-[142px]">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   <img alt="" className="absolute h-[141.81%] left-[-219.03%] max-w-none top-[-34.12%] w-[423.23%]" src={imgIPhone16Pro} />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
     </div>

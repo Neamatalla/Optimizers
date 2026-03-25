@@ -598,7 +598,7 @@ function Text() {
           </>
         )}
       </div>
-      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] w-full max-w-[460px] ${isRTL ? 'text-right' : ''}`}>{t('We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.')}</p>
+      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] w-full max-w-[460px] ${isRTL ? 'text-right' : ''}`}>{t('The biggest wins come from a continuous cycle of research, testing, and improvement that compounds results over time.')}</p>
       <Link />
     </div>
   );

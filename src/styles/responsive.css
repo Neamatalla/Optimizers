@@ -55,7 +55,7 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 100vh;
+    height: 100dvh;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     z-index: 90;
@@ -67,6 +67,7 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
+    overflow: hidden;
 }
 
 .mobile-nav-overlay.open {
@@ -274,16 +275,14 @@
         height: auto !important;
     }
 
-    .hero-frame7 .text-\[72px\],
-    [class*="text-[72px]"] {
+    .hero-frame7 .text-\[72px\] {
         font-size: clamp(28px, 6vw, 72px) !important;
         line-height: 1.1 !important;
         white-space: normal !important;
     }
 
     /* Hero subtitle */
-    .hero-frame7 .text-\[23px\],
-    [class*="text-[23px]"] {
+    .hero-frame7 .text-\[23px\] {
         font-size: clamp(14px, 2.5vw, 23px) !important;
         width: auto !important;
         max-width: 90vw;
@@ -333,9 +332,17 @@
         position: relative;
         width: 100%;
         background: #020601;
-        height: 100dvh;
-        display: flex;
-        flex-direction: column;
+        height: 200svh; /* Reduced height for shorter scroll animation */
+        display: block; /* No longer flex column */
+        margin-bottom: -200px !important;
+    }
+
+    .mobile-sticky-viewport {
+        position: sticky;
+        top: 0;
+        height: 100svh;
+        width: 100%;
+        overflow: hidden;
     }
 
     /* Background — absolute, fills entire section */
@@ -345,16 +352,22 @@
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 0;
+        z-index: 1;
         pointer-events: none;
+        overflow: hidden;
     }
 
-    /* Hero text content — shrinks to fit its content */
+    /* Hero text content — absolute layer inside sticky viewport */
     .mobile-hero-content {
-        position: relative;
+        position: absolute;
+        top: 0;
+        left: 0;
         z-index: 2;
         width: 100%;
-        flex: 0 0 auto;
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     /* Override the absolute positioning from Frame10's Tailwind classes */
@@ -365,12 +378,13 @@
         transform: none !important;
         width: 100% !important;
         max-width: 100% !important;
-        height: auto !important;
-        gap: 20px !important;
-        padding: 70px 16px 24px 16px !important;
+        height: 100% !important;
+        gap: 0 !important; /* Managed by the wrapper now */
+        padding: 0 16px !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
+        justify-content: center !important;
     }
 
     /* Override Frame7's fixed height */
@@ -424,57 +438,40 @@
         transform-origin: center;
     }
 
-    /* ═══ HERO VIDEO: Visible on mobile (below content, fills remaining space) ═══ */
+    /* ═══ HERO VIDEO: Visible on mobile (absolute layer, moves up in viewport) ═══ */
     .mobile-hero-video {
-        position: relative;
+        position: absolute;
+        top: 0;
+        left: 0;
         z-index: 3;
         width: 100%;
-        flex: 1;
-        min-height: 0;
+        height: 100svh;
         display: flex;
         flex-direction: column;
-        padding: 0 16px 24px 16px;
+        justify-content: center; /* Center tablet vertically */
+        padding: 0 16px 0 16px;
+        pointer-events: none; /* Let clicks pass through if needed */
     }
 
-    /* Video frame fills the flex space */
+    /* Center the tablet frame in the available flex space */
     .mobile-hero-video .mobile-video-frame {
-        flex: 1 !important;
-        aspect-ratio: unset !important;
-        min-height: 0;
+        margin: auto;
     }
 
-    /* Override the Tailwind `hidden md:block` class */
-    .mobile-hero-video [data-name="Header Video"] {
-        display: block !important;
-        width: 100% !important;
-        height: 220px !important;
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-        transform: none !important;
-        max-width: none !important;
-        padding: 0 !important;
-        border-radius: 14px;
-        overflow: hidden;
-    }
-
-    /* Video inside the frame */
+    /* Maximize video screen space over the stretched image bezels */
     .mobile-hero-video [data-name="Hero"] {
-        width: 100% !important;
-        height: 100% !important;
-        left: 0 !important;
-        top: 0 !important;
-        border-radius: 14px;
+        width: 97% !important;
+        height: 94% !important;
+        left: 1.5% !important;
+        top: 3% !important;
+        border-radius: 12px !important;
+        z-index: 1;
     }
+
+
 
     .mobile-hero-video [data-name="Hero"] video {
         border-radius: 14px;
-    }
-
-    /* The static frame image on top of the video */
-    .mobile-hero-video [data-name="Header Video"]>div:last-child {
-        border-radius: 14px;
-        overflow: hidden;
     }
 
     /* Tighter logo gaps inside platforms pill on mobile */
@@ -524,7 +521,7 @@
     /* Gap between services header and cards + section padding */
     #services {
         gap: 12px !important;
-        padding: 24px 16px !important;
+        padding: 0px 16px 24px 16px !important;
     }
 
     /* Services heading — reduce from 60px to 36px */

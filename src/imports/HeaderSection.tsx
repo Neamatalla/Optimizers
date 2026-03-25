@@ -13,9 +13,9 @@ const CANVAS_WIDTH = 1440;
 const TABLET_BOTTOM = 933 + 662; // tablet top + tablet height in canvas coords
 
 export default function HeaderSection() {
-    const [scale, setScale] = useState(1);
-    const [viewportH, setViewportH] = useState(800);
-    const [isMobile, setIsMobile] = useState(false);
+    const [scale, setScale] = useState(() => typeof window !== "undefined" ? Math.min(window.innerWidth / CANVAS_WIDTH, 1) : 1);
+    const [viewportH, setViewportH] = useState(() => typeof window !== "undefined" ? window.innerHeight : 800);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : false);
     const [isInView, setIsInView] = useState(true);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const tabletLayerRef = useRef<HTMLDivElement>(null);
@@ -49,16 +49,23 @@ export default function HeaderSection() {
     });
 
     // --- Hero Text Animations ---
-    const heroScale = useTransform(scrollYProgress, [0, 0.3, 0.7], [1, 0.85, 0.65]);
-    const heroOpacity = useTransform(scrollYProgress, [0, 0.25, 0.6], [1, 0.7, 0]);
-    const heroY = useTransform(scrollYProgress, [0, 0.3, 0.7], [0, -40, -120]);
+    const heroScale = useTransform(scrollYProgress, [0, 0.4, 0.8], isMobile ? [1, 0.8, 0.5] : [1, 0.85, 0.65]);
+    const heroOpacity = useTransform(scrollYProgress, [0, 0.3, 0.6], isMobile ? [1, 1, 0] : [1, 0.7, 0]);
+    const heroY = useTransform(scrollYProgress, [0, 0.4, 0.8], isMobile ? [0, -40, -100] : [0, -40, -120]);
 
     // --- Tablet Animations (viewport-height-aware) ---
     const canvasViewportH = viewportH / scale;
     const tabletEndY = Math.min(-750, -(TABLET_BOTTOM - canvasViewportH + 20));
     const tabletMidY = (50 + tabletEndY) / 2;
-    const tabletY = useTransform(scrollYProgress, [0, 0.3, 0.6, 1], [300, 50, tabletMidY, tabletEndY]);
-    const tabletScale = useTransform(scrollYProgress, [0, 0.4, 1], [0.85, 0.95, 1]);
+    
+    // On mobile, start the tablet much lower (below viewport)
+    const mobileTabletStartY = viewportH + 200; 
+    const tabletY = useTransform(
+        scrollYProgress, 
+        [0, 0.3, 0.8, 1], 
+        isMobile ? [mobileTabletStartY, mobileTabletStartY * 0.8, 0, -100] : [300, 50, tabletMidY, tabletEndY]
+    );
+    const tabletScale = useTransform(scrollYProgress, [0, 0.3, 0.8], isMobile ? [0.7, 0.7, 1] : [0.85, 0.95, 1]);
 
     /* ═══════════════════════════════════════════
        MOBILE LAYOUT — simple flex column, no canvas
@@ -66,19 +73,47 @@ export default function HeaderSection() {
     if (isMobile) {
         return (
             <div ref={scrollContainerRef} className="mobile-hero-container">
-                {/* Background — absolute, covers entire section */}
-                <div className="mobile-hero-bg">
-                    <BackgroundLayer />
-                </div>
+                <div className="mobile-sticky-viewport">
+                    {/* Background — absolute, covers entire section */}
+                    <div className="mobile-hero-bg">
+                        <div style={{ 
+                            transform: `scale(${Math.max(window.innerWidth / 1440, 800 / 930) * 1.2}) translateZ(0)`, 
+                            transformOrigin: 'top center',
+                            width: '1440px',
+                            height: '930px',
+                            position: 'absolute',
+                            left: '50%',
+                            marginLeft: '-877px',
+                            willChange: 'transform',
+                            backfaceVisibility: 'hidden',
+                            WebkitBackfaceVisibility: 'hidden'
+                        }}>
+                            <BackgroundLayer />
+                        </div>
+                    </div>
 
-                {/* Content — text + platforms pill first */}
-                <div className="mobile-hero-content">
-                    <MobileHeroContent />
-                </div>
+                    {/* Content — text + platforms pill, scales and fades */}
+                    <motion.div 
+                        className="mobile-hero-content"
+                        style={{
+                            scale: heroScale,
+                            opacity: heroOpacity,
+                            y: heroY,
+                        }}
+                    >
+                        <MobileHeroContent />
+                    </motion.div>
 
-                {/* Video — below content */}
-                <div className="mobile-hero-video">
-                    <MobileTabletLayer />
+                    {/* Video — below content, moves up into view */}
+                    <motion.div 
+                        className="mobile-hero-video"
+                        style={{
+                            y: tabletY,
+                            scale: tabletScale,
+                        }}
+                    >
+                        <MobileTabletLayer />
+                    </motion.div>
                 </div>
             </div>
         );

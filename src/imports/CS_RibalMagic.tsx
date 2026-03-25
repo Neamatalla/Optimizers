@@ -1,7 +1,11 @@
+import React from "react";
+import { motion } from "motion/react";
 import svgPaths from "./svg-cs3";
 import imgProfilePhoto from "../assets/e6537bb81663fe2012b59144a2601a88d06d8c09.png";
 import imgIPhone16Pro from "../assets/e4fc715b1cc2d43844292b34806acf28012b855a.png";
 import { useLanguage } from "../app/contexts/LanguageContext";
+
+const CLIP_EASE: any = [0.16, 1, 0.3, 1];
 
 function Group2() {
   return (
@@ -167,123 +171,225 @@ function Green({ onNext, onPrev }: CSProps) {
       <Group2 />
       <Group1 />
       <Group />
-      <Frame2 onNext={onNext} onPrev={onPrev} />
     </div>
   );
 }
 
-function Frame5() {
+function Frame5({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="bg-[rgba(106,228,153,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#92ebb4] text-[12px] w-[162px]">
+    <div className="bg-[rgba(106,228,153,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0 overflow-hidden">
+      <motion.div 
+        initial={{ y: "100%" }}
+        animate={{ y: yPos }}
+        transition={{ duration: 0.8, ease: CLIP_EASE }}
+        className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#92ebb4] text-[12px] w-[162px]"
+      >
         <p className="leading-[17px]">{t('Home Appliances Industry')}</p>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-function Frame4() {
+function Frame4({ status }: { status?: 'past' | 'active' | 'future' }) {
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex flex-[1_0_0] flex-col gap-[8px] items-start justify-center min-h-px min-w-px relative">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full">
-        <p className="leading-[47px]">Ribal Magic</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="leading-[47px]"
+        >
+          Ribal Magic
+        </motion.p>
       </div>
-      <Frame5 />
+      <Frame5 status={status} />
     </div>
   );
 }
 
-function Frame8() {
+function Frame8({ status }: { status?: 'past' | 'active' | 'future' }) {
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex gap-[12px] h-[62px] items-center relative shrink-0 w-full">
-      <div className="relative shrink-0 size-[62px]">
-        <img alt="" className="absolute block max-w-none size-full" height="62" src={imgProfilePhoto} width="62" />
+      <div className="relative shrink-0 size-[62px] overflow-hidden">
+        <motion.div
+           initial={{ y: '100%' }}
+           animate={{ y: yPos }}
+           transition={{ duration: 0.8, ease: CLIP_EASE }}
+           className="size-full"
+        >
+          <img alt="" className="absolute block max-w-none size-full" height="62" src={imgProfilePhoto} width="62" />
+        </motion.div>
       </div>
-      <Frame4 />
+      <Frame4 status={status} />
     </div>
   );
 }
 
-function Frame6() {
+function Frame6({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#cdf6dd] text-[14px] w-full">{t('Challenge')}</p>
-      <p className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full">{t('PDPs lacked clarity and urgency; weak CTAs led users to bounce early.')}</p>
+      <div className="overflow-hidden w-full">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#cdf6dd] text-[14px] w-full"
+        >
+          {t('Challenge')}
+        </motion.p>
+      </div>
+      <div className="overflow-hidden w-full">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full"
+        >
+          {t('PDPs lacked clarity and urgency; weak CTAs led users to bounce early.')}
+        </motion.p>
+      </div>
     </div>
   );
 }
 
-function Frame9() {
+function Frame9({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#6ae499] text-[20px] tracking-[-0.96px] w-auto">
-        <p className="leading-[40px]">+8.95%</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#6ae499] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="leading-[40px]"
+        >
+          +8.95%
+        </motion.p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Conversion Rate')}</p>
+      <div className="overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+        >
+          {t('Conversion Rate')}
+        </motion.p>
+      </div>
     </div>
   );
 }
 
-function Frame11() {
+function Frame11({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#6ae499] text-[20px] tracking-[-0.96px] w-auto">
-        <p className="leading-[40px]">+9.41%</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#6ae499] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="leading-[40px]"
+        >
+          +9.41%
+        </motion.p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Revenue Growth')}</p>
+      <div className="overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+        >
+          {t('Revenue Growth')}
+        </motion.p>
+      </div>
     </div>
   );
 }
 
-function Frame10() {
+function Frame10({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#6ae499] text-[20px] tracking-[-0.96px] w-auto">
-        <p className="leading-[40px]">+9.43%</p>
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#6ae499] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="leading-[40px]"
+        >
+          +9.43%
+        </motion.p>
       </div>
-      <p className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto">{t('Products per Visitor')}</p>
+      <div className="overflow-hidden">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+        >
+          {t('Products per Visitor')}
+        </motion.p>
+      </div>
     </div>
   );
 }
 
-function Frame1() {
+function Frame1({ status }: { status?: 'past' | 'active' | 'future' }) {
   return (
     <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
-      <Frame9 />
-      <Frame11 />
-      <Frame10 />
+      <Frame9 status={status} />
+      <Frame11 status={status} />
+      <Frame10 status={status} />
     </div>
   );
 }
 
-function Frame7() {
+function Frame7({ status }: { status?: 'past' | 'active' | 'future' }) {
+  const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#cdf6dd] text-[14px] w-full">Hypothesis</p>
-      <Frame1 />
+    <div className="content-stretch flex flex-col gap-[px] items-start relative shrink-0 w-full">
+      <div className="overflow-hidden w-full">
+        <motion.p 
+          initial={{ y: "100%" }}
+          animate={{ y: yPos }}
+          transition={{ duration: 0.8, ease: CLIP_EASE }}
+          className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#cdf6dd] text-[14px] w-full"
+        >
+          {t('Results')}
+        </motion.p>
+      </div>
+      <Frame1 status={status} />
     </div>
   );
 }
 
-function Frame() {
+function Frame({ status }: { status?: 'past' | 'active' | 'future' }) {
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <Frame6 />
-      <Frame7 />
+      <Frame6 status={status} />
+      <Frame7 status={status} />
     </div>
   );
 }
 
-function Frame3() {
+function Frame3({ status }: { status?: 'past' | 'active' | 'future' }) {
   return (
     <div className="absolute content-stretch flex flex-col gap-[20px] items-start left-[20px] top-[40px] w-[335px]">
-      <Frame8 />
-      <Frame />
+      <Frame8 status={status} />
+      <Frame status={status} />
     </div>
   );
 }
@@ -292,10 +398,14 @@ interface CSProps {
   onNext?: () => void;
   onPrev?: () => void;
   contentScale?: number;
+  contentY?: any;
+  status?: 'past' | 'active' | 'future';
 }
 
-export default function CS_RibalMagic({ onNext, onPrev, contentScale = 1 }: CSProps) {
+export default function CS_RibalMagic({ onNext, onPrev, contentScale = 1, contentY, status = 'future' }: CSProps) {
   const { t } = useLanguage();
+  const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
+  
   return (
     <div className="bg-[#020601] relative overflow-hidden w-full h-full shrink-0">
       <Green onNext={onNext} onPrev={onPrev} />
@@ -308,39 +418,60 @@ export default function CS_RibalMagic({ onNext, onPrev, contentScale = 1 }: CSPr
         height: '100%',
         position: 'absolute',
         inset: 0,
+        overflow: 'hidden',
         pointerEvents: 'none'
       }}>
-        <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', position: 'relative' }}>
-          <Frame3 />
-          <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px]">
-            <div className="flex-none rotate-[-15.07deg]">
+        <motion.div style={{ y: contentY, pointerEvents: 'auto', width: '100%', height: '100%', position: 'relative' }}>
+          <Frame3 status={status} />
+          <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82.71px] top-[312px] w-[119.068px] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: -15.07 }}
+              animate={{ y: yPos, rotate: -15.07 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[112px]">{t('Before')}</p>
-            </div>
+            </motion.div>
           </div>
-          <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px]">
-            <div className="flex-none rotate-[11.21deg]">
+          <div className="-translate-x-1/2 absolute flex h-[60.439px] items-center justify-center left-[calc(66.67%+37.64px)] top-[326.84px] w-[105.275px] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: 11.21 }}
+              animate={{ y: yPos, rotate: 11.21 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <p className="font-['Sora',sans-serif] font-semibold leading-[41.862px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center w-[99px]">{t('After')}</p>
-            </div>
+            </motion.div>
           </div>
-          <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px]">
-            <div className="flex-none rotate-[13.09deg]">
+          <div className="absolute flex h-[345.046px] items-center justify-center left-[calc(33.33%+19px)] top-[344px] w-[211.985px] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: 13.09 }}
+              animate={{ y: yPos, rotate: 13.09 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <div className="h-[321px] relative w-[143px]">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   <img alt="" className="absolute h-[142.53%] left-[-104.9%] max-w-none top-[-8.41%] w-[426.59%]" src={imgIPhone16Pro} />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-          <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px]">
-            <div className="flex-none rotate-[-15.59deg]">
+          <div className="absolute flex h-[346.39px] items-center justify-center left-[19px] top-[329px] w-[222.776px] overflow-hidden">
+            <motion.div 
+              initial={{ y: "100%", rotate: -15.59 }}
+              animate={{ y: yPos, rotate: -15.59 }}
+              transition={{ duration: 0.8, ease: CLIP_EASE }}
+              className="flex-none"
+            >
               <div className="h-[320px] relative w-[142px]">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   <img alt="" className="absolute h-[142.97%] left-[-223.94%] max-w-none top-[-34.69%] w-[429.59%]" src={imgIPhone16Pro} />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -202,7 +202,6 @@ export default function GallerySection() {
                     bottom: '40.45px',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    maxWidth: '335px',
                 }}
             >
                 {/* Oscillating animation container removed - animation now on images */}

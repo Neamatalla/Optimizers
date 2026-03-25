@@ -521,7 +521,7 @@ function Frame32() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#fef3c7] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#fef3c7] text-[18px] w-[min-content]">{t('Results')}</p>
       <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Using transparent, authentic videos and clear explanations of ingredients, benefits, and production would build trust, boost confidence, and drive purchases')}</p>
     </div>
   );
@@ -531,7 +531,7 @@ function Frame23() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#cdf6dd] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#cdf6dd] text-[18px] w-[min-content]">{t('Results')}</p>
       <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Improving PDP clarity with better imagery, structured info, reviews, urgency cues, and stronger CTAs would increase engagement and drive conversions')}</p>
     </div>
   );
@@ -541,7 +541,7 @@ function Frame41() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#ffc4bc] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#ffc4bc] text-[18px] w-[min-content]">{t('Results')}</p>
       <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Clarifying the value proposition, simplifying navigation, enhancing CTAs, and showcasing client credibility early would improve engagement and conversions')}</p>
     </div>
   );
@@ -551,7 +551,7 @@ function Frame42() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#afc1df] text-[18px] w-[min-content]">{t('Hypothesis')}</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#afc1df] text-[18px] w-[min-content]">{t('Results')}</p>
       <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">{t('Surfacing products on the homepage with ratings, CTAs, best sellers, and banners would speed journeys, boost engagement, and increase conversions and revenue')}</p>
     </div>
   );

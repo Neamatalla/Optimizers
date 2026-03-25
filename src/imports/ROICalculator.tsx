@@ -426,7 +426,7 @@ function Card() {
 
       {/* ── Animated top glow panel — same wave as booking section ── */}
       <div
-        className="absolute top-0 left-0 right-0 h-[400px] animate-roi-top-strip pointer-events-none rounded-t-[22px]"
+        className="absolute top-0 left-0 right-0 h-[160px] lg:h-[240px] animate-roi-top-strip pointer-events-none rounded-t-[22px]"
         style={{
           backgroundImage:
             "linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",

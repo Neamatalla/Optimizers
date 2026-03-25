@@ -55,12 +55,40 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
 
     World.add(world, [ground, wallLeft, wallRight, ceiling]);
 
+    // Helper for text wrapping
+    const getWrappedLines = (text: string, maxWidth: number, font: string) => {
+      ctx.font = font;
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const width = ctx.measureText(currentLine + " " + word).width;
+        if (width < maxWidth) {
+          currentLine += " " + word;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      lines.push(currentLine);
+      return lines;
+    };
+
     // Create labels/bodies — translate if Arabic
     const translatedLabels = labels.map(l => language === 'ar' ? (t(l) || l) : l);
+    const CARD_WIDTH = 180;
+    const FONT_SIZE = 16;
+    const font = language === 'ar' 
+      ? `bold ${FONT_SIZE}px 'KO Sans', 'Sora', sans-serif` 
+      : `${FONT_SIZE}px 'Sora', sans-serif`;
+    
     const newBodies = translatedLabels.map((label) => {
-      const charWidth = language === 'ar' ? 12 : 10;
-      const labelWidth = label.length * charWidth + 40;
-      const labelHeight = 50;
+      const lines = getWrappedLines(label, CARD_WIDTH - 20, font);
+      const labelWidth = CARD_WIDTH;
+      const lineHeight = FONT_SIZE + 6;
+      const labelHeight = lines.length * lineHeight + 20;
       const x = Math.random() * (width - 200) + 100;
       const y = Math.random() * -1500 - 100;
 
@@ -68,10 +96,10 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
         restitution: 0.6,
         friction: 0.1,
         density: 0.003,
-        chamfer: { radius: 20 }
+        chamfer: { radius: 0 }
       });
 
-      return { body, label, width: labelWidth, height: labelHeight };
+      return { body, label, width: labelWidth, height: labelHeight, lines };
     });
 
     bodiesRef.current = newBodies;
@@ -94,12 +122,72 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
     // Remove Matter.js wheel listener so page scrolling isn't blocked
     mouse.element.removeEventListener('wheel', (mouse as any).mousewheel);
 
+    // Ensure Matter.js mouse tracks CSS scale correctly
+    Matter.Events.on(engine, 'beforeUpdate', () => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      Matter.Mouse.setScale(mouse, { x: scaleX, y: scaleY });
+    });
+
+    // Custom touch listener to allow scrolling when not grabbing a dynamic word body
+    // We use capture phase and stopImmediatePropagation to PREVENT Matter.js from
+    // seeing touches on empty space and aggressively calling preventDefault().
+    let isDragging = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      // Matter.js needs exact mapping scale due to CSS transforming
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      const x = (touch.clientX - rect.left) * scaleX;
+      const y = (touch.clientY - rect.top) * scaleY;
+
+      const bodies = Matter.Composite.allBodies(engine.world);
+      // Only check collisions against non-static bodies (the words)
+      const dynamicBodies = bodies.filter(b => !b.isStatic);
+      const hit = Matter.Query.point(dynamicBodies, { x, y }).length > 0;
+
+      if (hit) {
+        isDragging = true;
+        // Proceed with dragging, we'll let Matter.js see it but we can prevent default manually to lock scroll
+        if (e.cancelable) e.preventDefault();
+      } else {
+        isDragging = false;
+        // Don't let Matter.js see this touch so it doesn't block scrolling!
+        e.stopImmediatePropagation();
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
+      } else {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isDragging) {
+        e.stopImmediatePropagation();
+      }
+      isDragging = false;
+    };
+
+    // Attach in capture phase before Matter.js!
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false, capture: true });
+
     // Animation Loop
     const run = () => {
       Engine.update(engine);
       ctx.clearRect(0, 0, width, height);
 
-      newBodies.forEach(({ body, label, width: bWidth, height: bHeight }) => {
+      newBodies.forEach(({ body, label, width: bWidth, height: bHeight, lines }) => {
         const { x, y } = body.position;
         const angle = body.angle;
 
@@ -107,35 +195,32 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
         ctx.translate(x, y);
         ctx.rotate(angle);
 
-        // Draw rounded rectangle
-        const radius = 20;
+        // Draw rectangle with pointy corners
         ctx.fillStyle = '#252925';
         ctx.strokeStyle = 'rgba(255,255,255,0.4)';
         ctx.lineWidth = 1.5;
 
-        ctx.beginPath();
         const w = bWidth;
         const h = bHeight;
-        ctx.moveTo(-w / 2 + radius, -h / 2);
-        ctx.lineTo(w / 2 - radius, -h / 2);
-        ctx.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + radius);
-        ctx.lineTo(w / 2, h / 2 - radius);
-        ctx.quadraticCurveTo(w / 2, h / 2, w / 2 - radius, h / 2);
-        ctx.lineTo(-w / 2 + radius, h / 2);
-        ctx.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - radius);
-        ctx.lineTo(-w / 2, -h / 2 + radius);
-        ctx.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + radius, -h / 2);
-        ctx.closePath();
+        ctx.beginPath();
+        ctx.rect(-w / 2, -h / 2, w, h);
         ctx.fill();
         ctx.stroke();
 
         // Draw text
         ctx.fillStyle = 'white';
-        ctx.font = language === 'ar' ? "bold 15px 'KO Sans', 'Sora', sans-serif" : "16px 'Sora', sans-serif";
+        ctx.font = font;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.direction = language === 'ar' ? 'rtl' : 'ltr';
-        ctx.fillText(label, 0, 0);
+        
+        const lineHeight = FONT_SIZE + 4;
+        const totalTextHeight = lines.length * lineHeight;
+        const startY = -(totalTextHeight / 2) + (lineHeight / 2);
+
+        lines.forEach((line, i) => {
+          ctx.fillText(line, 0, startY + i * lineHeight);
+        });
 
         ctx.restore();
       });
@@ -146,6 +231,10 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
     run();
 
     return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart, { capture: true });
+      canvas.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      canvas.removeEventListener('touchend', handleTouchEnd, { capture: true });
+      canvas.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
       if (renderRef.current) cancelAnimationFrame(renderRef.current);
       if (engineRef.current) Matter.Engine.clear(engineRef.current);
       if (worldRef.current) Matter.World.clear(worldRef.current, false);
@@ -162,19 +251,30 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
         ref={canvasRef}
         width={570}
         height={589}
-        className="absolute inset-0 cursor-grab active:cursor-grabbing touch-none"
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
       />
+      {/* Grey light/flare that "dulls out" the bottom - Increased intensity */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[300px] pointer-events-none flex items-end justify-center overflow-hidden rounded-b-[43px]">
+        <div
+          className="w-[120%] h-[150px] blur-[100px] opacity-40 translate-y-20"
+          style={{ background: 'radial-gradient(ellipse at center, #bbbbbb 0%, transparent 75%)' }}
+        />
+      </div>
+
       <div
         className="absolute inset-0 pointer-events-none rounded-[43px] blur-[4px]"
         style={{
           padding: "1.5px",
-          background: "linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255,255,255,0.1) 60%, rgba(255,255,255,0.3) 100%)",
+          background: "linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(128,128,128,0.2) 60%, rgba(128,128,128,0.4) 100%)",
           WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
           WebkitMaskComposite: "xor",
           maskComposite: "exclude",
         }}
       />
-      <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-35px_50px_0px_rgba(74,222,128,0.1)]" />
+      <div 
+        className="absolute inset-0 pointer-events-none rounded-[inherit]" 
+        style={{ boxShadow: "inset 0px -120px 200px -60px rgba(128,128,128,0.3)" }}
+      />
     </div>
   );
 }

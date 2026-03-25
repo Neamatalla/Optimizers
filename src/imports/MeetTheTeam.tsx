@@ -18,7 +18,7 @@ function Lights() {
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.139px]">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.139px] to-black" />
                     <div className="absolute inset-0 overflow-hidden rounded-[17.139px]">
-                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.3] origin-top" src={imgRectangle2} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.3] origin-top translate-y-[-25px]" src={imgRectangle2} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -113,13 +113,13 @@ const Safer = React.memo(function Safer() {
 function Lights1() {
     return (
         <div className="absolute h-[303.946px] left-[1.16px] overflow-clip top-[1.16px] w-[237.672px]" data-name="Lights">
-            <div className="absolute bg-[#050505] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
+            <div className="absolute bg-[#333333] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(255,166,154,0.4)]" />
             </div>
             <div className="absolute h-[368px] left-[calc(50%+0.02px)] rounded-[17.14px] top-[-9.39px] translate-x-[-50%] w-[288px]">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.14px]">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.14px] to-black" />
-                    <img alt="" className="absolute max-w-none object-cover rounded-[17.14px] size-full scale-[1.3] origin-top" src={imgRectangle3} decoding="async" />
+                    <img alt="" className="absolute max-w-none object-cover rounded-[17.14px] size-full scale-[1.3] origin-top translate-y-[-40px]" src={imgRectangle3} decoding="async" />
                 </div>
             </div>
         </div>
@@ -135,7 +135,7 @@ function BgElements1() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.486 709.315">
                                 <g filter="url(#filter0_f_1_322)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_322)" fillOpacity="0.15" />
+                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_322)" fillOpacity="0.4" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.315" id="filter0_f_1_322" width="881.486" x="0" y="0">
@@ -213,14 +213,14 @@ const Safer1 = React.memo(function Safer1() {
 function Lights2() {
     return (
         <div className="absolute h-[303.946px] left-[1.16px] overflow-clip top-[1.17px] w-[237.672px]" data-name="Lights">
-            <div className="absolute bg-[#050505] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
-                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(253,230,138,0.4)]" />
+            <div className="absolute bg-[#333333] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
+                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(252,211,77,0.4)]" />
             </div>
             <div className="absolute h-[367px] left-[calc(50%-11.48px)] rounded-[17.14px] top-[-4.41px] translate-x-[-50%] w-[287px]">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.14px]">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.14px] to-black" />
                     <div className="absolute inset-0 overflow-hidden rounded-[17.14px]">
-                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.25] origin-top" src={imgRectangle4} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.25] origin-top translate-y-[-40px]" src={imgRectangle4} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -246,7 +246,7 @@ function BgElements2() {
                                         <feGaussianBlur result="effect1_foregroundBlur_1_324" stdDeviation="42.2637" />
                                     </filter>
                                     <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.157 -255.672 255.448 -240.409 540.284 366.28)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_324" r="1">
-                                        <stop offset="0.409332" stopColor="#FDE68A" />
+                                        <stop offset="0.409332" stopColor="#fcd34d" />
                                         <stop offset="1" stopOpacity="0" />
                                         <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                                     </radialGradient>
@@ -314,14 +314,14 @@ const Safer2 = React.memo(function Safer2() {
 
 function Lights3() {
     return (
-        <div className="absolute h-[303.946px] left-[1.16px] overflow-clip top-[1.16px] w-[237.672px]" data-name="Lights">
-            <div className="absolute bg-[#050505] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
-                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(255,164,55,0.4)]" />
+        <div className="absolute h-[303.931px] left-[1.16px] overflow-clip top-[1.16px] w-[237.66px]" data-name="Lights">
+            <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
+                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(255,164,55,0.4)]" />
             </div>
-            <div className="absolute h-[325px] left-[calc(50%+0.02px)] rounded-[17.14px] top-[-10.4px] translate-x-[-50%] w-[254px]">
-                <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.14px]">
-                    <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.14px] to-black" />
-                    <img alt="" className="absolute max-w-none object-cover rounded-[17.14px] size-full scale-[1.3] origin-top" src={imgRectangle5} decoding="async" />
+            <div className="absolute h-[325px] left-[calc(50%+0.02px)] rounded-[17.139px] top-[-3.39px] translate-x-[-50%] w-[254px]">
+                <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.139px]">
+                    <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.139px] to-black" />
+                    <img alt="" className="absolute max-w-none object-cover rounded-[17.139px] size-full scale-[1.3] origin-top translate-y-[-35px]" src={imgRectangle5} decoding="async" />
                 </div>
             </div>
         </div>
@@ -337,7 +337,7 @@ function BgElements3() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.486 709.315">
                                 <g filter="url(#filter0_f_1_312)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_312)" fillOpacity="0.15" />
+                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_312)" fillOpacity="0.4" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.315" id="filter0_f_1_312" width="881.486" x="0" y="0">
@@ -415,14 +415,14 @@ const Safer3 = React.memo(function Safer3() {
 function Lights4() {
     return (
         <div className="absolute h-[303.931px] left-[1.16px] overflow-clip top-[1.16px] w-[237.66px]" data-name="Lights">
-            <div className="absolute bg-[#050505] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
+            <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(146,235,180,0.4)]" />
             </div>
-            <div className="absolute bottom-[-3.67px] h-[259px] left-[calc(50%+0.02px)] translate-x-[-50%] w-[270px]" data-name="liftapp">
+            <div className="absolute bottom-[-13.67px] h-[312px] left-[calc(50%+0.02px)] translate-x-[-50%] w-[326px]" data-name="liftapp">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
-                    <div className="absolute bg-gradient-to-b from-[25.977%] from-[rgba(0,0,0,0)] inset-0 to-[106.06%] to-black" />
+                    <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 to-black" />
                     <div className="absolute inset-0 overflow-hidden">
-                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.25] origin-top" src={imgLiftapp} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.3] origin-top translate-y-[-40px]" src={imgLiftapp} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -448,7 +448,7 @@ function BgElements4() {
                                         <feGaussianBlur result="effect1_foregroundBlur_1_338" stdDeviation="42.2616" />
                                     </filter>
                                     <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.145 -255.659 255.436 -240.397 540.257 366.262)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_338" r="1">
-                                        <stop offset="0.409332" stopColor="#92EBB4" />
+                                        <stop offset="0.409332" stopColor="#92ebb4" />
                                         <stop offset="1" stopOpacity="0" />
                                         <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                                     </radialGradient>
@@ -520,8 +520,8 @@ function Frame1() {
             <Safer />
             <Safer1 />
             <Safer2 />
-            <Safer3 />
             <Safer4 />
+            <Safer3 />
         </div>
     );
 }
@@ -537,13 +537,15 @@ function Frame1() {
 function MobileLights() {
   return (
     <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
-      <div className="absolute bg-black h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(95,130,191,0.5)]" />
+      <div className="absolute bg-[#050505] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(95,130,191,0.4)]" />
       </div>
       <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
-          <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.3] origin-top" src={imgRectangle2} />
+          <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
+            <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.3] origin-top translate-y-[-15px]" src={imgRectangle2} />
+          </div>
         </div>
       </div>
     </div>
@@ -635,13 +637,15 @@ function MobileSafer() {
 function MobileLights1() {
   return (
     <div className="absolute h-[202.143px] left-[0.77px] overflow-clip top-[0.77px] w-[158.066px]" data-name="MobileLights">
-      <div className="absolute bg-black h-[202.143px] left-0 rounded-[11.399px] top-0 w-[158.066px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.04px_18.238px_-5.32px_rgba(255,166,154,0.5)]" />
+      <div className="absolute bg-[#333333] h-[202.143px] left-0 rounded-[11.399px] top-0 w-[158.066px]">
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.04px_18.238px_-5.32px_rgba(255,166,154,0.4)]" />
       </div>
       <div className="absolute h-[202.143px] left-0 rounded-[11.399px] top-0 w-[158.066px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.399px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.399px] to-black" />
-          <img alt="" className="absolute max-w-none object-cover rounded-[11.399px] size-full scale-[1.3] origin-top" src={imgRectangle3} />
+          <div className="absolute inset-0 overflow-hidden rounded-[11.399px]">
+            <img alt="" className="absolute max-w-none object-cover rounded-[11.399px] size-full scale-[1.3] origin-top translate-y-[-15px]" src={imgRectangle3} />
+          </div>
         </div>
       </div>
     </div>
@@ -657,7 +661,7 @@ function MobileBgElements1() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 586.243 471.738">
                 <g filter="url(#filter0_f_1_325)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p30f98800} fill="url(#paint0_radial_1_325)" fillOpacity="0.2" />
+                  <path d={svgMobilePaths.p30f98800} fill="url(#paint0_radial_1_325)" fillOpacity="0.4" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="471.738" id="filter0_f_1_325" width="586.243" x="0" y="0">
@@ -733,14 +737,14 @@ function MobileSafer1() {
 function MobileLights2() {
   return (
     <div className="absolute h-[203.139px] left-[0.78px] overflow-clip top-[0.78px] w-[158.845px]" data-name="MobileLights">
-      <div className="absolute bg-black h-[203.139px] left-0 rounded-[11.455px] top-0 w-[158.845px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.055px_18.328px_-5.346px_rgba(253,230,138,0.5)]" />
+      <div className="absolute bg-[#333333] h-[203.139px] left-0 rounded-[11.455px] top-0 w-[158.845px]">
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.055px_18.328px_-5.346px_rgba(252,211,77,0.4)]" />
       </div>
       <div className="absolute h-[203.139px] left-0 rounded-[11.455px] top-0 w-[158.845px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.455px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.455px] to-black" />
           <div className="absolute inset-0 overflow-hidden rounded-[11.455px]">
-            <img alt="" className="absolute max-w-none object-cover rounded-[11.455px] size-full scale-[1.25] origin-top" src={imgRectangle4} />
+            <img alt="" className="absolute max-w-none object-cover rounded-[11.455px] size-full scale-[1.25] origin-top translate-y-[-4px]" src={imgRectangle4} />
           </div>
         </div>
       </div>
@@ -757,7 +761,7 @@ function MobileBgElements2() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 589.131 474.062">
                 <g filter="url(#filter0_f_1_323)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p1b3e6200} fill="url(#paint0_radial_1_323)" fillOpacity="0.2" />
+                  <path d={svgMobilePaths.p1b3e6200} fill="url(#paint0_radial_1_323)" fillOpacity="0.4" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="474.062" id="filter0_f_1_323" width="589.131" x="0" y="0">
@@ -766,7 +770,7 @@ function MobileBgElements2() {
                     <feGaussianBlur result="effect1_foregroundBlur_1_323" stdDeviation="28.2464" />
                   </filter>
                   <radialGradient cx="0" cy="0" gradientTransform="matrix(-160.506 -170.875 170.726 -160.674 361.092 244.799)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_323" r="1">
-                    <stop offset="0.409332" stopColor="#FDE68A" />
+                    <stop offset="0.409332" stopColor="#fcd34d" />
                     <stop offset="1" stopOpacity="0" />
                     <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                   </radialGradient>
@@ -833,13 +837,15 @@ function MobileSafer2() {
 function MobileLights3() {
   return (
     <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
-      <div className="absolute bg-black h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(146,235,180,0.5)]" />
+      <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(146,235,180,0.4)]" />
       </div>
       <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
-          <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.25] origin-top" src={imgLiftapp} />
+          <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
+            <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.25] origin-top translate-y-[-15px]" src={imgLiftapp} />
+          </div>
         </div>
       </div>
     </div>
@@ -855,7 +861,7 @@ function MobileBgElements3() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 587.658 472.877">
                 <g filter="url(#filter0_f_1_315)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p24716d00} fill="url(#paint0_radial_1_315)" fillOpacity="0.2" />
+                  <path d={svgMobilePaths.p24716d00} fill="url(#paint0_radial_1_315)" fillOpacity="0.4" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="472.877" id="filter0_f_1_315" width="587.658" x="0" y="0">
@@ -864,7 +870,7 @@ function MobileBgElements3() {
                     <feGaussianBlur result="effect1_foregroundBlur_1_315" stdDeviation="28.1758" />
                   </filter>
                   <radialGradient cx="0" cy="0" gradientTransform="matrix(-160.105 -170.448 170.299 -160.273 360.189 244.187)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_315" r="1">
-                    <stop offset="0.409332" stopColor="#92EBB4" />
+                    <stop offset="0.409332" stopColor="#92ebb4" />
                     <stop offset="1" stopOpacity="0" />
                     <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                   </radialGradient>
@@ -931,13 +937,15 @@ function MobileSafer3() {
 function MobileLights4() {
   return (
     <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
-      <div className="absolute bg-black h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+      <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(255,164,55,0.4)]" />
       </div>
       <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
-          <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.3] origin-top" src={imgRectangle5} />
+          <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
+            <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.3] origin-top translate-y-[-15px]" src={imgRectangle5} />
+          </div>
         </div>
       </div>
     </div>
@@ -953,7 +961,7 @@ function MobileBgElements4() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 587.658 472.877">
                 <g filter="url(#filter0_f_1_335)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p1d11f480} fill="url(#paint0_radial_1_335)" fillOpacity="0.2" />
+                  <path d={svgMobilePaths.p1d11f480} fill="url(#paint0_radial_1_335)" fillOpacity="0.4" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="472.877" id="filter0_f_1_335" width="587.658" x="0" y="0">
@@ -1060,11 +1068,11 @@ export default function MeetTheTeam() {
         <div className="bg-[#020601] relative w-full overflow-hidden">
             {/* Mobile: Responsive Grid from Figma */}
             <div 
-                className="lg:hidden relative w-full h-[760px] max-w-[375px] mx-auto overflow-hidden"
+                className="lg:hidden relative w-full h-[800px] max-w-[375px] mx-auto overflow-hidden"
                 style={{
                     transform: window.innerWidth >= 768 ? `scale(${Math.min(window.innerWidth / 400, 1.8)})` : 'none',
                     transformOrigin: 'top center',
-                    height: window.innerWidth >= 768 ? `${760 * Math.min(window.innerWidth / 400, 1.8)}px` : '760px'
+                    height: window.innerWidth >= 768 ? `${800 * Math.min(window.innerWidth / 400, 1.8)}px` : '800px'
                 }}
             >
                 <p className="absolute top-[40px] left-1/2 -translate-x-1/2 w-[335px] text-center font-['Sora',sans-serif] font-semibold text-[46px] leading-[48px] tracking-[-1.84px] bg-clip-text text-transparent bg-gradient-to-b from-[rgba(255,255,255,0.6)] to-[rgba(20,23,19,0.5)] z-10">

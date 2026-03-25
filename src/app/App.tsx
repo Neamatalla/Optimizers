@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import imgOurServices from "../assets/462979b8a94cb599bf6cf91c5d11489a30eeae28.webp";
 import Component333 from "@/imports/Component333";
 import ProcessWithAnimation from "@/imports/ProcessWithAnimation";
@@ -14,6 +14,59 @@ import { Toaster } from "@/app/components/ui/sonner";
 import ScrollToTopButton from "@/app/components/ScrollToTopButton";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import "../styles/services.css";
+
+// --- DEBUGGER COMPONENT ---
+function LayoutDebugger() {
+  useEffect(() => {
+    console.log("[DEBUGGER] LayoutDebugger mounted");
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const diff = Math.abs(currentScrollY - lastScrollY);
+      if (diff > 100) {
+        // High difference might just be fast scrolling, but huge differences (500+) are jumps
+        if (diff > 500) {
+           console.warn(`[DEBUGGER] 🚨 SCROLL JUMP DETECTED: Jumped from ${lastScrollY} to ${currentScrollY}. Diff: ${diff}`);
+        }
+      }
+      lastScrollY = currentScrollY;
+    };
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const id = entry.target.id || entry.target.className || entry.target.tagName;
+        // Filter out small subpixel changes
+        console.log(`[DEBUGGER] 📏 RESIZE: [${id}] New Height: ${entry.contentRect.height}px, New Width: ${entry.contentRect.width}px`);
+      }
+    });
+
+    // Observe body and all major child divs
+    resizeObserver.observe(document.body);
+    setTimeout(() => {
+       const sections = document.querySelectorAll('div[id]');
+       sections.forEach(sec => resizeObserver.observe(sec));
+       console.log(`[DEBUGGER] Observing ${sections.length} sections for resize events.`);
+    }, 1000);
+
+    const checkViewport = (e: Event) => {
+      console.log(`[DEBUGGER] 📱 EVENT [${e.type}]: window innerHeight=${window.innerHeight}, innerWidth=${window.innerWidth}. visualViewport height=${window.visualViewport?.height}`);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', checkViewport);
+    window.visualViewport?.addEventListener('resize', checkViewport);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', checkViewport);
+      window.visualViewport?.removeEventListener('resize', checkViewport);
+      resizeObserver.disconnect();
+    };
+  }, []);
+  return null;
+}
+// --------------------------
 
 // Lazy-loaded components (below the fold)
 const ROICalculator = React.lazy(() => import("@/imports/ROICalculator"));
@@ -268,6 +321,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <LayoutDebugger />
       <div className="global-persistent-header">
         <HeaderNav />
       </div>
@@ -278,7 +332,7 @@ export default function App() {
           {/* Unified Services Section for Navigation */}
           <div id="services" style={{ scrollMarginTop: '100px' }}>
             {/* MOBILE ONLY (< lg) - Pure Vertical Stack */}
-            <div className="flex lg:hidden flex-col items-center w-full bg-[#020601] py-10">
+            <div className="flex lg:hidden flex-col items-center w-full bg-[#020601] pt-2 pb-10">
               {/* Mobile Header elements using imported services.css styles */}
               <div className="header-section">
                 <h1 className="services-title" style={{ backgroundImage: `url('${imgOurServices}')` }}>

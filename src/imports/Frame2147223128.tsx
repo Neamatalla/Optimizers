@@ -1017,13 +1017,25 @@ function Component5() {
 
 function Frame4() {
   return (
-    <div className="grid grid-cols-3 gap-4 md:flex md:flex-wrap md:justify-center md:gap-[40px] items-center justify-items-center opacity-90 relative shrink-0 pointer-events-auto">
-      <Component />
-      <Component1 />
-      <Component2 />
-      <Component3 />
-      <Component4 />
-      <Component5 />
+    <div className="flex flex-wrap justify-center gap-y-4 md:gap-[40px] items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2">
+      <div className="w-[50%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+        <div className="scale-[0.8] origin-center md:scale-[1.2]"><Component /></div>
+      </div>
+      <div className="w-[50%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+        <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component1 /></div>
+      </div>
+      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+        <div className="scale-[0.9] origin-center md:scale-[1.2]"><Component2 /></div>
+      </div>
+      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+        <div className="scale-[1.1] origin-center md:scale-[1.2]"><Component3 /></div>
+      </div>
+      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+        <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component4 /></div>
+      </div>
+      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+        <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component5 /></div>
+      </div>
     </div>
   );
 }
@@ -1071,10 +1083,10 @@ function Hero() {
   }, []);
 
   return (
-    <div className="absolute h-[89.7%] left-[3.8%] rounded-[24px] overflow-hidden top-[5.1%] w-[92.5%]" data-name="Hero">
+    <div className="absolute h-[89.7%] left-[3.8%] rounded-[14px] top-[5.1%] w-[92.5%]" data-name="Hero">
       <video
         ref={videoRef}
-        className="absolute max-w-none object-cover rounded-[24px] size-full"
+        className="absolute max-w-none object-cover rounded-[14px] size-full"
         muted
         loop
         playsInline
@@ -1285,6 +1297,21 @@ function Frame() {
 
 function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useLanguage();
+  
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none'; // prevent scroll on touch
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [isOpen]);
+
   const navItems = [
     { label: 'Services', id: 'services' },
     { label: 'ROI Calculator', id: 'roi-calculator' },
@@ -1333,18 +1360,18 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       </div>
 
       {/* Nav Links — centered, large, bold */}
-      <div className="flex flex-col items-center gap-6 mt-4">
+      <div className="flex flex-col items-center gap-5 mt-[-120px]">
         {navItems.map((item, i) => (
           <p
             key={item.id}
             className={`nav-link-stagger ${isOpen ? 'nav-link-visible' : ''}`}
             style={{
               fontFamily: "'Sora', sans-serif",
-              fontSize: '28px',
+              fontSize: '20px',
               fontWeight: 600,
               color: 'white',
               cursor: 'pointer',
-              padding: '8px 24px',
+              padding: '6px 16px',
               transition: 'color 0.2s ease, transform 0.2s ease',
               transitionDelay: `${i * 60}ms`,
             }}
@@ -1440,15 +1467,25 @@ export function MobileHeroContent() {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '20px',
-      padding: '70px 16px 20px 16px',
+      justifyContent: 'space-around',
+      padding: '100px 16px 80px 16px',
       width: '100%',
+      height: '100%',
     }}>
-      {/* 1 — Hero heading + subtitle */}
-      <Frame7 />
+      {/* 1 — Platforms pill */}
+      <div className="flex-shrink-0">
+        <Frame1 />
+      </div>
 
-      {/* 2 — Platforms pill */}
-      <Frame1 />
+      {/* 2 — Hero heading + subtitle */}
+      <div className="flex-shrink-0">
+        <Frame7 />
+      </div>
+
+      {/* 3 — Trusted Clients */}
+      <div className="w-full flex-shrink-0">
+        <Frame8 />
+      </div>
     </div>
   );
 }
@@ -1459,12 +1496,13 @@ export function TabletLayer() {
 
 export function MobileTabletLayer() {
   return (
-    <div className="mobile-video-frame" style={{
+    <div className="mobile-video-frame relative w-full overflow-hidden mx-auto" style={{
+      aspectRatio: '1 / 1',
       width: '100%',
-      position: 'relative',
-      overflow: 'hidden',
+      height: 'auto',
+      flexShrink: 0,
       borderRadius: '14px',
-      aspectRatio: '16/9',
+      zIndex: 0
     }}>
       <Hero />
       <div style={{

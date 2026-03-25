@@ -69,14 +69,14 @@ export default function AnimatedCaseStudies() {
     useMotionValueEvent(scrollYProgress, 'change', (v) => {
         if (isMobile) return;
         let idx = -1;
-        if (v > 0.15) {
-            idx = Math.min(Math.floor(((v - 0.15) / 0.85) / 0.25), 3);
+        if (v > 0.15 && v < 0.85) {
+            idx = Math.min(Math.floor(((v - 0.15) / 0.70) * 4), 3);
             idx = Math.max(0, idx);
         }
         if (idx !== activeIndex) setActiveIndex(idx);
     });
 
-    const gateProgress_D = useTransform(scrollYProgress, [0, 0.12], [0, 1]);
+    const gateProgress_D = useTransform(scrollYProgress, [0, 0.12, 0.88, 1], [0, 1, 1, 0]);
     const leftBarX_D = useTransform(gateProgress_D, [0, 1], [-BAR_WIDTH / 2, -BAR_OPEN_PX - BAR_WIDTH / 2]);
     const rightBarX_D = useTransform(gateProgress_D, [0, 1], [BAR_WIDTH / 2, BAR_OPEN_PX + BAR_WIDTH / 2]);
     const leftSkew_D = useTransform(gateProgress_D, [0, 1], [0, -40]);
@@ -92,7 +92,7 @@ export default function AnimatedCaseStudies() {
     const slideYs = [useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%')];
     const slideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
     useEffect(() => {
-        if (activeIndex < 0) return;
+        // Remove activeIndex < 0 return to allow cleaning up visible slides
         const D = 1.0, E = 'easeInOut';
         slideOpacities.forEach((op, i) => {
             animate(op, i === activeIndex ? 1 : 0, { duration: D, ease: E });
@@ -124,27 +124,38 @@ export default function AnimatedCaseStudies() {
 
     const smoothProgress_M = useSpring(mobileScrollProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
 
-    // 1. GATE BARS: Open from 0.0 to 0.10
-    const gateY_Top_Time = useTransform(smoothProgress_M, [0, 0.10], [0, -viewportHeight * 0.6]);
-    const gateY_Bot_Time = useTransform(smoothProgress_M, [0, 0.10], [0, viewportHeight * 0.6]);
-    const gateOpacity_Time = useTransform(smoothProgress_M, [0.06, 0.10], [1, 0]);
+    // Gate Animation States
+    const [gateIsTriggered, setGateIsTriggered] = useState(false);
+    
+    const gateY_Top_Time = useMotionValue(0);
+    const gateY_Bot_Time = useMotionValue(0);
+    const gateOpacity_Time = useMotionValue(1);
+    const titleOpacity_Time = useMotionValue(1); // Start visible
+    const titleScale_Time   = useMotionValue(1); // Start at normal scale
+    const titleClip_Time    = useMotionValue("inset(0% 0 0% 0)"); // Start fully unclipped
+    const barMidColor_M     = useMotionValue('#ffffff');
 
-    // 2. TITLE: Reveal 0.02->0.08, fade-out 0.10->0.14
-    const titleOpacity_Time = useTransform(smoothProgress_M, [0.02, 0.08, 0.10, 0.14], [0, 1, 1, 0]);
-    const titleScale_Time   = useTransform(smoothProgress_M, [0.02, 0.08], [0.85, 1]);
-    const titleClip_Time    = useTransform(smoothProgress_M, [0, 0.08], ["inset(40% 0 40% 0)", "inset(0% 0 0% 0)"]);
-    const barMidColor_M     = useTransform(smoothProgress_M, [0.15, 0.35, 0.55, 0.75, 0.90], ['#ffffff', '#ff8979', '#6ae499', '#fcd34d', '#5a8cd6']);
-
-
-    // 3. CASE STUDY SLIDES (Scroll-Triggered + Responsive Scaling)
+    // 3. CASE STUDY SLIDES (Controlled by activeMobileIndex_M)
     const [activeMobileIndex_M, setActiveMobileIndex_M] = useState(-1);
     const mSlideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
-    const mSlideYs = [useMotionValue('15%'), useMotionValue('15%'), useMotionValue('15%'), useMotionValue('15%')];
 
     const scaleValue = useMotionValue(typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 800) : 1);
     const smoothScale = useSpring(scaleValue, { stiffness: 50, damping: 20 });
     const [mobileScale, setMobileScale] = useState(() => typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 800) : 1);
     const lastScaleWidthRef = useRef(0);
+
+    const getStatus = (i: number) => {
+        if (i === activeMobileIndex_M) return 'active';
+        if (i < activeMobileIndex_M) return 'past';
+        return 'future';
+    };
+
+    const slideComponents_M = [
+        <CS_Squadio key="squadio" contentScale={mobileScale} status={getStatus(0)} />,
+        <CS_RibalMagic key="ribal" contentScale={mobileScale} status={getStatus(1)} />,
+        <CS_RegalHoney key="regal" contentScale={mobileScale} status={getStatus(2)} />,
+        <CS_VitrineFurniture key="vitrine" contentScale={mobileScale} status={getStatus(3)} />
+    ];
 
     useEffect(() => {
         const update = () => {
@@ -165,107 +176,62 @@ export default function AnimatedCaseStudies() {
         };
     }, [smoothScale, scaleValue]);
 
-    useMotionValueEvent(mobileScrollProgress, 'change', (v) => {
-        let idx = -1;
-        // Adjusted thresholds for exact 20% bands:
-        // 0.15-0.35 (Slide 1), 0.35-0.55 (Slide 2), 0.55-0.75 (Slide 3), 0.75-1.0 (Slide 4)
-        if (v > 0.15 && v <= 0.35) idx = 0;
-        else if (v > 0.35 && v <= 0.55) idx = 1;
-        else if (v > 0.55 && v <= 0.75) idx = 2;
-        else if (v > 0.75) idx = 3;
-        
-        if (idx !== activeMobileIndex_M) {
-            setActiveMobileIndex_M(idx);
+    // ── Arrow-based Navigation Logic (Mobile) ──
+    const handleNextMobile = () => {
+        setActiveMobileIndex_M((prev) => (prev < 3 ? prev + 1 : 0));
+    };
+    const handlePrevMobile = () => {
+        setActiveMobileIndex_M((prev) => (prev > 0 ? prev - 1 : 3));
+    };
+
+    // Gate trigger: fires when 50% of the section enters viewport
+    useEffect(() => {
+        if (!isMobile) return;
+        const el = mobileContainerRef.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting && !gateIsTriggered) {
+                    setGateIsTriggered(true);
+                }
+            },
+            { threshold: 0.5 } // Fired when 50% of the section is visible
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [isMobile, gateIsTriggered]);
+
+    // Handle gate animation
+    useEffect(() => {
+        if (!isMobile) return;
+        if (gateIsTriggered) {
+
+            // Gate opening (1.5s total as requested)
+            animate(gateY_Top_Time, -viewportHeight * 0.6, { duration: 1.5, ease: 'easeInOut' });
+            animate(gateY_Bot_Time, viewportHeight * 0.6, { duration: 1.5, ease: 'easeInOut' });
+            
+            // Fade out title
+            animate(titleOpacity_Time, 0, { duration: 0.5, delay: 0.5, ease: 'easeIn' });
+            animate(titleScale_Time, 0.9, { duration: 0.5, delay: 0.5, ease: 'easeIn' });
+
+            // Fade out gate core near the end
+            animate(gateOpacity_Time, 0, { duration: 0.5, delay: 1.0, ease: 'easeIn' });
+
+            // Show first slide after animation completes
+            const t = setTimeout(() => {
+                setActiveMobileIndex_M(0);
+            }, 1500);
+            return () => clearTimeout(t);
         }
-    });
+    }, [gateIsTriggered, isMobile, viewportHeight]);
 
-    // ── Strict 1-Slide-Per-Scroll Logic (Mobile) ──
-    const isSnappingRef = useRef(false);
-    const startYRef = useRef(0);
-    const lastVRef = useRef(0);
-    useMotionValueEvent(mobileScrollProgress, 'change', (v) => { lastVRef.current = v; });
-
+    // Handle slide element translations (Top Clients style)
     useEffect(() => {
-        if (!isMobile || !mobileContainerRef.current) return;
-
-        const handleTouchStart = (e: TouchEvent) => {
-            startYRef.current = e.touches[0].clientY;
-        };
-
-        const handleTouchEnd = (e: TouchEvent) => {
-            if (isSnappingRef.current) return;
-            
-            const deltaY = startYRef.current - e.changedTouches[0].clientY;
-            const direction = deltaY > 0 ? 'down' : 'up';
-            const v = lastVRef.current;
-            
-            // ── Boundary Logic (Exit Allowed) ──
-            // Case 1: Scrolling down past the last slide -> allow normal scroll
-            if (direction === 'down' && v > 0.78) return;
-            // Case 2: Scrolling up past the first slide -> allow normal scroll
-            // Widened to 0.25 to make exiting from Squadio (Slide 1) effortless
-            if (direction === 'up' && v < 0.25) return;
-
-            // ── Snap Logic (One Slide Per Scroll) ──
-            if (Math.abs(deltaY) > 40) { // Threshold for swipe
-                let targetV = -1;
-                
-                if (direction === 'down') {
-                    // Slide thresholds (starts): 0.15 (S1), 0.35 (S2), 0.55 (S3), 0.75 (S4)
-                    if (v < 0.15) targetV = 0.15;
-                    else if (v < 0.35) targetV = 0.35;
-                    else if (v < 0.55) targetV = 0.55;
-                    else if (v < 0.75) targetV = 0.75;
-                } else {
-                    if (v > 0.75) targetV = 0.55;
-                    else if (v > 0.55) targetV = 0.35;
-                    else if (v > 0.35) targetV = 0.15;
-                    // No targetV for v < 0.35 means we fall through and allow free scroll up
-                }
-
-                if (targetV !== -1) {
-                    isSnappingRef.current = true;
-                    // Calculate absolute scroll position for targetV
-                    const rect = mobileContainerRef.current.getBoundingClientRect();
-                    const containerTop = rect.top + window.pageYOffset;
-                    const containerHeight = rect.height;
-                    const offsetStart = containerHeight * 0.6 * -1; // Mirroring start 0.6 offset
-                    // Actually useScroll offset start 0.6 means v=0 is when start of section is 60% down viewport
-                    
-                    // Simple approach: animate to target v using motion value?
-                    // Better: use window.scrollTo calculation
-                    // Fix: Use containerTop (absolute) instead of offsetTop (relative)
-                    const currentTargetY = containerTop + (targetV * containerHeight);
-                    
-                    animate(window.scrollY, currentTargetY, {
-                        type: 'spring',
-                        stiffness: 45,
-                        damping: 20,
-                        onUpdate: (latest) => window.scrollTo(0, latest),
-                        onComplete: () => { isSnappingRef.current = false; }
-                    });
-                }
-            }
-        };
-
-        const container = mobileContainerRef.current;
-        container.addEventListener('touchstart', handleTouchStart);
-        container.addEventListener('touchend', handleTouchEnd);
-        return () => {
-            container.removeEventListener('touchstart', handleTouchStart);
-            container.removeEventListener('touchend', handleTouchEnd);
-        };
-    }, [isMobile, activeMobileIndex_M]);
-
-    useEffect(() => {
-        // Updated to 2 seconds as requested by the user
-        const D = 2.0, E = 'easeInOut';
+        const D = 1.0, E = 'easeInOut';
         mSlideOpacities.forEach((op, i) => {
             const isActive = i === activeMobileIndex_M;
-            const isPast = i < activeMobileIndex_M;
-            
+            // Backgrounds fade in/out
             animate(op, isActive ? 1 : 0, { duration: D, ease: E });
-            animate(mSlideYs[i], isActive ? '0%' : isPast ? '-15%' : '15%', { duration: D, ease: E });
         });
     }, [activeMobileIndex_M]);
 
@@ -286,18 +252,11 @@ export default function AnimatedCaseStudies() {
                     <div className="cs-mobile-vignette" />
 
                     <div className="cs-mobile-slides-clip">
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[0], y: mSlideYs[0] }}>
-                            <CS_Squadio contentScale={mobileScale} />
-                        </motion.div>
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[1], y: mSlideYs[1] }}>
-                            <CS_RibalMagic contentScale={mobileScale} />
-                        </motion.div>
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[2], y: mSlideYs[2] }}>
-                            <CS_RegalHoney contentScale={mobileScale} />
-                        </motion.div>
-                        <motion.div className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[3], y: mSlideYs[3] }}>
-                            <CS_VitrineFurniture contentScale={mobileScale} />
-                        </motion.div>
+                        {slideComponents_M.map((SlideComponent: React.ReactNode, i: number) => (
+                            <motion.div key={i} className="cs-mobile-slide-wrapper" style={{ opacity: mSlideOpacities[i] }}>
+                                {SlideComponent}
+                            </motion.div>
+                        ))}
                     </div>
 
                     <motion.div
@@ -306,9 +265,11 @@ export default function AnimatedCaseStudies() {
                             y: gateY_Top_Time,
                             opacity: gateOpacity_Time,
                             color: barMidColor_M,
-                            zIndex: 100,
+                            zIndex: 130, // Higher than title to hide it
                         }}
                     >
+                        {/* Top wing to hide content above the bar */}
+                        <div style={{ position: 'absolute', bottom: '5px', left: 0, right: 0, height: '100vh', background: '#020601', zIndex: -1 }} />
                         <div className="cs-mobile-gate-blur-2" />
                         <div className="cs-mobile-gate-blur-1" />
                         <div className="cs-mobile-gate-core" />
@@ -320,9 +281,11 @@ export default function AnimatedCaseStudies() {
                             y: gateY_Bot_Time,
                             opacity: gateOpacity_Time,
                             color: barMidColor_M,
-                            zIndex: 100,
+                            zIndex: 130, // Higher than title to hide it
                         }}
                     >
+                        {/* Bottom wing to hide content below the bar */}
+                        <div style={{ position: 'absolute', top: '5px', left: 0, right: 0, height: '100vh', background: '#020601', zIndex: -1 }} />
                         <div className="cs-mobile-gate-blur-2" />
                         <div className="cs-mobile-gate-blur-1" />
                         <div className="cs-mobile-gate-core" />
@@ -334,7 +297,7 @@ export default function AnimatedCaseStudies() {
                             opacity: titleOpacity_Time,
                             scale: titleScale_Time,
                             clipPath: titleClip_Time,
-                            zIndex: 110
+                            zIndex: 120 // Between slides (20) and gates (130)
                         }}
                     >
                         <div className="cs-mobile-title-inner">
@@ -343,12 +306,81 @@ export default function AnimatedCaseStudies() {
                         </div>
                     </motion.div>
 
-                    <motion.div className="cs-mobile-scroll-hint" style={{ opacity: hintOpacity_M }}>
-                        <div className="cs-hint-mouse">
-                            <div className="cs-hint-wheel" />
+                    {/* Scroll hint removed - Gate opens automatically, navigation is via arrows */}
+
+                    {/* Next/Prev Arrows (visible when slides are active) */}
+                    {(() => {
+                        const mColors = ['#ff8979', '#6ae499', '#fcd34d', '#87a2cf'];
+                        const activeColor = mColors[activeMobileIndex_M] || '#ffffff';
+                        const hoverBg = `${activeColor}33`; // 20% opacity background
+                        
+                        return (
+                        <div 
+                            className={`cs-mobile-arrows-container flex items-center justify-between pt-5 ${t('dir') === 'rtl' ? 'flex-row-reverse' : ''}`}
+                            style={{ 
+                                position: 'absolute', 
+                                bottom: '10vh', 
+                                width: '90%', 
+                                display: activeMobileIndex_M >= 0 ? 'flex' : 'none', 
+                                zIndex: 200, 
+                                left: '50%', 
+                                transform: 'translateX(-50%)',
+                                pointerEvents: 'auto'
+                            }}
+                        >
+                            <button
+                                onClick={handlePrevMobile}
+                                className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
+                                style={{ 
+                                    backgroundColor: hoverBg, 
+                                    border: `1px solid ${activeColor}60`,
+                                    color: activeColor,
+                                    backdropFilter: 'blur(10px)', 
+                                    transition: 'background-color 600ms ease, border-color 600ms ease, color 600ms ease, transform 200ms ease'
+                                }}
+                                aria-label="Previous slide"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+
+                            <div className="flex gap-2">
+                                {[0, 1, 2, 3].map((i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setActiveMobileIndex_M(i)}
+                                        className="rounded-full transition-all duration-300"
+                                        style={{
+                                            width: i === activeMobileIndex_M ? '20px' : '8px',
+                                            height: '8px',
+                                            background: i === activeMobileIndex_M ? activeColor : 'rgba(255,255,255,0.2)',
+                                            transition: 'width 400ms ease, background 600ms ease',
+                                        }}
+                                        aria-label={`Go to slide ${i + 1}`}
+                                    />
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={handleNextMobile}
+                                className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
+                                style={{ 
+                                    backgroundColor: hoverBg, 
+                                    border: `1px solid ${activeColor}60`,
+                                    color: activeColor,
+                                    backdropFilter: 'blur(10px)', 
+                                    transition: 'background-color 600ms ease, border-color 600ms ease, color 600ms ease, transform 200ms ease'
+                                }}
+                                aria-label="Next slide"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
                         </div>
-                        <span className="cs-hint-text">SCROLL TO UNFOLD</span>
-                    </motion.div>
+                        );
+                    })()}
                 </div>
             </div>
 
