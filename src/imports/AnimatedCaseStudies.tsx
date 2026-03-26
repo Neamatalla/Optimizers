@@ -319,7 +319,7 @@ export default function AnimatedCaseStudies() {
                             className={`cs-mobile-arrows-container flex items-center justify-between pt-5 ${t('dir') === 'rtl' ? 'flex-row-reverse' : ''}`}
                             style={{ 
                                 position: 'absolute', 
-                                bottom: '16px', 
+                                bottom: '0', 
                                 width: '90%', 
                                 display: activeMobileIndex_M >= 0 ? 'flex' : 'none', 
                                 zIndex: 200, 
@@ -345,7 +345,7 @@ export default function AnimatedCaseStudies() {
                                 </svg>
                             </button>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2" style={{ transform: 'translateY(5px)' }}>
                                 {[0, 1, 2, 3].map((i) => (
                                     <button
                                         key={i}

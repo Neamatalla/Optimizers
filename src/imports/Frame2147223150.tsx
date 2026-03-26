@@ -1,3 +1,4 @@
+import React from "react";
 import svgPaths from "./svg-19nlbs0dc8";
 import imgScreenshot20250924At120529Am1 from "../assets/8a7a6e8497a40fb655644c168414324ab7ecaa93.webp";
 import videoThumbnail from "../assets/video_thumbnail.webp";
@@ -590,99 +591,100 @@ function Frame() {
   );
 }
 
-/** Pure-CSS PCB circuit traces for mobile — no SVGs */
+/** Mobile circuit wires — two-cluster branching V-pattern matching original SVGs */
 function MobileCircuitWires() {
-  const G = 'rgba(106,228,153,'; // green channel
-  const Y = 'rgba(253,230,138,'; // yellow channel
+  // LEFT side: x=30 = video edge. Paths fan LEFT.
+  // Upper cluster → diagonals go UP-left (y decreases outward)
+  // Lower cluster → diagonals go DOWN-left (y increases outward)
+  // overflow="visible" lets paths extend to x=-80, clipped by section overflow-hidden
+  const LP: { d: string; b: boolean }[] = [
+    // ── upper cluster: diagonal goes UP ──
+    { d: "M30,22  H20 L6,8    H-80", b: true  },
+    { d: "M30,34  H18 L4,20   H-80", b: false },
+    { d: "M30,46  H22 L8,32   H-80", b: false },
+    { d: "M30,58  H16 L2,44   H-80", b: true  },
+    { d: "M30,70  H20 L6,56   H-80", b: false },
+    { d: "M30,82  H14 L0,68   H-80", b: false },
+    { d: "M30,94  H22 L8,80   H-80", b: true  },
+    { d: "M30,106 H17 L3,92   H-80", b: false },
+    // ── lower cluster: diagonal goes DOWN ──
+    { d: "M30,118 H20 L6,132  H-80", b: true  },
+    { d: "M30,130 H18 L4,144  H-80", b: false },
+    { d: "M30,142 H22 L8,156  H-80", b: false },
+    { d: "M30,154 H16 L2,168  H-80", b: true  },
+    { d: "M30,166 H20 L6,180  H-80", b: false },
+    { d: "M30,178 H14 L0,192  H-80", b: false },
+    { d: "M30,190 H22 L8,204  H-80", b: true  },
+    { d: "M30,202 H17 L3,216  H-80", b: false },
+  ];
 
-  /* Horizontal trace: fades from transparent (outer edge) → color (video edge) */
-  const hL = (top: string, left: string, w: string, color = `${G}0.75)`, op = 1) => ({
-    position: 'absolute' as const,
-    top, left, width: w, height: '1px',
-    background: `linear-gradient(to right, transparent, ${color})`,
-    opacity: op,
-  });
-
-  /* Vertical connector segment */
-  const vL = (top: string, left: string, h: string, op = 0.6) => ({
-    position: 'absolute' as const,
-    top, left, width: '1px', height: h,
-    background: `linear-gradient(to bottom, ${G}0.8), ${Y}0.4))`,
-    opacity: op,
-  });
-
-  /* Terminal dot at video connection point */
-  const dot = (top: string, side: 'left' | 'right', color = '#6AE499', op = 0.9) => ({
-    position: 'absolute' as const,
-    top, [side]: '-1.5px',
-    width: '3px', height: '3px',
-    borderRadius: '50%',
-    background: color,
-    transform: 'translateY(-50%)',
-    opacity: op,
-  });
+  // RIGHT side: x=0 = video edge. Paths fan RIGHT (mirror of LP).
+  const RP: { d: string; b: boolean }[] = [
+    { d: "M0,22  H10 L24,8    H110", b: true  },
+    { d: "M0,34  H12 L26,20   H110", b: false },
+    { d: "M0,46  H8  L22,32   H110", b: false },
+    { d: "M0,58  H14 L28,44   H110", b: true  },
+    { d: "M0,70  H10 L24,56   H110", b: false },
+    { d: "M0,82  H16 L30,68   H110", b: false },
+    { d: "M0,94  H8  L22,80   H110", b: true  },
+    { d: "M0,106 H13 L27,92   H110", b: false },
+    { d: "M0,118 H10 L24,132  H110", b: true  },
+    { d: "M0,130 H12 L26,144  H110", b: false },
+    { d: "M0,142 H8  L22,156  H110", b: false },
+    { d: "M0,154 H14 L28,168  H110", b: true  },
+    { d: "M0,166 H10 L24,180  H110", b: false },
+    { d: "M0,178 H16 L30,192  H110", b: false },
+    { d: "M0,190 H8  L22,204  H110", b: true  },
+    { d: "M0,202 H13 L27,216  H110", b: false },
+  ];
 
   return (
     <>
-      {/* ══════ LEFT-SIDE WIRES (30px strip, video edge = right) ══════ */}
-      <div
-        className="lg:hidden absolute inset-y-0 left-0 pointer-events-none"
-        style={{ width: 30, zIndex: 2 }}
-        aria-hidden="true"
-      >
-        {/* Trace 1 — y=12%: full span, bright green */}
-        <div style={hL('12%', '0', '30px', `${G}0.6)`, 1)} />
-        <div style={dot('12%', 'right', '#6AE499', 0.9)} />
+      {/* LEFT */}
+      <svg className="lg:hidden absolute inset-y-0 left-0 pointer-events-none"
+        width="30" height="100%" viewBox="0 0 30 224"
+        preserveAspectRatio="none" overflow="visible"
+        style={{ zIndex: 2 }} aria-hidden="true">
+        <defs>
+          {LP.map((p, i) => (
+            <linearGradient key={i} id={`lgl${i}`} x1="30" y1="0" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0"    stopColor="#6AE499" stopOpacity={p.b ? 0.9 : 0.55} />
+              <stop offset="0.45" stopColor="#6AE499" stopOpacity={p.b ? 0.65 : 0.35} />
+              <stop offset="0.85" stopColor="#FDE68A" stopOpacity="0.2" />
+              <stop offset="1"    stopColor="#FDE68A" stopOpacity="0" />
+            </linearGradient>
+          ))}
+        </defs>
+        {LP.map((p, i) => (
+          <path key={i} d={p.d} stroke={`url(#lgl${i})`}
+            strokeWidth={p.b ? "1.1" : "0.75"} strokeLinecap="round" fill="none" />
+        ))}
+      </svg>
 
-        {/* Trace 2 — y=27%: 20px, then loops DOWN to y=47% via vertical */}
-        <div style={hL('27%', '10px', '20px', `${G}0.8)`, 1)} />
-        <div style={vL('27%', '10px', '20%', 0.55)} />
-        {/* Loop bottom reconnect at y=47% */}
-        <div style={hL('47%', '10px', '20px', `${G}0.7)`, 1)} />
-        <div style={dot('27%', 'right', '#6AE499', 1)} />
-        <div style={dot('47%', 'right', '#6AE499', 0.85)} />
-
-        {/* Trace 3 — y=60%: shorter, yellow tint */}
-        <div style={hL('60%', '4px', '26px', `${Y}0.65)`, 1)} />
-        <div style={dot('60%', 'right', '#FDE68A', 0.85)} />
-
-        {/* Trace 4 — y=74%: medium, with a small vertical spur */}
-        <div style={hL('74%', '14px', '16px', `${G}0.7)`, 1)} />
-        <div style={vL('74%', '14px', '12%', 0.45)} />
-        <div style={{ ...hL('86%', '0', '14px', `${G}0.4)`, 1) }} />
-        <div style={dot('74%', 'right', '#6AE499', 0.9)} />
-      </div>
-
-      {/* ══════ RIGHT-SIDE WIRES (30px strip, video edge = left) ══════ */}
-      <div
-        className="lg:hidden absolute inset-y-0 right-0 pointer-events-none"
-        style={{ width: 30, zIndex: 2 }}
-        aria-hidden="true"
-      >
-        {/* Trace 1 */}
-        <div style={{ position: 'absolute', top: '12%', left: 0, right: 0, height: '1px', background: `linear-gradient(to left, transparent, ${G}0.6))`, opacity: 1 }} />
-        <div style={dot('12%', 'left', '#6AE499', 0.9)} />
-
-        {/* Trace 2 + loop */}
-        <div style={{ position: 'absolute', top: '27%', left: 0, right: '10px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.8))`, opacity: 1 }} />
-        <div style={{ position: 'absolute', top: '27%', right: '10px', width: '1px', height: '20%', background: `linear-gradient(to bottom, ${G}0.8), ${Y}0.4))`, opacity: 0.55 }} />
-        <div style={{ position: 'absolute', top: '47%', left: 0, right: '10px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.7))`, opacity: 1 }} />
-        <div style={dot('27%', 'left', '#6AE499', 1)} />
-        <div style={dot('47%', 'left', '#6AE499', 0.85)} />
-
-        {/* Trace 3 */}
-        <div style={{ position: 'absolute', top: '60%', left: 0, right: '4px', height: '1px', background: `linear-gradient(to left, transparent, ${Y}0.65))`, opacity: 1 }} />
-        <div style={dot('60%', 'left', '#FDE68A', 0.85)} />
-
-        {/* Trace 4 + spur */}
-        <div style={{ position: 'absolute', top: '74%', left: 0, right: '14px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.7))`, opacity: 1 }} />
-        <div style={{ position: 'absolute', top: '74%', right: '14px', width: '1px', height: '12%', background: `linear-gradient(to bottom, ${G}0.8), ${Y}0.4))`, opacity: 0.45 }} />
-        <div style={{ position: 'absolute', top: '86%', right: 0, width: '14px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.4))`, opacity: 1 }} />
-        <div style={dot('74%', 'left', '#6AE499', 0.9)} />
-      </div>
+      {/* RIGHT */}
+      <svg className="lg:hidden absolute inset-y-0 right-0 pointer-events-none"
+        width="30" height="100%" viewBox="0 0 30 224"
+        preserveAspectRatio="none" overflow="visible"
+        style={{ zIndex: 2 }} aria-hidden="true">
+        <defs>
+          {RP.map((p, i) => (
+            <linearGradient key={i} id={`lgr${i}`} x1="0" y1="0" x2="30" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0"    stopColor="#6AE499" stopOpacity={p.b ? 0.9 : 0.55} />
+              <stop offset="0.45" stopColor="#6AE499" stopOpacity={p.b ? 0.65 : 0.35} />
+              <stop offset="0.85" stopColor="#FDE68A" stopOpacity="0.2" />
+              <stop offset="1"    stopColor="#FDE68A" stopOpacity="0" />
+            </linearGradient>
+          ))}
+        </defs>
+        {RP.map((p, i) => (
+          <path key={i} d={p.d} stroke={`url(#lgr${i})`}
+            strokeWidth={p.b ? "1.1" : "0.75"} strokeLinecap="round" fill="none" />
+        ))}
+      </svg>
     </>
   );
 }
+
 
 export default function Frame2147223150() {
   return (

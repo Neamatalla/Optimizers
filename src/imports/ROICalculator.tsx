@@ -110,14 +110,14 @@ function StepperInput({
     background: "rgba(255,255,255,0.1)",
     border: "0.5px solid rgba(255,255,255,0.2)",
   };
-  const inputBg = "linear-gradient(90deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.28) 100%)";
+  const inputBg = "linear-gradient(90deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.30) 100%)";
 
   return (
     <div className="flex items-center w-full">
       {/* Editable input */}
       <div
         className="flex-1 h-[40px] lg:h-[52px] rounded-[12px] relative flex items-center justify-center gap-1"
-        style={{ background: inputBg, border: `0.5px solid ${focused ? "rgba(106,228,153,0.5)" : "rgba(255,255,255,0.2)"}`, transition: "border-color 0.2s" }}
+        style={{ background: inputBg, border: `1px solid ${focused ? "rgba(106,228,153,0.6)" : "rgba(255,255,255,0.38)"}`, transition: "border-color 0.2s" }}
       >
         <input
           type="text"
