@@ -53,7 +53,17 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
     const wallRight = Bodies.rectangle(width + thickness / 2, height / 2, thickness, height * 10, { isStatic: true });
     const ceiling = Bodies.rectangle(width / 2, -2000, width, thickness, { isStatic: true });
 
-    World.add(world, [ground, wallLeft, wallRight, ceiling]);
+    // Corner blockers — invisible circles placed at the arc centres of the 43px border-radius.
+    // They physically push word cards away from the corner zones that would otherwise be
+    // clipped by overflow-hidden + border-radius, ensuring every card is always fully visible.
+    const CR = 43; // must match rounded-[43px] on the container
+    const cornerOpts = { isStatic: true, collisionFilter: { category: 0x0002 } };
+    const cornerTL = Bodies.circle(CR, CR, CR, cornerOpts);
+    const cornerTR = Bodies.circle(width - CR, CR, CR, cornerOpts);
+    const cornerBL = Bodies.circle(CR, height - CR, CR, cornerOpts);
+    const cornerBR = Bodies.circle(width - CR, height - CR, CR, cornerOpts);
+
+    World.add(world, [ground, wallLeft, wallRight, ceiling, cornerTL, cornerTR, cornerBL, cornerBR]);
 
     // Helper for text wrapping
     const getWrappedLines = (text: string, maxWidth: number, font: string) => {
@@ -203,7 +213,7 @@ export function AnimatedBeforeCard({ sectionVisible = false }: { sectionVisible?
         const w = bWidth;
         const h = bHeight;
         ctx.beginPath();
-        ctx.rect(-w / 2, -h / 2, w, h);
+        ctx.roundRect(-w / 2, -h / 2, w, h, 10);
         ctx.fill();
         ctx.stroke();
 

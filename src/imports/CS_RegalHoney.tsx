@@ -179,14 +179,14 @@ function Frame5({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
   const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="bg-[rgba(252,211,77,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0 overflow-hidden">
+    <div className="bg-[rgba(252,211,77,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
       <motion.div 
         initial={{ y: '100%' }}
         animate={{ y: yPos }}
         transition={{ duration: 0.8, ease: CLIP_EASE }}
-        className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#fde68a] text-[12px] w-[93px]"
+        className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#fde68a] text-[13px] whitespace-nowrap"
       >
-        <p className="leading-[17px]">{t('Honey Industry')}</p>
+        <p className="leading-[17px] whitespace-nowrap">{t('Honey Industry')}</p>
       </motion.div>
     </div>
   );
@@ -196,7 +196,7 @@ function Frame4({ status }: { status?: 'past' | 'active' | 'future' }) {
   const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
     <div className="content-stretch flex flex-[1_0_0] flex-col gap-[8px] items-start justify-center min-h-px min-w-px relative">
-      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full overflow-hidden">
+      <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[25px] text-white tracking-[-0.44px] w-full overflow-hidden">
         <motion.div
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
@@ -239,7 +239,7 @@ function Frame6({ status }: { status?: 'past' | 'active' | 'future' }) {
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
           transition={{ duration: 0.8, ease: CLIP_EASE }}
-          className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#fef3c7] text-[14px] w-full"
+          className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#fef3c7] text-[16px] w-full"
         >
           {t('Challenge')}
         </motion.p>
@@ -249,7 +249,7 @@ function Frame6({ status }: { status?: 'past' | 'active' | 'future' }) {
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
           transition={{ duration: 0.8, ease: CLIP_EASE }}
-          className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full"
+          className="font-['Sora',sans-serif] font-normal leading-[18px] relative shrink-0 text-[13px] text-white/80 w-full"
         >
           {t('Customers browsed but hesitated to buy due to unclear info and low trust.')}
         </motion.p>
@@ -262,7 +262,7 @@ function Frame9({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
   const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+    <div className="content-stretch flex flex-col gap-[4px] items-center justify-center relative shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
         <motion.div
           initial={{ y: '100%' }}
@@ -277,7 +277,7 @@ function Frame9({ status }: { status?: 'past' | 'active' | 'future' }) {
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
           transition={{ duration: 0.8, ease: CLIP_EASE }}
-          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[13px] text-white/70 max-w-[90px] text-center"
         >
           {t('Conversion Rate')}
         </motion.p>
@@ -290,7 +290,7 @@ function Frame11({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
   const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+    <div className="content-stretch flex flex-col gap-[4px] items-center justify-center relative shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
         <motion.div
           initial={{ y: '100%' }}
@@ -305,7 +305,7 @@ function Frame11({ status }: { status?: 'past' | 'active' | 'future' }) {
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
           transition={{ duration: 0.8, ease: CLIP_EASE }}
-          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[13px] text-white/70 max-w-[90px] text-center"
         >
           {t('Revenue per Visitor')}
         </motion.p>
@@ -318,7 +318,7 @@ function Frame10({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
   const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+    <div className="content-stretch flex flex-col gap-[4px] items-center justify-center relative shrink-0">
       <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#fcd34d] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
         <motion.div
           initial={{ y: '100%' }}
@@ -333,7 +333,7 @@ function Frame10({ status }: { status?: 'past' | 'active' | 'future' }) {
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
           transition={{ duration: 0.8, ease: CLIP_EASE }}
-          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+          className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[13px] text-white/70 max-w-[90px] text-center"
         >
           {t('Products per Visitor')}
         </motion.p>
@@ -362,7 +362,7 @@ function Frame7({ status }: { status?: 'past' | 'active' | 'future' }) {
           initial={{ y: '100%' }}
           animate={{ y: yPos }}
           transition={{ duration: 0.8, ease: CLIP_EASE }}
-          className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#fef3c7] text-[14px] w-full"
+          className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#fef3c7] text-[16px] w-full"
         >
           {t('Results')}
         </motion.p>

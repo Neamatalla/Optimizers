@@ -2067,7 +2067,7 @@ function Frame() {
   const { t } = useLanguage();
   return (
     <div className="relative lg:absolute content-stretch flex flex-col gap-[32px] items-center lg:left-[calc(50%+0.5px)] lg:top-[calc(50%-212px)] lg:translate-x-[-50%] lg:translate-y-[-50%] z-10 p-6 lg:p-0 w-full max-w-[420px] lg:max-w-[900px]">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[72px] relative shrink-0 text-[18px] min-[360px]:text-[22px] min-[400px]:text-[26px] lg:text-[72px] text-center tracking-tight lg:tracking-[-2.88px] w-full whitespace-nowrap px-1" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[72px] relative shrink-0 text-[28px] min-[360px]:text-[32px] min-[400px]:text-[36px] lg:text-[72px] text-center tracking-tight lg:tracking-[-2.88px] w-full px-1" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
         {t('Why Choose Our CRO Agency?')}
       </p>
       <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[311px] lg:max-w-[797px]">{t("We don’t just run tests - we deliver measurable business growth.")}</p>
@@ -2110,26 +2110,35 @@ function MobileWhyChooseCards() {
         return (
           <div
             key={i}
-            className="relative rounded-[16px] overflow-hidden p-[1.143px] shadow-[0px_2px_28.8px_0px_rgba(253,230,138,0.1),0px_2px_17.6px_0px_rgba(146,235,180,0.1)]"
+            className="relative rounded-[16px] overflow-hidden p-[1.143px] h-[240px]"
             style={{
               opacity: isVisible ? 1 : 0,
               transform: isVisible ? 'translateY(0)' : 'translateY(30px)',
               transition: `opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 120}ms, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 120}ms`,
             }}
           >
-            {/* Gradient Border Overlay */}
-            <div className="absolute inset-0 rounded-[16px] pointer-events-none bg-gradient-to-b from-[#6ae499] via-[#fde68a] to-[#ff6b57] opacity-60 blur-[2px]" />
+            {/* Fading Gradient Border — visible top/sides, fades at bottom */}
+            <div
+              className="absolute inset-0 rounded-[16px] pointer-events-none"
+              style={{
+                padding: "1.143px",
+                background: "linear-gradient(to bottom, #6ae499 0%, #fde68a 40%, #ff6b57 70%, transparent 100%)",
+                WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                WebkitMaskComposite: "xor",
+                maskComposite: "exclude",
+              }}
+            />
             {/* Inner Black Background */}
             <div className="absolute inset-[1.143px] bg-[#020601] rounded-[15px] z-0" />
             {/* Content */}
-            <div className="relative z-10 rounded-[15px] overflow-hidden">
+            <div className="relative z-10 rounded-[15px] overflow-hidden h-full">
               {/* Lights overlay */}
               <div className="absolute inset-0 bg-black rounded-[15px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_#5b626d]" />
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black rounded-[15px]" />
               {/* Card content */}
-              <div className="relative z-10 flex flex-col items-center gap-3 text-center px-2 py-4">
+              <div className="relative z-10 flex flex-col items-center justify-start gap-3 text-center px-3 h-full pt-4">
                 <div className="scale-[0.5] origin-center shrink-0 -my-4">
                   <Icon />
                 </div>
@@ -2139,8 +2148,7 @@ function MobileWhyChooseCards() {
                 </div>
               </div>
             </div>
-            {/* Inner Glow */}
-            <div className="absolute inset-0 pointer-events-none rounded-[16px] shadow-[inset_0px_0px_20px_rgba(106,228,153,0.15)]" />
+
           </div>
         );
       })}

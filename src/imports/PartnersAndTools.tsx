@@ -222,7 +222,7 @@ export default function PartnersAndTools() {
                             } as React.CSSProperties}
                         >
                             <div className="mobile-partner-icon-inner">
-                                <div className="relative overflow-hidden shrink-0" style={icon.wrapperSize}>
+                                <div className="relative overflow-hidden shrink-0 mobile-logo-wrapper" style={icon.wrapperSize}>
                                     <img
                                         src={icon.image}
                                         alt=""
@@ -269,7 +269,7 @@ export default function PartnersAndTools() {
                             } as React.CSSProperties}
                         >
                             <div className="mobile-partner-icon-inner">
-                                <div className="relative overflow-hidden shrink-0" style={icon.wrapperSize}>
+                                <div className="relative overflow-hidden shrink-0 mobile-logo-wrapper" style={icon.wrapperSize}>
                                     <img
                                         src={icon.image}
                                         alt=""

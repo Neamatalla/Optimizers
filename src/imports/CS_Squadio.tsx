@@ -139,7 +139,7 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                 </motion.div>
               </div>
               <div className="content-stretch flex flex-[1_0_0] flex-col gap-[8px] items-start justify-center min-h-px min-w-px relative">
-                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[22px] text-white tracking-[-0.44px] w-full overflow-hidden">
+                <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[30px] justify-center leading-[0] relative shrink-0 text-[25px] text-white tracking-[-0.44px] w-full overflow-hidden">
                   <motion.p 
                     initial={{ y: "100%" }}
                     animate={{ y: yPos }}
@@ -149,14 +149,14 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                     Squadio
                   </motion.p>
                 </div>
-                <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0 overflow-hidden">
+                <div className="bg-[rgba(255,107,87,0.15)] content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[100px] shrink-0">
                   <motion.div 
                     initial={{ y: "100%" }}
                     animate={{ y: yPos }}
                     transition={{ duration: 0.8, ease: CLIP_EASE }}
-                    className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[12px] w-[92px]"
+                    className="flex flex-col font-['Sora',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#ffa69a] text-[13px] whitespace-nowrap"
                   >
-                    <p className="leading-[17px]">{t('Hiring Industry')}</p>
+                    <p className="leading-[17px] whitespace-nowrap">{t('Hiring Industry')}</p>
                   </motion.div>
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                     initial={{ y: "100%" }}
                     animate={{ y: yPos }}
                     transition={{ duration: 0.8, ease: CLIP_EASE }}
-                    className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full"
+                    className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full"
                   >
                     {t('Challenge')}
                   </motion.p>
@@ -178,7 +178,7 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                     initial={{ y: "100%" }}
                     animate={{ y: yPos }}
                     transition={{ duration: 0.8, ease: CLIP_EASE }}
-                    className="font-['Sora',sans-serif] font-normal leading-[17px] relative shrink-0 text-[12px] text-white/80 w-full"
+                    className="font-['Sora',sans-serif] font-normal leading-[18px] relative shrink-0 text-[13px] text-white/80 w-full"
                   >
                     {t('Low conversions due to unclear value, distractions, weak CTAs, and no trust.')}
                   </motion.p>
@@ -190,13 +190,13 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                     initial={{ y: "100%" }}
                     animate={{ y: yPos }}
                     transition={{ duration: 0.8, ease: CLIP_EASE }}
-                    className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[14px] w-full"
+                    className="font-['Sora',sans-serif] font-semibold leading-[20px] relative shrink-0 text-[#ffc4bc] text-[16px] w-full"
                   >
                     {t('Results')}
                   </motion.p>
                 </div>
                 <div className="content-stretch flex items-start justify-between relative shrink-0 text-center w-full">
-                  <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+                  <div className="content-stretch flex flex-col gap-[4px] items-center justify-center relative shrink-0">
                     <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
                       <motion.p 
                         initial={{ y: "100%" }}
@@ -212,13 +212,13 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                         initial={{ y: "100%" }}
                         animate={{ y: yPos }}
                         transition={{ duration: 0.8, ease: CLIP_EASE }}
-                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[13px] text-white/70 max-w-[90px] text-center"
                       >
                         {t('Funnel Progression')}
                       </motion.p>
                     </div>
                   </div>
-                  <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+                  <div className="content-stretch flex flex-col gap-[4px] items-center justify-center relative shrink-0">
                     <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
                       <motion.p 
                         initial={{ y: "100%" }}
@@ -234,13 +234,13 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                         initial={{ y: "100%" }}
                         animate={{ y: yPos }}
                         transition={{ duration: 0.8, ease: CLIP_EASE }}
-                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[13px] text-white/70 max-w-[90px] text-center"
                       >
                         {t('Conversion Rate')}
                       </motion.p>
                     </div>
                   </div>
-                  <div className="content-stretch flex flex-col gap-[4px] items-start justify-center relative shrink-0">
+                  <div className="content-stretch flex flex-col gap-[4px] items-center justify-center relative shrink-0">
                     <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-[22px] justify-center leading-[0] relative shrink-0 text-[#ff8979] text-[20px] tracking-[-0.96px] w-auto overflow-hidden">
                       <motion.p 
                         initial={{ y: "100%" }}
@@ -251,12 +251,12 @@ export default function CS_Squadio({ onNext, onPrev, contentScale = 1, contentY,
                         +6.49%
                       </motion.p>
                     </div>
-                    <div className="overflow-hidden">
+                <div className="overflow-hidden">
                       <motion.p 
                         initial={{ y: "100%" }}
                         animate={{ y: yPos }}
                         transition={{ duration: 0.8, ease: CLIP_EASE }}
-                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[11px] text-white/70 w-auto"
+                        className="font-['Sora',sans-serif] font-normal leading-[15px] relative shrink-0 text-[13px] text-white/70 max-w-[90px] text-center"
                       >
                         {t('Boost Engagement')}
                       </motion.p>

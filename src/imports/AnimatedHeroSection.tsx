@@ -6,6 +6,7 @@ import Section2 from "./Section2";
 import Section3 from "./Section3";
 import Section4 from "./Section4";
 import Section5 from "./Section5";
+import Section6 from "./Section6";
 import imgTopclientsResults4 from "../assets/f6cb95ddf6fbcaa6d79196a0ac804e1747a8b1c4.webp";
 import '../styles/top-clients-scroll.css';
 
@@ -20,6 +21,8 @@ import imgMockup4 from "../assets/e9bccb8642719980ea958d77f0b65d7871275cae.webp"
 import imgProfile4 from "../assets/bea2fb523d6f14c71d06c08b5857b1e8c2afdc71.webp";
 import imgMockup5 from "../assets/9f8f278f482336f0475810eb8d279e3e1acb7ca6.webp";
 import imgProfile5 from "../assets/28ae360f5ef1294530a445760980d0b0cc4fce99.webp";
+import imgMockup6 from "../assets/0a43ad858290e1d9bd5df60d9b2fbfe22e9a50ee.webp";
+import imgProfile6 from "../assets/3770d43bacf3cc8cddfa4bb12ed6b2fd0eafe7e0.webp";
 
 const clientData = [
     { name: 'Vitrine Furniture', tag: 'Furniture', tagBg: 'rgba(135,162,207,0.2)', tagColor: '#afc1df', accentColor: '#87a2cf', mockup: imgMockup1, profile: imgProfile1, goal: 'Increase homepage engagement & conversions.', areas: 'Homepage layout, product visibility.', metrics: [{ value: '+64.5%', label: 'Conversion rate' }, { value: '+19.48%', label: 'Avg. order value' }] },
@@ -27,6 +30,7 @@ const clientData = [
     { name: 'Squadio', tag: 'Technology', tagBg: 'rgba(255,107,87,0.15)', tagColor: '#ffa69a', accentColor: '#ff8979', mockup: imgMockup3, profile: imgProfile3, goal: 'Clarify value proposition & build trust.', areas: 'Homepage navigation, CTAs, trust signals.', metrics: [{ value: '+833%', label: 'Signup Rate' }, { value: '+44.02%', label: 'Funnel Progression' }] },
     { name: 'Regal Honey', tag: 'Food & Beverage', tagBg: 'rgba(252,211,77,0.15)', tagColor: '#fde68a', accentColor: '#fcd34d', mockup: imgMockup4, profile: imgProfile4, goal: 'Build brand trust & educate customers.', areas: 'Product details, video reviews.', metrics: [{ value: '+44.15%', label: 'Conversion rate' }, { value: '+34.6%', label: 'Avg. order value' }] },
     { name: 'Dubai Phone', tag: 'Electronics', tagBg: 'rgba(160,171,187,0.2)', tagColor: '#d0d5dd', accentColor: '#a0abbb', mockup: imgMockup5, profile: imgProfile5, goal: 'Optimize mobile shopping experience.', areas: 'Mobile checkout flow, retention.', metrics: [{ value: '+65%', label: 'Mobile conversion' }, { value: '+28%', label: 'Retention' }] },
+    { name: 'Regal Honey US', tag: 'Food & Beverage', tagBg: 'rgba(107,100,72,0.15)', tagColor: '#e8cf98', accentColor: '#e8cf98', mockup: imgMockup6, profile: imgProfile6, goal: 'Boost customer retention and repeat rates.', areas: 'Subscription launch, retention, lifecycle.', metrics: [{ value: '+60%', label: 'Customer retention' }] },
 ];
 
 const SectionSlide = ({ Section, bgOpacity, contentOpacity, counterY, mockupX, mockupY }: any) => {
@@ -54,7 +58,7 @@ const SectionSlide = ({ Section, bgOpacity, contentOpacity, counterY, mockupX, m
     );
 };
 
-const sections = [Section1, Section2, Section3, Section4, Section5];
+const sections = [Section1, Section2, Section3, Section4, Section5, Section6];
 
 export default function AnimatedHeroSection() {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -112,17 +116,18 @@ export default function AnimatedHeroSection() {
 
     // ── Time-Based Triggering ──
     const [activeIndex, setActiveIndex] = useState(0);
-    const [mountedIndices, setMountedIndices] = useState<number[]>([0, 1, 2, 3, 4]);
+    const [mountedIndices, setMountedIndices] = useState<number[]>([0, 1, 2, 3, 4, 5]);
 
     useMotionValueEvent(scrollYProgress, "change", (latest) => {
         if (isMobile) return;
-        // Distribute 5 slides over 0.0 to 1.0 (each gets 0.2 of the scroll height)
-        const index = Math.min(Math.floor(latest / 0.2), 4);
+        // Distribute 6 slides over 0.0 to 1.0 (each gets ~0.1667 of the scroll height)
+        const index = Math.min(Math.floor(latest / (1 / sections.length)), sections.length - 1);
         if (index !== activeIndex) setActiveIndex(Math.max(0, index));
     });
 
     const bgOps = [
         useMotionValue(1),
+        useMotionValue(0),
         useMotionValue(0),
         useMotionValue(0),
         useMotionValue(0),
@@ -134,11 +139,13 @@ export default function AnimatedHeroSection() {
         useMotionValue(0),
         useMotionValue(0),
         useMotionValue(0),
+        useMotionValue(0),
         useMotionValue(0)
     ];
 
     const counterYs = [
         useMotionValue('0%'),
+        useMotionValue('100%'),
         useMotionValue('100%'),
         useMotionValue('100%'),
         useMotionValue('100%'),
@@ -219,7 +226,7 @@ export default function AnimatedHeroSection() {
                     {/* Section Title */}
                     <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30 mb-8" style={{ isolation: 'isolate' }}>
                         <p
-                            className="font-['Sora',sans-serif] font-bold leading-tight text-[22px] min-[360px]:text-[26px] min-[400px]:text-[30px] sm:text-[32px] tracking-tight bg-center bg-clip-text bg-cover bg-no-repeat text-center px-1 whitespace-nowrap"
+                            className="font-['Sora',sans-serif] font-bold leading-tight text-[28px] min-[360px]:text-[32px] min-[400px]:text-[36px] sm:text-[40px] tracking-tight bg-center bg-clip-text bg-cover bg-no-repeat text-center px-1 whitespace-nowrap"
                             style={{
                                 WebkitTextFillColor: "transparent",
                                 backgroundImage: `url('${imgTopclientsResults4}')`,
@@ -228,14 +235,7 @@ export default function AnimatedHeroSection() {
                             {language === 'ar' ? (
                                 <span>أفضل العملاء والنتائج</span>
                             ) : (
-                                <>
-                                    <span className="uppercase">T</span>
-                                    <span>OP </span>
-                                    <span className="uppercase">C</span>
-                                    <span>LIENTS & </span>
-                                    <span className="uppercase">R</span>
-                                    <span>ESULTS</span>
-                                </>
+                                <>Top Clients & Results</>
                             )}
                         </p>
                         <p className="font-['Sora',sans-serif] font-normal text-[14px] min-[360px]:text-[16px] text-white/70 text-center max-w-[280px] min-[360px]:max-w-none mt-2">
@@ -284,8 +284,7 @@ export default function AnimatedHeroSection() {
                         <div className="relative rounded-[28px] overflow-hidden mx-4 flex-shrink-0 pointer-events-auto"
                             style={{
                                 background: `linear-gradient(180deg, ${clientData[activeSlide].accentColor}50 0%, ${clientData[activeSlide].accentColor}1A 100%)`,
-                                boxShadow: `0px 10px 40px -10px ${clientData[activeSlide].accentColor}50`,
-                                transition: 'background 800ms ease, box-shadow 800ms ease',
+                                transition: 'background 800ms ease',
                             }}
                         >
                             {/* Gradient border */}
@@ -386,10 +385,10 @@ export default function AnimatedHeroSection() {
                                         >
                                             {c.metrics.map((m, mi) => (
                                                 <div key={mi}
-                                                    className="flex flex-col items-start gap-0.5 flex-1 py-1"
+                                                    className="flex flex-col items-center gap-0.5 flex-1 py-1"
                                                 >
                                                     <p className="font-['Sora',sans-serif] font-bold text-[30px] tracking-[-0.04em] leading-tight" style={{ color: c.accentColor }}>{m.value}</p>
-                                                    <p className="font-['Sora',sans-serif] font-medium text-[12px] text-white/90 text-left leading-[1.3]">{t(m.label)}</p>
+                                                    <p className="font-['Sora',sans-serif] font-medium text-[12px] text-white/90 text-center leading-[1.3] max-w-[130px]">{t(m.label)}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -476,14 +475,7 @@ export default function AnimatedHeroSection() {
                         {language === 'ar' ? (
                             <span>أفضل العملاء والنتائج</span>
                         ) : (
-                            <>
-                                <span className="uppercase">T</span>
-                                <span>OP </span>
-                                <span className="uppercase">C</span>
-                                <span>LIENTS & </span>
-                                <span className="uppercase">R</span>
-                                <span>ESULTS</span>
-                            </>
+                            <>Top Clients & Results</>
                         )}
                     </p>
                 </div>

@@ -110,7 +110,7 @@ function StepperInput({
     background: "rgba(255,255,255,0.1)",
     border: "0.5px solid rgba(255,255,255,0.2)",
   };
-  const inputBg = "linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.08) 100%)";
+  const inputBg = "linear-gradient(90deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.28) 100%)";
 
   return (
     <div className="flex items-center w-full">
@@ -192,8 +192,8 @@ function CalculatorContent() {
       <div
         className="flex items-center px-[8px] py-[6px] lg:p-[6px] rounded-[12px] lg:rounded-[16px] w-[94%] md:w-[90%] lg:w-auto max-w-[350px] md:max-w-[800px] lg:max-w-none"
         style={{
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(57,60,55,0.8)",
+          background: "rgba(255,255,255,0.26)",
+          border: "1px solid rgba(255,255,255,0.38)",
         }}
       >
         {CURRENCIES.map((c) => (
@@ -268,8 +268,8 @@ function CalculatorContent() {
       <div
         className="flex items-center justify-between px-[8px] lg:px-[24px] py-[6px] lg:py-[10px] rounded-[12px] lg:rounded-[16px] w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-[780px]"
         style={{
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(57,60,55,0.8)",
+          background: "rgba(255,255,255,0.26)",
+          border: "1px solid rgba(255,255,255,0.38)",
         }}
       >
         {LIFT_OPTIONS.map((lift) => (
@@ -352,7 +352,7 @@ function CalculatorContent() {
             className="absolute left-0 top-0 h-full rounded-[300px] transition-all duration-500"
             style={{
               width: `${results.progressFraction * 100}%`,
-              background: "linear-gradient(90deg, #494e55, #5f82bf)",
+              background: "linear-gradient(90deg, #494e55, #6e7470)",
             }}
           />
           {/* Projected extension (green) */}

@@ -139,9 +139,9 @@ export default function AnimatedCaseStudies() {
     const [activeMobileIndex_M, setActiveMobileIndex_M] = useState(-1);
     const mSlideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
 
-    const scaleValue = useMotionValue(typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 800) : 1);
+    const scaleValue = useMotionValue(typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 680) : 1);
     const smoothScale = useSpring(scaleValue, { stiffness: 50, damping: 20 });
-    const [mobileScale, setMobileScale] = useState(() => typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 800) : 1);
+    const [mobileScale, setMobileScale] = useState(() => typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 680) : 1);
     const lastScaleWidthRef = useRef(0);
 
     const getStatus = (i: number) => {
@@ -162,7 +162,7 @@ export default function AnimatedCaseStudies() {
             const currentWidth = window.innerWidth;
             if (currentWidth !== lastScaleWidthRef.current) {
                 lastScaleWidthRef.current = currentWidth;
-                const BASE_MOBILE_HEIGHT = 800;
+                const BASE_MOBILE_HEIGHT = 680;
                 const newScale = Math.min(1, (window.innerHeight - 60) / BASE_MOBILE_HEIGHT);
                 scaleValue.set(newScale);
             }
@@ -319,7 +319,7 @@ export default function AnimatedCaseStudies() {
                             className={`cs-mobile-arrows-container flex items-center justify-between pt-5 ${t('dir') === 'rtl' ? 'flex-row-reverse' : ''}`}
                             style={{ 
                                 position: 'absolute', 
-                                bottom: '10vh', 
+                                bottom: '16px', 
                                 width: '90%', 
                                 display: activeMobileIndex_M >= 0 ? 'flex' : 'none', 
                                 zIndex: 200, 

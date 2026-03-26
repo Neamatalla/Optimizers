@@ -195,7 +195,10 @@ function ServiceCard({ number, title, description, isLarger }: ServiceCardProps)
 }
 
 /** Mobile version of the service card (vertical stack) */
-function MobileServiceCard({ number, title, description }: { number: string; title: string; description: string }) {
+function MobileServiceCard({ number, title, description, cardId }: { number: string; title: string; description: string; cardId: number }) {
+  const f0 = `blob-f${cardId}-0`;
+  const f1 = `blob-f${cardId}-1`;
+  const f2 = `blob-f${cardId}-2`;
   return (
     <div className="service-card-wrapper w-full relative">
       <div className="service-card-inner">
@@ -214,27 +217,27 @@ function MobileServiceCard({ number, title, description }: { number: string; tit
         {/* Gradient Blob */}
         <div className="service-card-blob">
           <svg width="200" height="150" viewBox="0 0 200 150" fill="none" style={{ width: '100%', height: '100%' }}>
-            <g filter="url(#blob-filter0)">
+            <g filter={`url(#${f0})`}>
               <ellipse cx="80" cy="75" rx="50" ry="20" transform="rotate(25 80 75)" fill="#6AE499" fillOpacity="0.8"/>
             </g>
-            <g filter="url(#blob-filter1)">
+            <g filter={`url(#${f1})`}>
               <ellipse cx="100" cy="70" rx="45" ry="18" transform="rotate(25 100 70)" fill="#FDE68A" fillOpacity="0.9"/>
             </g>
-            <g filter="url(#blob-filter2)">
+            <g filter={`url(#${f2})`}>
               <ellipse cx="115" cy="60" rx="40" ry="15" transform="rotate(25 115 60)" fill="#FFA69A" fillOpacity="0.8"/>
             </g>
             <defs>
-              <filter id="blob-filter0" x="0" y="0" width="200" height="150" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+              <filter id={f0} x="0" y="0" width="200" height="150" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
                 <feFlood floodOpacity="0" result="BackgroundImageFix"/>
                 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
                 <feGaussianBlur stdDeviation="30" result="effect1_foregroundBlur"/>
               </filter>
-              <filter id="blob-filter1" x="0" y="0" width="200" height="150" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+              <filter id={f1} x="0" y="0" width="200" height="150" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
                 <feFlood floodOpacity="0" result="BackgroundImageFix"/>
                 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
                 <feGaussianBlur stdDeviation="30" result="effect1_foregroundBlur"/>
               </filter>
-              <filter id="blob-filter2" x="0" y="0" width="200" height="150" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+              <filter id={f2} x="0" y="0" width="200" height="150" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
                 <feFlood floodOpacity="0" result="BackgroundImageFix"/>
                 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
                 <feGaussianBlur stdDeviation="30" result="effect1_foregroundBlur"/>
@@ -352,7 +355,7 @@ export default function App() {
               {/* Mobile Cards rendering vertically with CSS classes */}
               <div className="cards-container z-10">
                 {services.map((service, idx) => (
-                  <MobileServiceCard key={idx} {...service} />
+                  <MobileServiceCard key={idx} cardId={idx} {...service} />
                 ))}
               </div>
             </div>

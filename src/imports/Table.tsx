@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import svgPaths from "./svg-8x44mv6a2l";
 import imgWhatMakesCroTheSmarterInvestment from "../assets/1495296c1372cb62f4b13afc83f9acb3d1d29faf.webp";
-import { imgAnimatedBeam } from "./svg-cfo9w";
+
 
 // Constants for legacy scaling (not used in current responsive layout)
 const CANVAS_WIDTH = 1440;
@@ -23,7 +23,7 @@ function Beam() {
       <div
         className="absolute inset-0"
         style={{
-          background: "conic-gradient(from 0deg at 50% 50%, transparent 0deg, #31da72 20deg, transparent 40deg, transparent 180deg, #31da72 200deg, transparent 220deg, transparent 360deg)",
+          background: "conic-gradient(from 0deg at 50% 50%, transparent 0deg, #FF8979 8deg, #FCD34D 22deg, #92EBB4 38deg, transparent 55deg, transparent 180deg, #FF8979 188deg, #FCD34D 202deg, #92EBB4 218deg, transparent 235deg, transparent 360deg)",
           filter: "blur(4px)",
         }}
       />
@@ -40,26 +40,24 @@ function Beam() {
   );
 }
 
-function AnimatedBeam() {
-  return (
-    <div
-      className="absolute inset-0 pointer-events-none mask-no-repeat"
-      style={{
-        maskImage: `url('${imgAnimatedBeam}')`,
-        WebkitMaskImage: `url('${imgAnimatedBeam}')`,
-        maskSize: "100% 100%",
-        WebkitMaskSize: "100% 100%"
-      }}
-    >
-      <Beam />
-    </div>
-  );
-}
-
 function BorderBeam() {
   return (
-    <div className="absolute inset-[-1px] pointer-events-none rounded-[inherit]" data-name="Border Beam">
-      <AnimatedBeam />
+    <div
+      className="absolute inset-[-1px] pointer-events-none rounded-[inherit] overflow-hidden"
+      data-name="Border Beam"
+    >
+      {/* Thin border ring so the beam is only visible along the edge */}
+      <div
+        className="absolute inset-0 rounded-[inherit]"
+        style={{
+          padding: "1.5px",
+          WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+          WebkitMaskComposite: "xor",
+          maskComposite: "exclude",
+        }}
+      >
+        <Beam />
+      </div>
     </div>
   );
 }
@@ -181,9 +179,9 @@ function CheckCircle() {
   );
 }
 
-function TableRow({ label, ads, redesign, cro }: { label: string; ads: boolean; redesign: boolean; cro: boolean }) {
+function TableRow({ label, ads, redesign, cro, isLast }: { label: string; ads: boolean; redesign: boolean; cro: boolean; isLast?: boolean }) {
   return (
-    <div className="content-stretch flex min-h-[50px] lg:min-h-[80px] items-center relative shrink-0 w-full py-3 lg:py-6 border-b border-white/[0.08]">
+    <div className={`content-stretch flex min-h-[50px] lg:min-h-[80px] items-center relative shrink-0 w-full py-3 lg:py-6${isLast ? '' : ' border-b border-white/[0.08]'}`}>
       <Item label={label} />
       <div className="flex justify-center items-center w-[20%] lg:w-[23.33%] *:flex *:justify-center">{ads ? <CheckCircle /> : <CloseCircle />}</div>
       <div className="flex justify-center items-center w-[20%] lg:w-[23.33%] *:flex *:justify-center">{redesign ? <CheckCircle /> : <CloseCircle />}</div>
@@ -208,12 +206,12 @@ const tableData = [
 
 function Frame9() {
   return (
-    <div className="relative flex flex-col items-start w-full overflow-x-auto pb-8 px-4 lg:px-10 scrollbar-hide">
+    <div className="relative flex flex-col items-start w-full overflow-x-auto pb-3 px-4 lg:px-10 scrollbar-hide">
       <div className="w-full">
         <Frame1 />
         {tableData.map((row, idx) => (
           <div key={idx} className="w-full">
-            <TableRow {...row} />
+            <TableRow {...row} isLast={idx === tableData.length - 1} />
           </div>
         ))}
       </div>

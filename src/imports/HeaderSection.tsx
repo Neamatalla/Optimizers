@@ -77,16 +77,13 @@ export default function HeaderSection() {
                     {/* Background — absolute, covers entire section */}
                     <div className="mobile-hero-bg">
                         <div style={{ 
-                            transform: `scale(${Math.max(window.innerWidth / 1440, 800 / 930) * 1.2}) translateZ(0)`, 
+                            transform: `scale(${Math.max(window.innerWidth / 1440, 800 / 930) * 1.2})`, 
                             transformOrigin: 'top center',
                             width: '1440px',
                             height: '930px',
                             position: 'absolute',
                             left: '50%',
                             marginLeft: '-877px',
-                            willChange: 'transform',
-                            backfaceVisibility: 'hidden',
-                            WebkitBackfaceVisibility: 'hidden'
                         }}>
                             <BackgroundLayer />
                         </div>

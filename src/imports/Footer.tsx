@@ -119,10 +119,8 @@ function Link1() {
 function Component6239Ba027A3Bbd1Ec055Fda8TwitterSvg() {
   return (
     <div className="relative shrink-0 size-[23.641px]" data-name="6239ba027a3bbd1ec055fda8_Twitter.svg">
-      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 23.6413 23.6413">
-        <g id="6239ba027a3bbd1ec055fda8_Twitter.svg">
-          <path d={svgPaths.p2990fd00} fill="var(--fill-0, white)" id="Vector" />
-        </g>
+      <svg className="block size-full" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.768-6.768M15.232 9.232L20 4" />
       </svg>
     </div>
   );

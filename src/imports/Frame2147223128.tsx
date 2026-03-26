@@ -11,6 +11,7 @@ import imgSquadioLogo1 from "../assets/58277737f726fa8271cdd9407612159994b21186.
 import imgVitrineFurniture09082019Ee834Ce7E8Ea4E00878D60378A796Ff0410X from "../assets/e5232ce0528b3c3ea47f6567306e5e7795bbb57a.webp";
 import imgElKalbEl4A2YWhiteAndNoBackground from "../assets/a33025d56680114484fa0589302841737d1bfd66.webp";
 import imgRegalEnLogo01 from "../assets/4387b7cb5576eedd1c2dfa9e01243b9e1225824a.webp";
+import imgBalqesHoneyLogo from "../assets/balqes-honey-logo.png";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
 import headerVideoMp4 from "../assets/Optimizers-Header_1.mp4";
 import { imgGroup } from "./svg-0tz7a";
@@ -1015,6 +1016,19 @@ function Component5() {
   );
 }
 
+function Component6() {
+  return (
+    <div className="h-[100px] relative shrink-0 w-[200px] client-logo" data-name="Component 8">
+      <img
+        alt="Balqes Honey"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgBalqesHoneyLogo}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
 function Frame4() {
   return (
     <div className="flex flex-wrap justify-center gap-y-4 md:gap-[40px] items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2">
@@ -1035,6 +1049,9 @@ function Frame4() {
       </div>
       <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
         <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component5 /></div>
+      </div>
+      <div className="w-[25%] md:w-auto flex justify-center items-center h-[70px] md:h-auto overflow-visible">
+        <div className="scale-[0.95] origin-center md:scale-[1.0]"><Component6 /></div>
       </div>
     </div>
   );
@@ -1221,39 +1238,22 @@ function User() {
       onClick={toggleLanguage}
       data-name="User"
     >
-      {language === 'en' ? <EnSvg /> : (
-        <div className="overflow-clip relative shrink-0 size-[24px]" style={{ borderRadius: '50%' }}>
-          <svg className="block size-full" viewBox="0 0 512 512" fill="none">
-            <defs>
-              <clipPath id="egFlagClip">
-                <circle cx="256" cy="256" r="256" />
-              </clipPath>
-            </defs>
-            <g clipPath="url(#egFlagClip)">
-              {/* Red top band */}
-              <rect y="0" width="512" height="170.7" fill="#CE1126" />
-              {/* White middle band */}
-              <rect y="170.7" width="512" height="170.6" fill="#FFFFFF" />
-              {/* Black bottom band */}
-              <rect y="341.3" width="512" height="170.7" fill="#000000" />
-              {/* Eagle of Saladin — simplified golden emblem */}
-              <g transform="translate(206, 186)">
-                {/* Eagle body */}
-                <path d="M50 0C44 0 39 5 39 11V28C39 28 20 22 10 35C4 43 2 52 2 60C2 68 5 78 12 85L30 100H70L88 85C95 78 98 68 98 60C98 52 96 43 90 35C80 22 61 28 61 28V11C61 5 56 0 50 0Z" fill="#C09300" />
-                {/* Eagle head */}
-                <ellipse cx="50" cy="8" rx="8" ry="8" fill="#C09300" />
-                {/* Shield on chest */}
-                <rect x="38" y="40" width="24" height="30" rx="4" fill="#CE1126" stroke="#C09300" strokeWidth="2" />
-                {/* Tail feathers */}
-                <path d="M30 100L20 115H80L70 100" fill="#C09300" />
-                {/* Wings spread */}
-                <path d="M2 60L-15 45L-10 70L2 60Z" fill="#C09300" />
-                <path d="M98 60L115 45L110 70L98 60Z" fill="#C09300" />
-              </g>
-            </g>
-          </svg>
-        </div>
-      )}
+      <span
+        style={{
+          fontFamily: "'Sora', sans-serif",
+          fontSize: '15px',
+          fontWeight: 600,
+          color: 'white',
+          letterSpacing: '0.02em',
+          lineHeight: 1,
+          userSelect: 'none',
+          minWidth: '24px',
+          textAlign: 'center',
+          display: 'inline-block',
+        }}
+      >
+        {language === 'en' ? 'ع' : 'EN'}
+      </span>
       <div className="flex items-center justify-center relative shrink-0 size-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "153.5" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
           <OutlineArrowsAltArrowRight />
@@ -1275,13 +1275,23 @@ function DivBtnLabel() {
 }
 
 function Link() {
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const glowShadow = isDesktop
+    ? 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
+    : 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)';
   return (
     <div className="bg-[#020601] h-[40px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform tap-feedback" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[16px] md:px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
       </div>
-      <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_0px_30px_0px_rgba(106,228,153,0.6)]" />
       <div aria-hidden="true" className="absolute border border-[#6ae499] border-solid inset-0 pointer-events-none rounded-[100px]" />
+      <div className="absolute inset-0 pointer-events-none rounded-[100px]" style={{ boxShadow: glowShadow }} />
     </div>
   );
 }
@@ -1331,8 +1341,8 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       {/* Header: Logo + Close */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-7">
         {/* Logo */}
-        <div className="h-[22px] w-[119px]">
-          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 150.998 22">
+        <div className="h-[22px] w-auto">
+          <svg className="block h-full w-auto" fill="none" viewBox="0 0 150.998 22">
             <path d={svgPaths.p22963780} fill="white" />
             <path d={svgPaths.pd2f9600} fill="white" />
             <path d={svgPaths.p10199c10} fill="white" />

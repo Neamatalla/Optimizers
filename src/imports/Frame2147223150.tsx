@@ -538,11 +538,11 @@ function Background() {
   }, [isPlaying]);
 
   return (
-    <div className="relative backdrop-blur-[24px] bg-[#020202] border border-[#6ae499] border-solid w-[calc(100%-60px)] max-w-[1000px] mx-auto h-auto aspect-video overflow-clip rounded-[24px] p-4 lg:p-0" data-name="Background">
-      <div className="relative lg:absolute h-full lg:h-[95%] lg:left-1/2 rounded-[13.824px] lg:top-[2.5%] lg:translate-x-[-50%] w-full lg:w-[98%]" data-name="Screenshot 2025-09-24 at 12.05.29 AM 1">
+    <div className="relative backdrop-blur-[24px] bg-[#020202] border-2 border-[#6ae499] border-solid w-[calc(100%-60px)] max-w-[1000px] mx-auto h-auto aspect-video overflow-clip rounded-[12px]" data-name="Background">
+      <div className="absolute inset-0 lg:inset-[2.5%_1%_2.5%_1%] rounded-[8px]" data-name="Screenshot 2025-09-24 at 12.05.29 AM 1">
 
         {!isPlaying ? (
-          <div className="relative w-full h-full cursor-pointer rounded-[13.824px] overflow-hidden" onClick={() => setIsPlaying(true)}>
+          <div className="relative w-full h-full cursor-pointer rounded-[8px] overflow-hidden" onClick={() => setIsPlaying(true)}>
             <img
               src={videoThumbnail}
               alt="Video thumbnail"
@@ -550,8 +550,8 @@ function Background() {
               decoding="async"
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-24 bg-black rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors shadow-lg border-2 border-[#6ae499]">
-                <svg className="w-12 h-12 text-[#6ae499] ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 lg:w-24 lg:h-24 bg-black rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors shadow-lg border-2 border-[#6ae499]">
+                <svg className="w-6 h-6 lg:w-12 lg:h-12 text-[#6ae499] ml-0.5 lg:ml-1" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
@@ -582,29 +582,128 @@ function Frame() {
   const { t } = useLanguage();
   return (
     <div className="relative flex flex-col gap-[24px] items-center text-center w-full max-w-[800px] px-4 lg:px-0">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[86px] min-w-full relative shrink-0 text-[40px] lg:text-[72.022px] tracking-[-2.8809px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgLearnCroFromOurCeo}')` }}>
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.2] lg:leading-[86px] min-w-full relative shrink-0 text-[28px] lg:text-[72.022px] tracking-[-2.8809px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgLearnCroFromOurCeo}')` }}>
         {t('Learn CRO From Our CEO')}
       </p>
-      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.9)] w-full">{t('Get insider insights into the strategies that have generated millions in additional revenue for Gulf-based e-commerce brands.')}</p>
+      <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[28px] relative shrink-0 text-[13px] lg:text-[20px] text-[rgba(255,255,255,0.9)] w-full px-6 lg:px-0">{t('Get insider insights into the strategies that have generated millions in additional revenue for Gulf-based e-commerce brands.')}</p>
     </div>
+  );
+}
+
+/** Pure-CSS PCB circuit traces for mobile — no SVGs */
+function MobileCircuitWires() {
+  const G = 'rgba(106,228,153,'; // green channel
+  const Y = 'rgba(253,230,138,'; // yellow channel
+
+  /* Horizontal trace: fades from transparent (outer edge) → color (video edge) */
+  const hL = (top: string, left: string, w: string, color = `${G}0.75)`, op = 1) => ({
+    position: 'absolute' as const,
+    top, left, width: w, height: '1px',
+    background: `linear-gradient(to right, transparent, ${color})`,
+    opacity: op,
+  });
+
+  /* Vertical connector segment */
+  const vL = (top: string, left: string, h: string, op = 0.6) => ({
+    position: 'absolute' as const,
+    top, left, width: '1px', height: h,
+    background: `linear-gradient(to bottom, ${G}0.8), ${Y}0.4))`,
+    opacity: op,
+  });
+
+  /* Terminal dot at video connection point */
+  const dot = (top: string, side: 'left' | 'right', color = '#6AE499', op = 0.9) => ({
+    position: 'absolute' as const,
+    top, [side]: '-1.5px',
+    width: '3px', height: '3px',
+    borderRadius: '50%',
+    background: color,
+    transform: 'translateY(-50%)',
+    opacity: op,
+  });
+
+  return (
+    <>
+      {/* ══════ LEFT-SIDE WIRES (30px strip, video edge = right) ══════ */}
+      <div
+        className="lg:hidden absolute inset-y-0 left-0 pointer-events-none"
+        style={{ width: 30, zIndex: 2 }}
+        aria-hidden="true"
+      >
+        {/* Trace 1 — y=12%: full span, bright green */}
+        <div style={hL('12%', '0', '30px', `${G}0.6)`, 1)} />
+        <div style={dot('12%', 'right', '#6AE499', 0.9)} />
+
+        {/* Trace 2 — y=27%: 20px, then loops DOWN to y=47% via vertical */}
+        <div style={hL('27%', '10px', '20px', `${G}0.8)`, 1)} />
+        <div style={vL('27%', '10px', '20%', 0.55)} />
+        {/* Loop bottom reconnect at y=47% */}
+        <div style={hL('47%', '10px', '20px', `${G}0.7)`, 1)} />
+        <div style={dot('27%', 'right', '#6AE499', 1)} />
+        <div style={dot('47%', 'right', '#6AE499', 0.85)} />
+
+        {/* Trace 3 — y=60%: shorter, yellow tint */}
+        <div style={hL('60%', '4px', '26px', `${Y}0.65)`, 1)} />
+        <div style={dot('60%', 'right', '#FDE68A', 0.85)} />
+
+        {/* Trace 4 — y=74%: medium, with a small vertical spur */}
+        <div style={hL('74%', '14px', '16px', `${G}0.7)`, 1)} />
+        <div style={vL('74%', '14px', '12%', 0.45)} />
+        <div style={{ ...hL('86%', '0', '14px', `${G}0.4)`, 1) }} />
+        <div style={dot('74%', 'right', '#6AE499', 0.9)} />
+      </div>
+
+      {/* ══════ RIGHT-SIDE WIRES (30px strip, video edge = left) ══════ */}
+      <div
+        className="lg:hidden absolute inset-y-0 right-0 pointer-events-none"
+        style={{ width: 30, zIndex: 2 }}
+        aria-hidden="true"
+      >
+        {/* Trace 1 */}
+        <div style={{ position: 'absolute', top: '12%', left: 0, right: 0, height: '1px', background: `linear-gradient(to left, transparent, ${G}0.6))`, opacity: 1 }} />
+        <div style={dot('12%', 'left', '#6AE499', 0.9)} />
+
+        {/* Trace 2 + loop */}
+        <div style={{ position: 'absolute', top: '27%', left: 0, right: '10px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.8))`, opacity: 1 }} />
+        <div style={{ position: 'absolute', top: '27%', right: '10px', width: '1px', height: '20%', background: `linear-gradient(to bottom, ${G}0.8), ${Y}0.4))`, opacity: 0.55 }} />
+        <div style={{ position: 'absolute', top: '47%', left: 0, right: '10px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.7))`, opacity: 1 }} />
+        <div style={dot('27%', 'left', '#6AE499', 1)} />
+        <div style={dot('47%', 'left', '#6AE499', 0.85)} />
+
+        {/* Trace 3 */}
+        <div style={{ position: 'absolute', top: '60%', left: 0, right: '4px', height: '1px', background: `linear-gradient(to left, transparent, ${Y}0.65))`, opacity: 1 }} />
+        <div style={dot('60%', 'left', '#FDE68A', 0.85)} />
+
+        {/* Trace 4 + spur */}
+        <div style={{ position: 'absolute', top: '74%', left: 0, right: '14px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.7))`, opacity: 1 }} />
+        <div style={{ position: 'absolute', top: '74%', right: '14px', width: '1px', height: '12%', background: `linear-gradient(to bottom, ${G}0.8), ${Y}0.4))`, opacity: 0.45 }} />
+        <div style={{ position: 'absolute', top: '86%', right: 0, width: '14px', height: '1px', background: `linear-gradient(to left, transparent, ${G}0.4))`, opacity: 1 }} />
+        <div style={dot('74%', 'left', '#6AE499', 0.9)} />
+      </div>
+    </>
   );
 }
 
 export default function Frame2147223150() {
   return (
-    <div className="bg-[#020601] relative w-full shrink-0 overflow-hidden flex flex-col items-center py-[40px] lg:py-[150px] gap-12 lg:gap-20">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div style={{ opacity: 0.3 }}>
+    <div className="ceo-section bg-[#020601] relative w-full shrink-0 overflow-hidden flex flex-col items-center py-[40px] lg:py-[150px] gap-12 lg:gap-20">
+      {/* Background SVG wires — desktop only (hidden on mobile via CSS) */}
+      <div className="absolute inset-0 pointer-events-none ceo-wire-bg-container">
+        <div className="ceo-wire-right" style={{ opacity: 0.3 }}>
           <MaskGroup />
         </div>
-        <div style={{ opacity: 0.3 }}>
+        <div className="ceo-wire-left" style={{ opacity: 0.3 }}>
           <Group />
         </div>
       </div>
       <div className="relative z-10 w-full flex flex-col items-center gap-[32px] lg:gap-[100px]">
         <Frame />
-        <Background />
+        {/* Full-width wrapper so CSS wires sit in the 30px margins */}
+        <div className="relative w-full">
+          <MobileCircuitWires />
+          <Background />
+        </div>
       </div>
     </div>
   );
-}
+}

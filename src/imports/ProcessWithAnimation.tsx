@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import clsx from "clsx";
 import imgOurProvenConversionOptimizationProcess from "../assets/f107a7f40e4d7ea19ffc42c38dbf8e17414a5f3b.webp";
-import { AnimatedProcessCard } from "./AnimatedProcessCard";
+import { AnimatedProcessCard, CardScaleContext } from "./AnimatedProcessCard";
 import { AnimatedBeforeCard } from "./AnimatedBeforeCard";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
@@ -18,40 +18,80 @@ function ProcessBackgroundImage({ children, additionalClassNames = "", noRotatio
     );
 }
 
-/* ──────────── Responsive Scaler for Animated Cards ──────────── */
 
-function ProcessCardScaler({ children }: { children: React.ReactNode }) {
+
+/**
+ * AfterCardScaler — for AnimatedProcessCard only.
+ * Measures available width, injects it via CardScaleContext.
+ * AnimatedProcessCard renders at native pixel dimensions (no CSS transform).
+ * This eliminates the #1 iOS Safari performance killer: transforms on
+ * absolutely-positioned children inside a transform:scale() parent.
+ */
+function AfterCardScaler({ children }: { children: React.ReactNode }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
 
     useEffect(() => {
-        const updateScale = () => {
+        const update = () => {
             if (containerRef.current) {
-                const parentWidth = containerRef.current.offsetWidth;
-                // Base width is 570 from the animated components
-                const newScale = Math.min(parentWidth / 570, 1);
-                setScale(newScale);
+                const w = containerRef.current.offsetWidth;
+                setScale(Math.min(w / 570, 1));
             }
         };
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
 
-        updateScale();
-        window.addEventListener("resize", updateScale);
-        return () => window.removeEventListener("resize", updateScale);
+    const scaledHeight = Math.round(589 * scale);
+
+    return (
+        <CardScaleContext.Provider value={scale}>
+            <div
+                ref={containerRef}
+                className="w-full flex justify-center"
+                style={{ height: scaledHeight, overflow: 'visible' }}
+            >
+                {children}
+            </div>
+        </CardScaleContext.Provider>
+    );
+}
+
+/**
+ * BeforeCardScaler — for AnimatedBeforeCard (canvas-based).
+ * Keeps the original CSS transform:scale() approach since canvas
+ * renders at fixed 570×589 and needs CSS scaling.
+ */
+function BeforeCardScaler({ children }: { children: React.ReactNode }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        const update = () => {
+            if (containerRef.current) {
+                const w = containerRef.current.offsetWidth;
+                setScale(Math.min(w / 570, 1));
+            }
+        };
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
     }, []);
 
     return (
-        <div 
-            ref={containerRef} 
-            className="relative w-full overflow-hidden flex justify-center items-start"
-            style={{ height: `${589 * scale}px` }}
+        <div
+            ref={containerRef}
+            className="w-full flex justify-center"
+            style={{ height: Math.round(589 * scale), overflow: 'visible' }}
         >
-            <div 
-                style={{ 
-                    transform: `scale(${scale})`, 
-                    transformOrigin: "top center",
-                    width: "570px",
-                    height: "589px",
-                    flexShrink: 0
+            <div
+                style={{
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top center',
+                    width: 570,
+                    height: 589,
+                    flexShrink: 0,
                 }}
             >
                 {children}
@@ -59,6 +99,7 @@ function ProcessCardScaler({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
+
 
 /* ──────────── Main component ──────────── */
 
@@ -128,9 +169,9 @@ export default function ProcessWithAnimation() {
                     {/* Responsive container for the animated card */}
                     <div className="relative z-10 w-full overflow-visible">
                         <div className="lg:hidden">
-                            <ProcessCardScaler>
+                            <BeforeCardScaler>
                                 <AnimatedBeforeCard sectionVisible={sectionVisible} />
-                            </ProcessCardScaler>
+                            </BeforeCardScaler>
                         </div>
                         <div className="hidden lg:flex justify-center">
                             <ProcessBackgroundImage additionalClassNames="" noRotation={true}>
@@ -147,9 +188,9 @@ export default function ProcessWithAnimation() {
                     {/* Responsive container for the animated card */}
                     <div className="relative z-10 w-full overflow-visible">
                         <div className="lg:hidden">
-                            <ProcessCardScaler>
+                            <AfterCardScaler>
                                 <AnimatedProcessCard sectionVisible={sectionVisible} />
-                            </ProcessCardScaler>
+                            </AfterCardScaler>
                         </div>
                         <div className="hidden lg:flex justify-center">
                             <ProcessBackgroundImage additionalClassNames="" noRotation={true}>

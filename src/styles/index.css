@@ -7,6 +7,8 @@
 
 html {
     overflow-x: clip;
+    background-color: #020601;
+    overscroll-behavior: none;
 }
 
 body {
@@ -15,6 +17,8 @@ body {
     padding: 0;
     max-width: 100vw;
     font-family: 'Sora', sans-serif;
+    background-color: #020601;
+    overscroll-behavior: none;
 }
 
 * {
@@ -213,3 +217,10 @@ body {
     transform: translateY(0) scale(0.95);
     transition-duration: 0.1s;
 }
+
+/* ===== Sonner Toast Text Override ===== */
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description],
+[data-sonner-toast] [data-content] {
+    color: #000000 !important;
+}

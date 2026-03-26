@@ -45,8 +45,8 @@ const normalizeWebsiteUrl = (url: string): string => {
 function Frame5() {
   const { t } = useLanguage();
   return (
-    <div className="relative flex flex-col items-center w-full px-[1.1vw] text-center mt-[40px] lg:mt-[8.3vw]">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[84.026px] relative shrink-0 text-[36px] lg:text-[72.022px] text-center tracking-[-1.44px] lg:tracking-[-2.8809px] w-[94%] md:w-[90%] lg:w-full max-w-[1105px]" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
+    <div className="relative flex flex-col items-center w-full px-0 text-center mt-[40px] lg:mt-[8.3vw]">
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[44px] lg:leading-[84.026px] relative shrink-0 text-[40px] lg:text-[72.022px] text-center tracking-[-1.44px] lg:tracking-[-2.8809px] w-full lg:w-full max-w-[1105px] px-2" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgBookYourFreeStrategySession}')` }}>
         {t('Book Your Free Strategy Session')}
       </p>
     </div>
@@ -109,13 +109,13 @@ function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; 
 
   return (
     <div
-      className="flex flex-col gap-[6px] items-center cursor-pointer"
+      className="flex flex-col gap-[14px] items-center cursor-pointer"
       onClick={() => isActive && onClick()}
     >
-      <div className="flex items-center justify-center rounded-full size-[12px]" style={{ border: `0.6px solid ${borderColor}` }}>
-        <span className="font-['Sora:Regular',sans-serif] font-normal text-[4.2px] text-center leading-[5px]" style={{ color: textColor }}>{num}</span>
+      <div className="flex items-center justify-center rounded-full size-[26px]" style={{ border: `1px solid ${borderColor}` }}>
+        <span className="font-['Sora:Regular',sans-serif] font-normal text-[11px] text-center leading-none" style={{ color: textColor }}>{num}</span>
       </div>
-      <span className="font-['Sora:Regular',sans-serif] font-normal text-[8px] leading-[10px] text-center whitespace-nowrap" style={{ color: labelColor }}>{labels[num]}</span>
+      <span className="font-['Sora:Regular',sans-serif] font-normal text-[7px] leading-[9px] text-center break-words w-full px-[2px]" style={{ color: labelColor }}>{labels[num]}</span>
     </div>
   );
 }
@@ -149,16 +149,20 @@ function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
         ))}
       </div>
 
-      {/* Mobile: Horizontal row of numbered step circles matching Figma */}
-      <div className="flex lg:hidden items-start justify-between w-full px-[16px] py-2">
+      {/* Mobile: Horizontal scrollable row — each bubble in a fixed-width column */}
+      <div
+        className="flex lg:hidden items-start w-full py-2 overflow-x-auto"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {steps.map((s) => (
-          <MobileStepCircle
-            key={s.num}
-            num={s.num}
-            isCurrent={s.num === currentStep}
-            isActive={s.num <= maxStepReached}
-            onClick={() => onStepClick(s.num)}
-          />
+          <div key={s.num} className="flex-none flex justify-center" style={{ minWidth: '20%' }}>
+            <MobileStepCircle
+              num={s.num}
+              isCurrent={s.num === currentStep}
+              isActive={s.num <= maxStepReached}
+              onClick={() => onStepClick(s.num)}
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -182,10 +186,10 @@ const MobileRadio = ({ isSelected }: { isSelected: boolean }) => (
 
 const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: boolean, onClick: () => void }) => (
   <div onClick={onClick} className={`min-h-[78px] lg:min-h-[150px] py-1.5 lg:py-2 relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? 'linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777' : '#777' }}>
-    {/* Mobile layout: radio above text */}
-    <div className="flex lg:hidden flex-col gap-[6px] items-start justify-center p-[16px] rounded-[inherit] w-full min-h-full">
+    {/* Mobile layout: radio inline-left of text */}
+    <div className="flex lg:hidden flex-row gap-[12px] items-center justify-start p-[16px] rounded-[inherit] w-full min-h-full">
       <MobileRadio isSelected={isSelected} />
-      <p className={`font-['Sora:Regular',sans-serif] font-normal leading-snug text-[14px] text-left transition-colors duration-300 text-white`}>{text}</p>
+      <p className={`flex-1 min-w-0 font-['Sora:Regular',sans-serif] font-normal leading-snug text-[13px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
     </div>
     {/* Desktop layout: radio inline-left of text */}
     <div className="hidden lg:flex flex-row items-center justify-start gap-[14px] px-[28px] py-[24px] relative rounded-[inherit] w-full min-h-full">
@@ -344,7 +348,11 @@ export default function StrategySession() {
       case 1:
         return (
           <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
-            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">{t('Number of conversions per MONTH on average?')}</p>
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>
+              <span>{t('Number of conversions per')}</span>
+              <br className="lg:hidden" />
+              <span>{t('MONTH on average?')}</span>
+            </p>
             <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select average:')}</p>
             <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] items-center w-full">
               <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
@@ -361,7 +369,7 @@ export default function StrategySession() {
       case 2:
         return (
           <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
-            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[20px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[-1.36px] w-[233px] lg:w-auto">{t('What is your primary conversion objective?')}</p>
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('What is your primary conversion objective?')}</p>
             <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select objective:')}</p>
             {formData.primaryObjective === "Other" ? (
               <div className="w-full max-w-[400px] flex flex-col gap-4">
@@ -384,7 +392,7 @@ export default function StrategySession() {
       case 3:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="font-semibold text-[18px] lg:text-[2.2vw] text-white">{t('What is your website?')}</p>
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('What is your website?')}</p>
             <div className="w-full max-w-[380px] flex flex-col gap-2">
               <Input name="website" value={formData.website} onChange={handleInputChange} placeholder="https://yourwebsite.com" className={`bg-white/10 border-2 ${validationErrors.website ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
               {validationErrors.website && <p className="text-red-500 text-sm">{validationErrors.website}</p>}
@@ -394,7 +402,7 @@ export default function StrategySession() {
       case 4:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
-            <p className="font-semibold text-[18px] lg:text-[2.2vw] text-white">{t('Contact Information')}</p>
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('Contact Information')}</p>
             <div className="w-full max-w-[380px] flex flex-col gap-6">
               <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className="bg-white/10 border-[#31da72]/30 text-white h-9" />
               <div className="flex flex-col gap-2">
@@ -429,10 +437,10 @@ export default function StrategySession() {
       {/* Card Design - Switched to relative to push sections below it */}
       {/* Card Design - Switched to relative to push sections below it */}
       <div
-        className="relative flex flex-col min-h-0 lg:min-h-[50.9vw] h-auto items-center justify-center mx-auto lg:mx-auto rounded-[16px] lg:rounded-[24px] mt-[16px] lg:mt-[2.8vw] w-[94%] md:w-[90%] lg:w-full max-w-[340px] md:max-w-[800px] lg:max-w-[1240px] z-10 animate-wave-fast"
+        className="relative flex flex-col min-h-0 lg:min-h-[50.9vw] h-auto items-center justify-center mx-auto lg:mx-auto rounded-[16px] lg:rounded-[24px] mt-[16px] lg:mt-[2.8vw] w-[96%] md:w-[90%] lg:w-full max-w-[96vw] md:max-w-[800px] lg:max-w-[1240px] z-10 animate-wave-fast"
         data-name="Card"
         style={{
-          backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.12) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\\'0 0 1240 733\\\' xmlns=\\\'http://www.w3.org/2000/svg\\\' preserveAspectRatio=\\\'none\\\'><rect x=\\\'0\\\' y=\\\'0\\\' height=\\\'100%\\\' width=\\\'100%\\\' fill=\\\'url(%23grad)\\\' opacity=\\\'1\\\'/><defs><radialGradient id=\\\'grad\\\' gradientUnits=\\\'userSpaceOnUse\\\' cx=\\\'0\\\' cy=\\\'0\\\' r=\\\'10\\\' gradientTransform=\\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\\'><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0\\\'/><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0.55823\\\'/><stop stop-color=\\\'rgba(0,0,0,0.3)\\\' offset=\\\'0.73997\\\'/><stop stop-color=\\\'rgba(0,0,0,0)\\\' offset=\\\'1\\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",
+          backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.05) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\\'0 0 1240 733\\\' xmlns=\\\'http://www.w3.org/2000/svg\\\' preserveAspectRatio=\\\'none\\\'><rect x=\\\'0\\\' y=\\\'0\\\' height=\\\'100%\\\' width=\\\'100%\\\' fill=\\\'url(%23grad)\\\' opacity=\\\'1\\\'/><defs><radialGradient id=\\\'grad\\\' gradientUnits=\\\'userSpaceOnUse\\\' cx=\\\'0\\\' cy=\\\'0\\\' r=\\\'10\\\' gradientTransform=\\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\\'><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0\\\'/><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0.55823\\\'/><stop stop-color=\\\'rgba(0,0,0,0.3)\\\' offset=\\\'0.73997\\\'/><stop stop-color=\\\'rgba(0,0,0,0)\\\' offset=\\\'1\\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",
           backgroundSize: "100% 100%, 100% 100%, 400% 400%",
           boxShadow: showThankYouMessage ? "0 0 50px rgba(49, 218, 114, 0.1)" : "none"
         }}
@@ -470,7 +478,7 @@ export default function StrategySession() {
           </div>
         </div>
 
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-16.5px_36.9px_0px_white] lg:shadow-[inset_0px_16.5px_36.9px_0px_rgba(255,255,255,0.4)]" />
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-16.5px_36.9px_0px_rgba(255,255,255,0.25)] lg:shadow-[inset_0px_16.5px_36.9px_0px_rgba(255,255,255,0.12)]" />
       </div>
     </div>
   );

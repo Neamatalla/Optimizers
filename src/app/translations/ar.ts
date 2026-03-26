@@ -210,6 +210,8 @@ export const arTranslations: Record<string, string> = {
   "New /mo": "الجديد / شهرياً",
   "New number of conversions / Month": "عدد التحويلات الجديدة / شهرياً",
   "Number of conversions per MONTH on average?": "ما متوسط عدد التحويلات شهرياً؟",
+  "Number of conversions per": "عدد التحويلات",
+  "MONTH on average?": "شهرياً في المتوسط؟",
   "E-commerce conversion rate": "معدل تحويل التجارة الإلكترونية",
   "Increase": "زيادة",
   "Projected Monthly Revenue": "الإيرادات الشهرية المتوقعة",

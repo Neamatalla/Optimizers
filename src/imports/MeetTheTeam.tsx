@@ -537,7 +537,7 @@ function Frame1() {
 function MobileLights() {
   return (
     <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
-      <div className="absolute bg-[#050505] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+      <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(95,130,191,0.4)]" />
       </div>
       <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
@@ -590,7 +590,7 @@ function MobileText() {
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.28px)] top-[9.89px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[139px] items-center justify-center left-[calc(50%-55.61px)] top-[10.65px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="bg-clip-text bg-gradient-to-b font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[15.334px] relative text-[12.668px] text-[transparent] text-center to-[rgba(255,255,255,0)] tracking-[-0.2534px] whitespace-nowrap">Mohamed Neamatalla</p>
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.334px] relative text-[12.668px] text-white text-center tracking-[-0.2534px] whitespace-nowrap">Mohamed Neamatalla</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[84px] items-center justify-center left-[calc(50%-76.95px)] top-[37.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -690,7 +690,7 @@ function MobileText1() {
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.14px)] top-[25.22px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[74px] items-center justify-center left-[calc(50%-55.5px)] top-[43.22px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="bg-clip-text bg-gradient-to-b font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[15.296px] relative text-[12.636px] text-[transparent] text-center to-[rgba(255,255,255,0)] tracking-[-0.2527px] whitespace-nowrap">Alia Mahran</p>
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.296px] relative text-[12.636px] text-white text-center tracking-[-0.2527px] whitespace-nowrap">Alia Mahran</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[109px] items-center justify-center left-[calc(50%-76.77px)] top-[25.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -790,7 +790,7 @@ function MobileText2() {
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.43px)] top-[37.99px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[82px] items-center justify-center left-[calc(50%-55.73px)] top-[38.76px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="bg-clip-text bg-gradient-to-b font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[15.372px] relative text-[12.698px] text-[transparent] text-center to-[rgba(255,255,255,0)] tracking-[-0.254px] whitespace-nowrap">Omar Maged</p>
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.372px] relative text-[12.698px] text-white text-center tracking-[-0.254px] whitespace-nowrap">Omar Maged</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[78px] items-center justify-center left-[calc(50%-77.13px)] top-[40.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -890,7 +890,7 @@ function MobileText3() {
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.28px)] top-[29.22px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[88px] items-center justify-center left-[calc(50%-55.61px)] top-[36px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="bg-clip-text bg-gradient-to-b font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[15.334px] relative text-[12.667px] text-[transparent] text-center to-[rgba(255,255,255,0)] tracking-[-0.2533px] whitespace-nowrap">Alaa Abdullah</p>
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.334px] relative text-[12.667px] text-white text-center tracking-[-0.2533px] whitespace-nowrap">Alaa Abdullah</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[101px] items-center justify-center left-[calc(50%-76.95px)] top-[29.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
@@ -990,7 +990,7 @@ function MobileText4() {
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.19px)] top-[33.24px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[92px] items-center justify-center left-[calc(50%-55.61px)] top-[34.01px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="bg-clip-text bg-gradient-to-b font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[15.333px] relative text-[12.667px] text-[transparent] text-center to-[rgba(255,255,255,0)] tracking-[-0.2533px] whitespace-nowrap">Mariam Chadii</p>
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.333px] relative text-[12.667px] text-white text-center tracking-[-0.2533px] whitespace-nowrap">Mariam Chadii</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[62px] items-center justify-center left-[calc(50%-76.77px)] top-[48.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>

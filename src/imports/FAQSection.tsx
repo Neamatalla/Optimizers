@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../app/contexts/LanguageContext";
 import {
     Accordion,
@@ -60,13 +60,23 @@ function DivBtnLabel() {
 }
 
 function Link() {
+    const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+    useEffect(() => {
+        const mq = window.matchMedia('(min-width: 1024px)');
+        const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+    const glowShadow = isDesktop
+        ? 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
+        : 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)';
     return (
-        <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity shadow-[0px_0px_25px_rgba(106,228,153,0.3)]" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+        <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity lg:shadow-[0px_0px_25px_rgba(106,228,153,0.3)]" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
             <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[24px] lg:px-[28px] py-[12px] relative rounded-[inherit]">
                 <DivBtnLabel />
             </div>
-            <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_0px_30px_0px_rgba(106,228,153,0.6)]" />
             <div aria-hidden="true" className="absolute border border-[#6ae499] border-solid inset-0 pointer-events-none rounded-[100px]" />
+            <div className="absolute inset-0 pointer-events-none rounded-[100px]" style={{ boxShadow: glowShadow }} />
         </div>
     );
 }
@@ -78,7 +88,7 @@ function Frame19() {
             <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[1.1] min-w-full relative shrink-0 text-[36px] lg:text-[78px] text-center lg:text-left tracking-[-1.44px] lg:tracking-[-2px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgFrequentlyAskedQuestions}')` }}>
                 {t("Frequently Asked Questions")}
             </p>
-            <div className="hidden lg:block"><Link /></div>
+            <Link />
         </div>
     );
 }
@@ -139,10 +149,7 @@ export default function FAQSection() {
                         ))}
                     </Accordion>
                 </div>
-                {/* CTA below FAQ questions on mobile */}
-                <div className="lg:hidden flex justify-center w-full pt-4">
-                    <Link />
-                </div>
+
             </div>
         </div>
     );

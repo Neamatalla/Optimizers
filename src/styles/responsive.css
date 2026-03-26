@@ -301,6 +301,10 @@
         transform: scale(0.75);
         transform-origin: center;
     }
+    /* Balqes logo: larger than others */
+    [data-name="Component 8"].client-logo {
+        transform: scale(1.1);
+    }
 
     /* Tablet/video frame */
     [data-name="Header Video"] {
@@ -354,7 +358,26 @@
         height: 100%;
         z-index: 1;
         pointer-events: none;
-        overflow: hidden;
+        /*
+         * iOS WebKit silently drops feGaussianBlur with stdDeviation ≥ 45 on large filter
+         * areas (the main SVG filter is 1398×1384px with stdDeviation=60, which at iPhone
+         * DPR=3 becomes ~20M pixels — exceeding iOS's rasterization cap).
+         * CSS gradient replicates the green glow: dark black top & bottom, green in center.
+         */
+        background:
+            /* Bright green core — large */
+            radial-gradient(ellipse 90% 38% at 52% 45%, rgba(60, 130, 80, 0.65) 0%, rgba(26, 58, 39, 0.2) 55%, transparent 75%),
+            /* Soft outer green halo — much wider */
+            radial-gradient(ellipse 110% 48% at 52% 45%, rgba(12, 35, 18, 0.8) 0%, transparent 68%),
+            /* Pure black base */
+            #020601;
+    }
+
+    /* Hide the SVG canvas on all mobile — both iOS and Android use the CSS gradient above.
+       iOS WebKit can't render the heavy SVG filters anyway; hiding on Android too ensures
+       a consistent look across all mobile devices. */
+    .mobile-hero-bg > div {
+        display: none !important;
     }
 
     /* Hero text content — absolute layer inside sticky viewport */
@@ -436,6 +459,10 @@
     .client-logo {
         transform: scale(0.55);
         transform-origin: center;
+    }
+    /* Balqes logo: larger than others */
+    [data-name="Component 8"].client-logo {
+        transform: scale(0.9);
     }
 
     /* ═══ HERO VIDEO: Visible on mobile (absolute layer, moves up in viewport) ═══ */
@@ -740,6 +767,9 @@
         transform: scale(0.65);
         transform-origin: center;
     }
+    [data-name="Component 8"].client-logo {
+        transform: scale(1.0);
+    }
 
     .hero-frame8 p {
         font-size: 14px !important;
@@ -750,6 +780,15 @@
     .client-logo {
         transform: scale(0.8);
         transform-origin: center;
+    }
+    [data-name="Component 8"].client-logo {
+        transform: scale(1.2);
+    }
+}
+
+@media (min-width: 1024px) {
+    [data-name="Component 8"].client-logo {
+        background: none;
     }
 }
 
@@ -872,6 +911,95 @@
 
 
 
+/* ─── Hero Frame8: Mobile vertical positioning ─── */
+@media (max-width: 1023px) {
+    .content-stretch.flex.flex-col.gap-\[36px\].items-center.relative.shrink-0.w-full.pointer-events-auto.hero-frame8 {
+        margin-top: 40px;
+        top: 10px;
+    }
+
+    .bg-center.bg-clip-text.bg-cover.bg-no-repeat.font-\[\'Sora\:SemiBold\'\,sans-serif\].font-semibold.leading-\[1\].relative.shrink-0.text-\[clamp\(28px\,6vw\,72px\)\].tracking-\[-0\.04em\].hero-title-text {
+        margin-top: 30px;
+    }
+}
+
+/* ─── Why Choose Title: Bottom margin on mobile ─── */
+@media (max-width: 1023px) {
+    p.bg-center.bg-clip-text.bg-cover.bg-no-repeat.css-ew64yg.font-\[\'Sora\:SemiBold\'\,sans-serif\].font-semibold.leading-tight.lg\:leading-\[72px\].relative.shrink-0.text-\[28px\].min-\[360px\]\:text-\[32px\].min-\[400px\]\:text-\[36px\].lg\:text-\[72px\].text-center.tracking-tight.lg\:tracking-\[-2\.88px\].w-full.px-1 {
+        margin-bottom: -20px;
+    }
+}
+
+/* ─── CEO Section Wrapper: Bottom spacing on mobile ─── */
+@media (max-width: 1023px) {
+    .bg-\[\#020601\].relative.w-full.shrink-0.overflow-hidden.flex.flex-col.items-center.py-\[40px\].lg\:py-\[150px\].gap-12.lg\:gap-20 {
+        margin-bottom: 50px;
+    }
+}
+
+/* ─── Large section title p: Bottom spacing on mobile ─── */
+@media (max-width: 1023px) {
+    p.bg-center.bg-clip-text.bg-cover.bg-no-repeat.css-4hzbpn.font-\[\'Sora\:SemiBold\'\,sans-serif\].font-semibold.leading-\[44px\].lg\:leading-\[84\.026px\].relative.shrink-0.text-\[40px\].lg\:text-\[72\.022px\].text-center.tracking-\[-1\.44px\].lg\:tracking-\[-2\.8809px\].w-full.lg\:w-full.max-w-\[1105px\].px-2 {
+        margin-bottom: 40px;
+    }
+}
+
+/* ─── CEO Title: Force single line on mobile ─── */
+@media (max-width: 1023px) {
+    p.tracking-\[-2\.8809px\].text-\[40px\] {
+        font-size: 32px !important;
+        white-space: nowrap;
+        word-spacing: 6px;
+    }
+}
+
+/* ─── Section title p: Remove bottom gap on mobile ─── */
+@media (max-width: 1023px) {
+    p.bg-center.bg-clip-text.bg-cover.bg-no-repeat.font-\[\'Sora\:SemiBold\'\,sans-serif\].font-semibold.leading-\[1\.2\].lg\:leading-\[69\.35px\].relative.shrink-0.text-\[32px\].lg\:text-\[59\.443px\].text-center.tracking-\[-2\.3777px\].w-full {
+        margin-bottom: -40px;
+    }
+}
+
+/* ─── Flex text container: Remove bottom gap on mobile ─── */
+@media (max-width: 1023px) {
+    .flex.flex-col.gap-\[24px\].lg\:gap-\[32px\].items-center.text-center.z-10.px-4.max-w-full {
+        margin-bottom: -40px;
+    }
+}
+
+/* ─── Mobile Hero Carousel: Remove bottom gap ─── */
+@media (max-width: 1023px) {
+    .bg-\[\#020601\].w-full.min-h-\[100svh\].pt-\[8svh\].pb-\[12svh\].flex.flex-col.justify-start.relative.overflow-x-hidden {
+        margin-bottom: -90px;
+    }
+}
+
+/* ─── Services: Reduce gap above section on mobile ─── */
+@media (max-width: 1023px) {
+    div#services {
+        margin-bottom: -50px;
+    }
+    div#roi-calculator {
+        margin-bottom: 30px;
+    }
+}
+
+/* ─── CEO Section: Container top margin on mobile ─── */
+@media (max-width: 1023px) {
+    .relative.flex.flex-col.gap-\[24px\].items-center.text-center.w-full.max-w-\[800px\].px-4 {
+        margin-top: 24px;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+}
+
+/* ─── Mobile Mockup Container: Tighten bottom gap ─── */
+@media (max-width: 1023px) {
+    .lg\:hidden.relative.w-full.h-\[800px\].max-w-\[375px\].mx-auto.overflow-hidden {
+        margin-bottom: -60px;
+    }
+}
+
 /* ─── Accessibility: Reduced Motion ────── */
 @media (prefers-reduced-motion: reduce) {
 
@@ -882,5 +1010,12 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* ─── CEO Section: Hide SVG wires on mobile (replaced by CSS traces in JSX) ─── */
+@media (max-width: 1023px) {
+    .ceo-wire-bg-container {
+        display: none !important;
     }
 }
