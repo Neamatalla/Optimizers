@@ -944,12 +944,16 @@
     }
 }
 
-/* ─── CEO Title: Force single line on mobile ─── */
+/* ─── CEO Title: Fix letter/word spacing on mobile ─── */
 @media (max-width: 1023px) {
-    p.tracking-\[-2\.8809px\].text-\[40px\] {
-        font-size: 32px !important;
-        white-space: nowrap;
-        word-spacing: 6px;
+    .ceo-section p.text-\[28px\] {
+        letter-spacing: -0.5px !important;
+        word-spacing: 2px !important;
+    }
+
+    /* CEO Subtitle: tighten line-height to match other subheadings ─── */
+    .ceo-section p.leading-\[28px\] {
+        line-height: 1.4 !important;
     }
 }
 

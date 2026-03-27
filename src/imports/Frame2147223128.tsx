@@ -1032,10 +1032,13 @@ function Component6() {
 function Frame4() {
   return (
     <div className="flex flex-wrap justify-center gap-y-4 md:gap-[40px] items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2">
-      <div className="w-[50%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+      <div className="w-[33%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
         <div className="scale-[0.8] origin-center md:scale-[1.2]"><Component /></div>
       </div>
-      <div className="w-[50%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
+      <div className="w-[33%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible">
+        <div className="scale-[0.55] origin-center md:scale-[1.0]"><Component6 /></div>
+      </div>
+      <div className="w-[33%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
         <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component1 /></div>
       </div>
       <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
@@ -1049,9 +1052,6 @@ function Frame4() {
       </div>
       <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
         <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component5 /></div>
-      </div>
-      <div className="w-[25%] md:w-auto flex justify-center items-center h-[70px] md:h-auto overflow-visible">
-        <div className="scale-[0.95] origin-center md:scale-[1.0]"><Component6 /></div>
       </div>
     </div>
   );

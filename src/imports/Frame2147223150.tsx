@@ -644,7 +644,7 @@ function MobileCircuitWires() {
       <svg className="lg:hidden absolute inset-y-0 left-0 pointer-events-none"
         width="30" height="100%" viewBox="0 0 30 224"
         preserveAspectRatio="none" overflow="visible"
-        style={{ zIndex: 2 }} aria-hidden="true">
+        style={{ zIndex: 2, opacity: 0.35 }} aria-hidden="true">
         <defs>
           {LP.map((p, i) => (
             <linearGradient key={i} id={`lgl${i}`} x1="30" y1="0" x2="0" y2="0" gradientUnits="userSpaceOnUse">
@@ -665,7 +665,7 @@ function MobileCircuitWires() {
       <svg className="lg:hidden absolute inset-y-0 right-0 pointer-events-none"
         width="30" height="100%" viewBox="0 0 30 224"
         preserveAspectRatio="none" overflow="visible"
-        style={{ zIndex: 2 }} aria-hidden="true">
+        style={{ zIndex: 2, opacity: 0.35 }} aria-hidden="true">
         <defs>
           {RP.map((p, i) => (
             <linearGradient key={i} id={`lgr${i}`} x1="0" y1="0" x2="30" y2="0" gradientUnits="userSpaceOnUse">
