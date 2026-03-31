@@ -16,7 +16,7 @@ const sarPaths = {
 };
 
 const LIFT_OPTIONS = [10, 20, 30, 40, 50];
-const CURRENCIES = ["SAR", "USD", "EGP", "UAD"];
+const CURRENCIES = ["SAR", "USD", "EGP", "AED"];
 
 const defaultValues = {
   currency: "SAR",

@@ -211,8 +211,8 @@ export const arTranslations: Record<string, string> = {
   "New /mo": "الجديد / شهرياً",
   "New number of conversions / Month": "عدد التحويلات الجديدة / شهرياً",
   "Number of conversions per MONTH on average?": "ما متوسط عدد التحويلات شهرياً؟",
-  "Number of conversions per": "عدد التحويلات",
-  "MONTH on average?": "شهرياً في المتوسط؟",
+  "Number of conversions per": "متوسط عدد التحويلات",
+  "MONTH on average?": " شهرياً",
   "E-commerce conversion rate": "معدل تحويل التجارة الإلكترونية",
   "Increase": "زيادة",
   "Projected Monthly Revenue": "الإيرادات الشهرية المتوقعة",
@@ -390,4 +390,7 @@ export const arTranslations: Record<string, string> = {
   "Product details, video reviews.": "تفاصيل المنتج، مراجعات الفيديو.",
   "Optimize mobile shopping experience.": "تحسين تجربة التسوق عبر الجوال.",
   "Mobile checkout flow, retention.": "مسار الدفع عبر الجوال، الاحتفاظ بالعملاء.",
+  "Boost customer retention and repeat rates.": "تعزيز الاحتفاظ بالعملاء ومعدلات الشراء المتكرر.",
+  "Subscription launch, retention, lifecycle.": "إطلاق الاشتراكات، الاحتفاظ بالعملاء، دورة حياة العميل.",
+  "Premium honey brand offering high-quality natural honey focused on daily wellness & immunity support in the US.": "علامة عسل فاخرة تقدم عسلاً طبيعياً عالي الجودة يركز على العافية اليومية ودعم المناعة في أمريكا.",
 };

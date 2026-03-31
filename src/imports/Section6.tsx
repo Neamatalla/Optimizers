@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { motion, useTransform } from "motion/react";
+import { useLanguage } from "../app/contexts/LanguageContext";
 import svgPaths from "@/imports/svg-sec4";
 import imgIPhone17 from "../assets/0a43ad858290e1d9bd5df60d9b2fbfe22e9a50ee.webp";
 import imgProfilePhoto from "../assets/3770d43bacf3cc8cddfa4bb12ed6b2fd0eafe7e0.webp";
@@ -12,6 +13,8 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
     mockupX?: any;
     mockupY?: any;
 }) => {
+    const { language, t } = useLanguage();
+    const isAr = language === 'ar';
     return (
         <div className="relative w-full h-full overflow-hidden" style={{ willChange: 'opacity' }}>
             {/* Background SVG — olive/amber glow for Regal US */}
@@ -58,48 +61,48 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <motion.img alt="" style={{ x: mockupX || 0, y: mockupY || 0, willChange: 'transform' }} className="absolute inset-0 max-w-none object-contain pointer-events-none size-full drop-shadow-[0px_40px_80px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" loading="eager" />
                         </motion.div>
                     </div>
-                    <div className="absolute left-[5.5vw] top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10" style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
+                    <div className={`absolute top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10 ${isAr ? 'right-[5.5vw] items-end text-right' : 'left-[5.5vw] items-start'}`} style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
                         <div className="overflow-hidden w-full">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
-                                <div className="content-stretch flex flex-col gap-[3vh] items-start relative shrink-0 w-full">
-                                    <div className="content-stretch flex gap-[1.5vh] h-auto items-center relative shrink-0 w-full">
+                                <div className={`content-stretch flex flex-col gap-[3vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                    <div className={`content-stretch flex gap-[1.5vh] h-auto items-center relative shrink-0 w-full ${isAr ? 'flex-row-reverse' : ''}`}>
                                         <div className="relative shrink-0 size-[7.3vh] min-w-[50px] min-h-[50px]">
                                             <img alt="" className="block max-w-none size-full" src={imgProfilePhoto} decoding="async" />
                                         </div>
-                                        <div className="content-stretch flex flex-col gap-[1vh] items-start justify-center relative shrink-0">
-                                            <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-auto justify-center leading-[1.2] relative shrink-0 text-[32px] text-white tracking-[-0.02em] w-full"><p>Regal Honey US</p></div>
+                                        <div className={`content-stretch flex flex-col gap-[1vh] justify-center relative shrink-0 ${isAr ? 'items-end' : 'items-start'}`}>
+                                            <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-auto justify-center leading-[1.2] relative shrink-0 text-[32px] text-white tracking-[-0.02em] w-full"><p>{t('Regal Honey US')}</p></div>
                                             <div className="bg-[rgba(107,100,72,0.15)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
-                                                <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[#e8cf98] text-[14px]">Food & Beverage</p>
+                                                <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[#e8cf98] text-[14px]">{t('Food & Beverage')}</p>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="content-stretch flex items-center justify-center relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-normal leading-relaxed relative shrink-0 text-[18px] text-white w-full">Premium honey brand offering high-quality natural honey focused on daily wellness & immunity support in the US.</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-relaxed relative shrink-0 text-[18px] text-white w-full">{t('Premium honey brand offering high-quality natural honey focused on daily wellness & immunity support in the US.')}</p>
                                     </div>
                                 </div>
                             </motion.div>
                         </div>
                         <div className="overflow-hidden w-[20vw] min-w-[250px]">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
-                                <div className="content-stretch flex flex-col gap-[2.4vh] items-start relative shrink-0 w-full">
-                                    <div className="content-stretch flex flex-col gap-[0.8vh] items-start relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#e8cf98] text-[18px]">Our Goal:</p>
-                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">Boost customer retention and repeat rates.</p>
+                                <div className={`content-stretch flex flex-col gap-[2.4vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                    <div className={`content-stretch flex flex-col gap-[0.8vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#e8cf98] text-[18px]">{t('Our Goal:')}</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">{t('Boost customer retention and repeat rates.')}</p>
                                     </div>
-                                    <div className="content-stretch flex flex-col gap-[0.8vh] items-start relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#e8cf98] text-[18px]">Areas of Improvement:</p>
-                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">Subscription launch, retention, lifecycle.</p>
+                                    <div className={`content-stretch flex flex-col gap-[0.8vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#e8cf98] text-[18px]">{t('Areas of Improvement:')}</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">{t('Subscription launch, retention, lifecycle.')}</p>
                                     </div>
                                 </div>
                             </motion.div>
                         </div>
                     </div>
-                    <div className="absolute right-[5.5vw] top-[40vh] w-[18vw] min-w-[220px] z-10 overflow-hidden" style={{ pointerEvents: "auto" }}>
+                    <div className={`absolute top-[40vh] w-[18vw] min-w-[220px] z-10 overflow-hidden ${isAr ? 'left-[5.5vw]' : 'right-[5.5vw]'}`} style={{ pointerEvents: "auto" }}>
                         <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
-                            <div className="content-stretch flex flex-col gap-[4.8vh] items-start relative shrink-0 w-full">
-                                <div className="content-stretch flex flex-col gap-[0.8vh] items-start justify-center relative shrink-0 w-full">
+                            <div className={`content-stretch flex flex-col gap-[4.8vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                <div className={`content-stretch flex flex-col gap-[0.8vh] justify-center relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
                                     <p className="font-['Sora',sans-serif] font-semibold leading-tight relative shrink-0 text-[#e8cf98] text-[48px] tracking-[-0.04em]">+60%</p>
-                                    <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">Customer retention</p>
+                                    <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">{t('Customer retention')}</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -108,35 +111,35 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
 
                 {/* ═══ MOBILE LAYOUT ═══ */}
                 <div className="lg:hidden absolute inset-0 flex flex-col items-center px-5 pt-[6vh] pb-6 gap-3 w-full pointer-events-auto overflow-y-auto">
-                    <div className="flex items-center gap-3 w-full max-w-[320px]">
+                    <div className={`flex items-center gap-3 w-full max-w-[320px] ${isAr ? 'flex-row-reverse' : ''}`}>
                         <div className="relative shrink-0 size-[44px]">
                             <img alt="" className="block max-w-none size-full rounded-full" src={imgProfilePhoto} decoding="async" />
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                            <p className="font-['Sora',sans-serif] font-semibold text-[18px] text-white tracking-[-0.02em] leading-[1.2]">Regal Honey US</p>
+                        <div className={`flex flex-col gap-0.5 ${isAr ? 'items-end' : ''}`}>
+                            <p className="font-['Sora',sans-serif] font-semibold text-[18px] text-white tracking-[-0.02em] leading-[1.2]">{t('Regal Honey US')}</p>
                             <div className="bg-[rgba(107,100,72,0.15)] flex items-center justify-center px-[8px] py-[3px] rounded-[100px] w-fit">
-                                <p className="font-['Sora',sans-serif] font-normal text-[11px] text-[#e8cf98]">Food & Beverage</p>
+                                <p className="font-['Sora',sans-serif] font-normal text-[11px] text-[#e8cf98]">{t('Food & Beverage')}</p>
                             </div>
                         </div>
                     </div>
-                    <p className="font-['Sora',sans-serif] font-normal leading-relaxed text-[13px] text-white/80 text-center max-w-[320px]">Premium honey brand offering high-quality natural honey focused on daily wellness & immunity support in the US.</p>
+                    <p className={`font-['Sora',sans-serif] font-normal leading-relaxed text-[13px] text-white/80 text-center max-w-[320px]`}>{t('Premium honey brand offering high-quality natural honey focused on daily wellness & immunity support in the US.')}</p>
                     <div className="w-[55vw] max-w-[240px] aspect-[9/16] relative shrink-0">
                         <img alt="" className="w-full h-full object-contain drop-shadow-[0px_20px_40px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" />
                     </div>
                     <div className="flex gap-6 w-full max-w-[320px] justify-center">
                         <div className="flex flex-col gap-0.5 items-center">
                             <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[26px] tracking-[-0.04em] leading-tight">+60%</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">Customer retention</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">{t('Customer retention')}</p>
                         </div>
                     </div>
-                    <div className="flex gap-6 w-full max-w-[320px]">
-                        <div className="flex flex-col gap-0.5 flex-1">
-                            <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[13px]">Our Goal:</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">Boost customer retention and repeat rates.</p>
+                    <div className={`flex gap-6 w-full max-w-[320px] ${isAr ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex flex-col gap-0.5 flex-1 ${isAr ? 'text-right' : ''}`}>
+                            <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[13px]">{t('Our Goal:')}</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">{t('Boost customer retention and repeat rates.')}</p>
                         </div>
-                        <div className="flex flex-col gap-0.5 flex-1">
-                            <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[13px]">Areas of Improvement:</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">Subscription launch, retention, lifecycle.</p>
+                        <div className={`flex flex-col gap-0.5 flex-1 ${isAr ? 'text-right' : ''}`}>
+                            <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[13px]">{t('Areas of Improvement:')}</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">{t('Subscription launch, retention, lifecycle.')}</p>
                         </div>
                     </div>
                 </div>

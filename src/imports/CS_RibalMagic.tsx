@@ -360,7 +360,7 @@ function Frame7({ status }: { status?: 'past' | 'active' | 'future' }) {
   const { t } = useLanguage();
   const yPos = status === 'active' ? '0%' : status === 'past' ? '-100%' : '100%';
   return (
-    <div className="content-stretch flex flex-col gap-[px] items-start relative shrink-0 w-full">
+    <div className="content-stretch flex flex-col gap-[6px] items-start relative shrink-0 w-full">
       <div className="overflow-hidden w-full">
         <motion.p 
           initial={{ y: "100%" }}

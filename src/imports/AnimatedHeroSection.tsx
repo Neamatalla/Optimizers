@@ -337,7 +337,9 @@ export default function AnimatedHeroSection() {
                                                         letterSpacing: language === 'ar' ? '0' : '0.05em',
                                                         color: '#ffffff',
                                                         paddingRight: '60px',
-                                                        direction: 'ltr' // Keep the name flow consistent for logo-like feel, or remove if unwanted
+                                                        direction: 'ltr', // Keep the name flow consistent for logo-like feel, or remove if unwanted
+                                                        paddingTop: language === 'ar' ? '4px' : 0,
+                                                        paddingBottom: language === 'ar' ? '4px' : 0
                                                     }}
                                                 >
                                                     {t(c.name)}
@@ -349,7 +351,7 @@ export default function AnimatedHeroSection() {
                             </div>
 
                             {/* Card content — dynamic vertical padding */}
-                            <div className="relative z-[1] pt-[30svh] pb-[6svh] px-5">
+                            <div className="relative z-[1] pb-[6svh] px-5 pt-[30svh]">
 
                                 {/* Goals and Improvement */}
                                 <div className="grid mb-5" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
@@ -410,7 +412,7 @@ export default function AnimatedHeroSection() {
                                 {/* Pagination and Arrows */}
                                 <div className={`flex items-center justify-between pt-5 ${language === 'ar' ? 'flex-row-reverse' : ''}`}>
                                     <button
-                                        onClick={() => goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1)}
+                                        onClick={() => language === 'ar' ? goToSlide((activeSlide + 1) % sections.length) : goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1)}
                                         className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: `${clientData[activeSlide].accentColor}40`, transition: 'background-color 800ms ease' }}
                                         aria-label="Previous slide"
@@ -437,7 +439,7 @@ export default function AnimatedHeroSection() {
                                     </div>
 
                                     <button
-                                        onClick={() => goToSlide((activeSlide + 1) % sections.length)}
+                                        onClick={() => language === 'ar' ? goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1) : goToSlide((activeSlide + 1) % sections.length)}
                                         className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: `${clientData[activeSlide].accentColor}40`, transition: 'background-color 800ms ease' }}
                                         aria-label="Next slide"

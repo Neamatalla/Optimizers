@@ -101,7 +101,8 @@ function StepWrapper({ num, title, subtitle, currentStep, maxStepReached, onStep
 }
 
 function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; isCurrent: boolean; isActive: boolean; onClick: () => void }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isRTL = language === 'ar';
   const borderColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
   const textColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
   const labelColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
@@ -115,7 +116,7 @@ function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; 
       <div className="flex items-center justify-center rounded-full size-[26px]" style={{ border: `1px solid ${borderColor}` }}>
         <span className="font-['Sora:Regular',sans-serif] font-normal text-[11px] text-center leading-none" style={{ color: textColor }}>{num}</span>
       </div>
-      <span className="font-['Sora:Regular',sans-serif] font-normal text-[7px] leading-[9px] text-center break-words w-full px-[2px]" style={{ color: labelColor }}>{labels[num]}</span>
+      <span className="font-['Sora:Regular',sans-serif] font-normal text-center break-words w-full px-[2px] text-[11px] leading-[13px]" style={{ color: labelColor }}>{labels[num]}</span>
     </div>
   );
 }
@@ -185,7 +186,7 @@ const MobileRadio = ({ isSelected }: { isSelected: boolean }) => (
 );
 
 const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: boolean, onClick: () => void }) => (
-  <div onClick={onClick} className={`min-h-[78px] lg:min-h-[150px] py-1.5 lg:py-2 relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? 'linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777' : '#777' }}>
+  <div onClick={onClick} className={`flex flex-col justify-center min-h-[78px] lg:min-h-[150px] py-1.5 lg:py-2 relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full lg:w-[300px] cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[0.97]' : 'lg:hover:scale-[1.02]'}`} style={{ background: isSelected ? 'linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777' : '#777' }}>
     {/* Mobile layout: radio inline-left of text */}
     <div className="flex lg:hidden flex-row gap-[12px] items-center justify-start p-[16px] rounded-[inherit] w-full min-h-full">
       <MobileRadio isSelected={isSelected} />

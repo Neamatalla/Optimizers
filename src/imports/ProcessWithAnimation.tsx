@@ -164,7 +164,7 @@ export default function ProcessWithAnimation() {
 
                 {/* Before Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px]">
-                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[48px] lg:text-[140px] text-[rgba(255,255,255,0.2)] text-center tracking-normal -mb-[24px] lg:-mb-[82px] relative z-0 self-center">{t('Before')}</p>
+                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[48px] lg:text-[140px] text-[rgba(255,255,255,0.2)] text-center tracking-normal -mb-[24px] rtl:-mb-[22px] lg:-mb-[82px] lg:rtl:-mb-[82px] relative z-0 self-center">{t('Before')}</p>
                     
                     {/* Responsive container for the animated card */}
                     <div className="relative z-10 w-full overflow-visible">
@@ -183,7 +183,7 @@ export default function ProcessWithAnimation() {
 
                 {/* After Card */}
                 <div className="flex flex-col items-center relative w-full lg:w-auto max-w-[570px] mt-6 lg:mt-0">
-                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[48px] lg:text-[140px] text-[rgba(255,255,255,0.2)] text-center tracking-normal -mb-[24px] lg:-mb-[82px] relative z-0 self-center">{t('After')}</p>
+                    <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[48px] lg:text-[140px] text-[rgba(255,255,255,0.2)] text-center tracking-normal -mb-[24px] rtl:-mb-[22px] lg:-mb-[82px] lg:rtl:-mb-[82px] relative z-0 self-center">{t('After')}</p>
                     
                     {/* Responsive container for the animated card */}
                     <div className="relative z-10 w-full overflow-visible">

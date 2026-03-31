@@ -122,3 +122,11 @@ body.lang-ar .service-card-glow {
     right: auto;
     left: -100px;
 }
+
+/* ── Case Study: Arabic mobile — spacing between "النتائج" label and metrics ── */
+@media (max-width: 1023px) {
+    /* CS_* components: the Results block is the last gap-[6px] child inside gap-[12px] — increase its gap */
+    body.lang-ar .cs-mobile-slide-wrapper [class*="gap-[12px]"] > [class*="gap-[6px]"]:last-child {
+        gap: 10px !important;
+    }
+}

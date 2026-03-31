@@ -118,15 +118,6 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* ── Mobile Animation Tokens (< 1024px) ── */
-  @media (max-width: 1023.98px) {
-    --mob-dur-fast: 150ms;
-    --mob-dur-normal: 300ms;
-    --mob-dur-slow: 500ms;
-    --mob-dur-extra-slow: 800ms;
-    --mob-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
@@ -188,6 +179,17 @@
     50% {
       transform: translate(6px, -5px);
     }
+  }
+}
+
+/* ── Mobile Animation Tokens (< 1024px) ── */
+@media (max-width: 1023.98px) {
+  :root {
+    --mob-dur-fast: 150ms;
+    --mob-dur-normal: 300ms;
+    --mob-dur-slow: 500ms;
+    --mob-dur-extra-slow: 800ms;
+    --mob-ease: cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 

@@ -24,7 +24,7 @@ export default function AnimatedCaseStudies() {
     // ── Refs ──
     const desktopRef = useRef<HTMLDivElement>(null);
     const mobileContainerRef = useRef<HTMLDivElement>(null);
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     // ── Mobile detection ──
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1100 : false);
@@ -209,21 +209,24 @@ export default function AnimatedCaseStudies() {
         if (!isMobile) return;
         
         if (gateIsTriggered) {
-            // Gate opening (1.5s total as requested)
-            animate(gateY_Top_Time, -viewportHeight * 0.6, { duration: 1.5, ease: MOB_EASE });
-            animate(gateY_Bot_Time, viewportHeight * 0.6, { duration: 1.5, ease: MOB_EASE });
-            
-            // Fade out title
-            animate(titleOpacity_Time, 0, { duration: MOB_DURATIONS.slow, delay: 0.5, ease: MOB_EASE });
-            animate(titleScale_Time, 0.9, { duration: MOB_DURATIONS.slow, delay: 0.5, ease: MOB_EASE });
+            const initialDelay = 2; // Extra 2 seconds for both 'ar' and 'en'
 
-            // Fade out gate core near the end
-            animate(gateOpacity_Time, 0, { duration: MOB_DURATIONS.slow, delay: 1.0, ease: MOB_EASE });
+            // Gate opening (1.5s total as requested) without delay
+            // Moving 0.38vH instead of 0.45vH keeps the light bars visible closer to the middle
+            animate(gateY_Top_Time, -viewportHeight * 0.38, { duration: 1.5, ease: MOB_EASE });
+            animate(gateY_Bot_Time, viewportHeight * 0.38, { duration: 1.5, ease: MOB_EASE });
+            
+            // Fade out title (delayed)
+            animate(titleOpacity_Time, 0, { duration: MOB_DURATIONS.slow, delay: initialDelay + 0.5, ease: MOB_EASE });
+            animate(titleScale_Time, 0.9, { duration: MOB_DURATIONS.slow, delay: initialDelay + 0.5, ease: MOB_EASE });
+
+            // Fade out gate light bars simultaneously with the title
+            animate(gateOpacity_Time, 0, { duration: MOB_DURATIONS.slow, delay: initialDelay + 0.5, ease: MOB_EASE });
 
             // Show first slide after animation completes
             const t = setTimeout(() => {
                 setActiveMobileIndex_M(0);
-            }, 1500);
+            }, (1.5 + initialDelay) * 1000);
             return () => clearTimeout(t);
         } else {
             // RESET EVERYTHING when out of view
@@ -234,7 +237,7 @@ export default function AnimatedCaseStudies() {
             titleScale_Time.set(1);
             setActiveMobileIndex_M(-1);
         }
-    }, [gateIsTriggered, isMobile, viewportHeight, gateY_Top_Time, gateY_Bot_Time, gateOpacity_Time, titleOpacity_Time, titleScale_Time]);
+    }, [gateIsTriggered, isMobile, viewportHeight, gateY_Top_Time, gateY_Bot_Time, gateOpacity_Time, titleOpacity_Time, titleScale_Time, language]);
 
     // Handle slide element translations (Top Clients style)
     useEffect(() => {
@@ -328,7 +331,7 @@ export default function AnimatedCaseStudies() {
                         
                         return (
                         <div 
-                            className={`cs-mobile-arrows-container flex items-center justify-between pt-5 ${t('dir') === 'rtl' ? 'flex-row-reverse' : ''}`}
+                            className={`cs-mobile-arrows-container flex items-center justify-between pt-5 ${language === 'ar' ? 'flex-row-reverse' : ''}`}
                             style={{ 
                                 position: 'absolute', 
                                 bottom: '0', 
@@ -341,7 +344,7 @@ export default function AnimatedCaseStudies() {
                             }}
                         >
                             <button
-                                onClick={handlePrevMobile}
+                                onClick={language === 'ar' ? handleNextMobile : handlePrevMobile}
                                 className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
                                 style={{ 
                                     backgroundColor: hoverBg, 
@@ -352,7 +355,7 @@ export default function AnimatedCaseStudies() {
                                 }}
                                 aria-label="Previous slide"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                                     <polyline points="15 18 9 12 15 6"></polyline>
                                 </svg>
                             </button>
@@ -375,7 +378,7 @@ export default function AnimatedCaseStudies() {
                             </div>
 
                             <button
-                                onClick={handleNextMobile}
+                                onClick={language === 'ar' ? handlePrevMobile : handleNextMobile}
                                 className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
                                 style={{ 
                                     backgroundColor: hoverBg, 
@@ -386,7 +389,7 @@ export default function AnimatedCaseStudies() {
                                 }}
                                 aria-label="Next slide"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>

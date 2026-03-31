@@ -1033,7 +1033,7 @@ function Frame4() {
   return (
     <div className="flex flex-wrap justify-center gap-y-4 md:gap-[40px] items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2">
       <div className="w-[33%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[0.8] origin-center md:scale-[1.2]"><Component /></div>
+        <div className="scale-[0.55] origin-center md:scale-[1.2]"><Component /></div>
       </div>
       <div className="w-[33%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible">
         <div className="scale-[0.55] origin-center md:scale-[1.0]"><Component6 /></div>
@@ -1434,13 +1434,11 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
             document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
             onClose();
           }}
-          className="w-full py-4 rounded-full font-['Sora',sans-serif] font-semibold text-[16px] tracking-[-0.01em] transition-all active:scale-[0.98]"
-          style={{
-            background: 'white',
-            color: '#020601',
-          }}
+          className="w-full flex items-center justify-center relative rounded-[100px] bg-[#020601] font-['Sora',sans-serif] font-semibold text-[16px] text-white tracking-[-0.01em] transition-all active:scale-[0.98] py-4"
         >
-          Get Free Audit
+          <div aria-hidden="true" className="absolute border border-[#6ae499] border-solid inset-0 pointer-events-none rounded-[100px]" />
+          <div className="absolute inset-0 pointer-events-none rounded-[100px]" style={{ boxShadow: 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)' }} />
+          <span className="relative z-10">{t('Get Free Audit')}</span>
         </button>
       </div>
     </div>
