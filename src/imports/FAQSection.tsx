@@ -135,13 +135,13 @@ export default function FAQSection() {
                                 />
 
                                 <AccordionTrigger className="flex items-center justify-between gap-[8px] lg:gap-4 w-full p-[16px] lg:p-[32px] hover:no-underline [&[data-state=open]>svg]:rotate-180 [&>svg]:size-5 lg:[&>svg]:size-8 [&>svg]:text-white [&[data-state=open]_.question-text]:text-white text-white font-['Sora',sans-serif] cursor-pointer">
-                                    <div className="question-text text-[16px] lg:text-[24px] font-semibold lg:font-bold leading-[24px] lg:leading-tight text-left transition-colors duration-300">
+                                    <div className="question-text text-[16px] lg:text-[24px] font-semibold lg:font-bold leading-[24px] lg:leading-tight ltr:text-left rtl:text-right text-start transition-colors duration-300">
                                         {faq.question}
                                     </div>
                                 </AccordionTrigger>
 
                                 <AccordionContent className="w-full pb-[16px] lg:pb-[32px] px-[16px] lg:px-[32px] pt-0">
-                                    <div className="text-[14px] lg:text-[18px] font-normal leading-[19px] lg:leading-relaxed text-[rgba(255,255,255,0.7)] text-left font-['Sora',sans-serif]">
+                                    <div className="text-[14px] lg:text-[18px] font-normal leading-[19px] lg:leading-relaxed text-[rgba(255,255,255,0.7)] ltr:text-left rtl:text-right text-start font-['Sora',sans-serif]">
                                         {faq.answer}
                                     </div>
                                 </AccordionContent>

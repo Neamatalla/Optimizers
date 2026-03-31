@@ -61,7 +61,7 @@
   cursor: pointer;
   box-shadow: inset 0px 0px 30px 0px rgba(106, 228, 153, 0.6);
   font-family: 'Sora', sans-serif;
-  transition: all 0.3s ease;
+  transition: all var(--mob-duration-normal) var(--mob-ease);
 }
 
 .audit-button:hover {
@@ -153,6 +153,10 @@
   height: 150px;
   pointer-events: none;
   opacity: 0.7;
+}
+
+.service-card-glow {
+  right: -100px;
 }
 
 /* Responsive Rules for Mobile/Tablet/Desktop */

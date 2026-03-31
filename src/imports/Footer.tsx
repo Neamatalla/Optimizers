@@ -110,7 +110,7 @@ function Component6239Ba0290D29F5D0A709E8BFacebookSvg1() {
 
 function Link1() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.facebook.com/">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.facebook.com/share/17iBS8fjvJ/">
       <Component6239Ba0290D29F5D0A709E8BFacebookSvg1 />
     </a>
   );
@@ -144,7 +144,7 @@ function Component6239Ba027A3Bbd1Ec055Fda8TwitterSvg1() {
 
 function Link2() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.twitter.com/">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://x.com/optimizersCRO/">
       <Component6239Ba027A3Bbd1Ec055Fda8TwitterSvg1 />
     </a>
   );
@@ -180,7 +180,7 @@ function Component6239Ba027547Cf7Eb7430709LinkedinSvg1() {
 
 function Link3() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.linkedin.com/">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.linkedin.com/company/optimizersagency">
       <Component6239Ba027547Cf7Eb7430709LinkedinSvg1 />
     </a>
   );
@@ -216,7 +216,7 @@ function Component6239Ba03Ad9611637A539Ec3InstagramSvg1() {
 
 function Link4() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.instagram.com/">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05">
       <Component6239Ba03Ad9611637A539Ec3InstagramSvg1 />
     </a>
   );
@@ -380,7 +380,7 @@ function Frame11() {
     <div className="content-stretch flex gap-[8px] items-start relative shrink-0">
       <CommunicationCall />
       <div className="flex flex-col font-['Sora:Regular',sans-serif] font-normal justify-center leading-[0] relative self-stretch shrink-0 text-[14px] text-white w-[115px]">
-        <p className="css-4hzbpn leading-[17px]">+971 564800881</p>
+        <p className="css-4hzbpn leading-[17px]" dir="ltr">+971 564800881</p>
       </div>
     </div>
   );
@@ -404,7 +404,7 @@ function Frame12() {
     <div className="content-stretch flex gap-[8px] items-start relative shrink-0">
       <CommunicationCall1 />
       <div className="flex flex-col font-['Sora:Regular',sans-serif] font-normal justify-center leading-[0] relative self-stretch shrink-0 text-[14px] text-white w-[120px]">
-        <p className="css-4hzbpn leading-[17px]">+2 01021001000</p>
+        <p className="css-4hzbpn leading-[17px]" dir="ltr">+20 1021001000</p>
       </div>
     </div>
   );

@@ -128,7 +128,7 @@ function StepperInput({
           onChange={handleChange}
           className="bg-transparent text-center text-white font-['Sora'] font-semibold text-[14px] lg:text-[16px] focus:outline-none w-full px-2"
         />
-        {suffix && <span className="text-white/60 font-semibold text-[14px] shrink-0 pr-2">{suffix}</span>}
+        {suffix && <span className="text-white/60 font-semibold text-[14px] shrink-0 px-2">{suffix}</span>}
       </div>
     </div>
   );
@@ -137,7 +137,7 @@ function StepperInput({
 
 // ─── Main Calculator content ───
 function CalculatorContent() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [currency, setCurrency] = useState(defaultValues.currency);
   const [monthlyUsers, setMonthlyUsers] = useState(defaultValues.monthlyUsers);
   const [currentCR, setCurrentCR] = useState(defaultValues.currentCR);
@@ -291,8 +291,8 @@ function CalculatorContent() {
       {/* ─── Additional metrics row ─── */}
       <div className="flex items-start justify-between w-[94%] md:w-[90%] lg:w-full max-w-[350px] md:max-w-[800px] lg:max-w-[780px]">
         {/* Additional Revenue */}
-        <div className="flex flex-col gap-[4px] lg:gap-3 items-start">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">{t('Additional Revenue')}</p>
+        <div className={`flex flex-col gap-[4px] lg:gap-3 ${language === 'ar' ? 'items-start' : 'items-start'}`}>
+          <p className={`font-['Sora'] font-normal text-[12px] lg:text-[16px] text-white tracking-[-0.12px] ${language === 'ar' ? 'text-right' : 'text-center'}`}>{t('Additional Revenue')}</p>
           <div className="flex items-center gap-[8px] lg:gap-3">
             <p className="font-['Sora'] font-semibold text-[20px] lg:text-[40px] text-[#6ae499] tracking-[-0.8px] lg:tracking-[-1px] leading-none">
               +{fmt(results.additionalRevenue)}
@@ -306,8 +306,8 @@ function CalculatorContent() {
         </div>
 
         {/* Additional Orders */}
-        <div className="flex flex-col gap-[4px] lg:gap-3 items-end lg:items-start">
-          <p className="font-['Sora'] font-normal text-[12px] lg:text-[16px] text-center text-white tracking-[-0.12px]">{t('Additional Orders')}</p>
+        <div className={`flex flex-col gap-[4px] lg:gap-3 ${language === 'ar' ? 'items-start max-md:!items-start' : 'items-end lg:items-start'}`}>
+          <p className={`font-['Sora'] font-normal text-[12px] lg:text-[16px] text-white tracking-[-0.12px] ${language === 'ar' ? 'text-right' : 'text-center'}`}>{t('Additional Orders')}</p>
           <div className="flex items-center gap-[8px] lg:gap-2 text-white">
             <p className="font-['Sora'] font-semibold text-[20px] lg:text-[40px] tracking-[-0.8px] lg:tracking-[-1px] leading-none">
               +{fmt(results.additionalOrders)}
@@ -346,13 +346,13 @@ function CalculatorContent() {
         </div>
 
         {/* Bar */}
-        <div className="relative h-[8px] lg:h-[12px] w-full rounded-[300px] bg-[#505150] overflow-hidden">
+        <div className={`relative h-[8px] lg:h-[12px] w-full rounded-[300px] bg-[#505150] overflow-hidden ${language === 'ar' ? 'transform scale-x-[-1]' : ''}`}>
           {/* Base portion (grey-blue) */}
           <div
             className="absolute left-0 top-0 h-full rounded-[300px] transition-all duration-500"
             style={{
               width: `${results.progressFraction * 100}%`,
-              background: "linear-gradient(90deg, #494e55, #6e7470)",
+              background: language === 'ar' ? "linear-gradient(-90deg, #494e55, #6e7470)" : "linear-gradient(90deg, #494e55, #6e7470)",
             }}
           />
           {/* Projected extension (green) */}
@@ -367,7 +367,7 @@ function CalculatorContent() {
           />
         </div>
 
-        <p className="font-['Sora'] font-normal text-[12px] lg:text-[14px] text-white/40 text-center">
+        <p className={`font-['Sora'] font-normal text-[12px] lg:text-[14px] text-white/40 ${language === 'ar' ? 'text-right' : 'text-center'}`}>
           {t('Tap values to recalculate')}
         </p>
       </div>

@@ -1075,7 +1075,7 @@ export default function MeetTheTeam() {
                     height: window.innerWidth >= 768 ? `${800 * Math.min(window.innerWidth / 400, 1.8)}px` : '800px'
                 }}
             >
-                <p className="absolute top-[40px] left-1/2 -translate-x-1/2 w-[335px] text-center font-['Sora',sans-serif] font-semibold text-[46px] leading-[48px] tracking-[-1.84px] bg-clip-text text-transparent bg-gradient-to-b from-[rgba(255,255,255,0.6)] to-[rgba(20,23,19,0.5)] z-10">
+                <p className="absolute top-[40px] left-1/2 -translate-x-1/2 w-[335px] text-center font-['Sora',sans-serif] font-semibold text-[46px] leading-[48px] tracking-[-1.84px] bg-clip-text text-transparent bg-gradient-to-b from-[rgba(255,255,255,0.6)] to-[rgba(20,23,19,0.5)] z-0">
                     {t('Meet The Team')}
                 </p>
                 <MobileSafer />

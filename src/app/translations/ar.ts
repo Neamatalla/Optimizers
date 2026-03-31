@@ -101,6 +101,7 @@ export const arTranslations: Record<string, string> = {
   "Ribal Magic": "ريبال ماجيك",
   "Honey Industry": "قطاع العسل",
   "Regal Honey": "ريجال هني",
+  "Regal Honey US": "ريجال هني (أمريكا)",
   "Furniture Industry": "قطاع الأثاث",
   "Vitrine Furniture": "فيترين للأثاث",
 
@@ -191,7 +192,7 @@ export const arTranslations: Record<string, string> = {
   "Currency": "العملة",
   "SAR": "ر.س",
   "USD": "دولار",
-  "EGP": "جنيه مصري",
+  "EGP": "ج.م",
   "UAD": "درهم",
   "AED": "د.إ",
   "visits": "زيارة",

@@ -85,7 +85,7 @@ interface ServiceCardProps {
 
 function CardGlow() {
   return (
-    <div className="absolute right-[-100px] top-[-50px] w-[450px] h-[340px] pointer-events-none opacity-60">
+    <div className="service-card-glow absolute top-[-50px] w-[450px] h-[340px] pointer-events-none opacity-60">
       <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 450.537 338.494">
         <g id="Frame 2147223090">
           <g filter="url(#filter0_f_1_15933_card)" id="Ellipse 1224">

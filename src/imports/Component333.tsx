@@ -2110,7 +2110,7 @@ function MobileWhyChooseCards() {
         return (
           <div
             key={i}
-            className="relative rounded-[16px] overflow-hidden p-[1.143px] h-[240px]"
+            className="relative rounded-[16px] overflow-hidden p-[1.143px] h-full min-h-[200px]"
             style={{
               opacity: isVisible ? 1 : 0,
               transform: isVisible ? 'translateY(0)' : 'translateY(30px)',
@@ -2138,7 +2138,7 @@ function MobileWhyChooseCards() {
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black rounded-[15px]" />
               {/* Card content */}
-              <div className="relative z-10 flex flex-col items-center justify-start gap-3 text-center px-3 h-full pt-4">
+              <div className="relative z-10 flex flex-col items-center justify-start gap-3 text-center px-3 h-full pt-4 pb-4">
                 <div className="scale-[0.5] origin-center shrink-0 -my-4">
                   <Icon />
                 </div>

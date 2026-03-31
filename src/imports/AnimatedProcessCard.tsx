@@ -96,15 +96,19 @@ function AnimatedLabel({ children, angle, colorIndex, isActive, cx, cy, r, scale
 
 /* ── Main card ── */
 export function AnimatedProcessCard({ sectionVisible = false }: { sectionVisible?: boolean }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const scale = useContext(CardScaleContext);
   const [rotation, setRotation] = useState(0);
 
+  // Helper to keep angles in [0, 360)
+  const normalize = (a: number) => ((a % 360) + 360) % 360;
+
   useEffect(() => {
     if (!sectionVisible) return;
-    const id = setInterval(() => setRotation(prev => prev + 60), 2000);
+    const increment = language === 'ar' ? -60 : 60;
+    const id = setInterval(() => setRotation(prev => prev + increment), 2000);
     return () => clearInterval(id);
-  }, [sectionVisible]);
+  }, [sectionVisible, language]);
 
   // ── Dimensions scaled natively — NO CSS transform on the card ──
   const W  = Math.round(570 * scale);
@@ -116,16 +120,17 @@ export function AnimatedProcessCard({ sectionVisible = false }: { sectionVisible
   const ringSize = Math.round(350 * scale);
   const br = Math.round(43 * scale);
 
+  const isAr = language === 'ar';
   const labels = [
     { name: 'Discovery',      baseAngle: 270 },
-    { name: 'Research',       baseAngle: 210 },
-    { name: 'Ideation',       baseAngle: 150 },
+    { name: 'Research',       baseAngle: isAr ? 330 : 210 },
+    { name: 'Ideation',       baseAngle: isAr ? 30  : 150 },
     { name: 'Prioritization', baseAngle: 90  },
-    { name: 'Experimentation',baseAngle: 30  },
-    { name: 'Results',        baseAngle: 330 },
+    { name: 'Experimentation',baseAngle: isAr ? 150 : 30  },
+    { name: 'Results',        baseAngle: isAr ? 210 : 330 },
   ];
 
-  const topIdx = labels.findIndex(l => Math.abs((l.baseAngle + rotation) % 360 - 270) < 1);
+  const topIdx = labels.findIndex(l => Math.abs(normalize(l.baseAngle + rotation) - 270) < 1);
   const activeIndex = topIdx !== -1 ? topIdx : 0;
 
   return (

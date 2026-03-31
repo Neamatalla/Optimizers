@@ -4,7 +4,7 @@ export default function ScrollToTopButton() {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        const heroSection = document.querySelector(".header-scroll-container");
+        const heroSection = document.querySelector(".header-scroll-container, .mobile-hero-container");
         if (!heroSection) return;
 
         const observer = new IntersectionObserver(

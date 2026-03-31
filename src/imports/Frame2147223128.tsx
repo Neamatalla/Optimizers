@@ -1127,8 +1127,8 @@ function HeaderVideo() {
 
 function Frame3() {
   return (
-    <div className="h-[22px] relative shrink-0" style={{ width: 'clamp(100px, 25vw, 151px)' }}>
-      <svg className="block h-full w-auto" fill="none" viewBox="0 0 150.998 22">
+    <div className="w-[120px] md:w-[151px] relative shrink-0 flex items-center">
+      <svg className="block w-full h-auto" fill="none" viewBox="0 0 151 22">
         <g id="Frame 2131328421">
           <path d={svgPaths.p22963780} fill="var(--fill-0, white)" id="Vector" />
           <path d={svgPaths.pd2f9600} fill="var(--fill-0, white)" id="Vector_2" />
@@ -1151,7 +1151,7 @@ function Frame3() {
 function Links() {
   const { t } = useLanguage();
   return (
-    <div className="content-stretch flex font-normal gap-[20px] items-start leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)]" data-name="Links">
+    <div className="content-stretch hidden lg:flex font-normal gap-[20px] items-start leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)]" data-name="Links">
       <p className="font-['Sora:Regular',sans-serif] relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>{t('Services')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>{t('ROI Calculator')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>{t('Case Studies')}</p>
@@ -1275,7 +1275,8 @@ function DivBtnLabel() {
 }
 
 function Link() {
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  const { t } = useLanguage();
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
@@ -1286,13 +1287,18 @@ function Link() {
     ? 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
     : 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)';
   return (
-    <div className="bg-[#020601] h-[40px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform tap-feedback" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
-      <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[16px] md:px-[28px] py-[12px] relative rounded-[inherit]">
+    <a
+      className="bg-[#020601] h-[40px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform tap-feedback flex"
+      data-name="Link"
+      id="roi-link"
+      href="https://6a74zswov7q.typeform.com/to/unA1fV6H"
+    >
+      <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[12px] md:px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
       </div>
       <div aria-hidden="true" className="absolute border border-[#6ae499] border-solid inset-0 pointer-events-none rounded-[100px]" />
       <div className="absolute inset-0 pointer-events-none rounded-[100px]" style={{ boxShadow: glowShadow }} />
-    </div>
+    </a>
   );
 }
 
@@ -1341,8 +1347,8 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       {/* Header: Logo + Close */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-7">
         {/* Logo */}
-        <div className="h-[22px] w-auto">
-          <svg className="block h-full w-auto" fill="none" viewBox="0 0 150.998 22">
+        <div className="w-[120px]">
+          <svg className="block w-full h-auto" fill="none" viewBox="0 0 150.998 22">
             <path d={svgPaths.p22963780} fill="white" />
             <path d={svgPaths.pd2f9600} fill="white" />
             <path d={svgPaths.p10199c10} fill="white" />
@@ -1403,10 +1409,10 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         {/* Social Icons */}
         <div className="flex justify-center gap-4 mb-8">
           {[
-            { href: 'https://www.facebook.com/', icon: <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /> },
-            { href: 'https://www.instagram.com/', icon: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></> },
-            { href: 'https://www.twitter.com/', icon: <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.768-6.768M15.232 9.232L20 4" /> },
-            { href: 'https://www.linkedin.com/', icon: <><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></> },
+            { href: 'https://www.facebook.com/share/17iBS8fjvJ/', icon: <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /> },
+            { href: 'https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05', icon: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></> },
+            { href: 'https://x.com/optimizersCRO/', icon: <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.768-6.768M15.232 9.232L20 4" /> },
+            { href: 'https://www.linkedin.com/company/optimizersagency', icon: <><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></> },
           ].map((social, i) => (
             <a
               key={i}
@@ -1443,10 +1449,12 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
 function Header({ mobileMenuOpen = false, setMobileMenuOpen = () => { } }: { mobileMenuOpen?: boolean; setMobileMenuOpen?: (v: boolean) => void }) {
   return (
-    <div className="bg-[#020601] content-stretch flex h-[88px] items-center justify-between overflow-x-clip overflow-y-auto pointer-events-auto px-[24px] md:px-[40px] lg:px-[64px] py-[24px] rounded-[4px] sticky top-0 w-full max-w-[1440px] mx-auto" data-name="Header">
-      <Frame3 />
+    <div className="bg-[#020601] content-stretch flex h-[88px] items-center justify-between pointer-events-auto px-[16px] md:px-[40px] lg:px-[64px] py-[24px] rounded-[4px] sticky top-0 w-full max-w-[1440px] mx-auto" data-name="Header">
+      <div className="flex items-center gap-[16px] md:gap-[12px] shrink-0">
+        <Frame3 />
+      </div>
       <Links />
-      <div className="content-stretch flex gap-[20px] items-center justify-end relative shrink-0">
+      <div className="flex items-center gap-[12px] md:gap-[20px] shrink-0">
         <User />
         <Link />
         <button

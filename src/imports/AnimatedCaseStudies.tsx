@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionValueEvent, animate } from 'framer-motion';
 import { useLanguage } from '../app/contexts/LanguageContext';
 import '../styles/case-studies-animations.css';
+import { MOB_DURATIONS, MOB_EASE } from '../lib/animations';
 
 import CaseStudy3 from './CaseStudy3';
 import CaseStudy4 from './CaseStudy4';
@@ -191,43 +192,54 @@ export default function AnimatedCaseStudies() {
         if (!el) return;
         const observer = new IntersectionObserver(
             ([entry]) => {
-                if (entry.isIntersecting && !gateIsTriggered) {
+                if (entry.isIntersecting) {
                     setGateIsTriggered(true);
+                } else {
+                    setGateIsTriggered(false);
                 }
             },
-            { threshold: 0.5 } // Fired when 50% of the section is visible
+            { threshold: 0.2 } // Fired when 20% of the section is visible
         );
         observer.observe(el);
         return () => observer.disconnect();
-    }, [isMobile, gateIsTriggered]);
+    }, [isMobile]);
 
     // Handle gate animation
     useEffect(() => {
         if (!isMobile) return;
+        
         if (gateIsTriggered) {
-
             // Gate opening (1.5s total as requested)
-            animate(gateY_Top_Time, -viewportHeight * 0.6, { duration: 1.5, ease: 'easeInOut' });
-            animate(gateY_Bot_Time, viewportHeight * 0.6, { duration: 1.5, ease: 'easeInOut' });
+            animate(gateY_Top_Time, -viewportHeight * 0.6, { duration: 1.5, ease: MOB_EASE });
+            animate(gateY_Bot_Time, viewportHeight * 0.6, { duration: 1.5, ease: MOB_EASE });
             
             // Fade out title
-            animate(titleOpacity_Time, 0, { duration: 0.5, delay: 0.5, ease: 'easeIn' });
-            animate(titleScale_Time, 0.9, { duration: 0.5, delay: 0.5, ease: 'easeIn' });
+            animate(titleOpacity_Time, 0, { duration: MOB_DURATIONS.slow, delay: 0.5, ease: MOB_EASE });
+            animate(titleScale_Time, 0.9, { duration: MOB_DURATIONS.slow, delay: 0.5, ease: MOB_EASE });
 
             // Fade out gate core near the end
-            animate(gateOpacity_Time, 0, { duration: 0.5, delay: 1.0, ease: 'easeIn' });
+            animate(gateOpacity_Time, 0, { duration: MOB_DURATIONS.slow, delay: 1.0, ease: MOB_EASE });
 
             // Show first slide after animation completes
             const t = setTimeout(() => {
                 setActiveMobileIndex_M(0);
             }, 1500);
             return () => clearTimeout(t);
+        } else {
+            // RESET EVERYTHING when out of view
+            gateY_Top_Time.set(0);
+            gateY_Bot_Time.set(0);
+            gateOpacity_Time.set(1);
+            titleOpacity_Time.set(1);
+            titleScale_Time.set(1);
+            setActiveMobileIndex_M(-1);
         }
-    }, [gateIsTriggered, isMobile, viewportHeight]);
+    }, [gateIsTriggered, isMobile, viewportHeight, gateY_Top_Time, gateY_Bot_Time, gateOpacity_Time, titleOpacity_Time, titleScale_Time]);
 
     // Handle slide element translations (Top Clients style)
     useEffect(() => {
-        const D = 1.0, E = 'easeInOut';
+        const D = MOB_DURATIONS.slow;
+        const E = MOB_EASE;
         mSlideOpacities.forEach((op, i) => {
             const isActive = i === activeMobileIndex_M;
             // Backgrounds fade in/out
@@ -336,7 +348,7 @@ export default function AnimatedCaseStudies() {
                                     border: `1px solid ${activeColor}60`,
                                     color: activeColor,
                                     backdropFilter: 'blur(10px)', 
-                                    transition: 'background-color 600ms ease, border-color 600ms ease, color 600ms ease, transform 200ms ease'
+                                    transition: `background-color ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease), border-color ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease), color ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease), transform ${MOB_DURATIONS.fast * 1000}ms var(--mob-ease)`
                                 }}
                                 aria-label="Previous slide"
                             >
@@ -355,7 +367,7 @@ export default function AnimatedCaseStudies() {
                                             width: i === activeMobileIndex_M ? '20px' : '8px',
                                             height: '8px',
                                             background: i === activeMobileIndex_M ? activeColor : 'rgba(255,255,255,0.2)',
-                                            transition: 'width 400ms ease, background 600ms ease',
+                                            transition: `width ${MOB_DURATIONS.normal * 1000}ms var(--mob-ease), background ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease)`,
                                         }}
                                         aria-label={`Go to slide ${i + 1}`}
                                     />
@@ -370,7 +382,7 @@ export default function AnimatedCaseStudies() {
                                     border: `1px solid ${activeColor}60`,
                                     color: activeColor,
                                     backdropFilter: 'blur(10px)', 
-                                    transition: 'background-color 600ms ease, border-color 600ms ease, color 600ms ease, transform 200ms ease'
+                                    transition: `background-color ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease), border-color ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease), color ${MOB_DURATIONS.slow * 1000}ms var(--mob-ease), transform ${MOB_DURATIONS.fast * 1000}ms var(--mob-ease)`
                                 }}
                                 aria-label="Next slide"
                             >

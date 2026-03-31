@@ -71,3 +71,54 @@ body.lang-ar .global-persistent-header {
 body.lang-ar [data-name="Component 13"] [data-name="Text"] {
     text-align: right;
 }
+
+/* ── Service card gradient flips for RTL ── */
+body.lang-ar .service-card-blob {
+    right: auto;
+    left: -100px;
+}
+
+body.lang-ar .service-card-glow {
+    right: auto;
+    left: -100px;
+}
+
+/* ── Header RTL Mobile Fix ── */
+@media (max-width: 767px) {
+    body.lang-ar [data-name="Header"] {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    
+    body.lang-ar [data-name="Header"] > div:last-child {
+        gap: 8px !important;
+    }
+
+    body.lang-ar [data-name="Header"] [data-name="User"] {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+
+    /* Decrease CTA font size on very small screens to prevent overlap */
+    @media (max-width: 380px) {
+        body.lang-ar [data-name="Header"] [data-name="Link"] {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+        }
+        body.lang-ar [data-name="Header"] [data-name="Link"] p {
+            font-size: 11px !important;
+        }
+    }
+}
+
+/* ── Hero Title Clipping Fix ── */
+body.lang-ar .hero-title-text {
+    line-height: 1.3 !important;
+    padding-top: 0.1em !important;
+    padding-bottom: 0.2em !important;
+}
+
+body.lang-ar .service-card-glow {
+    right: auto;
+    left: -100px;
+}

@@ -189,7 +189,7 @@ const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: b
     {/* Mobile layout: radio inline-left of text */}
     <div className="flex lg:hidden flex-row gap-[12px] items-center justify-start p-[16px] rounded-[inherit] w-full min-h-full">
       <MobileRadio isSelected={isSelected} />
-      <p className={`flex-1 min-w-0 font-['Sora:Regular',sans-serif] font-normal leading-snug text-[13px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
+      <p className={`flex-1 min-w-0 font-['Sora:Regular',sans-serif] font-normal leading-snug text-[13px] text-start break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
     </div>
     {/* Desktop layout: radio inline-left of text */}
     <div className="hidden lg:flex flex-row items-center justify-start gap-[14px] px-[28px] py-[24px] relative rounded-[inherit] w-full min-h-full">
@@ -198,7 +198,7 @@ const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: b
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#020601" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         )}
       </div>
-      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-tight relative min-w-0 text-[18px] lg:text-[20px] text-left break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
+      <p className={`css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-tight relative min-w-0 text-[18px] lg:text-[20px] text-start break-words transition-colors duration-300 ${isSelected ? 'text-[#31da72]' : 'text-white'}`}>{text}</p>
     </div>
 
     {/* Border — default state */}

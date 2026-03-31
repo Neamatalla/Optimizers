@@ -34,7 +34,7 @@
     height: 2px;
     background: white;
     margin: 6px 0;
-    transition: all 0.3s ease;
+    transition: all var(--mob-duration-normal) var(--mob-ease);
     border-radius: 2px;
 }
 
@@ -66,7 +66,7 @@
     gap: 0;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--mob-duration-normal) var(--mob-ease);
     overflow: hidden;
 }
 
@@ -82,7 +82,7 @@
     color: rgba(255, 255, 255, 0.9);
     cursor: pointer;
     padding: 12px 24px;
-    transition: color 0.2s ease;
+    transition: color var(--mob-duration-fast) var(--mob-ease);
 }
 
 .mobile-nav-overlay p:hover {

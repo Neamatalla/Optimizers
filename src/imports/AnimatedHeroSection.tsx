@@ -9,6 +9,7 @@ import Section5 from "./Section5";
 import Section6 from "./Section6";
 import imgTopclientsResults4 from "../assets/f6cb95ddf6fbcaa6d79196a0ac804e1747a8b1c4.webp";
 import '../styles/top-clients-scroll.css';
+import { MOB_DURATIONS, MOB_EASE } from "../lib/animations";
 
 // Mobile carousel client data — mockup + profile images from each Section
 import imgMockup1 from "../assets/dc7b94025c6990629360e685e3f89e4c1a875b87.webp";
@@ -218,6 +219,10 @@ export default function AnimatedHeroSection() {
                     0% { transform: translateX(0); }
                     100% { transform: translateX(-50%); }
                 }
+                @keyframes watermarkScrollRTL {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(50%); }
+                }
             `}</style>
                 <div ref={containerRef} className="bg-[#020601] w-full min-h-[100svh] pt-[8svh] pb-[12svh] flex flex-col justify-start relative overflow-x-hidden" style={{ isolation: 'isolate', touchAction: 'pan-y' }}
                     onTouchStart={handleTouchStart}
@@ -226,7 +231,7 @@ export default function AnimatedHeroSection() {
                     {/* Section Title */}
                     <div className="relative px-5 flex flex-col items-center gap-2 flex-shrink-0 z-30 mb-8" style={{ isolation: 'isolate' }}>
                         <p
-                            className="font-['Sora',sans-serif] font-bold leading-tight text-[28px] min-[360px]:text-[32px] min-[400px]:text-[36px] sm:text-[40px] tracking-tight bg-center bg-clip-text bg-cover bg-no-repeat text-center px-1 whitespace-nowrap"
+                            className={`font-['Sora',sans-serif] font-bold text-[28px] min-[360px]:text-[32px] min-[400px]:text-[36px] sm:text-[40px] tracking-tight bg-center bg-clip-text bg-cover bg-no-repeat text-center px-1 whitespace-nowrap ${language === 'ar' ? 'leading-[1.4] py-2' : 'leading-tight'}`}
                             style={{
                                 WebkitTextFillColor: "transparent",
                                 backgroundImage: `url('${imgTopclientsResults4}')`,
@@ -264,8 +269,8 @@ export default function AnimatedHeroSection() {
                                             opacity: i === activeSlide ? 1 : 0,
                                             transform: i === activeSlide ? 'translateY(0)' : 'translateY(20px)',
                                             transition: i === activeSlide
-                                                ? 'opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 600ms cubic-bezier(0.16, 1, 0.3, 1)'
-                                                : 'opacity 300ms ease-out, transform 300ms ease-out',
+                                                ? `opacity ${MOB_DURATIONS.slow * 1000}ms cubic-bezier(${MOB_EASE.join(',')}), transform ${MOB_DURATIONS.slow * 1000}ms cubic-bezier(${MOB_EASE.join(',')})`
+                                                : `opacity ${MOB_DURATIONS.normal * 1000}ms ease-out, transform ${MOB_DURATIONS.normal * 1000}ms ease-out`,
                                             pointerEvents: i === activeSlide ? 'auto' : 'none',
                                         }}
                                     >
@@ -300,8 +305,12 @@ export default function AnimatedHeroSection() {
                                 className="absolute inset-x-0 overflow-hidden pointer-events-none" 
                                 style={{ 
                                     paddingTop: '16svh',
-                                    maskImage: 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)',
-                                    WebkitMaskImage: 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)'
+                                    maskImage: language === 'ar' 
+                                        ? 'linear-gradient(to left, transparent 0%, rgba(0,0,0,0.2) 20%, black 50%, rgba(0,0,0,0.2) 80%, transparent 100%)'
+                                        : 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)',
+                                    WebkitMaskImage: language === 'ar'
+                                        ? 'linear-gradient(to left, transparent 0%, rgba(0,0,0,0.2) 20%, black 50%, rgba(0,0,0,0.2) 80%, transparent 100%)'
+                                        : 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)'
                                 }}
                             >
                                 <div className="grid" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
@@ -312,9 +321,11 @@ export default function AnimatedHeroSection() {
                                             style={{
                                                 gridColumn: 1,
                                                 gridRow: 1,
-                                                opacity: i === activeSlide ? 0.6 : 0,
-                                                transition: 'opacity 800ms ease',
-                                                animation: 'watermarkScroll 25s linear infinite',
+                                                opacity: i === activeSlide ? (language === 'ar' ? 0.8 : 0.6) : 0,
+                                                transition: `opacity ${MOB_DURATIONS.extraSlow * 1000}ms ease`,
+                                                animation: language === 'ar' 
+                                                    ? 'watermarkScrollRTL 25s linear infinite'
+                                                    : 'watermarkScroll 25s linear infinite',
                                             }}
                                         >
                                             {[...Array(6)].map((_, j) => (
@@ -323,12 +334,13 @@ export default function AnimatedHeroSection() {
                                                     className="font-['Sora',sans-serif] font-bold select-none inline-flex items-center gap-4"
                                                     style={{
                                                         fontSize: '84px',
-                                                        letterSpacing: '0.05em',
+                                                        letterSpacing: language === 'ar' ? '0' : '0.05em',
                                                         color: '#ffffff',
                                                         paddingRight: '60px',
+                                                        direction: 'ltr' // Keep the name flow consistent for logo-like feel, or remove if unwanted
                                                     }}
                                                 >
-                                                    {c.name}
+                                                    {t(c.name)}
                                                 </span>
                                             ))}
                                         </div>
@@ -351,8 +363,8 @@ export default function AnimatedHeroSection() {
                                                 opacity: i === activeSlide ? 1 : 0,
                                                 transform: i === activeSlide ? 'translateY(0)' : 'translateY(8px)',
                                                 transition: i === activeSlide
-                                                    ? 'opacity 500ms cubic-bezier(0.16, 1, 0.3, 1) 200ms, transform 500ms cubic-bezier(0.16, 1, 0.3, 1) 200ms'
-                                                    : 'opacity 300ms ease-out, transform 300ms ease-out',
+                                                    ? `opacity ${MOB_DURATIONS.slow * 1000}ms cubic-bezier(${MOB_EASE.join(',')}) 200ms, transform ${MOB_DURATIONS.slow * 1000}ms cubic-bezier(${MOB_EASE.join(',')}) 200ms`
+                                                    : `opacity ${MOB_DURATIONS.normal * 1000}ms ease-out, transform ${MOB_DURATIONS.normal * 1000}ms ease-out`,
                                             }}
                                         >
                                             <div>
@@ -379,8 +391,8 @@ export default function AnimatedHeroSection() {
                                                 opacity: i === activeSlide ? 1 : 0,
                                                 transform: i === activeSlide ? 'translateY(0)' : 'translateY(12px)',
                                                 transition: i === activeSlide
-                                                    ? 'opacity 500ms cubic-bezier(0.16, 1, 0.3, 1) 300ms, transform 500ms cubic-bezier(0.16, 1, 0.3, 1) 300ms'
-                                                    : 'opacity 300ms ease-out, transform 300ms ease-out',
+                                                    ? `opacity ${MOB_DURATIONS.slow * 1000}ms cubic-bezier(${MOB_EASE.join(',')}) 300ms, transform ${MOB_DURATIONS.slow * 1000}ms cubic-bezier(${MOB_EASE.join(',')}) 300ms`
+                                                    : `opacity ${MOB_DURATIONS.normal * 1000}ms ease-out, transform ${MOB_DURATIONS.normal * 1000}ms ease-out`,
                                             }}
                                         >
                                             {c.metrics.map((m, mi) => (
