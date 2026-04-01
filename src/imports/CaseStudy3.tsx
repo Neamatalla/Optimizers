@@ -334,7 +334,7 @@ function Frame39() {
 
 function Frame40() {
   return (
-    <div className="-translate-x-1/2 absolute content-stretch flex flex-col gap-[40px] h-[94px] items-center left-1/2 overflow-clip text-center top-[741px] w-[750px] whitespace-pre-wrap">
+    <div className="-translate-x-1/2 absolute content-stretch flex flex-col gap-[40px] h-[94px] items-center left-1/2 [&>*:not(:first-child)]:hidden overflow-clip text-center top-[741px] w-[750px] whitespace-pre-wrap">
       <Frame8 />
       <Frame37 />
       <Frame38 />
@@ -380,8 +380,9 @@ function Frame31() {
 }
 
 function Frame29() {
+  const { language } = useLanguage();
   return (
-    <div className="absolute content-stretch flex flex-col gap-[40px] h-[190px] items-end left-[64px] overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap">
+    <div className={`absolute content-stretch flex flex-col gap-[40px] h-[190px] items-end ${language === "ar" ? "right-[64px]" : "left-[64px]"} [&>*:not(:first-child)]:hidden overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap`}>
       <Frame22 />
       <Frame28 />
       <Frame30 />
@@ -507,8 +508,9 @@ function Frame35() {
 }
 
 function Frame36() {
+  const { language } = useLanguage();
   return (
-    <div className="absolute content-stretch flex flex-col gap-[102px] h-[73px] items-start left-[64px] overflow-clip top-[104px] w-[342px]">
+    <div className={`absolute content-stretch flex flex-col gap-[102px] h-[73px] items-start ${language === "ar" ? "right-[64px]" : "left-[64px]"} [&>*:not(:first-child)]:hidden overflow-clip top-[104px] w-[342px]`}>
       <Frame21 />
       <Frame24 />
       <Frame34 />
@@ -558,8 +560,9 @@ function Frame42() {
 }
 
 function Frame33() {
+  const { language } = useLanguage();
   return (
-    <div className="absolute content-stretch flex flex-col gap-[40px] h-[190px] items-start left-[1065px] overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap">
+    <div className={`absolute content-stretch flex flex-col gap-[40px] h-[190px] items-start ${language === "ar" ? "left-[64px]" : "left-[1065px]"} [&>*:not(:first-child)]:hidden overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap`}>
       <Frame32 />
       <Frame23 />
       <Frame41 />

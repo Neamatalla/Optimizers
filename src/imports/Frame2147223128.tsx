@@ -1446,8 +1446,13 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 }
 
 function Header({ mobileMenuOpen = false, setMobileMenuOpen = () => { } }: { mobileMenuOpen?: boolean; setMobileMenuOpen?: (v: boolean) => void }) {
+  const { language } = useLanguage();
   return (
-    <div className="bg-[#020601] content-stretch flex h-[88px] items-center justify-between pointer-events-auto px-[16px] md:px-[40px] lg:px-[64px] py-[24px] rounded-[4px] sticky top-0 w-full max-w-[1440px] mx-auto" data-name="Header">
+    <div 
+      className="bg-[#020601] content-stretch flex h-[88px] items-center justify-between pointer-events-auto px-[16px] md:px-[40px] lg:px-[64px] py-[24px] rounded-[4px] sticky top-0 w-full max-w-[1440px] mx-auto text-start" 
+      data-name="Header"
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
+    >
       <div className="flex items-center gap-[16px] md:gap-[12px] shrink-0">
         <Frame3 />
       </div>

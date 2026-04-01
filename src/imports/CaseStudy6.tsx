@@ -334,7 +334,7 @@ function Frame8() {
 
 function Frame40() {
   return (
-    <div className="-translate-x-1/2 absolute content-stretch flex flex-col gap-[40px] h-[94px] items-center left-1/2 overflow-clip text-center top-[741px] w-[750px] whitespace-pre-wrap">
+    <div className="-translate-x-1/2 absolute content-stretch flex flex-col gap-[40px] h-[94px] items-center left-1/2 [&>*:not(:first-child)]:hidden overflow-clip text-center top-[741px] w-[750px] whitespace-pre-wrap">
       <Frame39 />
       <Frame38 />
       <Frame37 />
@@ -347,7 +347,7 @@ function Frame28() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[18px] w-[min-content]">{t('Results')}</p>
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[21.6px] min-w-full relative shrink-0 text-[#afc1df] text-[18px] w-[min-content]">{t('Challenge')}</p>
       <p className="font-['Sora:Regular',sans-serif] font-normal leading-[26px] relative shrink-0 text-[20px] text-white w-[311px]">Users who skipped PLPs converted better, while the homepage buried products too deeply, limiting visibility and missing opportunities to guide users toward conversion</p>
     </div>
   );
@@ -384,8 +384,9 @@ function Frame22() {
 }
 
 function Frame29() {
+  const { language } = useLanguage();
   return (
-    <div className="absolute content-stretch flex flex-col gap-[40px] h-[190px] items-end left-[64px] overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap">
+    <div className={`absolute content-stretch flex flex-col gap-[40px] h-[190px] items-end ${language === "ar" ? "right-[64px]" : "left-[64px]"} [&>*:not(:first-child)]:hidden overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap`}>
       <Frame28 />
       <Frame30 />
       <Frame31 />
@@ -511,8 +512,9 @@ function Frame21() {
 }
 
 function Frame36() {
+  const { language } = useLanguage();
   return (
-    <div className="absolute content-stretch flex flex-col gap-[102px] h-[73px] items-start left-[64px] overflow-clip top-[104px] w-[342px]">
+    <div className={`absolute content-stretch flex flex-col gap-[102px] h-[73px] items-start ${language === "ar" ? "right-[64px]" : "left-[64px]"} [&>*:not(:first-child)]:hidden overflow-clip top-[104px] w-[342px]`}>
       <Frame35 />
       <Frame34 />
       <Frame24 />
@@ -562,8 +564,9 @@ function Frame42() {
 }
 
 function Frame33() {
+  const { language } = useLanguage();
   return (
-    <div className="absolute content-stretch flex flex-col gap-[40px] h-[190px] items-start left-[1065px] overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap">
+    <div className={`absolute content-stretch flex flex-col gap-[40px] h-[190px] items-start ${language === "ar" ? "left-[64px]" : "left-[1065px]"} [&>*:not(:first-child)]:hidden overflow-clip text-center top-[288px] w-[311px] whitespace-pre-wrap`}>
       <Frame32 />
       <Frame41 />
       <Frame23 />

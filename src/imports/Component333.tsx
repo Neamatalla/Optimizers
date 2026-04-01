@@ -2067,7 +2067,7 @@ function Frame() {
   const { t } = useLanguage();
   return (
     <div className="relative lg:absolute content-stretch flex flex-col gap-[32px] items-center lg:left-[calc(50%+0.5px)] lg:top-[calc(50%-212px)] lg:translate-x-[-50%] lg:translate-y-[-50%] z-10 p-6 lg:p-0 w-full max-w-[420px] lg:max-w-[900px]">
-      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-[72px] relative shrink-0 text-[28px] min-[360px]:text-[32px] min-[400px]:text-[36px] lg:text-[72px] text-center tracking-tight lg:tracking-[-2.88px] w-full px-1" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')` }}>
+      <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-tight lg:leading-normal relative shrink-0 text-[28px] min-[360px]:text-[32px] min-[400px]:text-[36px] lg:text-[72px] text-center tracking-tight lg:tracking-[-2.88px] w-full px-1" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgWhyChooseOurCroAgency}')`, paddingTop: '8px' }}>
         {t('Why Choose Our CRO Agency?')}
       </p>
       <p className="css-4hzbpn font-['Sora:Regular',sans-serif] font-normal leading-[24px] relative shrink-0 text-[16px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[311px] lg:max-w-[797px]">{t("We don’t just run tests - we deliver measurable business growth.")}</p>

@@ -142,30 +142,33 @@ export const MetricsBlock = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => {
 };
 
 export const PhoneStack = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => {
+  const { language, t } = useLanguage();
+  const isAr = language === 'ar';
+
   // Special positioning and sizing for Vitrine Furniture's phone as requested
   const isVitrine = data.id === 'vitrine';
-  const leftPhoneContainerStyle = isVitrine ? { left: '30px', top: '30px' } : {};
+  const leftPhoneContainerStyle = isVitrine ? { [isAr ? 'right' : 'left']: '30px', top: '30px' } : {};
   const leftPhoneSizeClass = isVitrine ? 'h-[320px] w-[145px]' : 'h-[322px] w-[144px]';
   const rightPhoneSizeClass = isVitrine ? 'h-[323px] w-[143px]' : 'h-[324px] w-[143px]';
 
   return (
     <div className="relative w-full h-[350px]">
       {/* Before text */}
-      <div className="-translate-x-1/2 absolute flex h-[69.676px] items-center justify-center left-[82px] top-[-30px] w-[119px]">
+      <div className={`absolute flex h-[69.676px] items-center justify-center ${isAr ? 'right-[82px] translate-x-1/2' : 'left-[82px] -translate-x-1/2'} top-[-30px] w-[119px]`}>
         <div className="flex-none rotate-[-15deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center">Before</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center">{t('Before')}</p>
         </div>
       </div>
 
       {/* After text */}
-      <div className="-translate-x-1/2 absolute flex h-[60px] items-center justify-center right-[30px] top-[-15px] w-[105px]">
+      <div className={`absolute flex h-[60px] items-center justify-center ${isAr ? 'left-[30px] translate-x-1/2' : 'right-[30px] -translate-x-1/2'} top-[-15px] w-[105px]`}>
         <div className="flex-none rotate-[11deg]">
-          <p className="font-['Sora',sans-serif] font-semibold leading-[41px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center">After</p>
+          <p className="font-['Sora',sans-serif] font-semibold leading-[41px] relative text-[32px] text-[rgba(255,255,255,0.2)] text-center">{t('After')}</p>
         </div>
       </div>
 
       {/* Right phone (After) */}
-      <div className="absolute flex h-[348px] items-center justify-center right-[20px] top-[15px] w-[213px]">
+      <div className={`absolute flex h-[348px] items-center justify-center ${isAr ? 'left-[20px]' : 'right-[20px]'} top-[15px] w-[213px]`}>
         <div className="flex-none rotate-[13deg]">
           <div className={`${rightPhoneSizeClass} relative`}>
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -176,7 +179,7 @@ export const PhoneStack = ({ data }: { data: typeof CASE_STUDY_DATA[0] }) => {
       </div>
 
       {/* Left phone (Before) */}
-      <div className="absolute flex h-[349px] items-center justify-center left-[10px] top-[0px] w-[225px]">
+      <div className={`absolute flex h-[349px] items-center justify-center ${isAr ? 'right-[10px]' : 'left-[10px]'} top-[0px] w-[225px]`}>
         <div className="flex-none rotate-[-15deg]">
           <div className={`${leftPhoneSizeClass} relative`} style={leftPhoneContainerStyle}>
             <div className="absolute inset-0 overflow-hidden pointer-events-none">

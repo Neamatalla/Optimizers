@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { motion, useTransform } from "motion/react";
+import { useLanguage } from "../app/contexts/LanguageContext";
 import svgPaths from "@/imports/svg-sec5";
 import imgIPhone17 from "../assets/9f8f278f482336f0475810eb8d279e3e1acb7ca6.webp";
 import imgProfilePhoto5 from "../assets/28ae360f5ef1294530a445760980d0b0cc4fce99.webp";
@@ -12,6 +13,9 @@ const Section5 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
     mockupX?: any;
     mockupY?: any;
 }) => {
+    const { language, t } = useLanguage();
+    const isAr = language === 'ar';
+
     return (
         <div className="relative w-full h-full overflow-hidden" style={{ willChange: 'opacity' }}>
             {/* Background SVG */}
@@ -58,7 +62,7 @@ const Section5 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <motion.img alt="" style={{ x: mockupX || 0, y: mockupY || 0, willChange: 'transform' }} className="absolute inset-0 max-w-none object-contain pointer-events-none size-full drop-shadow-[0px_40px_80px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" loading="eager" />
                         </motion.div>
                     </div>
-                    <div className="absolute left-[5.5vw] top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10" style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
+                    <div className={`absolute top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10 ${isAr ? 'right-[5.5vw]' : 'left-[5.5vw]'}`} style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
                         <div className="overflow-hidden w-full">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
                                 <div className="content-stretch flex flex-col gap-[3vh] items-start relative shrink-0 w-full">
@@ -67,14 +71,14 @@ const Section5 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                                             <img alt="" className="block max-w-none size-full" src={imgProfilePhoto5} decoding="async" />
                                         </div>
                                         <div className="content-stretch flex flex-col gap-[1vh] items-start justify-center relative shrink-0">
-                                            <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-auto justify-center leading-[1.2] relative shrink-0 text-[32px] text-white tracking-[-0.02em] w-full"><p>Dubai Phone</p></div>
+                                            <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-auto justify-center leading-[1.2] relative shrink-0 text-[32px] text-white tracking-[-0.02em] w-full"><p>{t('Dubai Phone')}</p></div>
                                             <div className="bg-[rgba(160,171,187,0.2)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
-                                                <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[#d0d5dd] text-[14px]">Electronics</p>
+                                                <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[#d0d5dd] text-[14px]">{t('Electronics')}</p>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="content-stretch flex items-center justify-center relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-normal leading-relaxed relative shrink-0 text-[18px] text-white w-full">Leading mobile phone retailer providing the latest smartphones, accessories, and digital solutions.</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-relaxed relative shrink-0 text-[18px] text-white w-full">{t('Leading mobile phone retailer providing the latest smartphones, accessories, and digital solutions.')}</p>
                                     </div>
                                 </div>
                             </motion.div>
@@ -83,27 +87,27 @@ const Section5 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
                                 <div className="content-stretch flex flex-col gap-[2.4vh] items-start relative shrink-0 w-full">
                                     <div className="content-stretch flex flex-col gap-[0.8vh] items-start relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#d0d5dd] text-[18px]">Our Goal:</p>
-                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">Improve mobile checkout experience.</p>
+                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#d0d5dd] text-[18px]">{t('Our Goal:')}</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">{t('Improve mobile checkout experience.')}</p>
                                     </div>
                                     <div className="content-stretch flex flex-col gap-[0.8vh] items-start relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#d0d5dd] text-[18px]">Areas of Improvement:</p>
-                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">Mobile optimization, payment flow.</p>
+                                        <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#d0d5dd] text-[18px]">{t('Areas of Improvement:')}</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">{t('Mobile optimization, payment flow.')}</p>
                                     </div>
                                 </div>
                             </motion.div>
                         </div>
                     </div>
-                    <div className="absolute right-[5.5vw] top-[40vh] w-[18vw] min-w-[220px] z-10 overflow-hidden" style={{ pointerEvents: "auto" }}>
+                    <div className={`absolute top-[40vh] w-[18vw] min-w-[220px] z-10 overflow-hidden ${isAr ? 'left-[5.5vw]' : 'right-[5.5vw]'}`} style={{ pointerEvents: "auto" }}>
                         <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
                             <div className="content-stretch flex flex-col gap-[4.8vh] items-start relative shrink-0 w-full">
                                 <div className="content-stretch flex flex-col gap-[0.8vh] items-start justify-center relative shrink-0 w-full">
                                     <p className="font-['Sora',sans-serif] font-semibold leading-tight relative shrink-0 text-[#a0abbb] text-[48px] tracking-[-0.04em]">+65%</p>
-                                    <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">Mobile conversion rate</p>
+                                    <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">{t('Mobile conversion rate')}</p>
                                 </div>
                                 <div className="content-stretch flex flex-col gap-[0.8vh] items-start justify-center relative shrink-0 w-full">
                                     <p className="font-['Sora',sans-serif] font-semibold leading-tight relative shrink-0 text-[#a0abbb] text-[48px] tracking-[-0.04em]">+28%</p>
-                                    <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">Customer retention</p>
+                                    <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">{t('Customer retention')}</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -117,34 +121,34 @@ const Section5 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <img alt="" className="block max-w-none size-full rounded-full" src={imgProfilePhoto5} decoding="async" />
                         </div>
                         <div className="flex flex-col gap-0.5">
-                            <p className="font-['Sora',sans-serif] font-semibold text-[18px] text-white tracking-[-0.02em] leading-[1.2]">Dubai Phone</p>
+                            <p className="font-['Sora',sans-serif] font-semibold text-[18px] text-white tracking-[-0.02em] leading-[1.2]">{t('Dubai Phone')}</p>
                             <div className="bg-[rgba(160,171,187,0.2)] flex items-center justify-center px-[8px] py-[3px] rounded-[100px] w-fit">
-                                <p className="font-['Sora',sans-serif] font-normal text-[11px] text-[#d0d5dd]">Electronics</p>
+                                <p className="font-['Sora',sans-serif] font-normal text-[11px] text-[#d0d5dd]">{t('Electronics')}</p>
                             </div>
                         </div>
                     </div>
-                    <p className="font-['Sora',sans-serif] font-normal leading-relaxed text-[13px] text-white/80 text-center max-w-[320px]">Leading mobile phone retailer providing the latest smartphones, accessories, and digital solutions.</p>
+                    <p className="font-['Sora',sans-serif] font-normal leading-relaxed text-[13px] text-white/80 text-center max-w-[320px]">{t('Leading mobile phone retailer providing the latest smartphones, accessories, and digital solutions.')}</p>
                     <div className="w-[55vw] max-w-[240px] aspect-[9/16] relative shrink-0">
                         <img alt="" className="w-full h-full object-contain drop-shadow-[0px_20px_40px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" />
                     </div>
                     <div className="flex gap-6 w-full max-w-[320px] justify-center">
                         <div className="flex flex-col gap-0.5 items-center">
                             <p className="font-['Sora',sans-serif] font-semibold text-[#a0abbb] text-[26px] tracking-[-0.04em] leading-tight">+65%</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">Mobile conversion</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">{t('Mobile conversion')}</p>
                         </div>
                         <div className="flex flex-col gap-0.5 items-center">
                             <p className="font-['Sora',sans-serif] font-semibold text-[#a0abbb] text-[26px] tracking-[-0.04em] leading-tight">+28%</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">Retention</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">{t('Retention')}</p>
                         </div>
                     </div>
                     <div className="flex gap-6 w-full max-w-[320px]">
                         <div className="flex flex-col gap-0.5 flex-1">
-                            <p className="font-['Sora',sans-serif] font-semibold text-[#d0d5dd] text-[13px]">Our Goal:</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">Improve mobile checkout experience.</p>
+                            <p className="font-['Sora',sans-serif] font-semibold text-[#d0d5dd] text-[13px]">{t('Our Goal:')}</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">{t('Improve mobile checkout experience.')}</p>
                         </div>
                         <div className="flex flex-col gap-0.5 flex-1">
-                            <p className="font-['Sora',sans-serif] font-semibold text-[#d0d5dd] text-[13px]">Areas of Improvement:</p>
-                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">Mobile optimization, payment flow.</p>
+                            <p className="font-['Sora',sans-serif] font-semibold text-[#d0d5dd] text-[13px]">{t('Areas of Improvement:')}</p>
+                            <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">{t('Mobile optimization, payment flow.')}</p>
                         </div>
                     </div>
                 </div>

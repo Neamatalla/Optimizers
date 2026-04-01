@@ -61,15 +61,15 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <motion.img alt="" style={{ x: mockupX || 0, y: mockupY || 0, willChange: 'transform' }} className="absolute inset-0 max-w-none object-contain pointer-events-none size-full drop-shadow-[0px_40px_80px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" loading="eager" />
                         </motion.div>
                     </div>
-                    <div className={`absolute top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10 ${isAr ? 'right-[5.5vw] items-end text-right' : 'left-[5.5vw] items-start'}`} style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
+                    <div className={`absolute top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10 ${isAr ? 'right-[5.5vw]' : 'left-[5.5vw]'}`} style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
                         <div className="overflow-hidden w-full">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
-                                <div className={`content-stretch flex flex-col gap-[3vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
-                                    <div className={`content-stretch flex gap-[1.5vh] h-auto items-center relative shrink-0 w-full ${isAr ? 'flex-row-reverse' : ''}`}>
+                                <div className={`content-stretch flex flex-col gap-[3vh] relative shrink-0 w-full items-start`}>
+                                    <div className={`content-stretch flex gap-[1.5vh] h-auto items-center relative shrink-0 w-full`}>
                                         <div className="relative shrink-0 size-[7.3vh] min-w-[50px] min-h-[50px]">
                                             <img alt="" className="block max-w-none size-full" src={imgProfilePhoto} decoding="async" />
                                         </div>
-                                        <div className={`content-stretch flex flex-col gap-[1vh] justify-center relative shrink-0 ${isAr ? 'items-end' : 'items-start'}`}>
+                                        <div className={`content-stretch flex flex-col gap-[1vh] justify-center relative shrink-0 items-start`}>
                                             <div className="flex flex-col font-['Sora',sans-serif] font-semibold h-auto justify-center leading-[1.2] relative shrink-0 text-[32px] text-white tracking-[-0.02em] w-full"><p>{t('Regal Honey US')}</p></div>
                                             <div className="bg-[rgba(107,100,72,0.15)] content-stretch flex items-center justify-center px-[12px] py-[6px] relative rounded-[100px] shrink-0">
                                                 <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[#e8cf98] text-[14px]">{t('Food & Beverage')}</p>
@@ -84,12 +84,12 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                         </div>
                         <div className="overflow-hidden w-[20vw] min-w-[250px]">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
-                                <div className={`content-stretch flex flex-col gap-[2.4vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
-                                    <div className={`content-stretch flex flex-col gap-[0.8vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                <div className={`content-stretch flex flex-col gap-[2.4vh] relative shrink-0 w-full items-start`}>
+                                    <div className={`content-stretch flex flex-col gap-[0.8vh] relative shrink-0 w-full items-start`}>
                                         <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#e8cf98] text-[18px]">{t('Our Goal:')}</p>
                                         <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">{t('Boost customer retention and repeat rates.')}</p>
                                     </div>
-                                    <div className={`content-stretch flex flex-col gap-[0.8vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                                    <div className={`content-stretch flex flex-col gap-[0.8vh] relative shrink-0 w-full items-start`}>
                                         <p className="font-['Sora',sans-serif] font-semibold leading-normal min-w-full relative shrink-0 text-[#e8cf98] text-[18px]">{t('Areas of Improvement:')}</p>
                                         <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[14px] text-white">{t('Subscription launch, retention, lifecycle.')}</p>
                                     </div>
@@ -99,8 +99,8 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                     </div>
                     <div className={`absolute top-[40vh] w-[18vw] min-w-[220px] z-10 overflow-hidden ${isAr ? 'left-[5.5vw]' : 'right-[5.5vw]'}`} style={{ pointerEvents: "auto" }}>
                         <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
-                            <div className={`content-stretch flex flex-col gap-[4.8vh] relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
-                                <div className={`content-stretch flex flex-col gap-[0.8vh] justify-center relative shrink-0 w-full ${isAr ? 'items-end' : 'items-start'}`}>
+                            <div className={`content-stretch flex flex-col gap-[4.8vh] relative shrink-0 w-full items-start`}>
+                                <div className={`content-stretch flex flex-col gap-[0.8vh] justify-center relative shrink-0 w-full items-start`}>
                                     <p className="font-['Sora',sans-serif] font-semibold leading-tight relative shrink-0 text-[#e8cf98] text-[48px] tracking-[-0.04em]">+60%</p>
                                     <p className="font-['Sora',sans-serif] font-normal leading-normal relative shrink-0 text-[18px] text-white">{t('Customer retention')}</p>
                                 </div>
@@ -111,11 +111,11 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
 
                 {/* ═══ MOBILE LAYOUT ═══ */}
                 <div className="lg:hidden absolute inset-0 flex flex-col items-center px-5 pt-[6vh] pb-6 gap-3 w-full pointer-events-auto overflow-y-auto">
-                    <div className={`flex items-center gap-3 w-full max-w-[320px] ${isAr ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center gap-3 w-full max-w-[320px]`}>
                         <div className="relative shrink-0 size-[44px]">
                             <img alt="" className="block max-w-none size-full rounded-full" src={imgProfilePhoto} decoding="async" />
                         </div>
-                        <div className={`flex flex-col gap-0.5 ${isAr ? 'items-end' : ''}`}>
+                        <div className={`flex flex-col gap-0.5`}>
                             <p className="font-['Sora',sans-serif] font-semibold text-[18px] text-white tracking-[-0.02em] leading-[1.2]">{t('Regal Honey US')}</p>
                             <div className="bg-[rgba(107,100,72,0.15)] flex items-center justify-center px-[8px] py-[3px] rounded-[100px] w-fit">
                                 <p className="font-['Sora',sans-serif] font-normal text-[11px] text-[#e8cf98]">{t('Food & Beverage')}</p>
@@ -132,12 +132,12 @@ const Section6 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/70 text-center">{t('Customer retention')}</p>
                         </div>
                     </div>
-                    <div className={`flex gap-6 w-full max-w-[320px] ${isAr ? 'flex-row-reverse' : ''}`}>
-                        <div className={`flex flex-col gap-0.5 flex-1 ${isAr ? 'text-right' : ''}`}>
+                    <div className={`flex gap-6 w-full max-w-[320px]`}>
+                        <div className={`flex flex-col gap-0.5 flex-1`}>
                             <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[13px]">{t('Our Goal:')}</p>
                             <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">{t('Boost customer retention and repeat rates.')}</p>
                         </div>
-                        <div className={`flex flex-col gap-0.5 flex-1 ${isAr ? 'text-right' : ''}`}>
+                        <div className={`flex flex-col gap-0.5 flex-1`}>
                             <p className="font-['Sora',sans-serif] font-semibold text-[#e8cf98] text-[13px]">{t('Areas of Improvement:')}</p>
                             <p className="font-['Sora',sans-serif] font-normal text-[11px] text-white/80">{t('Subscription launch, retention, lifecycle.')}</p>
                         </div>

@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/app/components/ui/sonner";
 import ScrollToTopButton from "@/app/components/ScrollToTopButton";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useLanguage } from "./contexts/LanguageContext";
 import "../styles/services.css";
 
 // --- DEBUGGER COMPONENT ---
@@ -122,7 +123,7 @@ function CardGlow() {
 
 function ServiceCard({ number, title, description, isLarger }: ServiceCardProps) {
   return (
-    <div className="bg-[#0f120e] relative rounded-[16px] w-full max-w-[657px] overflow-hidden shrink-0 tap-feedback-card" style={{ height: isLarger ? '195px' : '174px' }}>
+    <div className="bg-[#0f120e] relative rounded-[16px] w-[657px] max-w-full overflow-hidden shrink-0 tap-feedback-card" style={{ height: isLarger ? '195px' : '174px' }}>
       <div className="flex items-center gap-[24px] p-[32px] h-full relative z-10">
         {/* Number */}
         <div
@@ -263,10 +264,12 @@ function MobileServiceCard({ number, title, description, cardId }: { number: str
 }
 
 /** Wrapper that adds scroll-triggered reveal with stagger on mobile */
-function RevealServiceCards({ services }: { services: ServiceCardProps[] }) {
+function RevealServiceCards({ services }: { services: any[] }) {
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
   const [ref, isVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.1 });
   return (
-    <div ref={ref} className="flex flex-col w-full items-center lg:items-start gap-[2.8vw] lg:gap-[5vw]">
+    <div ref={ref} className={`flex flex-col w-full items-center ${isRTL ? 'lg:items-end' : 'lg:items-start'} gap-[2.8vw] lg:gap-[5vw]`}>
       {services.map((service, index) => (
         <div
           key={index}
@@ -282,6 +285,8 @@ function RevealServiceCards({ services }: { services: ServiceCardProps[] }) {
 const queryClient = new QueryClient();
 
 export default function App() {
+  const { language, t } = useLanguage();
+  const isRTL = language === 'ar';
   const services = [
     // ... (services data unchanged)
     {
@@ -337,9 +342,9 @@ export default function App() {
             {/* MOBILE ONLY (< lg) - Pure Vertical Stack */}
             <div className="flex lg:hidden flex-col items-center w-full bg-[#020601] pt-2 pb-10">
               {/* Mobile Header elements using imported services.css styles */}
-              <div className="header-section">
+              <div className="header-section text-start">
                 <h1 className="services-title" style={{ backgroundImage: `url('${imgOurServices}')` }}>
-                  Our Services
+                  {isRTL ? 'خدماتنا' : 'Our Services'}
                 </h1>
                 <p className="services-description">
                   We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
@@ -363,7 +368,7 @@ export default function App() {
             {/* DESKTOP ONLY (>= lg) - Sticky Left / Scrolling Right */}
             <div className="hidden lg:flex flex-row gap-[7vw] p-[7vw] items-start">
               {/* Left Side - Text */}
-              <div className="flex flex-col gap-[2.2vw] w-[37.3vw] shrink-0 items-start text-left sticky top-10 self-start h-fit z-10">
+              <div className="flex flex-col gap-[2.2vw] w-[37.3vw] shrink-0 items-start text-start sticky top-10 self-start h-fit z-10">
                 <div
                   className="relative min-w-full w-[min-content]"
                   style={{
@@ -381,8 +386,14 @@ export default function App() {
                     color: 'transparent'
                   }}
                 >
-                  <p className="mb-0 m-0">Our</p>
-                  <p className="m-0">Services</p>
+                  {isRTL ? (
+                    <p className="m-0">خدماتنا</p>
+                  ) : (
+                    <>
+                      <p className="mb-0 m-0">Our</p>
+                      <p className="m-0">Services</p>
+                    </>
+                  )}
                 </div>
                 <p
                   className="m-0 w-[460px]"

@@ -85,7 +85,7 @@ function Frame19() {
     const { t } = useLanguage();
     return (
         <div className="relative flex flex-col gap-[20px] lg:gap-[2.2vw] xl:gap-[3.3vw] items-center lg:items-start w-full lg:w-[31.25vw] shrink-0">
-            <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[1.1] min-w-full relative shrink-0 text-[36px] lg:text-[78px] text-center lg:text-left tracking-[-1.44px] lg:tracking-[-2px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgFrequentlyAskedQuestions}')` }}>
+            <p className="bg-center bg-clip-text bg-cover bg-no-repeat css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[40px] lg:leading-[1.1] min-w-full relative shrink-0 text-[36px] lg:text-[78px] text-center lg:text-start tracking-[-1.44px] lg:tracking-[-2px] w-full" style={{ WebkitTextFillColor: "transparent", backgroundImage: `url('${imgFrequentlyAskedQuestions}')` }}>
                 {t("Frequently Asked Questions")}
             </p>
             <Link />
@@ -135,13 +135,13 @@ export default function FAQSection() {
                                 />
 
                                 <AccordionTrigger className="flex items-center justify-between gap-[8px] lg:gap-4 w-full p-[16px] lg:p-[32px] hover:no-underline [&[data-state=open]>svg]:rotate-180 [&>svg]:size-5 lg:[&>svg]:size-8 [&>svg]:text-white [&[data-state=open]_.question-text]:text-white text-white font-['Sora',sans-serif] cursor-pointer">
-                                    <div className="question-text text-[16px] lg:text-[24px] font-semibold lg:font-bold leading-[24px] lg:leading-tight ltr:text-left rtl:text-right text-start transition-colors duration-300">
+                                    <div className="question-text text-[16px] lg:text-[24px] font-semibold lg:font-bold leading-[24px] lg:leading-tight text-start transition-colors duration-300">
                                         {faq.question}
                                     </div>
                                 </AccordionTrigger>
 
                                 <AccordionContent className="w-full pb-[16px] lg:pb-[32px] px-[16px] lg:px-[32px] pt-0">
-                                    <div className="text-[14px] lg:text-[18px] font-normal leading-[19px] lg:leading-relaxed text-[rgba(255,255,255,0.7)] ltr:text-left rtl:text-right text-start font-['Sora',sans-serif]">
+                                    <div className="text-[14px] lg:text-[18px] font-normal leading-[19px] lg:leading-relaxed text-[rgba(255,255,255,0.7)] text-start font-['Sora',sans-serif]">
                                         {faq.answer}
                                     </div>
                                 </AccordionContent>

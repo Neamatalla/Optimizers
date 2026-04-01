@@ -111,10 +111,12 @@ export const arTranslations: Record<string, string> = {
   "Premium honey retailer offering natural and organic honey products across Kuwait.": "متجر عسل فاخر يقدم منتجات العسل الطبيعي والعضوي في الكويت.",
   "Leading furniture retailer in Egypt providing modern and contemporary furniture solutions.": "متجر أثاث رائد في مصر يقدم حلول أثاث عصرية ومعاصرة.",
   "Leading mobile phone retailer providing the latest smartphones, accessories, and digital solutions.": "متجر هواتف رائد يقدم أحدث الهواتف الذكية والإكسسوارات والحلول الرقمية.",
+  "A leading provider of innovative home appliances in Saudi Arabia, simplifying lives with quality and tech.": "شركة رائدة في مجال الأجهزة المنزلية المبتكرة في المملكة العربية السعودية، تعمل على تبسيط الحياة من خلال الجودة والتقنيات.",
+  "A leading hiring platform in Saudi Arabia, connecting top talent with the best opportunities.": "منصة توظيف رائدة في المملكة العربية السعودية، تربط أفضل المواهب بأفضل الفرص.",
 
   // Case study descriptions & hypotheses
   "Areas of Improvement:": "مجالات التحسين:",
-  "Our Goal:": "هدفنا:",
+  "Our Goal:": "أهدافنا:",
   "Feature / Pain Point": "الميزة / نقطة الألم",
   "Checkout flow, product pages.": "مسار الدفع، صفحات المنتجات.",
   "Homepage, product details page.": "الصفحة الرئيسية، صفحة تفاصيل المنتج.",
@@ -125,6 +127,8 @@ export const arTranslations: Record<string, string> = {
   "Increase conversion to partner products.": "زيادة التحويل لمنتجات الشركاء.",
   "Increase lead generation and conversions.": "زيادة توليد العملاء المحتملين والتحويلات.",
   "Reduce cart abandonment & increase AOV.": "تقليل التخلي عن سلة التسوق وزيادة متوسط قيمة الطلب.",
+  "Improve conversion rate and lead quality.": "تحسين معدل التحويل وجودة العملاء المحتملين.",
+  "Landing Page, Sales Funnel.": "صفحة الهبوط، مسار المبيعات.",
   "ECR uplift across all product categories.": "ارتفاع معدل تحويل التجارة الإلكترونية عبر جميع فئات المنتجات.",
   "Clarifying the value proposition, simplifying navigation, enhancing CTAs, and showcasing client credibility early would improve engagement and conversions": "توضيح عرض القيمة، تبسيط التنقل، تعزيز أزرار الدعوة للعمل، وإبراز مصداقية العميل مبكراً سيحسن التفاعل والتحويلات",
   "Improving PDP clarity with better imagery, structured info, reviews, urgency cues, and stronger CTAs would increase engagement and drive conversions": "تحسين وضوح صفحة المنتج بصور أفضل ومعلومات منظمة ومراجعات وإشارات استعجال وأزرار CTA أقوى سيزيد التفاعل ويدفع التحويلات",

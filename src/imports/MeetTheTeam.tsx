@@ -64,7 +64,7 @@ function Text() {
         <div className="absolute contents left-[calc(50%-97.41px)] top-[15.18px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[208px] items-center justify-center left-[calc(50%-82.91px)] top-[15.98px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "157.59375", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="bg-clip-text bg-gradient-to-b css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[23px] relative text-[19px] text-center to-[rgba(255,255,255,0)] tracking-[-0.38px]" style={{ WebkitTextFillColor: "transparent" }}>
+                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
                         Mohamed Neamatalla
                     </p>
                 </div>
@@ -164,7 +164,7 @@ function Text1() {
         <div className="absolute contents left-[calc(50%-97.42px)] top-[50.19px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[111px] items-center justify-center left-[calc(50%-82.92px)] top-[64.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "85.15625", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="bg-clip-text bg-gradient-to-b css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[23px] relative text-[19px] text-center to-[rgba(255,255,255,0)] tracking-[-0.38px]" style={{ WebkitTextFillColor: "transparent" }}>
+                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
                         Alia Mahran
                     </p>
                 </div>
@@ -266,7 +266,7 @@ function Text2() {
         <div className="absolute contents left-[calc(50%-97.42px)] top-[57.19px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[123px] items-center justify-center left-[calc(50%-82.92px)] top-[57.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "94.09375", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="bg-clip-text bg-gradient-to-b css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[23px] relative text-[19px] text-center to-[rgba(255,255,255,0)] tracking-[-0.38px]" style={{ WebkitTextFillColor: "transparent" }}>
+                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
                         Omar Maged
                     </p>
                 </div>
@@ -366,7 +366,7 @@ function Text3() {
         <div className="absolute contents left-[calc(50%-98.04px)] top-[50.21px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[137px] items-center justify-center left-[calc(50%-82.92px)] top-[51.01px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "103.46875", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="bg-clip-text bg-gradient-to-b css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[23px] relative text-[19px] text-center to-[rgba(255,255,255,0)] tracking-[-0.38px]" style={{ WebkitTextFillColor: "transparent" }}>
+                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
                         Mariam Chadii
                     </p>
                 </div>
@@ -468,7 +468,7 @@ function Text4() {
         <div className="absolute contents left-[calc(50%-97.42px)] top-[53.19px] translate-x-[-50%]" data-name="Text">
             <div className="absolute flex h-[131px] items-center justify-center left-[calc(50%-82.92px)] top-[53.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "99.03125", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="bg-clip-text bg-gradient-to-b css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold from-[43.103%] from-white leading-[23px] relative text-[19px] text-center to-[rgba(255,255,255,0)] tracking-[-0.38px]" style={{ WebkitTextFillColor: "transparent" }}>
+                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
                         Alaa Abdullah
                     </p>
                 </div>

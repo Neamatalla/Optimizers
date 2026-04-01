@@ -27,8 +27,8 @@ import imgProfile6 from "../assets/3770d43bacf3cc8cddfa4bb12ed6b2fd0eafe7e0.webp
 
 const clientData = [
     { name: 'Vitrine Furniture', tag: 'Furniture', tagBg: 'rgba(135,162,207,0.2)', tagColor: '#afc1df', accentColor: '#87a2cf', mockup: imgMockup1, profile: imgProfile1, goal: 'Increase homepage engagement & conversions.', areas: 'Homepage layout, product visibility.', metrics: [{ value: '+64.5%', label: 'Conversion rate' }, { value: '+19.48%', label: 'Avg. order value' }] },
-    { name: 'Ribal Magic', tag: 'Entertainment', tagBg: 'rgba(106,228,153,0.15)', tagColor: '#92ebb4', accentColor: '#6ae499', mockup: imgMockup2, profile: imgProfile2, goal: 'Reduce cart abandonment & increase AOV.', areas: 'Checkout flow, product pages.', metrics: [{ value: '+11.9%', label: 'E-commerce conversion rate' }, { value: '+5.99%', label: 'Average order value' }] },
-    { name: 'Squadio', tag: 'Technology', tagBg: 'rgba(255,107,87,0.15)', tagColor: '#ffa69a', accentColor: '#ff8979', mockup: imgMockup3, profile: imgProfile3, goal: 'Clarify value proposition & build trust.', areas: 'Homepage navigation, CTAs, trust signals.', metrics: [{ value: '+833%', label: 'Signup Rate' }, { value: '+44.02%', label: 'Funnel Progression' }] },
+    { name: 'Ribal Magic', tag: 'Home Appliances Industry', tagBg: 'rgba(106,228,153,0.15)', tagColor: '#92ebb4', accentColor: '#6ae499', mockup: imgMockup2, profile: imgProfile2, goal: 'Reduce cart abandonment & increase AOV.', areas: 'Checkout flow, product pages.', metrics: [{ value: '+11.9%', label: 'E-commerce conversion rate' }, { value: '+5.99%', label: 'Average order value' }] },
+    { name: 'Squadio', tag: 'Hiring Industry', tagBg: 'rgba(255,107,87,0.15)', tagColor: '#ffa69a', accentColor: '#ff8979', mockup: imgMockup3, profile: imgProfile3, goal: 'Improve conversion rate and lead quality.', areas: 'Landing Page, Sales Funnel.', metrics: [{ value: '+833%', label: 'Signup Rate' }, { value: '+44.02%', label: 'Funnel Progression' }] },
     { name: 'Regal Honey', tag: 'Food & Beverage', tagBg: 'rgba(252,211,77,0.15)', tagColor: '#fde68a', accentColor: '#fcd34d', mockup: imgMockup4, profile: imgProfile4, goal: 'Build brand trust & educate customers.', areas: 'Product details, video reviews.', metrics: [{ value: '+44.15%', label: 'Conversion rate' }, { value: '+34.6%', label: 'Avg. order value' }] },
     { name: 'Dubai Phone', tag: 'Electronics', tagBg: 'rgba(160,171,187,0.2)', tagColor: '#d0d5dd', accentColor: '#a0abbb', mockup: imgMockup5, profile: imgProfile5, goal: 'Optimize mobile shopping experience.', areas: 'Mobile checkout flow, retention.', metrics: [{ value: '+65%', label: 'Mobile conversion' }, { value: '+28%', label: 'Retention' }] },
     { name: 'Regal Honey US', tag: 'Food & Beverage', tagBg: 'rgba(107,100,72,0.15)', tagColor: '#e8cf98', accentColor: '#e8cf98', mockup: imgMockup6, profile: imgProfile6, goal: 'Boost customer retention and repeat rates.', areas: 'Subscription launch, retention, lifecycle.', metrics: [{ value: '+60%', label: 'Customer retention' }] },
@@ -304,7 +304,7 @@ export default function AnimatedHeroSection() {
                             <div 
                                 className="absolute inset-x-0 overflow-hidden pointer-events-none" 
                                 style={{ 
-                                    paddingTop: '16svh',
+                                    paddingTop: language === 'ar' ? '15svh' : '16svh',
                                     maskImage: language === 'ar' 
                                         ? 'linear-gradient(to left, transparent 0%, rgba(0,0,0,0.2) 20%, black 50%, rgba(0,0,0,0.2) 80%, transparent 100%)'
                                         : 'linear-gradient(to right, transparent 5%, rgba(0,0,0,0.1) 35%, black 50%, rgba(0,0,0,0.1) 65%, transparent 95%)',
@@ -351,10 +351,10 @@ export default function AnimatedHeroSection() {
                             </div>
 
                             {/* Card content — dynamic vertical padding */}
-                            <div className="relative z-[1] pb-[6svh] px-5 pt-[30svh]">
+                            <div className={`relative z-[1] pb-[6svh] px-5 ${language === 'ar' ? 'pt-[32svh]' : 'pt-[30svh]'}`}>
 
                                 {/* Goals and Improvement */}
-                                <div className="grid mb-5" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
+                                <div className="grid mb-5" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr', marginTop: language === 'ar' ? '24px' : undefined }}>
                                     {clientData.map((c, i) => (
                                         <div
                                             key={i}
@@ -370,11 +370,11 @@ export default function AnimatedHeroSection() {
                                             }}
                                         >
                                             <div>
-                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>{t('Our Goal:')}</p>
+                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.accentColor }}>{t('Our Goal:')}</p>
                                                 <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{t(c.goal)}</p>
                                             </div>
                                             <div>
-                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.tagColor }}>{t('Areas of Improvement:')}</p>
+                                                <p className="font-['Sora',sans-serif] font-bold text-[16px] mb-1" style={{ color: c.accentColor }}>{t('Areas of Improvement:')}</p>
                                                 <p className="font-['Sora',sans-serif] font-normal text-[14px] text-white/90 leading-[1.3] line-clamp-2">{t(c.areas)}</p>
                                             </div>
                                         </div>
@@ -476,13 +476,13 @@ export default function AnimatedHeroSection() {
                 {/* Persistent Title */}
                 <div className="tc-persistent-ui hidden lg:block" style={{ zIndex: 20 }}>
                     <p
-                        className={`absolute bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora',sans-serif] font-semibold leading-[1.1] lowercase tracking-[-0.04em]`}
+                        className={`absolute bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora',sans-serif] font-semibold ${language === 'ar' ? 'leading-normal' : 'leading-[1.1]'} lowercase tracking-[-0.04em]`}
                         style={{
                             WebkitTextFillColor: "transparent",
                             backgroundImage: `url('${imgTopclientsResults4}')`,
                             textShadow: 'none',
                             fontSize: '5.58vw',
-                            top: '5vw',
+                            top: language === 'ar' ? 'calc(6.5vw - 19px)' : '5vw',
                             ...(language === 'ar' ? { right: '5.5vw', textAlign: 'right' as const } : { left: '5.5vw' }),
                         }}
                     >
@@ -496,7 +496,7 @@ export default function AnimatedHeroSection() {
 
                 {/* Persistent CTA */}
                 <div className="tc-persistent-ui hidden lg:block" style={{ zIndex: 50 }}>
-                    <div className={`absolute flex flex-col ${language === 'ar' ? 'items-end' : 'items-start'}`} style={{ bottom: '5vw', gap: '1.5vw', ...(language === 'ar' ? { right: '5.5vw' } : { left: '5.5vw' }) }}>
+                    <div className={`absolute flex flex-col items-start`} style={{ bottom: '5vw', gap: '1.5vw', ...(language === 'ar' ? { right: '5.5vw' } : { left: '5.5vw' }) }}>
 
                         <div
                             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}

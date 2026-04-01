@@ -14,9 +14,12 @@ html[dir="rtl"] body {
     text-align: right;
 }
 
-/* ── Header navigation ── */
 body.lang-ar [data-name="Header"] {
-    direction: rtl;
+    direction: rtl !important;
+}
+
+body.lang-ar [data-name="Links"] {
+    direction: rtl !important;
 }
 
 /* ── Service cards text alignment ── */
