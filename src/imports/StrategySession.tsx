@@ -106,7 +106,7 @@ function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; 
   const borderColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
   const textColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
   const labelColor = isCurrent ? "white" : "rgba(255,255,255,0.5)";
-  const labels = ["", t("Conversions"), t("Objective"), t("Website"), t("Contact"), t("Schedule")];
+  const labels = ["", language === 'ar' ? 'الزيارات' : 'Traffic', t("Conversions"), t("Objective"), t("Website"), t("Contact"), t("Schedule")];
 
   return (
     <div
@@ -122,13 +122,14 @@ function MobileStepCircle({ num, isCurrent, isActive, onClick }: { num: number; 
 }
 
 function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const steps = [
-    { num: 1, title: t("Conversions"), subtitle: t("Conversion Volume") },
-    { num: 2, title: t("Objective"), subtitle: t("Business Objective") },
-    { num: 3, title: t("Website"), subtitle: t("Website") },
-    { num: 4, title: t("Contact"), subtitle: t("Contact Details") },
-    { num: 5, title: t("Schedule"), subtitle: t("Schedule") },
+    { num: 1, title: language === 'ar' ? 'الزيارات' : 'Traffic', subtitle: language === 'ar' ? 'زيارات الموقع' : 'Website Traffic' },
+    { num: 2, title: t("Conversions"), subtitle: t("Conversion Volume") },
+    { num: 3, title: t("Objective"), subtitle: t("Business Objective") },
+    { num: 4, title: t("Website"), subtitle: t("Website") },
+    { num: 5, title: t("Contact"), subtitle: t("Contact Details") },
+    { num: 6, title: t("Schedule"), subtitle: t("Schedule") },
   ];
 
   return (
@@ -139,8 +140,8 @@ function Stepper({ currentStep, maxStepReached, onStepClick }: any) {
           <StepWrapper key={s.num} {...s} currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={onStepClick} />
         ))}
         {/* Arrows */}
-        {[1, 2, 3, 4].map((idx) => (
-          <div key={idx} className="absolute h-0 top-[26px] translate-y-[-50%] w-[40px]" style={{ left: `calc(${idx * 20}% - 20px)` }}>
+        {[1, 2, 3, 4, 5].map((idx) => (
+          <div key={idx} className="absolute h-0 top-[26px] translate-y-[-50%] w-[40px]" style={{ left: `calc(${idx * 16.66}% - 20px)` }}>
             <div className="absolute inset-[-0.5px_0]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 40 1">
                 <path d="M0 0.5H40" stroke="var(--stroke-0, white)" strokeOpacity="0.5" />
@@ -238,11 +239,12 @@ const OptionCard = ({ text, isSelected, onClick }: { text: string, isSelected: b
 
 export default function StrategySession() {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [maxStepReached, setMaxStepReached] = useState(1);
   const [showThankYouMessage, setShowThankYouMessage] = useState(false);
   const [formData, setFormData] = useState({
+    traffic: "",
     conversionVolume: "",
     primaryObjective: "",
     customObjective: "",
@@ -259,20 +261,21 @@ export default function StrategySession() {
     },
     onSuccess: () => {
       toast({ title: "Success!", description: "Information captured! Please choose a slot for our meeting." });
-      setCurrentStep(prev => (prev === 4 ? 5 : prev));
-      setMaxStepReached(prev => Math.max(prev, 5));
+      setCurrentStep(prev => (prev === 5 ? 6 : prev));
+      setMaxStepReached(prev => Math.max(prev, 6));
     },
     onError: (error: any) => toast({ title: "Error", description: error.message || "Failed to submit form.", variant: "destructive" }),
   });
 
   const handleNext = async () => {
     if (submitContactMutation.isPending) return;
-    if (currentStep < 5) {
-      if (currentStep === 4) {
+    if (currentStep < 6) {
+      if (currentStep === 5) {
         submitContactMutation.mutate({
           firstName: formData.firstName,
           email: formData.email,
           website: normalizeWebsiteUrl(formData.website),
+          traffic: formData.traffic,
           monthlyConversions: formData.conversionVolume,
           challenge: formData.primaryObjective === "Other" ? formData.customObjective : formData.primaryObjective,
         });
@@ -296,12 +299,12 @@ export default function StrategySession() {
     if (submitContactMutation.isPending) return;
     setFormData(prev => ({ ...prev, [field]: value }));
 
-    if (currentStep === 1 && value === "Fewer Than 100") {
+    if (currentStep === 2 && value === "Fewer Than 100") {
       setTimeout(() => setShowThankYouMessage(true), 300);
       return;
     }
 
-    if (currentStep === 1 || (currentStep === 2 && value !== "Other")) {
+    if (currentStep === 1 || currentStep === 2 || (currentStep === 3 && value !== "Other")) {
       setTimeout(() => {
         const nextStep = currentStep + 1;
         setCurrentStep(nextStep);
@@ -319,10 +322,11 @@ export default function StrategySession() {
 
   const isNextDisabled = () => {
     switch (currentStep) {
-      case 1: return !formData.conversionVolume;
-      case 2: return !formData.primaryObjective || (formData.primaryObjective === "Other" && !formData.customObjective.trim());
-      case 3: return !formData.website || !!validationErrors.website;
-      case 4: return !formData.firstName || !formData.email || !!validationErrors.email;
+      case 1: return !formData.traffic;
+      case 2: return !formData.conversionVolume;
+      case 3: return !formData.primaryObjective || (formData.primaryObjective === "Other" && !formData.customObjective.trim());
+      case 4: return !formData.website || !!validationErrors.website;
+      case 5: return !formData.firstName || !formData.email || !!validationErrors.email;
       default: return false;
     }
   };
@@ -350,6 +354,25 @@ export default function StrategySession() {
         return (
           <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>
+              <span>{language === 'ar' ? 'ما هو عدد الزيارات شهرياً؟' : 'Number of traffic per Month'}</span>
+            </p>
+            <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{language === 'ar' ? 'اختر عدد الزيارات:' : 'Select traffic:'}</p>
+            <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] items-center w-full">
+              <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
+                <OptionCard text={language === 'ar' ? 'أقل من ١٠٠ ألف زائر' : 'Below 100k Visitors'} isSelected={formData.traffic === "Below 100k Visitors"} onClick={() => handleSelect("traffic", "Below 100k Visitors")} />
+                <OptionCard text={language === 'ar' ? '١٠٠ ألف - ٢٠٠ ألف زائر' : '100k-200k Visitors'} isSelected={formData.traffic === "100k-200k Visitors"} onClick={() => handleSelect("traffic", "100k-200k Visitors")} />
+              </div>
+              <div className="contents lg:flex lg:flex-row lg:gap-[24px] lg:w-full lg:justify-center">
+                <OptionCard text={language === 'ar' ? '٢٠٠ ألف - ٥٠٠ ألف زائر' : '200k-500k Visitors'} isSelected={formData.traffic === "200k-500k Visitors"} onClick={() => handleSelect("traffic", "200k-500k Visitors")} />
+                <OptionCard text={language === 'ar' ? 'أكثر من ٥٠٠ ألف زائر' : '500k+ Visitors'} isSelected={formData.traffic === "500k+ Visitors"} onClick={() => handleSelect("traffic", "500k+ Visitors")} />
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
+            <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>
               <span>{t('Number of conversions per')}</span>
               <br className="lg:hidden" />
               <span>{t('MONTH on average?')}</span>
@@ -367,7 +390,7 @@ export default function StrategySession() {
             </div>
           </div>
         );
-      case 2:
+      case 3:
         return (
           <div className="flex flex-col gap-[24px] lg:gap-[4.2vw] items-center w-full">
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('What is your primary conversion objective?')}</p>
@@ -390,7 +413,7 @@ export default function StrategySession() {
             )}
           </div>
         );
-      case 3:
+      case 4:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('What is your website?')}</p>
@@ -400,7 +423,7 @@ export default function StrategySession() {
             </div>
           </div>
         );
-      case 4:
+      case 5:
         return (
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('Contact Information')}</p>
@@ -413,7 +436,7 @@ export default function StrategySession() {
             </div>
           </div>
         );
-      case 5:
+      case 6:
         return (
           <div className="flex flex-col items-center gap-6 w-full py-8">
             <p className="font-semibold text-[24px] lg:text-[34px] text-white">{t('Schedule Your Strategy Call')}</p>
@@ -462,7 +485,7 @@ export default function StrategySession() {
           {!showThankYouMessage && <Stepper currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />}
 
           <div
-            className={`flex-1 w-full flex flex-col items-center justify-center relative transition-all duration-500 ${currentStep === 5 ? 'lg:min-h-[850px]' : 'lg:min-h-[400px]'}`}
+            className={`flex-1 w-full flex flex-col items-center justify-center relative transition-all duration-500 ${currentStep === 6 ? 'lg:min-h-[850px]' : 'lg:min-h-[400px]'}`}
           >
             {renderCurrentStepContent()}
           </div>
@@ -471,7 +494,7 @@ export default function StrategySession() {
             {currentStep > 1 && !showThankYouMessage && (
               <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">{t('Back')}</Button>
             )}
-            {((currentStep === 2 && formData.primaryObjective === "Other") || (currentStep >= 3 && currentStep < 5)) && !showThankYouMessage && (
+            {((currentStep === 3 && formData.primaryObjective === "Other") || (currentStep >= 4 && currentStep < 6)) && !showThankYouMessage && (
               <Button onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold min-w-[80px] transition-all">
                 {submitContactMutation.isPending ? t('Submitting...') : t('Next')}
               </Button>

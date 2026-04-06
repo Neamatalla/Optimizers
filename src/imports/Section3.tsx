@@ -63,8 +63,8 @@ const Section3 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             <motion.img alt="" style={{ x: mockupX || 0, y: mockupY || 0, willChange: 'transform' }} className="absolute inset-0 max-w-none object-contain pointer-events-none size-full drop-shadow-[0px_40px_80px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" loading="eager" />
                         </motion.div>
                     </div>
-                    <div className={`absolute top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10 ${isAr ? 'right-[5.5vw]' : 'left-[5.5vw]'}`} style={{ pointerEvents: "auto", maxHeight: 'calc(70vh - 15vw)', overflow: 'hidden' }}>
-                        <div className="overflow-hidden w-full">
+                    <div className={`absolute top-[30vh] flex flex-col gap-[6vh] w-[25vw] min-w-[300px] z-10 ${isAr ? 'right-[5.5vw]' : 'left-[5.5vw]'} max-h-[calc(70vh-15vw)] overflow-hidden max-[1440px]:max-h-[80vh] max-[1440px]:!overflow-visible max-[1440px]:!top-[20vh] max-[1440px]:!gap-[3vh]`} style={{ pointerEvents: "auto" }}>
+                        <div className="overflow-hidden w-full shrink-0">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
                                 <div className="content-stretch flex flex-col gap-[3vh] items-start relative shrink-0 w-full">
                                     <div className="content-stretch flex gap-[1.5vh] h-auto items-center relative shrink-0 w-full">
@@ -86,7 +86,7 @@ const Section3 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                                 </div>
                             </motion.div>
                         </div>
-                        <div className="overflow-hidden w-[20vw] min-w-[250px]">
+                        <div className="overflow-hidden w-full shrink-0">
                             <motion.div style={{ y: counterY || 0, willChange: 'transform' }}>
                                 <div className="content-stretch flex flex-col gap-[2.4vh] items-start relative shrink-0 w-full">
                                     <div className="content-stretch flex flex-col gap-[0.8vh] items-start relative shrink-0 w-full">

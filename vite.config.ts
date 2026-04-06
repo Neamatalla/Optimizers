@@ -35,7 +35,7 @@ function apiMiddlewarePlugin() {
 
             const { Resend } = await import('resend');
             const resend = new Resend(apiKey);
-            const { firstName, email, website, monthlyConversions, challenge } = JSON.parse(body);
+            const { firstName, email, website, monthlyConversions, challenge, traffic } = JSON.parse(body);
 
             if (!firstName || !email) {
               res.statusCode = 400;
@@ -67,10 +67,14 @@ function apiMiddlewarePlugin() {
                       <td style="padding: 12px; border: 1px solid #ddd;">${website || 'N/A'}</td>
                     </tr>
                     <tr>
+                      <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Number Traffic Per Month</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${traffic || 'N/A'}</td>
+                    </tr>
+                    <tr style="background-color: #f5f5f5;">
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Conversion Volume</td>
                       <td style="padding: 12px; border: 1px solid #ddd;">${monthlyConversions || 'N/A'}</td>
                     </tr>
-                    <tr style="background-color: #f5f5f5;">
+                    <tr>
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Primary Objective</td>
                       <td style="padding: 12px; border: 1px solid #ddd;">${challenge || 'N/A'}</td>
                     </tr>

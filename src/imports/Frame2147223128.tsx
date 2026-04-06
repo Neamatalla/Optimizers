@@ -1031,27 +1031,27 @@ function Component6() {
 
 function Frame4() {
   return (
-    <div className="flex flex-wrap justify-center gap-y-4 md:gap-[40px] items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2">
-      <div className="w-[33%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[0.55] origin-center md:scale-[1.2]"><Component /></div>
+    <div className="flex flex-wrap md:flex-nowrap justify-center gap-x-2 gap-y-4 md:gap-4 lg:gap-8 items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2" data-name="Logos Container">
+      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[0.55] origin-center md:scale-[1.1]"><Component /></div>
       </div>
-      <div className="w-[33%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible">
-        <div className="scale-[0.55] origin-center md:scale-[1.0]"><Component6 /></div>
+      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible shrink">
+        <div className="scale-[0.55] origin-center md:scale-[1.45]"><Component6 /></div>
       </div>
-      <div className="w-[33%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component1 /></div>
+      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[1.0] origin-center md:scale-[1.1]"><Component1 /></div>
       </div>
-      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[0.9] origin-center md:scale-[1.2]"><Component2 /></div>
+      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[0.9] origin-center md:scale-[1.1]"><Component2 /></div>
       </div>
-      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[1.1] origin-center md:scale-[1.2]"><Component3 /></div>
+      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[1.1] origin-center md:scale-[1.1]"><Component3 /></div>
       </div>
-      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component4 /></div>
+      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[1.0] origin-center md:scale-[1.1]"><Component4 /></div>
       </div>
-      <div className="w-[25%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible">
-        <div className="scale-[1.0] origin-center md:scale-[1.2]"><Component5 /></div>
+      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[1.0] origin-center md:scale-[1.1]"><Component5 /></div>
       </div>
     </div>
   );
@@ -1153,6 +1153,7 @@ function Links() {
   return (
     <div className="content-stretch hidden lg:flex font-normal gap-[20px] items-start leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)]" data-name="Links">
       <p className="font-['Sora:Regular',sans-serif] relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>{t('Services')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('about-us')?.scrollIntoView({ behavior: 'smooth' })}>{t('About Us')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>{t('ROI Calculator')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>{t('Case Studies')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}>{t('Team')}</p>
@@ -1291,7 +1292,11 @@ function Link() {
       className="bg-[#020601] h-[40px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform tap-feedback flex"
       data-name="Link"
       id="roi-link"
-      href="https://6a74zswov7q.typeform.com/to/unA1fV6H"
+      href="#contact"
+      onClick={(e) => {
+        e.preventDefault();
+        document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+      }}
     >
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[12px] md:px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
@@ -1330,6 +1335,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   const navItems = [
     { label: 'Services', id: 'services' },
+    { label: 'About Us', id: 'about-us' },
     { label: 'ROI Calculator', id: 'roi-calculator' },
     { label: 'Case Studies', id: 'case-studies' },
     { label: 'Team', id: 'team' },
@@ -1409,7 +1415,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         {/* Social Icons */}
         <div className="flex justify-center gap-4 mb-8">
           {[
-            { href: 'https://www.facebook.com/share/17iBS8fjvJ/', icon: <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /> },
+            { href: 'https://web.facebook.com/optimizersagency', icon: <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /> },
             { href: 'https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05', icon: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></> },
             { href: 'https://x.com/optimizersCRO/', icon: <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.768-6.768M15.232 9.232L20 4" /> },
             { href: 'https://www.linkedin.com/company/optimizersagency', icon: <><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></> },

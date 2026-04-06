@@ -336,9 +336,9 @@
         position: relative;
         width: 100%;
         background: #020601;
-        height: 200svh; /* Reduced height for shorter scroll animation */
+        height: 180svh; /* Reduced height for shorter scroll animation */
         display: block; /* No longer flex column */
-        margin-bottom: -200px !important;
+        margin-bottom: -160px !important;
     }
 
     .mobile-sticky-viewport {
@@ -445,24 +445,51 @@
         font-size: 13px !important;
     }
 
-    /* Brand logos: compact 3-column grid instead of stacked */
-    .hero-frame8 .content-stretch.flex.gap-\[40px\] {
-        display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 8px 12px !important;
-        justify-items: center;
-        align-items: center;
+    /* Brand logos: Replicate live site 3-4 split layout with premium sizing */
+    .hero-frame8 .content-stretch, 
+    [data-name="Logos Container"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0px 6px !important; /* Balanced gap for larger 0.65 scale */
         width: 100% !important;
+        padding: 0 4px !important;
     }
 
-    /* Client logos even smaller on mobile */
-    .client-logo {
-        transform: scale(0.55);
-        transform-origin: center;
+    /* Top Row (3 Logos) */
+    .hero-frame8 .content-stretch > div:nth-child(-n+3),
+    [data-name="Logos Container"] > div:nth-child(-n+3) {
+        width: 32% !important;
+        flex: 0 0 32% !important;
+        height: 60px !important; /* Increased height for larger logos */
     }
-    /* Balqes logo: larger than others */
+
+    /* Bottom Row (4 Logos) */
+    .hero-frame8 .content-stretch > div:nth-child(n+4),
+    [data-name="Logos Container"] > div:nth-child(n+4) {
+        width: 23% !important;
+        flex: 0 0 23% !important;
+        height: 60px !important;
+    }
+
+    /* Shared style for logo centering */
+    .hero-frame8 .content-stretch > div,
+    [data-name="Logos Container"] > div {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+    /* Client logos: Scale up to 0.65 to match live site premium appearance */
+    .client-logo {
+        transform: scale(0.65) !important;
+        transform-origin: center !important;
+    }
+    
+    /* Balqes logo (Component 8): Scaled proportionally (~1.4x base) */
     [data-name="Component 8"].client-logo {
-        transform: scale(0.9);
+        transform: scale(0.9) !important;
     }
 
     /* ═══ HERO VIDEO: Visible on mobile (absolute layer, moves up in viewport) ═══ */
@@ -763,14 +790,6 @@
 
 /* ─── Client Logos: Responsive sizing ─── */
 @media (max-width: 767px) {
-    .client-logo {
-        transform: scale(0.65);
-        transform-origin: center;
-    }
-    [data-name="Component 8"].client-logo {
-        transform: scale(1.0);
-    }
-
     .hero-frame8 p {
         font-size: 14px !important;
     }

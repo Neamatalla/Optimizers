@@ -476,7 +476,7 @@ export default function AnimatedHeroSection() {
                 {/* Persistent Title */}
                 <div className="tc-persistent-ui hidden lg:block" style={{ zIndex: 20 }}>
                     <p
-                        className={`absolute bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora',sans-serif] font-semibold ${language === 'ar' ? 'leading-normal' : 'leading-[1.1]'} lowercase tracking-[-0.04em]`}
+                        className={`absolute bg-center bg-clip-text bg-cover bg-no-repeat font-['Sora',sans-serif] font-semibold ${language === 'ar' ? 'leading-normal' : 'leading-[1.1]'} capitalize tracking-[-0.04em]`}
                         style={{
                             WebkitTextFillColor: "transparent",
                             backgroundImage: `url('${imgTopclientsResults4}')`,

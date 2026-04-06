@@ -49,9 +49,9 @@ export default function HeaderSection() {
     });
 
     // --- Hero Text Animations ---
-    const heroScale = useTransform(scrollYProgress, [0, 0.4, 0.8], isMobile ? [1, 0.8, 0.5] : [1, 0.85, 0.65]);
-    const heroOpacity = useTransform(scrollYProgress, [0, 0.3, 0.6], isMobile ? [1, 1, 0] : [1, 0.7, 0]);
-    const heroY = useTransform(scrollYProgress, [0, 0.4, 0.8], isMobile ? [0, -40, -100] : [0, -40, -120]);
+    const heroScale = useTransform(scrollYProgress, [0, 0.35, 0.7], isMobile ? [1, 0.8, 0.5] : [1, 0.85, 0.65]);
+    const heroOpacity = useTransform(scrollYProgress, [0, 0.2, 0.5], isMobile ? [1, 1, 0] : [1, 0.7, 0]);
+    const heroY = useTransform(scrollYProgress, [0, 0.35, 0.7], isMobile ? [0, -40, -100] : [0, -40, -120]);
 
     // --- Tablet Animations (viewport-height-aware) ---
     const canvasViewportH = viewportH / scale;
@@ -59,13 +59,13 @@ export default function HeaderSection() {
     const tabletMidY = (50 + tabletEndY) / 2;
     
     // On mobile, start the tablet much lower (below viewport)
-    const mobileTabletStartY = viewportH + 200; 
+    const mobileTabletStartY = viewportH + 100; 
     const tabletY = useTransform(
         scrollYProgress, 
-        [0, 0.3, 0.8, 1], 
+        [0, 0.2, 0.65, 1], 
         isMobile ? [mobileTabletStartY, mobileTabletStartY * 0.8, 0, -100] : [300, 50, tabletMidY, tabletEndY]
     );
-    const tabletScale = useTransform(scrollYProgress, [0, 0.3, 0.8], isMobile ? [0.7, 0.7, 1] : [0.85, 0.95, 1]);
+    const tabletScale = useTransform(scrollYProgress, [0, 0.2, 0.65], isMobile ? [0.7, 0.7, 1] : [0.85, 0.95, 1]);
 
     /* ═══════════════════════════════════════════
        MOBILE LAYOUT — simple flex column, no canvas

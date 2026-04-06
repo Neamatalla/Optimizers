@@ -112,7 +112,7 @@ body {
     .hero-frame10 {
         top: 140px !important;
         gap: 36px !important;
-        height: 558px !important;
+        height: auto !important;
     }
 
     .hero-frame9 {
