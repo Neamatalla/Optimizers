@@ -176,12 +176,12 @@ export default function AnimatedHeroSection() {
     const touchStartX = useRef<number | null>(null);
     const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Auto-rotate every 4 seconds
+    // Auto-rotate every 7 seconds
     useEffect(() => {
         if (!isMobile) return;
         autoPlayRef.current = setInterval(() => {
             setActiveSlide((prev: number) => (prev + 1) % sections.length);
-        }, 4000);
+        }, 7000);
         return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current); };
     }, [isMobile]);
 
@@ -189,7 +189,7 @@ export default function AnimatedHeroSection() {
         if (autoPlayRef.current) clearInterval(autoPlayRef.current);
         autoPlayRef.current = setInterval(() => {
             setActiveSlide((prev: number) => (prev + 1) % sections.length);
-        }, 4000);
+        }, 7000);
     };
 
     const goToSlide = (idx: number) => {
@@ -497,7 +497,9 @@ export default function AnimatedHeroSection() {
                 {/* Persistent CTA */}
                 <div className="tc-persistent-ui hidden lg:block" style={{ zIndex: 50 }}>
                     <div className={`absolute flex flex-col items-start`} style={{ bottom: '5vw', gap: '1.5vw', ...(language === 'ar' ? { right: '5.5vw' } : { left: '5.5vw' }) }}>
-
+                        <p className="font-['Sora',sans-serif] font-normal text-white" style={{ fontSize: '1.39vw', lineHeight: '1.5' }}>
+                            {language === 'ar' ? 'مستعد لتكون قصة نجاحنا القادمة؟' : 'Ready to be our next success story?'}
+                        </p>
                         <div
                             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
                             className="bg-[rgba(2,6,1,0.7)] backdrop-blur-md h-auto relative rounded-[100px] border border-[#6ae499]/50 cursor-pointer hover:scale-105 hover:bg-[rgba(106,228,153,0.1)] transition-all shadow-[0px_0px_30px_0px_rgba(106,228,153,0.3)]"

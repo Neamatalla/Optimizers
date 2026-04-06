@@ -35,7 +35,7 @@ function BgElements() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.429 709.269">
                                 <g filter="url(#filter0_f_1_328)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p4ca9700} fill="url(#paint0_radial_1_328)" fillOpacity="0.15" />
+                                    <path d={svgPaths.p4ca9700} fill="url(#paint0_radial_1_328)" fillOpacity="0.5" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.269" id="filter0_f_1_328" width="881.429" x="0" y="0">
@@ -135,7 +135,7 @@ function BgElements1() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.486 709.315">
                                 <g filter="url(#filter0_f_1_322)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_322)" fillOpacity="0.4" />
+                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_322)" fillOpacity="0.55" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.315" id="filter0_f_1_322" width="881.486" x="0" y="0">
@@ -237,7 +237,7 @@ function BgElements2() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.486 709.315">
                                 <g filter="url(#filter0_f_1_324)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_324)" fillOpacity="0.15" />
+                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_324)" fillOpacity="0.4" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.315" id="filter0_f_1_324" width="881.486" x="0" y="0">
@@ -337,7 +337,7 @@ function BgElements3() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.486 709.315">
                                 <g filter="url(#filter0_f_1_312)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_312)" fillOpacity="0.4" />
+                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_312)" fillOpacity="0.55" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.315" id="filter0_f_1_312" width="881.486" x="0" y="0">
@@ -439,7 +439,7 @@ function BgElements4() {
                         <div className="absolute inset-[-15.65%_-11.86%]">
                             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.443 709.281">
                                 <g filter="url(#filter0_f_1_338)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p85e3500} fill="url(#paint0_radial_1_338)" fillOpacity="0.15" />
+                                    <path d={svgPaths.p85e3500} fill="url(#paint0_radial_1_338)" fillOpacity="0.4" />
                                 </g>
                                 <defs>
                                     <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.281" id="filter0_f_1_338" width="881.443" x="0" y="0">
@@ -520,8 +520,8 @@ function Frame1() {
             <Safer />
             <Safer1 />
             <Safer2 />
-            <Safer4 />
             <Safer3 />
+            <Safer4 />
         </div>
     );
 }
@@ -561,7 +561,7 @@ function MobileBgElements() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 587.658 472.877">
                 <g filter="url(#filter0_f_1_331)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p3c9714f0} fill="url(#paint0_radial_1_331)" fillOpacity="0.2" />
+                  <path d={svgMobilePaths.p3c9714f0} fill="url(#paint0_radial_1_331)" fillOpacity="0.5" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="472.877" id="filter0_f_1_331" width="587.658" x="0" y="0">
@@ -661,7 +661,7 @@ function MobileBgElements1() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 586.243 471.738">
                 <g filter="url(#filter0_f_1_325)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p30f98800} fill="url(#paint0_radial_1_325)" fillOpacity="0.4" />
+                  <path d={svgMobilePaths.p30f98800} fill="url(#paint0_radial_1_325)" fillOpacity="0.55" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="471.738" id="filter0_f_1_325" width="586.243" x="0" y="0">
@@ -961,7 +961,7 @@ function MobileBgElements4() {
             <div className="absolute inset-[-15.65%_-11.86%]">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 587.658 472.877">
                 <g filter="url(#filter0_f_1_335)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p1d11f480} fill="url(#paint0_radial_1_335)" fillOpacity="0.4" />
+                  <path d={svgMobilePaths.p1d11f480} fill="url(#paint0_radial_1_335)" fillOpacity="0.55" />
                 </g>
                 <defs>
                   <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="472.877" id="filter0_f_1_335" width="587.658" x="0" y="0">

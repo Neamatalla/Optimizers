@@ -368,7 +368,7 @@ export default function App() {
             {/* DESKTOP ONLY (>= lg) - Sticky Left / Scrolling Right */}
             <div className="hidden lg:flex flex-row gap-[7vw] p-[7vw] items-start">
               {/* Left Side - Text */}
-              <div className="flex flex-col gap-[2.2vw] w-[37.3vw] shrink-0 items-start text-start sticky top-10 self-start h-fit z-10">
+              <div className="flex flex-col gap-[2.2vw] w-[37.3vw] shrink-0 items-start text-start sticky top-[90px] self-start h-fit z-10">
                 <div
                   className="relative min-w-full w-[min-content]"
                   style={{

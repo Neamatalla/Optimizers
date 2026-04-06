@@ -13,7 +13,7 @@ import imgElKalbEl4A2YWhiteAndNoBackground from "../assets/a33025d56680114484fa0
 import imgRegalEnLogo01 from "../assets/4387b7cb5576eedd1c2dfa9e01243b9e1225824a.webp";
 import imgBalqesHoneyLogo from "../assets/balqes-honey-logo.png";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
-import headerVideoMp4 from "../assets/Optimizers-Header_1.mp4";
+import headerVideoMp4 from "../assets/2026-full-1.mp4";
 import { imgGroup } from "./svg-0tz7a";
 
 function Bg() {
@@ -809,7 +809,7 @@ function Frame1() {
       <div aria-hidden="true" className="absolute border-[#b1b1b1] border-[0.5px] border-solid inset-0 pointer-events-none rounded-[100px]" />
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex flex-row gap-[4px] sm:gap-[16px] items-center px-[8px] sm:px-[20px] py-[10px] relative w-full">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[10px] sm:text-[14px] text-white whitespace-nowrap">{t('Our services support:')}</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative shrink-0 text-[10px] sm:text-[14px] text-white whitespace-nowrap">{t('Built for leading platforms')}</p>
           <Frame2 />
         </div>
       </div>
