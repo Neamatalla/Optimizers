@@ -12,6 +12,8 @@ import imgVitrineFurniture09082019Ee834Ce7E8Ea4E00878D60378A796Ff0410X from "../
 import imgElKalbEl4A2YWhiteAndNoBackground from "../assets/a33025d56680114484fa0589302841737d1bfd66.webp";
 import imgRegalEnLogo01 from "../assets/4387b7cb5576eedd1c2dfa9e01243b9e1225824a.webp";
 import imgBalqesHoneyLogo from "../assets/balqes-honey-logo.png";
+import imgClientLogo1 from "../assets/client-logo-1.png";
+import imgClientLogo2DenVc from "../assets/client-logo-2-denvc.png";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
 import headerVideoMp4 from "../assets/2026-full-1.mp4";
 import { imgGroup } from "./svg-0tz7a";
@@ -1029,29 +1031,61 @@ function Component6() {
   );
 }
 
+function Component7() {
+  return (
+    <div className="h-[60px] relative shrink-0 w-[160px] client-logo" data-name="Component 9">
+      <img
+        alt="Client Logo"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgClientLogo1}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
+function Component8() {
+  return (
+    <div className="h-[60px] relative shrink-0 w-[160px] client-logo" data-name="Component 10">
+      <img
+        alt="DEN VC"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgClientLogo2DenVc}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
 function Frame4() {
   return (
-    <div className="flex flex-wrap md:flex-nowrap justify-center gap-x-2 gap-y-4 md:gap-4 lg:gap-8 items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2" data-name="Logos Container">
+    <div className="flex flex-wrap lg:flex-nowrap justify-center gap-x-12 gap-y-4 md:gap-0 lg:gap-0 items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2 md:px-0" data-name="Logos Container">
       <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[0.55] origin-center md:scale-[1.1]"><Component /></div>
+        <div className="scale-[1.1] origin-center md:scale-[0.95] md:-ml-1 md:mr-2"><Component /></div>
       </div>
       <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible shrink">
-        <div className="scale-[0.55] origin-center md:scale-[1.45]"><Component6 /></div>
+        <div className="scale-[0.55] origin-center md:scale-[0.85] md:-mx-1"><Component6 /></div>
       </div>
       <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.0] origin-center md:scale-[1.1]"><Component1 /></div>
+        <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component1 /></div>
+      </div>
+      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pr-6 md:pr-0">
+        <div className="scale-[0.9] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component2 /></div>
       </div>
       <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[0.9] origin-center md:scale-[1.1]"><Component2 /></div>
+        <div className="scale-[1.1] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component3 /></div>
       </div>
       <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.1] origin-center md:scale-[1.1]"><Component3 /></div>
+        <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component4 /></div>
       </div>
       <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.0] origin-center md:scale-[1.1]"><Component4 /></div>
+        <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component5 /></div>
       </div>
-      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.0] origin-center md:scale-[1.1]"><Component5 /></div>
+      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+        <div className="scale-[1.1] origin-center md:scale-[0.95] md:mx-3"><Component7 /></div>
+      </div>
+      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pl-6 md:pl-0">
+        <div className="scale-[0.55] origin-center md:scale-[0.7] md:-mx-1"><Component8 /></div>
       </div>
     </div>
   );
