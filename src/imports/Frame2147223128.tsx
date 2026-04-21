@@ -1058,38 +1058,86 @@ function Component8() {
 }
 
 function Frame4() {
+  const { language } = useLanguage();
+  const isRtl = language === "ar";
+
+  const logoItems = [
+    <div key="c2_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[0.7] origin-center lg:scale-[0.7]"><Component2 /></div>
+    </div>,
+    <div key="c8_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[0.55] origin-center lg:scale-[0.7]"><Component8 /></div>
+    </div>,
+    <div key="c1" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[0.75] origin-center lg:scale-[0.7]"><Component /></div>
+    </div>,
+    <div key="c6" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[0.55] origin-center lg:scale-[1.1]"><Component6 /></div>
+    </div>,
+    <div key="c1_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[1.0] origin-center lg:scale-[0.7]"><Component1 /></div>
+    </div>,
+    <div key="c3_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[1.1] origin-center lg:scale-[1.0]"><Component3 /></div>
+    </div>,
+    <div key="c4_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component4 /></div>
+    </div>,
+    <div key="c5_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component5 /></div>
+    </div>,
+    <div key="c7_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+      <div className="scale-[1.1] origin-center lg:scale-[0.95]"><Component7 /></div>
+    </div>,
+  ];
+
   return (
-    <div className="flex flex-wrap lg:flex-nowrap justify-center gap-x-12 gap-y-4 md:gap-0 lg:gap-0 items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2 md:px-0" data-name="Logos Container">
-      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.1] origin-center md:scale-[0.95] md:-ml-1 md:mr-2"><Component /></div>
+    <div className="relative w-full opacity-90 pointer-events-auto">
+      {/* Desktop Infinite Carousel */}
+      <div className="hidden lg:block w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
+        <div
+          className={`flex w-max items-center py-4 gap-12 ${isRtl ? "animate-logo-scroll-rtl" : "animate-logo-scroll-ltr"}`}
+          style={{ willChange: "transform" }}
+        >
+          {logoItems}
+          {logoItems}
+        </div>
       </div>
-      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible shrink">
-        <div className="scale-[0.55] origin-center md:scale-[0.85] md:-mx-1"><Component6 /></div>
-      </div>
-      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component1 /></div>
-      </div>
-      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pr-6 md:pr-0">
-        <div className="scale-[0.9] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component2 /></div>
-      </div>
-      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.1] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component3 /></div>
-      </div>
-      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component4 /></div>
-      </div>
-      <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component5 /></div>
-      </div>
-      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-        <div className="scale-[1.1] origin-center md:scale-[0.95] md:mx-3"><Component7 /></div>
-      </div>
-      <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pl-6 md:pl-0">
-        <div className="scale-[0.55] origin-center md:scale-[0.7] md:-mx-1"><Component8 /></div>
+
+      {/* Mobile Wrapped View — matches live site exactly */}
+      <div className="lg:hidden flex flex-wrap justify-center gap-x-12 gap-y-4 md:gap-0 lg:gap-0 items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2 md:px-0" data-name="Logos Container">
+        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+          <div className="scale-[0.67] origin-center md:scale-[0.95] md:-ml-1 md:mr-2"><Component /></div>
+        </div>
+        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible shrink">
+          <div className="scale-[0.55] origin-center md:scale-[0.85] md:-mx-1"><Component6 /></div>
+        </div>
+        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+          <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component1 /></div>
+        </div>
+        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pr-6 md:pr-0">
+          <div className="scale-[0.9] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component2 /></div>
+        </div>
+        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+          <div className="scale-[1.1] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component3 /></div>
+        </div>
+        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+          <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component4 /></div>
+        </div>
+        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+          <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component5 /></div>
+        </div>
+        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
+          <div className="scale-[1.1] origin-center md:scale-[0.95] md:mx-3"><Component7 /></div>
+        </div>
+        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pl-6 md:pl-0">
+          <div className="scale-[0.55] origin-center md:scale-[0.7] md:-mx-1"><Component8 /></div>
+        </div>
       </div>
     </div>
   );
 }
+
 
 function Frame8() {
   return (

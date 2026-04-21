@@ -11,13 +11,25 @@ import imgRectangle16 from "../assets/5950a3ddf2a6ec9b701c5efd3ec463328161175a.w
 import imgRectangle17 from "../assets/0f2c3f5ca49e9394bfe08c7f7dd7175f5ef586bd.webp";
 import imgRectangle18 from "../assets/eb353270e89d942c0cb7aca6776f63e80f7bbe5e.webp";
 import imgRectangle19 from "../assets/212c2c3f9e91b0f640a3c4744397715ee2bd1eb1.webp";
+import imgTeamPhoto from "../assets/team-photo.jpg";
+import imgWhatsApp from "../assets/WhatsApp Image 2026-04-15 at 12.55.43 PM.jpeg";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
 const ALL_IMAGES = [
     imgRectangle14, imgRectangle12, imgRectangle9, imgRectangle10,
     imgRectangle4, imgRectangle11, imgRectangle13, imgRectangle15,
-    imgRectangle16, imgRectangle17, imgRectangle18, imgRectangle19
+    imgRectangle16, imgRectangle17, imgRectangle18, imgRectangle19,
+    imgTeamPhoto, imgWhatsApp
 ];
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 // Desktop 3D config
 const COLUMNS = 21;
@@ -25,6 +37,10 @@ const ROWS = 15;
 const RADIUS = 1100;
 const ANGLE_STEP = 6.5;
 const ROW_GAP = 130;
+
+const DESKTOP_IMAGE_LIST = shuffleArray(
+  Array.from({ length: COLUMNS * ROWS }, (_, i) => ALL_IMAGES[i % ALL_IMAGES.length])
+);
 
 // Mobile 2D grid config - from reference design
 const MOBILE_COLS = 9;
@@ -45,18 +61,9 @@ const MOBILE_COL_POSITIONS = [
     { left: 556.75, top: -56.56 },
 ];
 
-// Each column uses a different shuffled order of images
-const MOBILE_COL_IMAGE_ORDERS = [
-    [0, 1, 2, 3, 4, 5, 6, 7],   // col 0
-    [3, 6, 5, 0, 7, 1, 2, 4],   // col 1
-    [4, 7, 1, 3, 2, 5, 0, 6],   // col 2
-    [5, 3, 8, 6, 0, 9, 2, 10],  // col 3
-    [0, 6, 7, 1, 5, 4, 11, 3],  // col 4
-    [5, 2, 11, 3, 7, 1, 7, 0],  // col 5
-    [3, 6, 0, 9, 10, 9, 5, 11], // col 6
-    [0, 5, 4, 11, 2, 1, 7, 3],  // col 7
-    [2, 1, 6, 7, 3, 0, 5, 4],   // col 8
-];
+const MOBILE_COL_IMAGE_ORDERS = Array.from({ length: MOBILE_COLS }, () =>
+  Array.from({ length: MOBILE_ROWS_PER_COL }, () => Math.floor(Math.random() * ALL_IMAGES.length))
+);
 
 /** Mobile gallery column - vertical strip of images */
 function MobileColumn({ colIndex }: { colIndex: number }) {
@@ -156,8 +163,8 @@ export default function GallerySection() {
                         return Array.from({ length: ROWS }).map((_, rowIndex) => {
                             const stagger = (colIndex % 2) * (ROW_GAP / 2);
                             const yPos = (rowIndex - (ROWS - 1) / 2) * ROW_GAP + stagger;
-                            const imageIndex = (colIndex * ROWS + rowIndex) % ALL_IMAGES.length;
-                            const image = ALL_IMAGES[imageIndex];
+                            const imageIndex = colIndex * ROWS + rowIndex;
+                            const image = DESKTOP_IMAGE_LIST[imageIndex];
                             return (
                                 <motion.div
                                     key={`${colIndex}-${rowIndex}`}
