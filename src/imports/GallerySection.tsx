@@ -1,4 +1,4 @@
-// Gallery Section
+// Gallery Section v2
 import { motion } from 'motion/react';
 import imgRectangle14 from "../assets/d8b337a511649b176cd435e218aaa7b2a33d3cb6.webp";
 import imgRectangle12 from "../assets/1e2bc48a17b1656347bb46caabfa6e2bd1c24845.webp";
