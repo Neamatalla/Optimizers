@@ -129,30 +129,17 @@ body {
     }
 }
 
-/* ===== Client Logo Hover Effect ===== */
+/* ===== Client Logo Styles ===== */
 .client-logo {
-    filter: grayscale(1);
-    transition: filter 0.3s ease;
-}
-
-.client-logo:hover {
     filter: grayscale(0);
+    transition: transform 0.3s ease;
 }
 
-.client-logo:hover * {
+.client-logo * {
     mix-blend-mode: normal !important;
     filter: none !important;
 }
 
-@media (max-width: 1023px) {
-    .client-logo {
-        filter: grayscale(0);
-    }
-    .client-logo * {
-        mix-blend-mode: normal !important;
-        filter: none !important;
-    }
-}
 
 /* ===== Performance Optimization ===== */
 /* Eliminated content-visibility-auto due to layout jumps */
@@ -223,4 +210,24 @@ body {
 [data-sonner-toast] [data-description],
 [data-sonner-toast] [data-content] {
     color: #000000 !important;
-}
+}
+
+/* ===== Infinite Logo Carousel ===== */
+@keyframes scroll-ltr {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes scroll-rtl {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0); }
+}
+
+.animate-logo-scroll-ltr {
+    animation: scroll-ltr 45s linear infinite;
+}
+
+.animate-logo-scroll-rtl {
+    animation: scroll-rtl 45s linear infinite;
+}
+
