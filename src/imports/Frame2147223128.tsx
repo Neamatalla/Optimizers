@@ -1091,16 +1091,18 @@ function Frame4() {
     </div>,
   ];
 
+  const items = isRtl ? [...logoItems].reverse() : logoItems;
+
   return (
     <div className="relative w-full opacity-90 pointer-events-auto">
       {/* Desktop Infinite Carousel */}
-      <div className="hidden lg:block w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
+      <div className="hidden lg:block w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]" dir="ltr">
         <div
           className={`flex w-max items-center py-4 gap-12 ${isRtl ? "animate-logo-scroll-rtl" : "animate-logo-scroll-ltr"}`}
           style={{ willChange: "transform" }}
         >
-          {logoItems}
-          {logoItems}
+          {items}
+          {items}
         </div>
       </div>
 

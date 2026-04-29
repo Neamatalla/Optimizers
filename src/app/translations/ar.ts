@@ -10,6 +10,7 @@ export const arTranslations: Record<string, string> = {
   "Contact": "تواصل معنا",
   "Quick Links": "روابط سريعة",
   "About": "من نحن",
+  "About Us": "من نحن",
 
   // ═══════════════════════════════════════════════
   // Hero Section

@@ -5,7 +5,7 @@ import imgRectangle2 from "../assets/8beafb71ac0e56f696268857cdb1244ee06d2dcc.we
 import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.webp";
 import imgRectangle4 from "../assets/2360b5bdc64c7364378a5a9d57d3b75bc52915d7.webp";
 import imgRectangle5 from "../assets/74dadc14d70527de322c8a12cd44546b63f3fcd5.webp";
-import imgLiftapp from "../assets/3ea05da11c2980d6a66b2e7e7d24667e55eea21a.webp";
+import imgAlaa from "../assets/alaa.png";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Lights() {
@@ -422,7 +422,7 @@ function Lights4() {
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 to-black" />
                     <div className="absolute inset-0 overflow-hidden">
-                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.3] origin-top translate-y-[-40px]" src={imgLiftapp} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[0.88] origin-top translate-y-[15px]" src={imgAlaa} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -844,7 +844,7 @@ function MobileLights3() {
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
           <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
-            <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.25] origin-top translate-y-[-15px]" src={imgLiftapp} />
+            <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.427px] size-full scale-[0.98] origin-top translate-y-[20px]" src={imgAlaa} />
           </div>
         </div>
       </div>
@@ -1061,7 +1061,7 @@ export default function MeetTheTeam() {
         { name: "Alia Mahran", role: "Operation Manager", image: imgRectangle3, color: "#FFA69A" },
         { name: "Omar Maged", role: "Tech Manager", image: imgRectangle4, color: "#FDE68A" },
         { name: "Mariam Chadii", role: "UI/UX Lead", image: imgRectangle5, color: "#FFA437" },
-        { name: "Alaa Abdullah", role: "Quality Assurance", image: imgLiftapp, color: "#92EBB4" },
+        { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#92EBB4" },
     ];
 
     return (
