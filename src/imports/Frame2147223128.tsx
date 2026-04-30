@@ -1020,7 +1020,7 @@ function Component5() {
 
 function Component6() {
   return (
-    <div className="h-[100px] relative shrink-0 w-[200px] client-logo" data-name="Component 8">
+    <div className="h-[55px] relative shrink-0 w-[110px] client-logo" data-name="Component 8">
       <img
         alt="Balqes Honey"
         className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
@@ -1062,31 +1062,31 @@ function Frame4() {
   const isRtl = language === "ar";
 
   const logoItems = [
-    <div key="c2_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c2_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 -mx-[18px]">
       <div className="scale-[0.7] origin-center lg:scale-[0.7]"><Component2 /></div>
     </div>,
-    <div key="c8_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c8_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 -mx-[40px] lg:-mx-[28px]">
       <div className="scale-[0.55] origin-center lg:scale-[0.7]"><Component8 /></div>
     </div>,
-    <div key="c1" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c1" className="flex justify-center items-center h-auto overflow-visible shrink-0 -mx-[44px] lg:-mx-[48px]">
       <div className="scale-[0.75] origin-center lg:scale-[0.7]"><Component /></div>
     </div>,
-    <div key="c6" className="flex justify-center items-center h-auto overflow-visible shrink-0">
-      <div className="scale-[0.55] origin-center lg:scale-[1.1]"><Component6 /></div>
+    <div key="c6" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-[15px] lg:mx-[15px]">
+      <div className="scale-[0.8] origin-center lg:scale-[1.0]"><Component6 /></div>
     </div>,
-    <div key="c1_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c1_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0 lg:-mx-[25px]">
       <div className="scale-[1.0] origin-center lg:scale-[0.7]"><Component1 /></div>
     </div>,
-    <div key="c3_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c3_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-[4px] lg:mx-0">
       <div className="scale-[1.1] origin-center lg:scale-[1.0]"><Component3 /></div>
     </div>,
-    <div key="c4_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c4_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0">
       <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component4 /></div>
     </div>,
-    <div key="c5_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c5_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0">
       <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component5 /></div>
     </div>,
-    <div key="c7_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0">
+    <div key="c7_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-[8px] lg:-mx-[4px]">
       <div className="scale-[1.1] origin-center lg:scale-[0.95]"><Component7 /></div>
     </div>,
   ];
@@ -1098,7 +1098,7 @@ function Frame4() {
       {/* Desktop Infinite Carousel */}
       <div className="hidden lg:block w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]" dir="ltr">
         <div
-          className={`flex w-max items-center py-4 gap-12 ${isRtl ? "animate-logo-scroll-rtl" : "animate-logo-scroll-ltr"}`}
+          className={`flex w-max items-center py-4 gap-8 ${isRtl ? "animate-logo-scroll-rtl" : "animate-logo-scroll-ltr"}`}
           style={{ willChange: "transform" }}
         >
           {items}
@@ -1106,34 +1106,14 @@ function Frame4() {
         </div>
       </div>
 
-      {/* Mobile Wrapped View — matches live site exactly */}
-      <div className="lg:hidden flex flex-wrap justify-center gap-x-12 gap-y-4 md:gap-0 lg:gap-0 items-center opacity-90 relative shrink-0 pointer-events-auto w-full px-2 md:px-0" data-name="Logos Container">
-        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-          <div className="scale-[0.67] origin-center md:scale-[0.95] md:-ml-1 md:mr-2"><Component /></div>
-        </div>
-        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[55px] md:h-auto overflow-visible shrink">
-          <div className="scale-[0.55] origin-center md:scale-[0.85] md:-mx-1"><Component6 /></div>
-        </div>
-        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-          <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component1 /></div>
-        </div>
-        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pr-6 md:pr-0">
-          <div className="scale-[0.9] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component2 /></div>
-        </div>
-        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-          <div className="scale-[1.1] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component3 /></div>
-        </div>
-        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-          <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component4 /></div>
-        </div>
-        <div className="w-[22%] sm:w-[20%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-          <div className="scale-[1.0] origin-center md:scale-[0.7] md:-ml-1 md:mr-2"><Component5 /></div>
-        </div>
-        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink">
-          <div className="scale-[1.1] origin-center md:scale-[0.95] md:mx-3"><Component7 /></div>
-        </div>
-        <div className="w-[30%] sm:w-[28%] md:w-auto flex justify-center items-center h-[50px] md:h-auto overflow-visible shrink pl-6 md:pl-0">
-          <div className="scale-[0.55] origin-center md:scale-[0.7] md:-mx-1"><Component8 /></div>
+      {/* Mobile Infinite Carousel */}
+      <div className="lg:hidden w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]" dir="ltr">
+        <div
+          className={`flex w-max items-center py-4 gap-2 ${isRtl ? "animate-logo-scroll-rtl" : "animate-logo-scroll-ltr"}`}
+          style={{ willChange: "transform" }}
+        >
+          {items}
+          {items}
         </div>
       </div>
     </div>
@@ -1402,7 +1382,7 @@ function Frame() {
 
 function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useLanguage();
-  
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -1538,8 +1518,8 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 function Header({ mobileMenuOpen = false, setMobileMenuOpen = () => { } }: { mobileMenuOpen?: boolean; setMobileMenuOpen?: (v: boolean) => void }) {
   const { language } = useLanguage();
   return (
-    <div 
-      className="bg-[#020601] content-stretch flex h-[88px] items-center justify-between pointer-events-auto px-[16px] md:px-[40px] lg:px-[64px] py-[24px] rounded-[4px] sticky top-0 w-full max-w-[1440px] mx-auto text-start" 
+    <div
+      className="bg-[#020601] content-stretch flex h-[88px] items-center justify-between pointer-events-auto px-[16px] md:px-[40px] lg:px-[64px] py-[24px] rounded-[4px] sticky top-0 w-full max-w-[1440px] mx-auto text-start"
       data-name="Header"
       dir={language === 'ar' ? 'rtl' : 'ltr'}
     >

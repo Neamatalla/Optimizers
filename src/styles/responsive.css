@@ -149,10 +149,12 @@
     [data-name="Header"] .rounded-\[100px\] {
         height: auto !important;
     }
-    [data-name="Header"] .rounded-\[100px\] > div:first-child {
+
+    [data-name="Header"] .rounded-\[100px\]>div:first-child {
         padding: 6px 10px !important;
     }
-    [data-name="Header"] [data-name="div.btn-label"] > div {
+
+    [data-name="Header"] [data-name="div.btn-label"]>div {
         font-size: 11px !important;
         line-height: 15px !important;
     }
@@ -162,6 +164,7 @@
         gap: 4px !important;
         padding: 4px !important;
     }
+
     [data-name="Header"] [data-name="User"] .rotate-90 {
         display: none !important;
     }
@@ -301,9 +304,10 @@
         transform: scale(0.75);
         transform-origin: center;
     }
-    /* Balqes logo: larger than others */
+
+    /* Balqes logo: slightly larger than others */
     [data-name="Component 8"].client-logo {
-        transform: scale(1.1);
+        transform: scale(0.65);
     }
 
     /* Tablet/video frame */
@@ -336,8 +340,10 @@
         position: relative;
         width: 100%;
         background: #020601;
-        height: 180svh; /* Reduced height for shorter scroll animation */
-        display: block; /* No longer flex column */
+        height: 180svh;
+        /* Reduced height for shorter scroll animation */
+        display: block;
+        /* No longer flex column */
         margin-bottom: -160px !important;
     }
 
@@ -376,7 +382,7 @@
     /* Hide the SVG canvas on all mobile — both iOS and Android use the CSS gradient above.
        iOS WebKit can't render the heavy SVG filters anyway; hiding on Android too ensures
        a consistent look across all mobile devices. */
-    .mobile-hero-bg > div {
+    .mobile-hero-bg>div {
         display: none !important;
     }
 
@@ -402,7 +408,8 @@
         width: 100% !important;
         max-width: 100% !important;
         height: 100% !important;
-        gap: 0 !important; /* Managed by the wrapper now */
+        gap: 0 !important;
+        /* Managed by the wrapper now */
         padding: 0 16px !important;
         display: flex !important;
         flex-direction: column !important;
@@ -446,36 +453,38 @@
     }
 
     /* Brand logos: Replicate live site 3-4 split layout with premium sizing */
-    .hero-frame8 .content-stretch, 
+    .hero-frame8 .content-stretch,
     [data-name="Logos Container"] {
         display: flex !important;
         flex-wrap: wrap !important;
         justify-content: center !important;
         align-items: center !important;
-        gap: 0px 6px !important; /* Balanced gap for larger 0.65 scale */
+        gap: 0px 6px !important;
+        /* Balanced gap for larger 0.65 scale */
         width: 100% !important;
         padding: 0 4px !important;
     }
 
     /* Top Row (3 Logos) */
-    .hero-frame8 .content-stretch > div:nth-child(-n+3),
-    [data-name="Logos Container"] > div:nth-child(-n+3) {
+    .hero-frame8 .content-stretch>div:nth-child(-n+3),
+    [data-name="Logos Container"]>div:nth-child(-n+3) {
         width: 32% !important;
         flex: 0 0 32% !important;
-        height: 60px !important; /* Increased height for larger logos */
+        height: 60px !important;
+        /* Increased height for larger logos */
     }
 
     /* Bottom Row (4 Logos) */
-    .hero-frame8 .content-stretch > div:nth-child(n+4),
-    [data-name="Logos Container"] > div:nth-child(n+4) {
+    .hero-frame8 .content-stretch>div:nth-child(n+4),
+    [data-name="Logos Container"]>div:nth-child(n+4) {
         width: 23% !important;
         flex: 0 0 23% !important;
         height: 60px !important;
     }
 
     /* Shared style for logo centering */
-    .hero-frame8 .content-stretch > div,
-    [data-name="Logos Container"] > div {
+    .hero-frame8 .content-stretch>div,
+    [data-name="Logos Container"]>div {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
@@ -486,10 +495,10 @@
         transform: scale(0.65) !important;
         transform-origin: center !important;
     }
-    
-    /* Balqes logo (Component 8): Scaled proportionally (~1.4x base) */
+
+    /* Balqes logo (Component 8): Scaled to match other logos better */
     [data-name="Component 8"].client-logo {
-        transform: scale(0.9) !important;
+        transform: scale(0.65) !important;
     }
 
     /* ═══ HERO VIDEO: Visible on mobile (absolute layer, moves up in viewport) ═══ */
@@ -502,9 +511,11 @@
         height: 100svh;
         display: flex;
         flex-direction: column;
-        justify-content: center; /* Center tablet vertically */
+        justify-content: center;
+        /* Center tablet vertically */
         padding: 0 16px 0 16px;
-        pointer-events: none; /* Let clicks pass through if needed */
+        pointer-events: none;
+        /* Let clicks pass through if needed */
     }
 
     /* Center the tablet frame in the available flex space */
@@ -796,20 +807,7 @@
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
-    .client-logo {
-        transform: scale(0.8);
-        transform-origin: center;
-    }
-    [data-name="Component 8"].client-logo {
-        transform: scale(1.2);
-    }
-}
 
-@media (min-width: 1024px) {
-    [data-name="Component 8"].client-logo {
-        background: none;
-    }
-}
 
 /* ─── Hero Video: Responsive on mobile ─── */
 @media (max-width: 767px) {
@@ -1002,6 +1000,7 @@
     div#services {
         margin-bottom: -50px;
     }
+
     div#roi-calculator {
         margin-bottom: 30px;
     }
