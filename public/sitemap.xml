@@ -3,7 +3,7 @@
 
   <!-- Homepage / Main Landing Page -->
   <url>
-    <loc>https://www.optimizerswebsite.com/</loc>
+    <loc>https://www.optimizers.agency/</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -11,7 +11,7 @@
 
   <!-- Services Section -->
   <url>
-    <loc>https://www.optimizerswebsite.com/#services</loc>
+    <loc>https://www.optimizers.agency/#services</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
@@ -19,7 +19,7 @@
 
   <!-- Case Studies Section -->
   <url>
-    <loc>https://www.optimizerswebsite.com/#case-studies</loc>
+    <loc>https://www.optimizers.agency/#case-studies</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -27,7 +27,7 @@
 
   <!-- ROI Calculator Section -->
   <url>
-    <loc>https://www.optimizerswebsite.com/#roi-calculator</loc>
+    <loc>https://www.optimizers.agency/#roi-calculator</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -35,7 +35,7 @@
 
   <!-- Meet the Team Section -->
   <url>
-    <loc>https://www.optimizerswebsite.com/#team</loc>
+    <loc>https://www.optimizers.agency/#team</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -43,7 +43,7 @@
 
   <!-- Contact / Strategy Session Section -->
   <url>
-    <loc>https://www.optimizerswebsite.com/#contact</loc>
+    <loc>https://www.optimizers.agency/#contact</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
