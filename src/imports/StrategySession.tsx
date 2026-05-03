@@ -242,7 +242,6 @@ export default function StrategySession() {
   const { t, language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [maxStepReached, setMaxStepReached] = useState(1);
-  const [showThankYouMessage, setShowThankYouMessage] = useState(false);
   const [formData, setFormData] = useState({
     traffic: "",
     conversionVolume: "",
@@ -299,11 +298,6 @@ export default function StrategySession() {
     if (submitContactMutation.isPending) return;
     setFormData(prev => ({ ...prev, [field]: value }));
 
-    if (currentStep === 2 && value === "Fewer Than 100") {
-      setTimeout(() => setShowThankYouMessage(true), 300);
-      return;
-    }
-
     if (currentStep === 1 || currentStep === 2 || (currentStep === 3 && value !== "Other")) {
       setTimeout(() => {
         const nextStep = currentStep + 1;
@@ -332,23 +326,6 @@ export default function StrategySession() {
   };
 
   const renderCurrentStepContent = () => {
-    if (showThankYouMessage) {
-      return (
-        <div className="flex flex-col items-center gap-8 py-16 text-center w-full">
-          <h2 className="text-white text-[34px] font-semibold">{t('Thank you')}</h2>
-          <p className="text-white opacity-80 max-w-[700px] text-[20px] leading-relaxed">
-            {t('Unfortunately, given the current low conversion volume of your business, our services might not be the optimal fit at this time.')}
-          </p>
-          <Button
-            onClick={() => { setShowThankYouMessage(false); setCurrentStep(1); setMaxStepReached(1); }}
-            className="mt-4 px-8 py-4 bg-transparent border border-[#31da72] text-[#31da72] hover:bg-[#31da72]/10 rounded-xl"
-          >
-            {t('Go Back')}
-          </Button>
-        </div>
-      );
-    }
-
     switch (currentStep) {
       case 1:
         return (
@@ -466,7 +443,6 @@ export default function StrategySession() {
         style={{
           backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.05) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\\'0 0 1240 733\\\' xmlns=\\\'http://www.w3.org/2000/svg\\\' preserveAspectRatio=\\\'none\\\'><rect x=\\\'0\\\' y=\\\'0\\\' height=\\\'100%\\\' width=\\\'100%\\\' fill=\\\'url(%23grad)\\\' opacity=\\\'1\\\'/><defs><radialGradient id=\\\'grad\\\' gradientUnits=\\\'userSpaceOnUse\\\' cx=\\\'0\\\' cy=\\\'0\\\' r=\\\'10\\\' gradientTransform=\\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\\'><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0\\\'/><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0.55823\\\'/><stop stop-color=\\\'rgba(0,0,0,0.3)\\\' offset=\\\'0.73997\\\'/><stop stop-color=\\\'rgba(0,0,0,0)\\\' offset=\\\'1\\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",
           backgroundSize: "100% 100%, 100% 100%, 400% 400%",
-          boxShadow: showThankYouMessage ? "0 0 50px rgba(49, 218, 114, 0.1)" : "none"
         }}
       >
         <style>{`
@@ -482,7 +458,7 @@ export default function StrategySession() {
         <div aria-hidden="true" className="absolute border border-transparent lg:border-[1.5px] lg:border-white/40 border-solid inset-0 pointer-events-none rounded-[16px] lg:rounded-[24px]" />
 
         <div className="content-stretch flex flex-col gap-[16px] lg:gap-[40px] min-h-0 lg:min-h-[645px] h-auto items-center relative shrink-0 w-full pt-[24px] lg:pt-[40px] px-[12px] lg:px-8 pb-[20px] lg:pb-0">
-          {!showThankYouMessage && <Stepper currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />}
+          <Stepper currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
 
           <div
             className={`flex-1 w-full flex flex-col items-center justify-center relative transition-all duration-500 ${currentStep === 6 ? 'lg:min-h-[850px]' : 'lg:min-h-[400px]'}`}
@@ -491,10 +467,10 @@ export default function StrategySession() {
           </div>
 
           <div className="flex items-center justify-center gap-4 py-4 lg:py-4 mb-0 lg:mb-2 w-full h-auto lg:h-[60px]">
-            {currentStep > 1 && !showThankYouMessage && (
+            {currentStep > 1 && (
               <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">{t('Back')}</Button>
             )}
-            {((currentStep === 3 && formData.primaryObjective === "Other") || (currentStep >= 4 && currentStep < 6)) && !showThankYouMessage && (
+            {((currentStep === 3 && formData.primaryObjective === "Other") || (currentStep >= 4 && currentStep < 6)) && (
               <Button onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold min-w-[80px] transition-all">
                 {submitContactMutation.isPending ? t('Submitting...') : t('Next')}
               </Button>
