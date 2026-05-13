@@ -4,8 +4,8 @@ import svgMobilePaths from "./svg-mobile-meet";
 import imgRectangle2 from "../assets/8beafb71ac0e56f696268857cdb1244ee06d2dcc.webp";
 import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.webp";
 import imgRectangle4 from "../assets/2360b5bdc64c7364378a5a9d57d3b75bc52915d7.webp";
-import imgRectangle5 from "../assets/74dadc14d70527de322c8a12cd44546b63f3fcd5.webp";
 import imgAlaa from "../assets/3ea05da11c2980d6a66b2e7e7d24667e55eea21a.webp";
+import imgAdhamMarzouk from "../assets/adham-marzouk.png";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Lights() {
@@ -321,7 +321,7 @@ function Lights3() {
             <div className="absolute h-[325px] left-[calc(50%+0.02px)] rounded-[17.139px] top-[-3.39px] translate-x-[-50%] w-[254px]">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.139px]">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.139px] to-black" />
-                    <img alt="" className="absolute max-w-none object-cover rounded-[17.139px] size-full scale-[1.3] origin-top translate-y-[-35px]" src={imgRectangle5} decoding="async" />
+                    <img alt="" className="absolute max-w-none object-cover object-top rounded-[17.139px] size-full scale-[1.04] origin-top translate-y-[0px]" src={imgAdhamMarzouk} decoding="async" />
                 </div>
             </div>
         </div>
@@ -367,13 +367,13 @@ function Text3() {
             <div className="absolute flex h-[137px] items-center justify-center left-[calc(50%-82.92px)] top-[51.01px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "103.46875", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
                     <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
-                        Mariam Chadii
+                        Adham Marzouk
                     </p>
                 </div>
             </div>
             <div className="absolute flex h-[78px] items-center justify-center left-[calc(50%-116.16px)] top-[79.23px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "81.46875", "--transform-inner-height": "19" } as React.CSSProperties}>
                 <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('UI/UX Lead')}</p>
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('Software Engineer')}</p>
                 </div>
             </div>
         </div>
@@ -944,7 +944,7 @@ function MobileLights4() {
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
           <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
-            <img alt="" className="absolute max-w-none object-cover rounded-[11.427px] size-full scale-[1.3] origin-top translate-y-[-15px]" src={imgRectangle5} />
+            <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.427px] size-full scale-[1.04] origin-top translate-y-[0px]" src={imgAdhamMarzouk} />
           </div>
         </div>
       </div>
@@ -990,12 +990,12 @@ function MobileText4() {
     <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.19px)] top-[33.24px]" data-name="MobileText">
       <div className="-translate-x-1/2 absolute flex h-[92px] items-center justify-center left-[calc(50%-55.61px)] top-[34.01px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.333px] relative text-[12.667px] text-white text-center tracking-[-0.2533px] whitespace-nowrap">Mariam Chadii</p>
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.333px] relative text-[12.667px] text-white text-center tracking-[-0.2533px] whitespace-nowrap">Adham Marzouk</p>
         </div>
       </div>
       <div className="-translate-x-1/2 absolute flex h-[62px] items-center justify-center left-[calc(50%-76.77px)] top-[48.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
         <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.333px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('UI/UX Lead')}</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.333px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('Software Engineer')}</p>
         </div>
       </div>
     </div>
@@ -1060,7 +1060,7 @@ export default function MeetTheTeam() {
         { name: "Mohamed Neamatalla", role: "Founder & CEO", image: imgRectangle2, color: "#5F82BF" },
         { name: "Alia Mahran", role: "Operation Manager", image: imgRectangle3, color: "#FFA69A" },
         { name: "Omar Maged", role: "Tech Manager", image: imgRectangle4, color: "#FDE68A" },
-        { name: "Mariam Chadii", role: "UI/UX Lead", image: imgRectangle5, color: "#FFA437" },
+        { name: "Adham Marzouk", role: "Software Engineer", image: imgAdhamMarzouk, color: "#FFA437" },
         { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#92EBB4" },
     ];
 

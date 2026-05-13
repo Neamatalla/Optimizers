@@ -14,6 +14,7 @@ import imgRegalEnLogo01 from "../assets/4387b7cb5576eedd1c2dfa9e01243b9e1225824a
 import imgBalqesHoneyLogo from "../assets/balqes-honey-logo.png";
 import imgClientLogo1 from "../assets/client-logo-1.png";
 import imgClientLogo2DenVc from "../assets/client-logo-2-denvc.png";
+import imgTharaaLogo from "../assets/tharaa-logo.png";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
 import headerVideoMp4 from "../assets/2026-full-1.mp4";
 import { imgGroup } from "./svg-0tz7a";
@@ -1057,6 +1058,19 @@ function Component8() {
   );
 }
 
+function Component9() {
+  return (
+    <div className="h-[72px] relative shrink-0 w-[72px] client-logo" data-name="Component 11">
+      <img
+        alt="Tharaa"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgTharaaLogo}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
 function Frame4() {
   const { language } = useLanguage();
   const isRtl = language === "ar";
@@ -1067,6 +1081,9 @@ function Frame4() {
     </div>,
     <div key="c8_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 -mx-[40px] lg:-mx-[28px]">
       <div className="scale-[0.55] origin-center lg:scale-[0.7]"><Component8 /></div>
+    </div>,
+    <div key="tharaa_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-[10px] lg:mx-[8px]">
+      <div className="scale-[0.9] origin-center lg:scale-[0.95]"><Component9 /></div>
     </div>,
     <div key="c1" className="flex justify-center items-center h-auto overflow-visible shrink-0 -mx-[44px] lg:-mx-[48px]">
       <div className="scale-[0.75] origin-center lg:scale-[0.7]"><Component /></div>

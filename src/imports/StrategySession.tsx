@@ -32,6 +32,11 @@ const validateEmail = (email: string): string => {
   return "";
 };
 
+const validateRequired = (value: string, label: string): string => {
+  if (!value.trim()) return `${label} is required`;
+  return "";
+};
+
 const normalizeWebsiteUrl = (url: string): string => {
   const trimmed = url.trim();
   if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
@@ -251,7 +256,15 @@ export default function StrategySession() {
     firstName: "",
     email: "",
   });
-  const [validationErrors, setValidationErrors] = useState({ website: "", email: "" });
+  const [validationErrors, setValidationErrors] = useState({
+    traffic: "",
+    conversionVolume: "",
+    primaryObjective: "",
+    customObjective: "",
+    website: "",
+    firstName: "",
+    email: "",
+  });
 
   // Mock mutation for demonstration if no backend is present
   const submitContactMutation = useMutation({
@@ -266,10 +279,56 @@ export default function StrategySession() {
     onError: (error: any) => toast({ title: "Error", description: error.message || "Failed to submit form.", variant: "destructive" }),
   });
 
+  const validateCurrentStep = () => {
+    const nextErrors = {
+      traffic: currentStep === 1 ? validateRequired(formData.traffic, "Traffic volume") : "",
+      conversionVolume: currentStep === 2 ? validateRequired(formData.conversionVolume, "Conversion volume") : "",
+      primaryObjective: currentStep === 3 ? validateRequired(formData.primaryObjective, "Primary objective") : "",
+      customObjective:
+        currentStep === 3 && formData.primaryObjective === "Other"
+          ? validateRequired(formData.customObjective, "Objective")
+          : "",
+      website:
+        currentStep === 4
+          ? validateRequired(formData.website, "Website") || validateWebsite(formData.website)
+          : "",
+      firstName: currentStep === 5 ? validateRequired(formData.firstName, "First name") : "",
+      email:
+        currentStep === 5
+          ? validateRequired(formData.email, "Email") || validateEmail(formData.email)
+          : "",
+    };
+
+    setValidationErrors(prev => ({ ...prev, ...nextErrors }));
+    return !Object.values(nextErrors).some(Boolean);
+  };
+
+  const validateFullSubmission = () => {
+    const nextErrors = {
+      traffic: validateRequired(formData.traffic, "Traffic volume"),
+      conversionVolume: validateRequired(formData.conversionVolume, "Conversion volume"),
+      primaryObjective: validateRequired(formData.primaryObjective, "Primary objective"),
+      customObjective:
+        formData.primaryObjective === "Other"
+          ? validateRequired(formData.customObjective, "Objective")
+          : "",
+      website: validateRequired(formData.website, "Website") || validateWebsite(formData.website),
+      firstName: validateRequired(formData.firstName, "First name"),
+      email: validateRequired(formData.email, "Email") || validateEmail(formData.email),
+    };
+
+    setValidationErrors(nextErrors);
+    return !Object.values(nextErrors).some(Boolean);
+  };
+
   const handleNext = async () => {
     if (submitContactMutation.isPending) return;
     if (currentStep < 6) {
+      if (!validateCurrentStep()) return;
+
       if (currentStep === 5) {
+        if (!validateFullSubmission()) return;
+
         submitContactMutation.mutate({
           firstName: formData.firstName,
           email: formData.email,
@@ -297,6 +356,7 @@ export default function StrategySession() {
   const handleSelect = (field: string, value: string) => {
     if (submitContactMutation.isPending) return;
     setFormData(prev => ({ ...prev, [field]: value }));
+    setValidationErrors(prev => ({ ...prev, [field]: "" }));
 
     if (currentStep === 1 || currentStep === 2 || (currentStep === 3 && value !== "Other")) {
       setTimeout(() => {
@@ -310,8 +370,27 @@ export default function StrategySession() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (name === "website") setValidationErrors(prev => ({ ...prev, website: validateWebsite(value) }));
-    else if (name === "email") setValidationErrors(prev => ({ ...prev, email: validateEmail(value) }));
+    if (name === "website") {
+      setValidationErrors(prev => ({
+        ...prev,
+        website: validateRequired(value, "Website") || validateWebsite(value),
+      }));
+    } else if (name === "email") {
+      setValidationErrors(prev => ({
+        ...prev,
+        email: validateRequired(value, "Email") || validateEmail(value),
+      }));
+    } else if (name === "firstName") {
+      setValidationErrors(prev => ({
+        ...prev,
+        firstName: validateRequired(value, "First name"),
+      }));
+    } else if (name === "customObjective") {
+      setValidationErrors(prev => ({
+        ...prev,
+        customObjective: validateRequired(value, "Objective"),
+      }));
+    }
   };
 
   const isNextDisabled = () => {
@@ -320,7 +399,7 @@ export default function StrategySession() {
       case 2: return !formData.conversionVolume;
       case 3: return !formData.primaryObjective || (formData.primaryObjective === "Other" && !formData.customObjective.trim());
       case 4: return !formData.website || !!validationErrors.website;
-      case 5: return !formData.firstName || !formData.email || !!validationErrors.email;
+      case 5: return !formData.firstName || !formData.email || !!validationErrors.firstName || !!validationErrors.email;
       default: return false;
     }
   };
@@ -374,7 +453,8 @@ export default function StrategySession() {
             <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select objective:')}</p>
             {formData.primaryObjective === "Other" ? (
               <div className="w-full max-w-[400px] flex flex-col gap-4">
-                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder={t('Specify your objective...')} className="bg-white/10 border-[#31da72]/30 text-white placeholder:text-white/40 h-9 w-full" />
+                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder={t('Specify your objective...')} className={`bg-white/10 border-2 ${validationErrors.customObjective ? 'border-red-500' : 'border-[#31da72]/30'} text-white placeholder:text-white/40 h-9 w-full`} />
+                {validationErrors.customObjective && <p className="text-red-500 text-sm">{validationErrors.customObjective}</p>}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-[12px] lg:flex lg:flex-col lg:gap-[24px] w-full">
@@ -405,7 +485,10 @@ export default function StrategySession() {
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('Contact Information')}</p>
             <div className="w-full max-w-[380px] flex flex-col gap-6">
-              <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className="bg-white/10 border-[#31da72]/30 text-white h-9" />
+              <div className="flex flex-col gap-2">
+                <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className={`bg-white/10 border-2 ${validationErrors.firstName ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
+                {validationErrors.firstName && <p className="text-red-500 text-sm">{validationErrors.firstName}</p>}
+              </div>
               <div className="flex flex-col gap-2">
                 <Input name="email" value={formData.email} onChange={handleInputChange} placeholder={t('Email')} className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
                 {validationErrors.email && <p className="text-red-500 text-sm">{validationErrors.email}</p>}

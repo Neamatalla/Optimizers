@@ -16,10 +16,31 @@ export default async function handler(req, res) {
     const { Resend } = await import("resend");
     const resend = new Resend(apiKey);
 
-    const { firstName, email, website, monthlyConversions, challenge } = req.body || {};
+    const { firstName, email, website, traffic, monthlyConversions, challenge } = req.body || {};
+    const requiredFields = { firstName, email, website, traffic, monthlyConversions, challenge };
+    const missingFields = Object.entries(requiredFields)
+      .filter(([, value]) => !String(value || "").trim())
+      .map(([field]) => field);
 
-    if (!firstName || !email) {
-      return res.status(400).json({ error: "First name and email are required." });
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: "All strategy session fields are required.",
+        missingFields,
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(String(email).trim())) {
+      return res.status(400).json({ error: "Please enter a valid email address." });
+    }
+
+    try {
+      const websiteUrl = new URL(String(website).trim());
+      if (!websiteUrl.hostname.includes(".")) {
+        return res.status(400).json({ error: "Please enter a valid website URL." });
+      }
+    } catch {
+      return res.status(400).json({ error: "Please enter a valid website URL." });
     }
 
     const { data, error } = await resend.emails.send({
@@ -42,15 +63,19 @@ export default async function handler(req, res) {
             </tr>
             <tr style="background-color: #f5f5f5;">
               <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Website</td>
-              <td style="padding: 12px; border: 1px solid #ddd;">${website || "N/A"}</td>
+              <td style="padding: 12px; border: 1px solid #ddd;">${website}</td>
             </tr>
             <tr>
-              <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Conversion Volume</td>
-              <td style="padding: 12px; border: 1px solid #ddd;">${monthlyConversions || "N/A"}</td>
+              <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Number Traffic Per Month</td>
+              <td style="padding: 12px; border: 1px solid #ddd;">${traffic}</td>
             </tr>
             <tr style="background-color: #f5f5f5;">
+              <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Conversion Volume</td>
+              <td style="padding: 12px; border: 1px solid #ddd;">${monthlyConversions}</td>
+            </tr>
+            <tr>
               <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Primary Objective</td>
-              <td style="padding: 12px; border: 1px solid #ddd;">${challenge || "N/A"}</td>
+              <td style="padding: 12px; border: 1px solid #ddd;">${challenge}</td>
             </tr>
           </table>
           <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">

@@ -36,11 +36,41 @@ function apiMiddlewarePlugin() {
             const { Resend } = await import('resend');
             const resend = new Resend(apiKey);
             const { firstName, email, website, monthlyConversions, challenge, traffic } = JSON.parse(body);
+            const requiredFields = { firstName, email, website, traffic, monthlyConversions, challenge };
+            const missingFields = Object.entries(requiredFields)
+              .filter(([, value]) => !String(value || '').trim())
+              .map(([field]) => field);
 
-            if (!firstName || !email) {
+            if (missingFields.length > 0) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: 'First name and email are required.' }));
+              res.end(JSON.stringify({
+                error: 'All strategy session fields are required.',
+                missingFields,
+              }));
+              return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(String(email).trim())) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Please enter a valid email address.' }));
+              return;
+            }
+
+            try {
+              const websiteUrl = new URL(String(website).trim());
+              if (!websiteUrl.hostname.includes('.')) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Please enter a valid website URL.' }));
+                return;
+              }
+            } catch {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Please enter a valid website URL.' }));
               return;
             }
 
@@ -64,19 +94,19 @@ function apiMiddlewarePlugin() {
                     </tr>
                     <tr style="background-color: #f5f5f5;">
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Website</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${website || 'N/A'}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${website}</td>
                     </tr>
                     <tr>
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Number Traffic Per Month</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${traffic || 'N/A'}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${traffic}</td>
                     </tr>
                     <tr style="background-color: #f5f5f5;">
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Conversion Volume</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${monthlyConversions || 'N/A'}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${monthlyConversions}</td>
                     </tr>
                     <tr>
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Primary Objective</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${challenge || 'N/A'}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${challenge}</td>
                     </tr>
                   </table>
                   <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">

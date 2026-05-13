@@ -21,7 +21,7 @@ export async function apiRequest(
             let errorMessage = `Server error: ${res.status}`;
             if (isJson) {
                 const errorData = await res.json();
-                errorMessage = errorData.message || errorMessage;
+                errorMessage = errorData.message || errorData.error || errorMessage;
             } else {
                 const textError = await res.text();
                 if (textError && textError.length < 100) errorMessage = textError;
