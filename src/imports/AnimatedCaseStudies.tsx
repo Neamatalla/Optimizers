@@ -8,11 +8,13 @@ import CaseStudy3 from './CaseStudy3';
 import CaseStudy4 from './CaseStudy4';
 import CaseStudy5 from './CaseStudy5';
 import CaseStudy6 from './CaseStudy6';
+import CaseStudy7 from './CaseStudy7';
 
 import CS_Squadio from './CS_Squadio';
 import CS_RibalMagic from './CS_RibalMagic';
 import CS_RegalHoney from './CS_RegalHoney';
 import CS_VitrineFurniture from './CS_VitrineFurniture';
+import CS_RegalProductPage from './CS_RegalProductPage';
 
 
 const CONTENT_WIDTH = 1440;
@@ -71,7 +73,7 @@ export default function AnimatedCaseStudies() {
         if (isMobile) return;
         let idx = -1;
         if (v > 0.15 && v < 0.85) {
-            idx = Math.min(Math.floor(((v - 0.15) / 0.70) * 4), 3);
+            idx = Math.min(Math.floor(((v - 0.15) / 0.70) * 5), 4);
             idx = Math.max(0, idx);
         }
         if (idx !== activeIndex) setActiveIndex(idx);
@@ -90,8 +92,8 @@ export default function AnimatedCaseStudies() {
     const scrollHintOpacity_D = useTransform(roundedScroll, [0, 0.05], [1, 0]);
 
     // Desktop slides states
-    const slideYs = [useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%')];
-    const slideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
+    const slideYs = [useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%'), useMotionValue('30%')];
+    const slideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
     useEffect(() => {
         // Remove activeIndex < 0 return to allow cleaning up visible slides
         const D = 1.0, E = 'easeInOut';
@@ -138,7 +140,7 @@ export default function AnimatedCaseStudies() {
 
     // 3. CASE STUDY SLIDES (Controlled by activeMobileIndex_M)
     const [activeMobileIndex_M, setActiveMobileIndex_M] = useState(-1);
-    const mSlideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
+    const mSlideOpacities = [useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0), useMotionValue(0)];
 
     const scaleValue = useMotionValue(typeof window !== 'undefined' ? Math.min(1, (window.innerHeight - 60) / 680) : 1);
     const smoothScale = useSpring(scaleValue, { stiffness: 50, damping: 20 });
@@ -155,7 +157,8 @@ export default function AnimatedCaseStudies() {
         <CS_Squadio key="squadio" contentScale={mobileScale} status={getStatus(0)} />,
         <CS_RibalMagic key="ribal" contentScale={mobileScale} status={getStatus(1)} />,
         <CS_RegalHoney key="regal" contentScale={mobileScale} status={getStatus(2)} />,
-        <CS_VitrineFurniture key="vitrine" contentScale={mobileScale} status={getStatus(3)} />
+        <CS_VitrineFurniture key="vitrine" contentScale={mobileScale} status={getStatus(3)} />,
+        <CS_RegalProductPage key="regal-pdp" contentScale={mobileScale} status={getStatus(4)} />
     ];
 
     useEffect(() => {
@@ -179,10 +182,10 @@ export default function AnimatedCaseStudies() {
 
     // ── Arrow-based Navigation Logic (Mobile) ──
     const handleNextMobile = () => {
-        setActiveMobileIndex_M((prev) => (prev < 3 ? prev + 1 : 0));
+        setActiveMobileIndex_M((prev) => (prev < 4 ? prev + 1 : 0));
     };
     const handlePrevMobile = () => {
-        setActiveMobileIndex_M((prev) => (prev > 0 ? prev - 1 : 3));
+        setActiveMobileIndex_M((prev) => (prev > 0 ? prev - 1 : 4));
     };
 
     // Gate trigger: fires when 50% of the section enters viewport
@@ -325,7 +328,7 @@ export default function AnimatedCaseStudies() {
 
                     {/* Next/Prev Arrows (visible when slides are active) */}
                     {(() => {
-                        const mColors = ['#ff8979', '#6ae499', '#fcd34d', '#87a2cf'];
+                        const mColors = ['#ff8979', '#6ae499', '#fcd34d', '#87a2cf', '#fcd34d'];
                         const activeColor = mColors[activeMobileIndex_M] || '#ffffff';
                         const hoverBg = `${activeColor}33`; // 20% opacity background
                         
@@ -361,7 +364,7 @@ export default function AnimatedCaseStudies() {
                             </button>
 
                             <div className="flex gap-2" style={{ transform: 'translateY(5px)' }}>
-                                {[0, 1, 2, 3].map((i) => (
+                                {[0, 1, 2, 3, 4].map((i) => (
                                     <button
                                         key={i}
                                         onClick={() => setActiveMobileIndex_M(i)}
@@ -425,6 +428,9 @@ export default function AnimatedCaseStudies() {
                                     </motion.div>
                                     <motion.div className="cs-slide-wrapper" style={{ opacity: slideOpacities[3], y: slideYs[3] }}>
                                         <CaseStudy6 />
+                                    </motion.div>
+                                    <motion.div className="cs-slide-wrapper" style={{ opacity: slideOpacities[4], y: slideYs[4] }}>
+                                        <CaseStudy7 />
                                     </motion.div>
                                 </div>
 

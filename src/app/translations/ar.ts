@@ -398,4 +398,9 @@ export const arTranslations: Record<string, string> = {
   "Boost customer retention and repeat rates.": "تعزيز الاحتفاظ بالعملاء ومعدلات الشراء المتكرر.",
   "Subscription launch, retention, lifecycle.": "إطلاق الاشتراكات، الاحتفاظ بالعملاء، دورة حياة العميل.",
   "Premium honey brand offering high-quality natural honey focused on daily wellness & immunity support in the US.": "علامة عسل فاخرة تقدم عسلاً طبيعياً عالي الجودة يركز على العافية اليومية ودعم المناعة في أمريكا.",
+
+  // Case Study — Regal Honey Product Page
+  "Revenue": "الإيرادات",
+  "The product page wasn't effectively guiding visitors toward purchase. Key trust signals, persuasive content, and conversion-focused elements were missing, leading to lower engagement and preventing users from confidently completing their purchase.": "لم تكن صفحة المنتج توجّه الزوار بفعالية نحو الشراء. غابت إشارات الثقة الأساسية والمحتوى المقنع والعناصر المركّزة على التحويل، ما أدى إلى انخفاض التفاعل ومنع المستخدمين من إتمام عملية الشراء بثقة.",
+  "Optimizing the product page with stronger messaging, clearer value propositions, enhanced trust elements, and improved purchase flow increased user confidence, resulting in higher conversions, revenue, and revenue per visitor.": "أدى تحسين صفحة المنتج برسائل أقوى وعروض قيمة أوضح وإشارات ثقة معزّزة ومسار شراء محسّن إلى زيادة ثقة المستخدم، ما أسفر عن ارتفاع معدلات التحويل والإيرادات والإيرادات لكل زائر.",
 };

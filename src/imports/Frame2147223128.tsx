@@ -15,6 +15,8 @@ import imgBalqesHoneyLogo from "../assets/balqes-honey-logo.png";
 import imgClientLogo1 from "../assets/client-logo-1.png";
 import imgClientLogo2DenVc from "../assets/client-logo-2-denvc.png";
 import imgTharaaLogo from "../assets/tharaa-logo.png";
+import imgMeluraLogo from "../assets/melura-logo.png";
+import imgMisimuLogo from "../assets/misimu-logo.svg";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
 import headerVideoMp4 from "../assets/2026-full-1.mp4";
 import { imgGroup } from "./svg-0tz7a";
@@ -1071,6 +1073,32 @@ function Component9() {
   );
 }
 
+function Component10() {
+  return (
+    <div className="h-[60px] relative shrink-0 w-[160px] client-logo" data-name="Component 12">
+      <img
+        alt="Melura"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgMeluraLogo}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
+function Component11() {
+  return (
+    <div className="h-[72px] relative shrink-0 w-[72px] client-logo" data-name="Component 13">
+      <img
+        alt="Misimu"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgMisimuLogo}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
 function Frame4() {
   const { language } = useLanguage();
   const isRtl = language === "ar";
@@ -1105,6 +1133,12 @@ function Frame4() {
     </div>,
     <div key="c7_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-[8px] lg:-mx-[4px]">
       <div className="scale-[1.1] origin-center lg:scale-[0.95]"><Component7 /></div>
+    </div>,
+    <div key="melura_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-[8px] lg:mx-[8px]">
+      <div className="scale-[0.85] origin-center lg:scale-[0.85]"><Component10 /></div>
+    </div>,
+    <div key="misimu_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0">
+      <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component11 /></div>
     </div>,
   ];
 
