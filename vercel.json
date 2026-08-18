@@ -6,11 +6,11 @@
         },
         {
             "source": "/apps/countdown-timer",
-            "destination": "https://ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer"
+            "destination": "https://ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer",
         },
         {
-            "source": "apps/countdown-timer/:path*",
-            "destination": "https://ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer/:path*"
+            "source": "/apps/countdown-timer/:path*",
+            "destination": "https://ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer/:path*",
         }
     ]
 }
