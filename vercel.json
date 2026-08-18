@@ -3,6 +3,14 @@
         {
             "source": "/((?!api/).*)",
             "destination": "/index.html"
+        },
+        {
+            "source": "ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer",
+            "destination": "ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer"
+        },
+        {
+            "source": "ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer/:path*",
+            "destination": "ctlp-nn673li5w-neamatalla.vercel.app/apps/countdown-timer/:path*"
         }
     ]
 }
