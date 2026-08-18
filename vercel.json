@@ -1,16 +1,16 @@
 {
     "rewrites": [
         {
-            "source": "/((?!api/).*)",
-            "destination": "/index.html"
-        },
-        {
             "source": "/apps/countdown-timer",
             "destination": "https://countdown-timer-landing-page-jade.vercel.app/apps/countdown-timer"
         },
         {
             "source": "/apps/countdown-timer/:path*",
             "destination": "https://countdown-timer-landing-page-jade.vercel.app/apps/countdown-timer/:path*"
+        },
+        {
+            "source": "/((?!api/).*)",
+            "destination": "/index.html"
         }
     ]
 }
