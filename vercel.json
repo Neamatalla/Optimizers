@@ -5,12 +5,16 @@
             "destination": "https://countdown-timer-landing-page-jade.vercel.app/apps/countdown-timer"
         },
         {
-            "source": "/apps/countdown-timer{/:path*}",
-            "destination": "https://countdown-timer-landing-page-jade.vercel.app/apps/countdown-timer{/:path*}"
+            "source": "/apps/countdown-timer/:path*",
+            "destination": "https://countdown-timer-landing-page-jade.vercel.app/apps/countdown-timer/:path*"
         },
-        { 
-            "source": "/blog/:path*", 
-            "destination": "https://wordpress-1624826-6577277.cloudwaysapps.com/:path*" 
+        {
+            "source": "/blog",
+            "destination": "https://wordpress-1624826-6577277.cloudwaysapps.com/"
+        },
+        {
+            "source": "/blog/(.*)",
+            "destination": "https://wordpress-1624826-6577277.cloudwaysapps.com/$1"
         },
         {
             "source": "/((?!api/).*)",
