@@ -1,6 +1,14 @@
 {
   "trailingSlash": false,
 
+  "redirects": [
+    {
+      "source": "/blog/wp-admin",
+      "destination": "/blog/wp-admin/index.php",
+      "permanent": false
+    }
+  ],
+
   "rewrites": [
     {
       "source": "/apps/countdown-timer",
