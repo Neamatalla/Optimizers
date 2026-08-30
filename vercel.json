@@ -7,7 +7,7 @@
     "destination": "/blog/wp-admin/index.php",
     "permanent": false
   }
-]
+],
 
   "rewrites": [
     {
