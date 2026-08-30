@@ -6,6 +6,11 @@
       "source": "/blog/wp-admin",
       "destination": "/blog/wp-admin/index.php",
       "permanent": false
+    },
+    {
+      "source": "/blog/myadminportalforediting",
+      "destination": "https://wordpress-1624826-6577277.cloudwaysapps.com/blog/myadminportalforediting",
+      "permanent": false
     }
   ],
 
