@@ -1,7 +1,13 @@
 {
   "trailingSlash": false,
 
-  "redirects": [],
+  "redirects": [
+  {
+    "source": "/blog/wp-admin",
+    "destination": "/blog/wp-admin/index.php",
+    "permanent": false
+  }
+]
 
   "rewrites": [
     {
