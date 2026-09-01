@@ -20,11 +20,11 @@
     },
     {
       "source": "/apps/ab-testing",
-      "destination": "https://a-b-testing-landing-page-rho.vercel.app/apps/countdown-timer"
+      "destination": "https://a-b-testing-landing-page-rho.vercel.app/apps/ab-testing"
     },
     {
       "source": "/apps/ab-testing/:path*",
-      "destination": "https://a-b-testing-landing-page-rho.vercel.app/apps/countdown-timer/:path*"
+      "destination": "https://a-b-testing-landing-page-rho.vercel.app/apps/ab-testing/:path*"
     },
 
     {
