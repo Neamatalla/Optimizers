@@ -18,6 +18,14 @@
       "source": "/apps/countdown-timer/:path*",
       "destination": "https://countdown-timer-landing-page-jade.vercel.app/apps/countdown-timer/:path*"
     },
+    {
+      "source": "/apps/ab-testing",
+      "destination": "https://a-b-testing-landing-page-rho.vercel.app/apps/countdown-timer"
+    },
+    {
+      "source": "/apps/ab-testing/:path*",
+      "destination": "https://a-b-testing-landing-page-rho.vercel.app/apps/countdown-timer/:path*"
+    },
 
     {
       "source": "/blog/myadminportalforediting",
