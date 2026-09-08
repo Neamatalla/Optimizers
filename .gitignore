@@ -28,3 +28,6 @@ npm-debug.log*
 .cache/
 .claude/scheduled_tasks.lock
 .impeccable/hook.cache.json
+
+# Supabase CLI local cache
+supabase/.temp/

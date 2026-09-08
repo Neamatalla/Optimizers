@@ -1,0 +1,28 @@
+{
+  "name": "audit-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Headless worker that claims 'Get a Free Audit' requests from Supabase and processes them via `claude -p`. Not built by Vite, not deployed to Vercel — runs on a machine the operator controls (laptop for testing, VPS for production).",
+  "scripts": {
+    "poll": "tsx src/poll.ts",
+    "test-run": "tsx src/test-run.ts",
+    "test-run-oauth": "tsx src/test-run-oauth.ts",
+    "test-send-review-email": "tsx src/test-send-review-email.ts",
+    "test-send-digest-email": "tsx src/test-send-digest-email.ts",
+    "preview-report": "tsx src/preview-report.ts",
+    "seed-checklist": "tsx src/seed-checklist.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/poll.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^16.4.5",
+    "resend": "^6.9.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  }
+}

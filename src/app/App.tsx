@@ -76,6 +76,7 @@ const PartnersAndTools = React.lazy(() => import("@/imports/PartnersAndTools"));
 const GallerySection = React.lazy(() => import("@/imports/GallerySection"));
 const FAQSection = React.lazy(() => import("@/imports/FAQSection"));
 const AnimatedCaseStudies = React.lazy(() => import("@/imports/AnimatedCaseStudies"));
+const GetFreeAudit = React.lazy(() => import("@/imports/GetFreeAudit"));
 
 interface ServiceCardProps {
   number: string;
@@ -447,6 +448,9 @@ export default function App() {
           </div>
           <Suspense fallback={<div className="w-full min-h-[100px]" />}>
             <PartnersAndTools />
+          </Suspense>
+          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
+            <GetFreeAudit />
           </Suspense>
           <div className="relative w-full h-auto" id="contact">
             <StrategySession />
