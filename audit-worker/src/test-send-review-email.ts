@@ -42,7 +42,7 @@ async function main() {
   const result: AuditResult = {
     websiteUrl: website,
     businessName,
-    sitePageSpeed: [],
+    discoveredPages: [],
     possiblePoints: 6,
     overallScore: 3,
     categories: [
@@ -51,9 +51,9 @@ async function main() {
         score: 33,
         checklistTally: { total: 3, evaluated: 3, passed: 1 },
         findings: [
-          { checklistId: "GA4-D1", issue: "[DUMMY] Purchase events fire with $0 revenue on most real transactions", businessImpact: "[DUMMY DATA — for validating the review-email flow only.]", dataSource: "live", severity: "critical", status: "fail" },
-          { checklistId: "GA4-5", issue: "[DUMMY] Email/PII redaction is off for the primary web data stream", businessImpact: "[DUMMY DATA — for validating the review-email flow only.]", dataSource: "live", severity: "critical", status: "fail" },
-          { checklistId: "GA4-8", issue: "[DUMMY] Attribution model correctly set to data-driven", businessImpact: "[DUMMY DATA — for validating the review-email flow only.]", dataSource: "live", severity: "medium", status: "pass" },
+          { checklistId: "GA4-D1", technical: { summary: "[DUMMY] Purchase events fire with $0 revenue on most real transactions", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, business: { summary: "[DUMMY] Purchase events fire with $0 revenue on most real transactions", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, dataSource: "live", severity: "critical", status: "fail" },
+          { checklistId: "GA4-5", technical: { summary: "[DUMMY] Email/PII redaction is off for the primary web data stream", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, business: { summary: "[DUMMY] Email/PII redaction is off for the primary web data stream", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, dataSource: "live", severity: "critical", status: "fail" },
+          { checklistId: "GA4-8", technical: { summary: "[DUMMY] Attribution model correctly set to data-driven", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, business: { summary: "[DUMMY] Attribution model correctly set to data-driven", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, dataSource: "live", severity: "medium", status: "pass" },
         ],
       },
       {
@@ -61,9 +61,9 @@ async function main() {
         score: 66,
         checklistTally: { total: 3, evaluated: 3, passed: 2 },
         findings: [
-          { checklistId: "GTM-2", issue: "[DUMMY] Two active GA4 Configuration tags in the same container", businessImpact: "[DUMMY DATA — for validating the review-email flow only.]", dataSource: "detection", severity: "critical", status: "fail" },
-          { checklistId: "GTM-7", issue: "[DUMMY] Google Ads conversion tag has a transaction_id set correctly", businessImpact: "[DUMMY DATA — for validating the review-email flow only.]", dataSource: "detection", severity: "medium", status: "pass" },
-          { checklistId: "GTM-13", issue: "[DUMMY] Tags use native types, not raw Custom HTML", businessImpact: "[DUMMY DATA — for validating the review-email flow only.]", dataSource: "detection", severity: "low", status: "pass" },
+          { checklistId: "GTM-2", technical: { summary: "[DUMMY] Two active GA4 Configuration tags in the same container", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, business: { summary: "[DUMMY] Two active GA4 Configuration tags in the same container", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, dataSource: "detection", severity: "critical", status: "fail" },
+          { checklistId: "GTM-7", technical: { summary: "[DUMMY] Google Ads conversion tag has a transaction_id set correctly", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, business: { summary: "[DUMMY] Google Ads conversion tag has a transaction_id set correctly", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, dataSource: "detection", severity: "medium", status: "pass" },
+          { checklistId: "GTM-13", technical: { summary: "[DUMMY] Tags use native types, not raw Custom HTML", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, business: { summary: "[DUMMY] Tags use native types, not raw Custom HTML", detail: "[DUMMY DATA — for validating the review-email flow only.]" }, dataSource: "detection", severity: "low", status: "pass" },
         ],
       },
     ],

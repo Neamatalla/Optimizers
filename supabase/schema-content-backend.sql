@@ -9,10 +9,12 @@
 -- are queryable (and editable) from Supabase for whatever downstream use
 -- needs that. Kept in sync by running `npm run seed-checklist` in
 -- audit-worker/ after any checklist.ts edit — it is NOT automatically kept
--- in sync on every audit run. NOTE: if this table was already seeded before
--- the PageSpeed category was removed, re-run seed-checklist and manually
--- `delete from checklist_points where category = 'PageSpeed'` — the upsert
--- never deletes stale rows on its own.
+-- in sync on every audit run. NOTE: the upsert never deletes stale rows on
+-- its own, so a table seeded before the 2026-09-09 PageSpeed removal still
+-- holds its PS-1..PS-4 rows; clear them once with
+-- `delete from checklist_points where category = 'PageSpeed'` (the CHECK
+-- constraint below never allowed that value, so such rows only exist if they
+-- predate it) and re-run seed-checklist to pick up the new WEB-60..WEB-63.
 create table if not exists checklist_points (
   id text primary key,
   category text not null check (category in ('GA4', 'GTM', 'Website')),
@@ -58,14 +60,26 @@ create table if not exists report_pages (
   id uuid primary key default gen_random_uuid(),
   audit_request_id uuid not null references audit_requests(id) on delete cascade,
   slug text not null unique,
-  -- e.g. "reports/nour-home-goods-a1b2c3/index.html" — same bucket/path
-  -- convention audit-worker/src/supabase.ts's publishAuditReport() already
-  -- uses, just recorded as a row instead of only living in Storage.
+  -- e.g. "reports/nour-home-goods-a1b2c3/index.html" — same path convention
+  -- audit-worker/src/supabase.ts's publishAuditReport() already uses, just
+  -- recorded as a row instead of only living in Storage.
   storage_path text not null,
+  -- Which Storage bucket that path is in: 'audit-reports' normally,
+  -- 'audit-reports-test' for a test-mode run (see schema.sql's is_test).
+  -- api/audit-report.js and api/report/edit.js read this rather than
+  -- assuming the default bucket, which is what lets one slug space cover
+  -- both.
+  bucket text not null default 'audit-reports',
   public_url text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Added after the table shipped (2026-09-09, test mode) — the default
+-- backfills every existing row to the real reports bucket, which is where
+-- they all are.
+alter table report_pages
+  add column if not exists bucket text not null default 'audit-reports';
 
 create index if not exists report_pages_audit_request_id_idx
   on report_pages (audit_request_id);

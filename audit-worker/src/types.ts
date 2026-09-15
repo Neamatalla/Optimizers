@@ -1,4 +1,3 @@
-import type { PageSpeedReport } from "./pagespeed.js";
 
 // Hotjar and Clarity are not offered — Clarity's manual-token flow was
 // removed in favor of the GA4/GTM auto-detect + OAuth property picker; no
@@ -6,6 +5,8 @@ import type { PageSpeedReport } from "./pagespeed.js";
 export type ToolId = "GA4" | "GTM";
 
 // pending -> processing -> awaiting_approval -> scheduled -> done, with
+// test-mode rows (is_test, below) skipping the middle two entirely:
+// pending -> processing -> done, emailed to the submitter on the spot. And
 // failed reachable from processing (non-rate-limit error) and a rate-limit
 // hit during processing bouncing back to pending (see retry_after below)
 // instead of failed — see supabase.ts's claimNextPendingRequest/
@@ -27,6 +28,15 @@ export interface AuditRequestRow {
   // exact-ID-match re-verification the way MCP-sourced data does.
   ga4_oauth_data: unknown;
   gtm_oauth_data: unknown;
+  // Both the email and the website were submitted with a leading "-" (see
+  // api/_lib/audit-intake.js's parseTestPrefix). Test runs execute the
+  // whole real pipeline, then diverge at delivery: the report is published
+  // to AUDIT_REPORTS_TEST_BUCKET instead of the live bucket, and it's
+  // emailed straight to the address in the form — no internal review, no
+  // approval token, no 2-day delay (see poll.ts's processRequest). Also
+  // exempt from the one-audit-per-site/email limit, so the same site can be
+  // re-tested any number of times.
+  is_test: boolean;
   status: RequestStatus;
   result_error: string | null;
   report_url: string | null;
@@ -56,15 +66,19 @@ export interface AuditRequestRow {
   updated_at: string;
 }
 
-export type CategoryKey = "GA4" | "GTM" | "Website" | "PageSpeed";
+// PageSpeed was a fourth category (4 checks, backed by a site-wide
+// PageSpeed Insights sweep) until 2026-09-09 — removed for run time; what
+// it scored is now WEB-60..WEB-63 inside Website (see checklist.ts).
+export type CategoryKey = "GA4" | "GTM" | "Website";
 
 export type DataSource = "live" | "detection" | "public";
 export type FindingSeverity = "critical" | "medium" | "low";
 // "pass" | "fail" — every checklist point gets exactly one CategoryFinding
 // now, tagged with which it was (2026-09-06 rewrite). There is no more
 // implicit/silent pass: a clean point still gets a real, Claude-written
-// justification (issue = what was actually checked and the real result;
-// businessImpact = why that's good), not just an absence of a fail entry.
+// justification in both registers (see FindingVoice below — the technical
+// voice states the real measured result, the business voice says why that
+// result is worth having), not just an absence of a fail entry.
 // This is what fixed the report showing checklist.ts's own generic
 // expectedState/commonFailure placeholder text for a passed point (most
 // visible on the open GA4-D slots, whose placeholder text is deliberately
@@ -72,15 +86,33 @@ export type FindingSeverity = "critical" | "medium" | "low";
 // renders a finding's own text, for pass or fail, never checklist.ts's.
 export type FindingStatus = "pass" | "fail";
 
+/**
+ * One check, told twice — the same finding in two registers, so the report
+ * serves the engineer who has to fix it AND the stakeholder deciding whether
+ * it's worth fixing. html-report.ts renders both and switches between them
+ * with a language toggle; neither is a summary of the other, they're the same
+ * fact at two altitudes.
+ *
+ * `summary` is the row headline (one line, shown collapsed); `detail` is the
+ * body paragraph revealed when the row opens.
+ */
+export interface FindingVoice {
+  summary: string;
+  detail: string;
+}
+
 export interface CategoryFinding {
-  // What was actually checked and what was found — real, specific, grounded
-  // in this run's real data, for BOTH a pass and a fail (never "N/A" or
-  // generic checklist boilerplate). This is also what html-report.ts uses as
-  // the row's own header/summary text, for pass rows same as fail rows.
-  issue: string;
-  // Why it matters to the business — for a fail, the cost of the problem;
-  // for a pass, why that result is good / what it protects.
-  businessImpact: string;
+  // Engineer register: the literal state found, with the real values that
+  // prove it — property/tag/variable names, metric numbers, config flags,
+  // header values — plus the mechanism behind it. Jargon is correct here.
+  technical: FindingVoice;
+  // Stakeholder register: the same finding with no jargon, and then what it
+  // actually costs or protects — which decision it distorts, which spend it
+  // wastes, which revenue it risks, who feels it. For a fail this is the
+  // consequence of leaving it; for a pass, what the clean result protects.
+  // The point is that a reader who skips every technical line still learns
+  // why the check exists and what the result means for them.
+  business: FindingVoice;
   dataSource: DataSource;
   severity: FindingSeverity;
   status: FindingStatus;
@@ -90,6 +122,15 @@ export interface CategoryFinding {
   // guess: without this link there'd be no way to know which of a
   // category's checklist items actually failed vs. passed.
   checklistId: string;
+  // Arabic translation of both registers above, filled in by a best-effort
+  // post-pass (translate-ar.ts) after the English AuditResult is complete —
+  // never produced by the main audit prompt itself, to keep that prompt's
+  // schema and run time unchanged. Optional and per-finding: a translation
+  // run that fails, times out, or only partially completes just leaves this
+  // undefined for the affected findings, and html-report.ts falls back to
+  // the English text for those specific rows even while the reader has
+  // Arabic selected — never a blank row.
+  ar?: { technical: FindingVoice; business: FindingVoice };
 }
 
 export interface CategoryResult {
@@ -122,8 +163,8 @@ export interface CategoryResult {
 
 export interface AuditResult {
   // Only ever the ONE route's categories — GA4+GTM, OR one tracking tool
-  // plus Website+PageSpeed, OR Website+PageSpeed alone, never any other mix
-  // (see scoring.ts's countedCategories()).
+  // plus Website, OR Website alone, never any other mix (see scoring.ts's
+  // countedCategories()).
   categories: CategoryResult[];
   // Checks passed this run — NOT a 0-100 percentage. Sum of every included
   // category's checklistTally.passed. See possiblePoints below for the
@@ -139,10 +180,17 @@ export interface AuditResult {
   // Cosmetic only - personalizes the report/email, never used to decide
   // which GA4/GTM property gets queried (see audit-prompt.ts).
   businessName: string | null;
-  // The full site-wide PageSpeed sweep (pagespeed.ts's fetchSitePageSpeed) —
-  // same data already fed into the claude -p prompt (see audit-prompt.ts),
-  // carried through to the AuditResult too so html-report.ts can render the
-  // raw per-page Lighthouse detail, not just Claude's synthesized findings.
-  // sitePageSpeed[0] is always the homepage (see poll.ts/test-run.ts).
-  sitePageSpeed: Array<{ url: string; report: PageSpeedReport }>;
+  // Every page the deterministic discovery pass (discover-pages.ts) found
+  // on the site, homepage first — the pages the browser checks are drawn
+  // from this list (cart/checkout for WEB-54/56, a product page for
+  // WEB-55), and the report shows which pages the audit actually covered.
+  // Carried a full PageSpeed sweep per page until 2026-09-09; now just the
+  // URLs, since nothing fetches Lighthouse data for them any more.
+  discoveredPages: string[];
+  // Above-the-fold screenshots of the site at desktop and mobile widths
+  // (screenshots.ts), rendered as a device-framed mockup under the report
+  // hero. Best-effort: either or both may be null when no browser was
+  // found or the page would not load, and the report simply omits the
+  // mockup rather than showing a broken frame.
+  screenshots?: { desktop: string | null; mobile: string | null };
 }

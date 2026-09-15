@@ -1,10 +1,10 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
-import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, PAGESPEED_CHECKLIST, type ChecklistPoint } from "./checklist.js";
+import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, type ChecklistPoint } from "./checklist.js";
 import type { CategoryKey } from "./types.js";
 
 /**
- * Mirrors checklist.ts's four canonical arrays into Supabase's
+ * Mirrors checklist.ts's three canonical arrays into Supabase's
  * checklist_points table (see supabase/schema-content-backend.sql) — a
  * reference/display copy, NOT the live source the audit pipeline reads
  * from. audit-prompt.ts and scoring.ts still import checklist.ts directly
@@ -20,7 +20,6 @@ const SOURCES: Array<{ category: CategoryKey; points: ChecklistPoint[] }> = [
   { category: "GA4", points: GA4_CHECKLIST },
   { category: "GTM", points: GTM_CHECKLIST },
   { category: "Website", points: WEBSITE_CHECKLIST },
-  { category: "PageSpeed", points: PAGESPEED_CHECKLIST },
 ];
 
 async function main() {

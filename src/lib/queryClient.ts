@@ -26,7 +26,12 @@ export async function apiRequest(
                 const textError = await res.text();
                 if (textError && textError.length < 100) errorMessage = textError;
             }
-            throw new Error(errorMessage);
+            const err: any = new Error(errorMessage);
+            // Callers need to distinguish a rules-based rejection (e.g. the
+            // audit form's 409 "already audited") from a genuine failure,
+            // without string-matching the message.
+            err.status = res.status;
+            throw err;
         }
 
         if (isJson) {

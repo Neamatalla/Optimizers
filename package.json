@@ -9,6 +9,7 @@
     "preview": "vite preview --port 4173 --host",
     "start": "vite preview --port 4173 --host",
     "share": "ngrok http 5173",
+    "share:tmole": "tmole 5173",
     "compress-images": "node scripts/compress-images.js"
   },
   "dependencies": {

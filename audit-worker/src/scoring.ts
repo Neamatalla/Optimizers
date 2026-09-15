@@ -6,20 +6,26 @@ import type { CategoryKey, CategoryResult, ToolId } from "./types.js";
  * routes, never a mix beyond what's listed:
  *
  * - Visitor has BOTH GA4 and GTM → GA4 + GTM, 25 items each (checklist.ts),
- *   50 combined. Website/PageSpeed do NOT run at all on this route.
+ *   50 combined. Website does NOT run at all on this route.
  * - Visitor has exactly ONE of GA4/GTM → that one tool's real 25-item
- *   checklist, PLUS a 21-item curated "website code" slice of the Website
- *   checklist (WEBSITE_CODE_CHECKLIST) and the full 4-item PageSpeed
- *   checklist — 25 + 21 + 4 = 50. The tool the visitor DOESN'T have is not
- *   evaluated at all (no weak detection-only guess about a tool they don't
- *   use) — its 25 slots are replaced by a real, fully-evaluable website-code
- *   audit instead (image weight, dataLayer/ecommerce, duplicate tag/event
- *   firing, consent mode, network anomalies, console errors — see
- *   checklist.ts's WEBSITE_CODE_CHECKLIST for the exact point list). This
- *   route also grants live browser access (chrome-devtools MCP — see
- *   mcp-config.ts) since most of that curated slice needs it.
- * - Visitor has NEITHER → the full Website checklist (46 items) + PageSpeed
- *   (4 items) = 50. GA4/GTM do NOT run at all on this route.
+ *   checklist, PLUS the 25-item curated "website code" slice of the Website
+ *   checklist (WEBSITE_CODE_CHECKLIST) — 25 + 25 = 50. The tool the visitor
+ *   DOESN'T have is not evaluated at all (no weak detection-only guess about
+ *   a tool they don't use) — its 25 slots are replaced by a real,
+ *   fully-evaluable website-code audit instead (image weight, dataLayer/
+ *   ecommerce, duplicate tag/event firing, consent mode, network anomalies,
+ *   console errors, resource weight — see checklist.ts's
+ *   WEBSITE_CODE_CHECKLIST for the exact point list). This route also grants
+ *   live browser access (chrome-devtools MCP — see mcp-config.ts) since most
+ *   of that curated slice needs it.
+ * - Visitor has NEITHER → the full Website checklist, 50 items. GA4/GTM do
+ *   NOT run at all on this route.
+ *
+ * A fourth category, PageSpeed (4 items off a site-wide PageSpeed Insights
+ * sweep), used to make up the difference on the latter two routes. Removed
+ * 2026-09-09 — the sweep was the biggest single chunk of every run's wall
+ * clock — and what it scored now lives in Website as WEB-60..WEB-63,
+ * measured from the headless browser instead.
  *
  * A prior version of this function returned only the categories the visitor
  * actually selected (so a GA4-only visitor got a 25-point report), then a
@@ -39,9 +45,9 @@ export function countedCategories(tools: ToolId[]): CategoryKey[] {
   const hasGa4 = tools.includes("GA4");
   const hasGtm = tools.includes("GTM");
   if (hasGa4 && hasGtm) return ["GA4", "GTM"];
-  if (hasGa4) return ["GA4", "Website", "PageSpeed"];
-  if (hasGtm) return ["GTM", "Website", "PageSpeed"];
-  return ["Website", "PageSpeed"];
+  if (hasGa4) return ["GA4", "Website"];
+  if (hasGtm) return ["GTM", "Website"];
+  return ["Website"];
 }
 
 /**

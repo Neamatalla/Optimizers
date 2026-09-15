@@ -13,12 +13,13 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { crawlWebsite } from "./crawl.js";
-import { fetchSitePageSpeed, parsePageSpeedKeys } from "./pagespeed.js";
+import { captureSiteScreenshots } from "./screenshots.js";
 import { discoverPages } from "./discover-pages.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
+import { translateFindingsToArabic } from "./translate-ar.js";
 import { publishAuditReport } from "./supabase.js";
 import { sendAuditEmail } from "./email.js";
 import type { AuditResult, ToolId } from "./types.js";
@@ -35,12 +36,6 @@ function parseArgs(): Record<string, string> {
     if (bareFlag) out[bareFlag[1]] = "true";
   }
   return out;
-}
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required env var ${name}`);
-  return value;
 }
 
 async function readJsonIfPresent(filePath: string | undefined): Promise<unknown> {
@@ -77,12 +72,13 @@ async function main() {
   const crawl = await crawlWebsite(website);
   console.log("[test-run-oauth] crawl detected:", crawl.detected, "ids:", crawl.ids);
 
-  console.log("[test-run-oauth] discovering pages for the site-wide PageSpeed sweep...");
-  const pages = await discoverPages(website, crawl.html);
-  console.log("[test-run-oauth] sweeping", pages.length, "page(s) sequentially:", pages);
-  const sitePageSpeed = await fetchSitePageSpeed(pages, parsePageSpeedKeys(requireEnv("PAGESPEED_API_KEYS")));
-  const pagespeed = sitePageSpeed[0].report;
-  console.log("[test-run-oauth] homepage pagespeed mobile score:", pagespeed.mobile.performanceScore, "desktop score:", pagespeed.desktop.performanceScore);
+  console.log("[test-run-oauth] discovering pages...");
+  const discoveredPages = await discoverPages(website, crawl.html);
+  console.log("[test-run-oauth] pages the audit will cover:", discoveredPages);
+
+  const shots = await captureSiteScreenshots(website);
+  console.log("[test-run-oauth] screenshots:", shots.error ?? `desktop=${Boolean(shots.desktop)} mobile=${Boolean(shots.mobile)}`);
+  const screenshots = { desktop: shots.desktop, mobile: shots.mobile };
 
   console.log("[test-run-oauth] building MCP config + calling claude -p...");
   const needed = neededMcpServers({ tools, ga4OAuthData, gtmOAuthData });
@@ -93,8 +89,7 @@ async function main() {
     const categories = await runAudit({
       website,
       tools,
-      pagespeed,
-      sitePageSpeed,
+      discoveredPages,
       crawl,
       mcpConfigPath: mcp.configPath,
       businessName,
@@ -108,14 +103,19 @@ async function main() {
     for (const cat of categories) {
       console.log(`  - ${cat.category}: ${cat.checklistTally.passed}/${cat.checklistTally.evaluated}, ${cat.findings.length} findings`);
       for (const f of cat.findings) {
-        console.log(`      [${f.severity}/${f.dataSource}] ${f.issue}`);
+        console.log(`      [${f.severity}/${f.dataSource}] ${f.technical.summary}`);
       }
     }
 
     const { earned, possible } = computeOverallPoints(categories);
     console.log("[test-run-oauth] overall score:", `${earned}/${possible}`);
 
-    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, sitePageSpeed };
+    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, screenshots };
+
+    console.log("[test-run-oauth] translating findings to Arabic...");
+    const arabic = await translateFindingsToArabic(result, requestId);
+    console.log("[test-run-oauth] arabic:", arabic.error ?? `${arabic.translated}/${arabic.total} findings translated`);
+
     console.log("[test-run-oauth] building HTML report page...");
     const report = await buildAuditHtmlReport(result);
     htmlReport = report.html;
@@ -135,10 +135,10 @@ async function main() {
     return;
   }
 
-  const { publicUrl: reportUrl } = await publishAuditReport({ requestId, html: htmlReport, businessName, website });
+  const { publicUrl: reportUrl } = await publishAuditReport({ requestId, html: htmlReport, businessName, website, isTest: true });
   console.log(`[test-run-oauth] Published report: ${reportUrl}`);
   console.log(`[test-run-oauth] emailing link to ${email}...`);
-  await sendAuditEmail({ to: email, website, businessName, reportUrl, categoriesAudited: result.categories.map(c => c.category) });
+  await sendAuditEmail({ to: email, website, businessName, isTest: true, reportUrl, categoriesAudited: result.categories.map(c => c.category) });
   console.log("[test-run-oauth] Done - check the inbox.");
 }
 

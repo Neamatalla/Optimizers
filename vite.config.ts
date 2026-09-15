@@ -151,7 +151,20 @@ function apiMiddlewarePlugin() {
           const VALID_TOOLS = new Set(['GA4', 'GTM']);
           try {
             const env = loadEnv('development', process.cwd(), '');
-            const { tools, website, email, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = JSON.parse(body || '{}');
+            const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = JSON.parse(body || '{}');
+
+            // Test-mode prefix comes off first, so every check below runs on
+            // the real values — dev twin of api/audit-request.js, same
+            // shared parser.
+            const { parseTestPrefix, TEST_PREFIX_MISMATCH_MESSAGE, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
+            const parsedIntake = parseTestPrefix({ email: rawEmail, website: rawWebsite });
+            if (parsedIntake.mismatch) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: TEST_PREFIX_MISMATCH_MESSAGE }));
+              return;
+            }
+            const { isTest, email, website } = parsedIntake;
 
             if (!Array.isArray(tools) || tools.some((tool: any) => !VALID_TOOLS.has(tool))) {
               res.statusCode = 400;
@@ -293,8 +306,18 @@ function apiMiddlewarePlugin() {
               const resendApiKey = env.RESEND_API_KEY;
               if (resendApiKey) {
                 try {
-                  const protocol = (req.headers['x-forwarded-proto'] as string) || 'http';
-                  const absoluteReportUrl = `${protocol}://${req.headers.host}${reportUrl}`;
+                  // ngrok sets x-forwarded-proto; tunnelmole forwards no
+                  // x-forwarded-* headers at all (verified — only a correct
+                  // Host), so a bare fallback to http would put an
+                  // insecure-scheme link in the email. Anything that is not
+                  // literally localhost reached us through a tunnel, and
+                  // every tunnel worth using terminates TLS, so https is the
+                  // right assumption there.
+                  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
+                  const requestHost = String(req.headers.host || '');
+                  const isLocalHost = /^(localhost|127.0.0.1|[::1])(:|$)/.test(requestHost);
+                  const protocol = forwardedProto || (isLocalHost ? 'http' : 'https');
+                  const absoluteReportUrl = `${protocol}://${requestHost}${reportUrl}`;
                   const { Resend } = await import('resend');
                   const resend = new Resend(resendApiKey);
                   await resend.emails.send({
@@ -333,12 +356,41 @@ function apiMiddlewarePlugin() {
 
             const { createClient } = await import('@supabase/supabase-js');
             const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+            // Dev twin of api/audit-request.js's one-audit-per-website/email
+            // limit — same shared implementation, so testing locally against
+            // the real Supabase project behaves exactly like production
+            // (including consuming a real site's one free audit).
+            const {
+              normalizeEmail,
+              normalizeHostname,
+              findExistingAuditRequest,
+              isUniqueViolation,
+              duplicateMessage,
+            } = await import('./api/_lib/audit-intake.js');
+            const emailNormalized = normalizeEmail(email);
+            const websiteHostname = normalizeHostname(website);
+            // Test runs are exempt from the one-per-site/email limit, same as
+            // production (and the unique indexes themselves are partial).
+            if (!isTest) {
+              const existing = await findExistingAuditRequest(supabase, { emailNormalized, websiteHostname });
+              if (existing) {
+                res.statusCode = 409;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: duplicateMessage(existing.reason), duplicate: existing.reason }));
+                return;
+              }
+            }
+
             const { data: row, error: insertError } = await supabase
               .from('audit_requests')
               .insert({
                 tools,
                 website: String(website).trim(),
                 email: String(email).trim(),
+                email_normalized: emailNormalized,
+                website_hostname: websiteHostname || null,
+                is_test: isTest,
                 business_name: businessName ? String(businessName).trim() : null,
                 ga4_measurement_id: ga4MeasurementId ? String(ga4MeasurementId).trim().toUpperCase() : null,
                 gtm_container_id: gtmContainerId ? String(gtmContainerId).trim().toUpperCase() : null,
@@ -350,6 +402,13 @@ function apiMiddlewarePlugin() {
               .single();
 
             if (insertError) {
+              const duplicate = isUniqueViolation(insertError);
+              if (duplicate) {
+                res.statusCode = 409;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: duplicateMessage(duplicate), duplicate }));
+                return;
+              }
               console.error('Supabase insert error:', JSON.stringify(insertError));
               res.statusCode = 500;
               res.setHeader('Content-Type', 'application/json');
@@ -358,13 +417,15 @@ function apiMiddlewarePlugin() {
             }
 
             const resendApiKey = env.RESEND_API_KEY;
-            if (resendApiKey) {
+            // Not on a test run — same as production, test mode pings nobody
+            // internally.
+            if (resendApiKey && !isTest) {
               try {
                 const { Resend } = await import('resend');
                 const resend = new Resend(resendApiKey);
                 await resend.emails.send({
                   from: 'Optimizers <hello@optimizers.agency>',
-                  to: ['mohamed@neamatalla.com'],
+                  to: [auditNotifyEmail(env)],
                   subject: `New Free Audit request — ${website}`,
                   html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -394,11 +455,34 @@ function apiMiddlewarePlugin() {
               } catch (notifyErr) {
                 console.error('Internal notification email failed (dev):', notifyErr);
               }
+
+              // Dev twin of the heads-up send in api/audit-request.js — a
+              // second internal address gets just who asked and for which
+              // site, nothing operational. Real runs only, same as above.
+              try {
+                const { Resend } = await import('resend');
+                const resend = new Resend(resendApiKey);
+                const headsUp = buildHeadsUpEmail({ email, website });
+                await resend.emails.send({
+                  from: 'Optimizers <hello@optimizers.agency>',
+                  to: [auditHeadsUpEmail(env)],
+                  subject: headsUp.subject,
+                  html: headsUp.html,
+                });
+              } catch (headsUpErr) {
+                console.error('Heads-up notification email failed (dev):', headsUpErr);
+              }
             }
 
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ success: true, message: 'Audit request received. Check your inbox shortly.' }));
+            res.end(JSON.stringify({
+              success: true,
+              isTest,
+              message: isTest
+                ? `Test run queued for ${website}. The report will be emailed straight to ${email} — no review step.`
+                : 'Audit request received. Check your inbox shortly.',
+            }));
           } catch (err: any) {
             console.error('Dev API error (audit-request):', err);
             res.statusCode = 500;
@@ -474,8 +558,16 @@ function apiMiddlewarePlugin() {
         try {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(supabaseUrl, supabaseSecretKey);
-          const objectPath = `reports/${slug}/index.html`;
-          const { data, error } = await supabase.storage.from(bucket).download(objectPath);
+          // Same reasoning as api/audit-report.js: report_pages says which
+          // bucket a slug lives in (a test-mode run publishes to its own),
+          // with the conventional path as the fallback for legacy rows.
+          const { data: page } = await supabase
+            .from('report_pages')
+            .select('bucket, storage_path')
+            .eq('slug', slug)
+            .maybeSingle();
+          const objectPath = page?.storage_path || `reports/${slug}/index.html`;
+          const { data, error } = await supabase.storage.from(page?.bucket || bucket).download(objectPath);
           if (error || !data) {
             res.statusCode = 404;
             res.end('Audit report not found.');
@@ -545,6 +637,29 @@ function apiMiddlewarePlugin() {
         const { buildAuthorizeUrl } = await import('./api/_lib/google-oauth.js');
         console.log('[oauth-authorize] hit');
 
+        // Serving through a tunnel (ngrok) while GOOGLE_OAUTH_REDIRECT_URI
+        // still points at localhost is a silent double failure: Google
+        // rejects the redirect outright with redirect_uri_mismatch, and even
+        // if it didn't, the callback posts its result to the origin derived
+        // from this same env value — a different origin than the page doing
+        // the listening, so GetFreeAudit.tsx's own origin check drops it and
+        // the popup just closes with nothing happening. Cheap to detect
+        // here, at the exact moment it starts to matter.
+        try {
+          const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+          const configuredHost = new URL(redirectUri).host;
+          if (requestHost && configuredHost && requestHost !== configuredHost) {
+            console.warn(
+              `[oauth-authorize] HOST MISMATCH — this request arrived on "${requestHost}" but GOOGLE_OAUTH_REDIRECT_URI is set to "${configuredHost}". ` +
+              `Google will reject this with redirect_uri_mismatch. Set GOOGLE_OAUTH_REDIRECT_URI=https://${requestHost}/api/oauth/google/callback in .env, ` +
+              `add that exact URI to the OAuth client in Google Cloud Console, and restart the dev server.`,
+            );
+          }
+        } catch {
+          // A malformed GOOGLE_OAUTH_REDIRECT_URI is already surfaced by the
+          // real flow failing; no need to make the warning itself fatal.
+        }
+
         // No candidate GA4/GTM IDs embedded in state any more — the callback
         // now returns every accessible property/container, and matching
         // against the site crawl's candidates happens client-side.
@@ -566,7 +681,7 @@ function apiMiddlewarePlugin() {
           res.end('Google OAuth is not configured.');
           return;
         }
-        const { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers } = await import('./api/_lib/google-oauth.js');
+        const { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult } = await import('./api/_lib/google-oauth.js');
 
         const url = new URL(req.url, 'http://localhost');
         const code = url.searchParams.get('code');
@@ -612,8 +727,17 @@ Connected — you can close this window.
           const [ga4Properties, gtmContainers] = await Promise.all([fetchAllGA4Properties(token), fetchAllGTMContainers(token)]);
           console.log('[oauth-callback] ga4Properties:', Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`);
           console.log('[oauth-callback] gtmContainers:', Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`);
+          console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
           res.statusCode = 200;
-          res.end(popupHtml({ type: 'google-oauth-result', ga4Properties, gtmContainers }));
+          // Fetch errors travel as their own fields rather than collapsing
+          // into an empty list — see the Vercel callback for why.
+          res.end(popupHtml({
+            type: 'google-oauth-result',
+            ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
+            gtmContainers: Array.isArray(gtmContainers) ? gtmContainers : [],
+            ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
+            gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
+          }));
         } catch (err: any) {
           console.log('[oauth-callback] FAILED:', err.message || err);
           res.statusCode = 200;

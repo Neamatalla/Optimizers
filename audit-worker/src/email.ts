@@ -3,15 +3,14 @@ import type { CategoryKey } from "./types.js";
 
 // Human phrase per category, in a fixed display order — GA4/GTM first when
 // present since they're the higher-intent "we connected your tools" story,
-// Website/PageSpeed always last since they're the ones present on literally
-// every run.
+// Website always last since it's the one present on all but the
+// both-tools run.
 const CATEGORY_PHRASES: Record<CategoryKey, string> = {
   GA4: "analytics",
   GTM: "tag management",
   Website: "your website's code",
-  PageSpeed: "page speed",
 };
-const CATEGORY_ORDER: CategoryKey[] = ["GA4", "GTM", "Website", "PageSpeed"];
+const CATEGORY_ORDER: CategoryKey[] = ["GA4", "GTM", "Website"];
 
 function joinWithAnd(items: string[]): string {
   if (items.length <= 1) return items.join("");
@@ -22,8 +21,8 @@ function joinWithAnd(items: string[]): string {
 // Built from what actually ran (result.categories — the ground truth once
 // an audit exists, same reasoning as scoring.ts's own doc comment on this),
 // not the visitor's tool selection — so a "none of these" run correctly
-// says "your website's code and page speed" instead of a copy-pasted
-// sentence claiming analytics/tag-management coverage that never happened.
+// says "your website's code" instead of a copy-pasted sentence claiming
+// analytics/tag-management coverage that never happened.
 function coverageSentence(categoriesAudited: CategoryKey[]): string {
   const phrases = CATEGORY_ORDER.filter(c => categoriesAudited.includes(c)).map(c => CATEGORY_PHRASES[c]);
   return joinWithAnd(phrases);
@@ -43,6 +42,12 @@ export interface SendAuditEmailOptions {
   // still actually sends something to look at instead of failing outright.
   reportUrl?: string;
   attachment?: { filename: string; html: string };
+  // Test-mode run (both form fields submitted with a leading "-" — see
+  // api/_lib/audit-intake.js's parseTestPrefix). Exactly the email a real
+  // requester would get, but subject-tagged and banner-topped, so a test
+  // that lands in a real inbox can never be mistaken for a reviewed,
+  // client-ready audit.
+  isTest?: boolean;
 }
 
 export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void> {
@@ -59,9 +64,12 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
   const { error } = await resend.emails.send({
     from: "Optimizers <hello@optimizers.agency>",
     to: [opts.to],
-    subject: opts.businessName ? `Your Free CRO & Analytics Audit for ${opts.businessName}` : `Your Free CRO & Analytics Audit - ${opts.website}`,
+    subject: `${opts.isTest ? "[TEST] " : ""}${opts.businessName ? `Your Free CRO & Analytics Audit for ${opts.businessName}` : `Your Free CRO & Analytics Audit - ${opts.website}`}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        ${opts.isTest ? `<p style="background: #fff4e0; border: 1px solid #f2b75e; border-radius: 8px; color: #7a4b00; font-size: 13px; line-height: 1.6; padding: 10px 14px; margin: 0 0 18px;">
+          <b>Test run.</b> Submitted in test mode, so this skipped the internal review step and came straight here. The report itself is stored in the test bucket, not alongside real client reports.
+        </p>` : ""}
         <h2 style="color: #263328; border-bottom: 2px solid #6ae499; padding-bottom: 10px;">
           Your Audit Is Ready
         </h2>

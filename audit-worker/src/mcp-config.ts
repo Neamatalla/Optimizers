@@ -43,11 +43,11 @@ export function neededMcpServers(opts: { tools: ToolId[]; ga4OAuthData: unknown;
     // Needed whenever the run's other 25 points come from a real
     // website-code audit instead of a second tracking-tool checklist — that's
     // BOTH the "visitor has neither GA4 nor GTM" route (tools.length === 0,
-    // full 46-item Website checklist) AND the "visitor has exactly one of
-    // GA4/GTM" route (tools.length === 1, the 21-item WEBSITE_CODE_CHECKLIST
+    // full 50-item Website checklist) AND the "visitor has exactly one of
+    // GA4/GTM" route (tools.length === 1, the 25-item WEBSITE_CODE_CHECKLIST
     // — see scoring.ts's countedCategories and checklist.ts). Only the
-    // "visitor has both" route (tools.length === 2) skips Website/PageSpeed
-    // entirely and so needs no browser.
+    // "visitor has both" route (tools.length === 2) skips Website entirely
+    // and so needs no browser.
     browser: opts.tools.length < 2,
   };
 }

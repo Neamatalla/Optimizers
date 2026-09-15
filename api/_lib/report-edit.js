@@ -23,9 +23,13 @@ export async function getReportHtml({ supabase, bucket, slug }) {
     return { status: 400, body: { error: "Invalid slug." } };
   }
 
+  // bucket comes from the row, not the caller: a test-mode report lives in
+  // a different bucket (see audit-worker/src/supabase.ts), and the passed-in
+  // `bucket` is only the fallback for rows written before that column
+  // existed.
   const { data: page, error: lookupError } = await supabase
     .from("report_pages")
-    .select("slug, storage_path, public_url, updated_at")
+    .select("slug, storage_path, public_url, updated_at, bucket")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -37,7 +41,7 @@ export async function getReportHtml({ supabase, bucket, slug }) {
     return { status: 404, body: { error: "Unknown report slug." } };
   }
 
-  const { data, error: downloadError } = await supabase.storage.from(bucket).download(page.storage_path);
+  const { data, error: downloadError } = await supabase.storage.from(page.bucket || bucket).download(page.storage_path);
   if (downloadError || !data) {
     console.error("Supabase report download error:", downloadError);
     return { status: 404, body: { error: "Report file not found in storage." } };
@@ -58,7 +62,7 @@ export async function updateReportHtml({ supabase, bucket, slug, html }) {
 
   const { data: page, error: lookupError } = await supabase
     .from("report_pages")
-    .select("id, storage_path")
+    .select("id, storage_path, bucket")
     .eq("slug", trimmedSlug)
     .maybeSingle();
 
@@ -71,7 +75,7 @@ export async function updateReportHtml({ supabase, bucket, slug, html }) {
   }
 
   const { error: uploadError } = await supabase.storage
-    .from(bucket)
+    .from(page.bucket || bucket)
     .upload(page.storage_path, Buffer.from(html, "utf8"), {
       contentType: "text/html; charset=utf-8",
       cacheControl: "3600",

@@ -213,6 +213,36 @@ async function fetchGa4ReportData(propertyName, token) {
  * fine at this tool's personal/agency scale, would need paging + real
  * concurrency limits before that stopped being true.
  */
+/**
+ * One log line per returned property/container, with exactly the fields the
+ * client-side auto-selection keys off: the measurement id, each web stream's
+ * defaultUri, and (for containers) the GA4 ids found inside the container's
+ * own config. When a visitor reports "it picked the wrong property", this is
+ * the evidence needed to tell which signal was missing, without asking them
+ * to reconnect.
+ */
+export function describeOAuthResult({ ga4Properties, gtmContainers }) {
+  const lines = [];
+  if (Array.isArray(ga4Properties)) {
+    for (const p of ga4Properties) {
+      const uris = (p.dataStreams || []).map(s => s.webStreamData?.defaultUri).filter(Boolean).join(" ") || "(no stream uri)";
+      lines.push(`  GA4  ${p.measurementId || "(no web stream)"}  ${p.displayName}  streams: ${uris}`);
+    }
+  } else if (ga4Properties?.error) {
+    lines.push(`  GA4  FETCH FAILED: ${ga4Properties.error}`);
+  }
+  if (Array.isArray(gtmContainers)) {
+    for (const c of gtmContainers) {
+      const discovered = (c.discoveredGa4MeasurementIds || []).join(",") || "none";
+      const domains = (c.domainName || []).join(" ") || "(none declared)";
+      lines.push(`  GTM  ${c.publicId}  ${c.containerName}  domains: ${domains}  ga4-in-container: ${discovered}`);
+    }
+  } else if (gtmContainers?.error) {
+    lines.push(`  GTM  FETCH FAILED: ${gtmContainers.error}`);
+  }
+  return lines.join("\n");
+}
+
 export async function fetchAllGA4Properties(token) {
   let summaries;
   try {
@@ -349,27 +379,80 @@ export async function fetchAllGTMContainers(token) {
       // after the JS-free crawl has already finished reading. Once
       // connected, though, the real tag config is right here, so this scans
       // it directly instead of trying to guess from HTML.
-      discoveredGa4MeasurementIds: extractGa4IdsFromGtmTags(liveVersion.tag || []),
+      discoveredGa4MeasurementIds: extractGa4IdsFromContainerVersion(liveVersion),
       workspaceCount: workspaces.workspace?.length,
       versionCount: versions.containerVersionHeader?.length,
     };
   }));
 }
 
-// Matches a tag parameter's *whole* value, not embedded in a longer string —
+// Matches a parameter's *whole* value, not embedded in a longer string —
 // GTM parameter values are structured config, not free-form page text, so
 // this doesn't need the URL-anchored patterns above (which exist specifically
 // to avoid false positives like the `g-recaptcha` CSS class in raw HTML).
 const GA4_ID_VALUE_RE = /^G-[A-Z0-9]{6,}$/i;
 
-function extractGa4IdsFromGtmTags(tags) {
+// For values that are NOT just an id — a Custom HTML tag pasting a real
+// gtag.js snippet, say. Same anchoring as detect-tracking.js's patterns, for
+// the same reason: a bare "G-something" scan over script text matches too
+// much.
+const GA4_ID_IN_TEXT_PATTERNS = [
+  /googletagmanager\.com\/gtag\/js\?id=(G-[A-Z0-9]{6,})/gi,
+  /gtag\(\s*['"]config['"]\s*,\s*['"](G-[A-Z0-9]{6,})['"]/gi,
+];
+
+// GTM parameters are a TREE, not a flat list: a "Google tag" stores its
+// config rows as a LIST parameter of MAP parameters, each with its own
+// nested `list`/`map` arrays. Walking only the top level (what this used to
+// do) misses every id that isn't a direct scalar on the tag itself.
+function collectParamValues(params, out) {
+  for (const param of params || []) {
+    if (typeof param.value === "string") out.push(param.value);
+    if (Array.isArray(param.list)) collectParamValues(param.list, out);
+    if (Array.isArray(param.map)) collectParamValues(param.map, out);
+  }
+  return out;
+}
+
+/**
+ * Every GA4 measurement id configured anywhere in a container's live
+ * version. Takes the whole version, not just its tags, because the id
+ * usually isn't on the tag at all.
+ *
+ * Found by inspecting a real production container (tharaa.shop,
+ * GTM-NLHFNL8G): its GA4 id lives in a CONSTANT VARIABLE named "GA4
+ * Measurement ID" (`type: "c"`), and every GA4 tag references it as
+ * `{{GA4 Measurement ID}}`. Scanning tags alone therefore found nothing —
+ * and this scan is the only fallback for exactly that deployment style,
+ * where GTM injects gtag.js at runtime and the JS-free site crawl can't see
+ * the id either. Net effect of the old version: the site's own property was
+ * unmatchable, and the auto-selection fell back to whatever sorted first in
+ * the connected account.
+ *
+ * Sources scanned, all of them nested-aware:
+ *   - variable[]  — constants, lookup tables, anything holding the id
+ *   - tag[]       — a tag configuring the id inline
+ *   - the raw text of any value, for a pasted gtag.js snippet
+ */
+function extractGa4IdsFromContainerVersion(liveVersion) {
   const found = new Set();
-  for (const tag of tags || []) {
-    for (const param of tag.parameter || []) {
-      if (typeof param.value === "string" && GA4_ID_VALUE_RE.test(param.value.trim())) {
-        found.add(param.value.trim().toUpperCase());
+  const values = [
+    ...collectParamValues(liveVersion?.variable ? liveVersion.variable.flatMap(v => v.parameter || []) : [], []),
+    ...collectParamValues(liveVersion?.tag ? liveVersion.tag.flatMap(t => t.parameter || []) : [], []),
+  ];
+
+  for (const raw of values) {
+    const value = raw.trim();
+    if (GA4_ID_VALUE_RE.test(value)) {
+      found.add(value.toUpperCase());
+      continue;
+    }
+    for (const pattern of GA4_ID_IN_TEXT_PATTERNS) {
+      for (const match of value.matchAll(pattern)) {
+        if (match[1]) found.add(match[1].toUpperCase());
       }
     }
   }
+
   return Array.from(found);
 }

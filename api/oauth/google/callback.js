@@ -1,4 +1,4 @@
-import { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers } from "../../_lib/google-oauth.js";
+import { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult } from "../../_lib/google-oauth.js";
 
 function popupResponseHtml(payload) {
   // Self-closing page: posts the result to the opener (the main site tab)
@@ -74,8 +74,19 @@ export default async function handler(req, res) {
       "[oauth-callback] gtmContainers:",
       Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`
     );
+    console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
     res.statusCode = 200;
-    res.end(popupResponseHtml({ type: "google-oauth-result", ga4Properties, gtmContainers }));
+    // A failed fetch travels as its own field rather than collapsing into an
+    // empty list: the form used to render "no accessible GA4 properties" for
+    // a 403/quota error, which reads as "your account has none" and sends
+    // the visitor looking in the wrong place.
+    res.end(popupResponseHtml({
+      type: "google-oauth-result",
+      ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
+      gtmContainers: Array.isArray(gtmContainers) ? gtmContainers : [],
+      ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
+      gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
+    }));
   } catch (err) {
     console.log("[oauth-callback] FAILED:", err.message || err);
     res.statusCode = 200;

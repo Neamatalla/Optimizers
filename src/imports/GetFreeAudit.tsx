@@ -13,10 +13,26 @@ import { useToast } from "@/hooks/use-toast";
 // not runtime-toggleable — flip and redeploy once verification is done.
 const OAUTH_ENABLED = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === "true";
 
+// Test mode: typing a leading "-" on BOTH the website and the email runs
+// the real pipeline but delivers differently — the report goes to a separate
+// Supabase Storage bucket and is emailed straight to the address in the form,
+// with no internal review step and no 2-day delay, and the run is exempt from
+// the one-audit-per-site/email limit. The server is the authority on all of
+// that (api/_lib/audit-intake.js's parseTestPrefix); everything here just
+// keeps the prefix from tripping the format validators, and tells the visitor
+// what they've switched on.
+const TEST_PREFIX = "-";
+const stripTestPrefix = (value: string): string => {
+  const trimmed = value.trim();
+  return trimmed.startsWith(TEST_PREFIX) ? trimmed.slice(TEST_PREFIX.length).trim() : trimmed;
+};
+const hasTestPrefix = (value: string): boolean => value.trim().startsWith(TEST_PREFIX);
+
 // --- Validation & Helpers (mirrors src/imports/StrategySession.tsx) ---
 const validateWebsite = (url: string): string => {
   if (!url.trim()) return "";
-  let urlToValidate = url.trim();
+  let urlToValidate = stripTestPrefix(url);
+  if (!urlToValidate) return "Please enter a valid website URL";
   if (!urlToValidate.startsWith("http://") && !urlToValidate.startsWith("https://")) {
     urlToValidate = "https://" + urlToValidate;
   }
@@ -32,7 +48,7 @@ const validateWebsite = (url: string): string => {
 const validateEmail = (email: string): string => {
   if (!email.trim()) return "";
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return "Please enter a valid email address";
+  if (!emailRegex.test(stripTestPrefix(email))) return "Please enter a valid email address";
   return "";
 };
 
@@ -42,7 +58,7 @@ const validateRequired = (value: string, label: string): string => {
 };
 
 const normalizeWebsiteUrl = (url: string): string => {
-  const trimmed = url.trim();
+  const trimmed = stripTestPrefix(url);
   if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
     return "https://" + trimmed;
   }
@@ -112,10 +128,19 @@ function gtmDiscoveredGa4Ids(gtmContainers: GtmContainer[]): string[] {
 // Bare, lowercase, no "www." hostname — the common form to compare a
 // user-entered website against API-returned domain/URI fields that were
 // typed independently (some with protocol, some without, some with www).
+//
+// Strips the test-mode prefix first, same as every other reader of the
+// website field. Without that, a test-mode submission produced garbage here
+// rather than an error: "-https://www.tharaa.shop" parses as the URL
+// "https://-https://www.tharaa.shop", whose hostname is "-https" — which
+// silently matches no GA4 data stream and no GTM container domain, so the
+// property/container auto-selection quietly fell back to whatever happened
+// to be first in an agency account's list.
 function normalizeHostname(input: string): string {
-  if (!input.trim()) return "";
+  const value = stripTestPrefix(input);
+  if (!value) return "";
   try {
-    const withProtocol = input.startsWith("http://") || input.startsWith("https://") ? input : `https://${input}`;
+    const withProtocol = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
     return new URL(withProtocol).hostname.replace(/^www\./i, "").toLowerCase();
   } catch {
     return "";
@@ -240,6 +265,13 @@ export default function GetFreeAudit() {
   });
   const [oauthStatus, setOauthStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [oauthErrorMessage, setOauthErrorMessage] = useState("");
+  // Per-side listing failure (a 403, a disabled API, a quota hit). Distinct
+  // from oauthErrorMessage, which is a whole-connection failure: here the
+  // connection worked and one of the two listings didn't, which the form
+  // used to render as "no accessible properties found" — indistinguishable
+  // from an account that genuinely has none.
+  const [ga4ListError, setGa4ListError] = useState<string | null>(null);
+  const [gtmListError, setGtmListError] = useState<string | null>(null);
   // Populated by runDetection's background crawl call to
   // /api/detect-tracking — consumed by the OAuth handler (to pick a default
   // dropdown selection) and by renderStepContent (to star that same match).
@@ -262,8 +294,19 @@ export default function GetFreeAudit() {
   // (see that file's /api/audit-request handler) — the real production path
   // delivers the report by email only, no reportUrl in the response body.
   const [reportUrl, setReportUrl] = useState<string | null>(null);
+  // Set from a 409 on submit: this website or email address already used up
+  // its one free audit (api/_lib/audit-intake.js). Rendered as a persistent
+  // panel rather than only a toast — it's a final answer, not a transient
+  // error, and the visitor shouldn't be left re-pressing the button.
+  const [alreadyAuditedMessage, setAlreadyAuditedMessage] = useState<string | null>(null);
 
   const steps = useMemo(() => buildSteps(formData.tools), [formData.tools]);
+  // Both fields prefixed = test mode; exactly one = the server rejects it
+  // with a 400, so say so here before the visitor gets that far.
+  const websitePrefixed = hasTestPrefix(formData.website);
+  const emailPrefixed = hasTestPrefix(formData.email);
+  const isTestSubmission = websitePrefixed && emailPrefixed;
+  const testPrefixMismatch = websitePrefixed !== emailPrefixed;
   const clampedIndex = Math.min(stepIndex, steps.length - 1);
   const currentStepKey = steps[clampedIndex];
 
@@ -278,6 +321,7 @@ export default function GetFreeAudit() {
     // response eventually lands — the visitor just isn't blocked staring at
     // it while that happens.
     onMutate: () => {
+      setAlreadyAuditedMessage(null);
       setSubmitted(true);
     },
     onSuccess: (data: any) => {
@@ -294,6 +338,13 @@ export default function GetFreeAudit() {
       // still on this tab) rather than leave them on a screen falsely
       // implying the audit is running.
       setSubmitted(false);
+      // 409 = the one-audit-per-website/email limit, not a failure: there's
+      // nothing to retry, so it gets a panel that stays put instead of a
+      // toast that disappears.
+      if (error?.status === 409) {
+        setAlreadyAuditedMessage(error.message || "A free audit has already been requested for this website or email address.");
+        return;
+      }
       toast({ title: "Error", description: error.message || "Failed to submit request.", variant: "destructive" });
     },
   });
@@ -374,6 +425,17 @@ export default function GetFreeAudit() {
 
       const ga4Properties: Ga4Property[] = Array.isArray(event.data.ga4Properties) ? event.data.ga4Properties : [];
       const gtmContainers: GtmContainer[] = Array.isArray(event.data.gtmContainers) ? event.data.gtmContainers : [];
+      setGa4ListError(event.data.ga4Error ?? null);
+      setGtmListError(event.data.gtmError ?? null);
+
+      // A fresh connection is fresh information: whatever the visitor picked
+      // by hand against a PREVIOUS connection's list shouldn't freeze the
+      // new one's auto-selection. Without this reset, reconnecting (a
+      // different Google account, or a retry after fixing access) left the
+      // dropdowns pinned to the earlier manual choice with no ★ logic
+      // running at all.
+      ga4ManuallySelectedRef.current = false;
+      gtmManuallySelectedRef.current = false;
 
       setFormData(prev => ({
         ...prev,
@@ -483,7 +545,7 @@ export default function GetFreeAudit() {
         return !formData.googleAccessConfirmed || !ga4Ready || !gtmReady;
       }
       case "website":
-        return !formData.website.trim() || !!validationErrors.website || !formData.email.trim() || !!validationErrors.email;
+        return !formData.website.trim() || !!validationErrors.website || !formData.email.trim() || !!validationErrors.email || testPrefixMismatch;
       default:
         return false;
     }
@@ -502,7 +564,7 @@ export default function GetFreeAudit() {
       const websiteErr = validateRequired(formData.website, "Website") || validateWebsite(formData.website);
       const emailErr = validateRequired(formData.email, "Email") || validateEmail(formData.email);
       setValidationErrors(prev => ({ ...prev, website: websiteErr, email: emailErr }));
-      if (websiteErr || emailErr) return;
+      if (websiteErr || emailErr || testPrefixMismatch) return;
       runDetection(formData.website);
     }
 
@@ -516,10 +578,16 @@ export default function GetFreeAudit() {
     }
 
     if (isLastStep) {
+      // A half-prefixed pair is a 400 from the server; stop it here so the
+      // visitor sees the inline explanation instead of a failed request.
+      if (testPrefixMismatch) return;
       submitAuditMutation.mutate({
         tools: formData.tools,
-        website: normalizeWebsiteUrl(formData.website),
-        email: formData.email,
+        // The prefix goes back on both fields (never just one) so the
+        // server's own parseTestPrefix is what decides this is a test run —
+        // the client never gets to assert it with a flag of its own.
+        website: `${isTestSubmission ? TEST_PREFIX : ""}${normalizeWebsiteUrl(formData.website)}`,
+        email: `${isTestSubmission ? TEST_PREFIX : ""}${stripTestPrefix(formData.email)}`,
         ga4MeasurementId: formData.tools.includes("GA4") ? formData.ga4MeasurementId.trim() || undefined : undefined,
         gtmContainerId: formData.tools.includes("GTM") ? formData.gtmContainerId.trim() || undefined : undefined,
         ga4OAuthData: formData.ga4OAuthData ?? undefined,
@@ -558,7 +626,7 @@ export default function GetFreeAudit() {
               ))}
               <ToolCard
                 label={t("None of these")}
-                hint={t("We'll audit page speed & site code instead")}
+                hint={t("We'll audit your site's code, speed & CRO instead")}
                 isSelected={formData.tools.length === 0}
                 onClick={() => setFormData(prev => ({ ...prev, tools: [] }))}
                 className="sm:col-span-2"
@@ -612,7 +680,11 @@ export default function GetFreeAudit() {
                 {formData.tools.includes("GA4") && (
                   <div className="flex flex-col gap-1">
                     <label className="text-[12px] text-white/50">{t("GA4 property")}</label>
-                    {formData.ga4Properties.length === 0 ? (
+                    {ga4ListError ? (
+                      <p className="text-[12px] text-[#f2b75e]">
+                        {t("Couldn't read your GA4 properties:")} {ga4ListError}
+                      </p>
+                    ) : formData.ga4Properties.length === 0 ? (
                       <p className="text-[12px] text-white/40">{t("No accessible GA4 properties found on this Google account — we'll fall back to public detection.")}</p>
                     ) : (
                       <select className={selectClass} value={formData.ga4MeasurementId} onChange={e => selectGa4Property(e.target.value)}>
@@ -628,7 +700,11 @@ export default function GetFreeAudit() {
                 {formData.tools.includes("GTM") && (
                   <div className="flex flex-col gap-1">
                     <label className="text-[12px] text-white/50">{t("GTM container")}</label>
-                    {formData.gtmContainers.length === 0 ? (
+                    {gtmListError ? (
+                      <p className="text-[12px] text-[#f2b75e]">
+                        {t("Couldn't read your GTM containers:")} {gtmListError}
+                      </p>
+                    ) : formData.gtmContainers.length === 0 ? (
                       <p className="text-[12px] text-white/40">{t("No accessible GTM containers found on this Google account — we'll fall back to public detection.")}</p>
                     ) : (
                       <select className={selectClass} value={formData.gtmContainerId} onChange={e => selectGtmContainer(e.target.value)}>
@@ -726,6 +802,40 @@ export default function GetFreeAudit() {
           ) : (
             <>
               <div className="w-full min-h-[220px] flex flex-col items-center justify-center">{renderStepContent()}</div>
+
+              {testPrefixMismatch && (
+                <p className="text-[#f2b75e] text-xs text-center max-w-[420px]">
+                  {t("Test mode needs the \"-\" prefix on both the website and the email, or on neither.")}
+                </p>
+              )}
+
+              {isTestSubmission && (
+                <div className="w-full max-w-[560px] rounded-xl border border-[#f2b75e]/40 bg-[#f2b75e]/10 px-[18px] py-[12px]">
+                  <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[13px] text-[#f2b75e]">
+                    {t("Test mode")}
+                  </p>
+                  <p className="font-['Sora:Regular',sans-serif] text-[12.5px] text-white/70 leading-[1.6] mt-[4px]">
+                    {t("Runs the real audit, then emails the report straight to the address above — no internal review, no delay, and it won't use up this site's one free audit. The report is stored separately from real client reports.")}
+                  </p>
+                </div>
+              )}
+
+              {alreadyAuditedMessage && (
+                <div className="w-full max-w-[560px] rounded-xl border border-[#f2b75e]/40 bg-[#f2b75e]/10 px-[18px] py-[14px] flex flex-col gap-[10px]">
+                  <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[14px] text-[#f2b75e]">
+                    {t("Already audited")}
+                  </p>
+                  <p className="font-['Sora:Regular',sans-serif] text-[13px] text-white/70 leading-[1.6]">
+                    {alreadyAuditedMessage}
+                  </p>
+                  <a
+                    href="/#contact"
+                    className="self-start text-[13px] font-semibold text-[#31da72] underline underline-offset-4"
+                  >
+                    {t("Talk to us instead →")}
+                  </a>
+                </div>
+              )}
 
               <div className="flex items-center justify-center gap-4 w-full">
                 {clampedIndex > 0 && (

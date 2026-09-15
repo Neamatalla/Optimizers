@@ -93,9 +93,16 @@ function reportSlug(opts: { requestId: string; businessName: string | null; webs
   return `${base}-${shortId}`;
 }
 
-export async function publishAuditReport(opts: { requestId: string; html: string; businessName: string | null; website: string }): Promise<{ publicUrl: string; slug: string }> {
+export async function publishAuditReport(opts: { requestId: string; html: string; businessName: string | null; website: string; isTest?: boolean }): Promise<{ publicUrl: string; slug: string }> {
   const supabase = getClient();
-  const bucket = process.env.AUDIT_REPORTS_BUCKET || "audit-reports";
+  // Test-mode reports go to their own bucket so throwaway runs never sit
+  // alongside real client reports and the whole lot can be emptied without
+  // touching production. The slug space is shared, which is fine —
+  // report_pages.bucket (written below) is what tells the serving and
+  // editing endpoints where a given slug actually lives.
+  const bucket = opts.isTest
+    ? process.env.AUDIT_REPORTS_TEST_BUCKET || "audit-reports-test"
+    : process.env.AUDIT_REPORTS_BUCKET || "audit-reports";
   const slug = reportSlug(opts);
   const objectPath = `reports/${slug}/index.html`;
   const siteUrl = process.env.PUBLIC_SITE_URL || "https://optimizers.agency";
@@ -132,7 +139,7 @@ export async function publishAuditReport(opts: { requestId: string; html: string
   const { error: reportPageError } = await supabase
     .from("report_pages")
     .upsert(
-      { audit_request_id: opts.requestId, slug, storage_path: objectPath, public_url: publicUrl },
+      { audit_request_id: opts.requestId, slug, storage_path: objectPath, public_url: publicUrl, bucket },
       { onConflict: "slug" },
     );
   if (reportPageError) {
@@ -156,10 +163,21 @@ export async function markRequestFailed(id: string, message: string): Promise<vo
 // in its original order once retry_after passes. Backoff doubles per hit
 // (5, 10, 20, 40, 60min...) and caps at 60min so a persistent limit doesn't
 // balloon the wait into hours.
-export async function markRequestRateLimited(id: string, previousRetryCount: number, message: string): Promise<Date> {
+export async function markRequestRateLimited(
+  id: string,
+  previousRetryCount: number,
+  message: string,
+  // The limit's own stated reset time, when the message carried one (see
+  // poll.ts's parseLimitResetAt). A plan usage limit resets at an appointed
+  // hour, so waiting until exactly then beats doubling blindly toward it —
+  // one wait instead of a claim-and-fail cycle every hour. Null falls back
+  // to the backoff, which is the right shape for a true rate limit.
+  resetAt?: Date | null,
+): Promise<Date> {
   const supabase = getClient();
   const backoffMinutes = Math.min(60, 5 * 2 ** previousRetryCount);
-  const retryAfter = new Date(Date.now() + backoffMinutes * 60_000);
+  // +30s so the retry lands just after the reset, not exactly on it.
+  const retryAfter = resetAt ? new Date(resetAt.getTime() + 30_000) : new Date(Date.now() + backoffMinutes * 60_000);
   const { error } = await supabase
     .from("audit_requests")
     .update({
@@ -171,6 +189,27 @@ export async function markRequestRateLimited(id: string, previousRetryCount: num
     .eq("id", id);
   if (error) throw new Error(`Supabase markRequestRateLimited error: ${error.message}`);
   return retryAfter;
+}
+
+// Test-mode run finished AND already emailed to whoever submitted it — the
+// whole review/approval/delay chain is skipped for these, so this lands
+// directly on 'done' (see poll.ts's processRequest and types.ts's is_test).
+// No approval_token is ever minted for a test row: there's nothing to
+// approve, and a token sitting on a done row would be a live credential
+// for no reason.
+export async function markTestRequestSent(id: string, opts: { reportUrl: string; categoriesAudited: string[] }): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from("audit_requests")
+    .update({
+      status: "done",
+      report_url: opts.reportUrl,
+      categories_audited: opts.categoriesAudited,
+      sent_to_client_at: new Date().toISOString(),
+      result_error: null,
+    })
+    .eq("id", id);
+  if (error) throw new Error(`Supabase markTestRequestSent error: ${error.message}`);
 }
 
 // Audit finished — parked for internal review instead of emailed straight

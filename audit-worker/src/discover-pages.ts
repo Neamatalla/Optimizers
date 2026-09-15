@@ -1,17 +1,25 @@
-import { MAX_SWEEP_PAGES } from "./pagespeed.js";
+// Hard safety cap on how many pages one run reports as discovered — not the
+// driver of the count (the type-aware pick below already lands at <=5 on a
+// normal site), just a bound on the pathological case of a sitemap that
+// produces more category matches than expected. Lived in pagespeed.ts as
+// MAX_SWEEP_PAGES until that file was deleted with the PageSpeed category
+// (2026-09-09); back then it also bounded run time, since every one of
+// these pages cost a sequential mobile+desktop PageSpeed Insights call.
+// Now the pages are only URLs handed to the prompt, so the cap is purely
+// about keeping the browser's page-by-page work bounded.
+const MAX_DISCOVERED_PAGES = 5;
 
 /**
- * Picks a page-TYPE-aware sweep instead of a blind top-N-by-priority slice
- * (2026-09-06 rewrite). The old version sliced the priority-sorted candidate
- * list to the first MAX_SWEEP_PAGES — on a real Shopify store (tharaa.shop)
+ * Picks a page-TYPE-aware page set instead of a blind top-N-by-priority
+ * slice (2026-09-06 rewrite). The old version sliced the priority-sorted
+ * candidate list to the first MAX_DISCOVERED_PAGES — on a real Shopify store (tharaa.shop)
  * that meant homepage/collections/account/search/cart pages filled all 8
  * slots while a genuine product page and the blog were never reached at
  * all, even though both existed further down the same sitemap. One
  * representative page per commerce-relevant TYPE is more useful for
- * catching a slow product/checkout page than N pages that happen to sort
- * first — see pagespeed.ts's own MAX_SWEEP_PAGES doc comment for the
- * original "catch a slow product/checkout page hiding behind a fast
- * homepage" intent this restores properly.
+ * catching a broken product/checkout page than N pages that happen to sort
+ * first — the original "catch a bad product/checkout page hiding behind a
+ * clean homepage" intent, restored properly.
  */
 const PAGE_CATEGORIES: Array<{ name: string; test: (pathname: string) => boolean }> = [
   { name: "product", test: p => p.includes("/products/") },
@@ -21,9 +29,12 @@ const PAGE_CATEGORIES: Array<{ name: string; test: (pathname: string) => boolean
 ];
 
 /**
- * Finds one page URL per commerce-relevant TYPE to run the site-wide
- * PageSpeed sweep against — deterministically, no LLM judgment call on
- * which pages matter. Two candidate sources, in priority order:
+ * Finds one page URL per commerce-relevant TYPE for the audit to actually
+ * look at — deterministically, no LLM judgment call on which pages matter.
+ * The result is handed to the prompt (audit-prompt.ts) so the browser
+ * checks that need a specific page type (WEB-54/56 cart/checkout, WEB-55 a
+ * product page) navigate to a real URL instead of a guessed one. Two
+ * candidate sources, in priority order:
  *
  * 1. sitemap.xml at the site's root — the site's own declared page list,
  *    sorted by its own <priority> tag (descending) when present.
@@ -34,12 +45,12 @@ const PAGE_CATEGORIES: Array<{ name: string; test: (pathname: string) => boolean
  * The homepage itself is always included and always first. Each of
  * PAGE_CATEGORIES then gets exactly one representative — the first
  * matching URL anywhere in the (priority-ordered) candidate list, not just
- * the first MAX_SWEEP_PAGES of it — so a product/blog page that exists but
- * sorts low still gets found. A category with no matching URL anywhere
+ * the first MAX_DISCOVERED_PAGES of it — so a product/blog page that exists
+ * but sorts low still gets found. A category with no matching URL anywhere
  * (e.g. a site with no blog) is simply skipped, not forced. Result is at
- * most 1 (homepage) + PAGE_CATEGORIES.length pages — MAX_SWEEP_PAGES is
- * kept as a hard safety cap, not the driver of how many pages get checked
- * any more.
+ * most 1 (homepage) + PAGE_CATEGORIES.length pages — MAX_DISCOVERED_PAGES
+ * is kept as a hard safety cap, not the driver of how many pages get
+ * checked any more.
  */
 export async function discoverPages(baseUrl: string, homepageHtml: string): Promise<string[]> {
   const origin = new URL(baseUrl).origin;
@@ -64,7 +75,7 @@ export async function discoverPages(baseUrl: string, homepageHtml: string): Prom
     if (match && !picked.includes(match)) picked.push(match);
   }
 
-  return Array.from(new Set(picked)).slice(0, MAX_SWEEP_PAGES);
+  return Array.from(new Set(picked)).slice(0, MAX_DISCOVERED_PAGES);
 }
 
 function normalizeUrl(url: string, origin: string): string {
