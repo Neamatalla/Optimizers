@@ -107,7 +107,7 @@ export const arTranslations: Record<string, string> = {
   "Vitrine Furniture": "فيترين للأثاث",
 
   // Case study brand descriptions
-  "Entertainment and events company in Saudi Arabia specializing in magical performances.": "شركة ترفيه وفعاليات في المملكة العربية السعودية متخصصة في العروض السحرية.",
+  "E-commerce brand in Saudi Arabia specializing in high-performance vacuum cleaners and home cleaning solutions.": "علامة تجارية للتجارة الإلكترونية في المملكة العربية السعودية متخصصة في المكنسات الكهربائية عالية الأداء وحلول تنظيف المنزل.",
   "Technology solutions provider in Saudi Arabia offering innovative software development.": "مزود حلول تقنية في المملكة العربية السعودية يقدم تطوير برمجيات مبتكر.",
   "Premium honey retailer offering natural and organic honey products across Kuwait.": "متجر عسل فاخر يقدم منتجات العسل الطبيعي والعضوي في الكويت.",
   "Leading furniture retailer in Egypt providing modern and contemporary furniture solutions.": "متجر أثاث رائد في مصر يقدم حلول أثاث عصرية ومعاصرة.",

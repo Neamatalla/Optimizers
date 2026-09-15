@@ -75,7 +75,7 @@ function apiMiddlewarePlugin() {
             }
 
             const { data, error } = await resend.emails.send({
-              from: 'Optimizers <onboarding@resend.dev>',
+              from: 'Optimizers <hello@optimizers.agency>',
               to: ['mohamed@neamatalla.com'],
               subject: `New Optimizers Client Data Submission from ${firstName}`,
               html: `

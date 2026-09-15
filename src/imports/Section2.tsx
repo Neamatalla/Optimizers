@@ -96,7 +96,7 @@ const Section2 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                                         </div>
                                     </div>
                                     <div className="content-stretch flex items-center justify-center relative shrink-0 w-full">
-                                        <p className="font-['Sora',sans-serif] font-normal leading-relaxed relative shrink-0 text-[18px] text-white w-full">{t('Entertainment and events company in Saudi Arabia specializing in magical performances.')}</p>
+                                        <p className="font-['Sora',sans-serif] font-normal leading-relaxed relative shrink-0 text-[18px] text-white w-full">{t('E-commerce brand in Saudi Arabia specializing in high-performance vacuum cleaners and home cleaning solutions.')}</p>
                                     </div>
                                 </div>
                             </motion.div>
@@ -148,7 +148,7 @@ const Section2 = memo(({ isActive, bgOpacity, contentOpacity, counterY, mockupX,
                             </div>
                         </div>
                     </div>
-                    <p className="font-['Sora',sans-serif] font-normal leading-relaxed text-[13px] text-white/80 text-center max-w-[320px]">{t('Entertainment and events company in Saudi Arabia specializing in magical performances.')}</p>
+                    <p className="font-['Sora',sans-serif] font-normal leading-relaxed text-[13px] text-white/80 text-center max-w-[320px]">{t('E-commerce brand in Saudi Arabia specializing in high-performance vacuum cleaners and home cleaning solutions.')}</p>
                     <div className="w-[55vw] max-w-[240px] aspect-[9/16] relative shrink-0">
                         <img alt="" className="w-full h-full object-contain drop-shadow-[0px_20px_40px_rgba(0,0,0,0.6)]" src={imgIPhone17} decoding="async" />
                     </div>
