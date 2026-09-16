@@ -1698,6 +1698,33 @@ ${deviceMockupHtml(result)}
       });
     });
   }
+
+  // Business/Technical register toggle scrolls to this category's first
+  // point instead of leaving the reader wherever they happened to be —
+  // switching register re-reads the SAME findings in the other voice, so
+  // the natural landing spot is the top of that list, not mid-scroll (and
+  // definitely not the page top, which is what the hidden radio's own
+  // default focus-scroll used to do before .lang-radio moved to
+  // position:fixed above).
+  var langRadios = document.querySelectorAll('input[name="report-lang"]');
+  if (langRadios.length) {
+    var scrollToFirstPoint = function(){
+      var panels = document.querySelectorAll(".tab-panel");
+      var activePanel = null;
+      for (var i = 0; i < panels.length; i++) {
+        if (window.getComputedStyle(panels[i]).display !== "none") { activePanel = panels[i]; break; }
+      }
+      // No .tab-panel at all on the single-category route — search the
+      // whole document instead of leaving activePanel null.
+      var scope = activePanel || document;
+      var firstPoint = scope.querySelector(".findings-grid > *");
+      if (!firstPoint) return;
+      var offset = (topbar ? topbar.getBoundingClientRect().height : 0) + 16;
+      var top = firstPoint.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top: top, behavior: reduceMotion ? "auto" : "smooth" });
+    };
+    langRadios.forEach(function(el){ el.addEventListener("change", scrollToFirstPoint); });
+  }
 })();
 </script>
 </body>

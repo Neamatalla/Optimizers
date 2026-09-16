@@ -64,19 +64,39 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
     const timeoutMs = Number.isFinite(envTimeout) && envTimeout > 0
       ? envTimeout
       : opts.timeoutMs ?? 20 * 60 * 1000;
+    const startedAt = Date.now();
+    // A prior timeout here (2026-09-15, GA4+GTM route, 25min) discarded
+    // stdout/stderr entirely on reject — even though both had been
+    // accumulating the whole run via the 'data' listeners below — so there
+    // was zero evidence of what claude -p was actually doing when it got
+    // killed. --output-format json only writes its one JSON blob at the
+    // very end (no incremental output to lose), which is WHY that timeout's
+    // stdout was empty either way — but stderr isn't guaranteed empty, and
+    // a heartbeat at least tells the next occurrence whether the process
+    // was making progress (byte counts climbing) or truly hung (flatlined)
+    // without needing to switch to --output-format stream-json just to see
+    // that.
+    const heartbeat = setInterval(() => {
+      const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
+      console.log(`[claude] still running after ${elapsedSec}s — stdout ${stdout.length}B, stderr ${stderr.length}B`);
+    }, 60_000);
     const timer = setTimeout(() => {
+      clearInterval(heartbeat);
       child.kill("SIGKILL");
-      reject(new Error(`claude -p timed out after ${timeoutMs}ms`));
+      const detail = [stderr.trim(), stdout.trim()].filter(Boolean).join(" | ") || "(no output captured on either stream before the kill)";
+      reject(new Error(`claude -p timed out after ${timeoutMs}ms: ${detail.slice(0, 4000)}`));
     }, timeoutMs);
 
     child.stdout.on("data", chunk => { stdout += chunk.toString(); });
     child.stderr.on("data", chunk => { stderr += chunk.toString(); });
     child.on("error", err => {
       clearTimeout(timer);
+      clearInterval(heartbeat);
       reject(err);
     });
     child.on("close", code => {
       clearTimeout(timer);
+      clearInterval(heartbeat);
       if (code !== 0) {
         // BOTH streams, because the CLI puts its actual diagnosis on STDOUT,
         // not stderr — a usage-limit refusal exits 1 with stderr completely

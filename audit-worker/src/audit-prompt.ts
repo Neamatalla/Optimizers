@@ -574,12 +574,23 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
 // prompt's GA4 data-source section required a real GA4-D1..D15 data pull
 // unconditionally, an impossible ask once no property ever matched. Fixed by
 // making that section fall back to dataSource "detection" for the D-slots
-// too (see the GA4 data source section above); this ceiling is kept a little
-// above the measured 12min baseline as headroom, not because that failure
-// mode is expected to recur.
+// too (see the GA4 data source section above).
+//
+// Despite that fix, a both-tools run on the SAME tharaa.shop input (still no
+// GA4 candidate — that part of the input never changes) hit the 25min
+// ceiling again on 2026-09-15 with zero diagnostic evidence: claude.ts's
+// timeout handler used to discard the accumulated stdout/stderr entirely on
+// reject, so there was no way to tell whether it was genuinely still
+// working or actually stuck. Fixed there too (timeout now reports whatever
+// was captured, plus a running heartbeat every 60s) — but that fix only
+// gives US visibility into the NEXT occurrence, it doesn't explain this
+// one. Bumped to match the browser route's ceiling as real headroom for
+// that unexplained variance rather than re-guessing at a smaller number;
+// pull it back down once the heartbeat/diagnostic logging actually shows
+// what's consuming the time on a future slow run.
 // CLAUDE_TIMEOUT_MS overrides both (see claude.ts).
 const BROWSER_ROUTE_TIMEOUT_MS = 35 * 60 * 1000;
-const API_ONLY_ROUTE_TIMEOUT_MS = 25 * 60 * 1000;
+const API_ONLY_ROUTE_TIMEOUT_MS = 35 * 60 * 1000;
 
 export async function runAudit(input: AuditPromptInput): Promise<CategoryResult[]> {
   const prompt = buildPrompt(input);
