@@ -30,9 +30,10 @@ const SITE_URL = process.env.PUBLIC_SITE_URL || "https://optimizers.agency";
 // the sweep's run time got it removed — what it scored is now WEB-60..63
 // inside Website. All three keep the icon-in-circle treatment established
 // in the PPTX report for visual consistency across every deliverable this
-// audit produces, and all three tabs always render, even for a category
-// that didn't run this specific audit (see categorySection's not-run
-// branch).
+// audit produces. Only the categories that actually ran render a tab at
+// all (see renderTabs) — result.categories already contains exactly the
+// one route's categories and nothing else, so there's no "not run"
+// placeholder to show any more.
 const CATEGORY_LABELS: Record<CategoryKey, string> = {
   GA4: "Google Analytics 4",
   GTM: "Google Tag Manager",
@@ -99,6 +100,20 @@ const CATEGORY_CAPTION_AR: Record<CategoryKey, string> = {
   GTM: "نشر الحاوية — العلامات، المحفِّزات، تفعيل بيكسل التتبع",
   Website: "زحف مباشر للموقع + متصفح حقيقي — التتبع المنشور فعليًا، بنية الموقع، حجم الموارد، جاهزية التحويل",
 };
+
+// "Website & CRO" (CATEGORY_LABELS.Website) frames Website as a supplement
+// riding alongside a real tracking tool — true on the mixed route (one of
+// GA4/GTM + the 25-item WEBSITE_CODE_CHECKLIST slice). On the Website-alone
+// route (scoring.ts's countedCategories returns just ["Website"] — visitor
+// had neither GA4 nor GTM), Website IS the whole audit, not a supplement, so
+// the tab/heading drops the CRO framing for a name that matches what it
+// actually evaluates: live-site code + browser devtools signals.
+function categoryLabel(key: CategoryKey, result: AuditResult, ar: boolean): string {
+  if (key === "Website" && result.categories.length === 1 && result.categories[0].category === "Website") {
+    return ar ? "كود الموقع وأدوات المطوّر (DevTools)" : "Website Code & DevTools";
+  }
+  return ar ? CATEGORY_LABELS_AR[key] : CATEGORY_LABELS[key];
+}
 
 const SEVERITY_LABEL_AR: Record<FindingSeverity, string> = {
   critical: "حرج",
@@ -332,7 +347,7 @@ function weightStrip(result: AuditResult): string {
   const legend = result.categories.map(cat => `
       <label class="weight-legend-item" for="tab-${TAB_SLUG[cat.category]}">
         <span class="dot" style="--c:${scoreColor(cat.score)}"></span>
-        <span class="name">${biHtml(escapeHtml(CATEGORY_LABELS[cat.category]), escapeHtml(CATEGORY_LABELS_AR[cat.category]))}</span>
+        <span class="name">${biHtml(escapeHtml(categoryLabel(cat.category, result, false)), escapeHtml(categoryLabel(cat.category, result, true)))}</span>
         <span class="value">${cat.checklistTally.passed} / ${cat.checklistTally.evaluated} ${biHtml(escapeHtml(checksLabel(cat.checklistTally.evaluated)), escapeHtml(arChecksNoun(cat.checklistTally.evaluated)))}</span>
       </label>`).join("");
 
@@ -506,84 +521,12 @@ function pagesCoveredHtml(pages: string[]): string {
     </div>`;
 }
 
-// Why a category didn't run this audit. THREE possible routes (see
-// scoring.ts's countedCategories): GA4+GTM together (both connected),
-// exactly one tracking tool + Website (a real website-code audit fills the
-// other 25 checks instead of guessing about the unpicked tool), or Website
-// alone (neither connected). Each route leaves a different, specific
-// category missing — worth naming which one and why, not one generic
-// message.
-function pathNotRunReason(key: CategoryKey, result: AuditResult): string {
-  const included = new Set(result.categories.map(c => c.category));
-  const hasGa4 = included.has("GA4");
-  const hasGtm = included.has("GTM");
-  const hasWebsiteRoute = included.has("Website");
-
-  if (key === "Website") {
-    return hasGa4 && hasGtm
-      ? "This audit ran the GA4 + GTM path — the visitor had both connected, so a separate website-code audit wasn't needed this run."
-      : "This category wasn't run this audit.";
-  }
-
-  // key is GA4 or GTM here.
-  const otherTool: CategoryKey = key === "GA4" ? "GTM" : "GA4";
-  if (included.has(otherTool) && hasWebsiteRoute) {
-    return `The visitor had ${CATEGORY_LABELS[otherTool]} but not ${CATEGORY_LABELS[key]}, so this run paired ${CATEGORY_LABELS[otherTool]} with a real website-code audit for the other 25 checks instead of guessing about ${CATEGORY_LABELS[key]} — see the Website & CRO tab.`;
-  }
-  if (hasWebsiteRoute) {
-    return "This audit ran the full website-code path instead — the visitor didn't have GA4 or GTM connected.";
-  }
-  return `${CATEGORY_LABELS[key]} is normally evaluated alongside ${CATEGORY_LABELS[otherTool]} on this path — it's missing from this specific run's response, which shouldn't normally happen.`;
-}
-
-// Arabic counterpart of pathNotRunReason above — same four routes, kept as
-// a separate function rather than a lookup table because each sentence
-// interpolates which category is missing and which one it's paired with.
-function pathNotRunReasonAr(key: CategoryKey, result: AuditResult): string {
-  const included = new Set(result.categories.map(c => c.category));
-  const hasGa4 = included.has("GA4");
-  const hasGtm = included.has("GTM");
-  const hasWebsiteRoute = included.has("Website");
-
-  if (key === "Website") {
-    return hasGa4 && hasGtm
-      ? "اعتمد هذا التدقيق على مسار GA4 + GTM — إذ كان لدى الزائر كلا الأداتين متصلتين، فلم تكن هناك حاجة لتدقيق منفصل لكود الموقع في هذا التشغيل."
-      : "لم يتم تشغيل هذه الفئة في هذا التدقيق.";
-  }
-
-  const otherTool: CategoryKey = key === "GA4" ? "GTM" : "GA4";
-  if (included.has(otherTool) && hasWebsiteRoute) {
-    return `كان لدى الزائر ${CATEGORY_LABELS_AR[otherTool]} ولكن دون ${CATEGORY_LABELS_AR[key]}، فقام هذا التشغيل بدمج ${CATEGORY_LABELS_AR[otherTool]} مع تدقيق حقيقي لكود الموقع للبنود الـ25 المتبقية عِوضًا عن التخمين بشأن ${CATEGORY_LABELS_AR[key]} — راجع تبويب الموقع وتحسين التحويل.`;
-  }
-  if (hasWebsiteRoute) {
-    return "اعتمد هذا التدقيق مسار كود الموقع الكامل بدلاً من ذلك — لم يكن لدى الزائر GA4 أو GTM متصلين.";
-  }
-  return `تُقيَّم ${CATEGORY_LABELS_AR[key]} عادةً جنبًا إلى جنب مع ${CATEGORY_LABELS_AR[otherTool]} على هذا المسار — وهي غائبة عن استجابة هذا التشغيل بالتحديد، وهو أمر لا ينبغي حدوثه عادةً.`;
-}
-
+// Every key in result.categories is guaranteed present — countedCategories
+// (scoring.ts) decides the one route's categories before the audit ever
+// runs, and renderTabs only calls this for keys it found in that array — so
+// there's no "category didn't run" case to render here any more.
 function categorySection(key: CategoryKey, result: AuditResult, assets: BrandAssets, extraHtml: string = ""): string {
-  const cat = result.categories.find(c => c.category === key);
-
-  if (!cat) {
-    return `
-      <section class="report-section is-missing" id="${key}">
-        <div class="section-head reveal">
-          <div class="section-head-left">
-            <span class="icon-circle"><img src="${assets.categoryIconMap[key]}" alt="" width="20" height="20" /></span>
-            <div>
-              <p class="section-caption">${biHtml(escapeHtml(CATEGORY_CAPTION[key]), escapeHtml(CATEGORY_CAPTION_AR[key]))}</p>
-              <h2>${biHtml(escapeHtml(CATEGORY_LABELS[key]), escapeHtml(CATEGORY_LABELS_AR[key]))}</h2>
-            </div>
-          </div>
-          <span class="pill not-run-pill">${bi("Not part of this audit", "لم يُدرَج في هذا التدقيق")}</span>
-        </div>
-        <div class="not-run-row reveal">
-          <p class="i18n-en">${escapeHtml(pathNotRunReason(key, result))}</p>
-          <p class="i18n-ar" dir="rtl">${escapeHtml(pathNotRunReasonAr(key, result))}</p>
-        </div>
-        ${extraHtml}
-      </section>`;
-  }
+  const cat = result.categories.find(c => c.category === key)!;
 
   return `
     <section class="report-section" id="${key}">
@@ -595,7 +538,7 @@ function categorySection(key: CategoryKey, result: AuditResult, assets: BrandAss
               `${escapeHtml(CATEGORY_CAPTION[key])} · ${cat.checklistTally.evaluated} checklist ${cat.checklistTally.evaluated === 1 ? "item" : "items"}`,
               `${escapeHtml(CATEGORY_CAPTION_AR[key])} · ${cat.checklistTally.evaluated} ${arChecksNoun(cat.checklistTally.evaluated)} من قائمة التحقق`,
             )}</p>
-            <h2>${biHtml(escapeHtml(CATEGORY_LABELS[key]), escapeHtml(CATEGORY_LABELS_AR[key]))}</h2>
+            <h2>${biHtml(escapeHtml(categoryLabel(key, result, false)), escapeHtml(categoryLabel(key, result, true)))}</h2>
           </div>
         </div>
         <div class="section-score">
@@ -613,26 +556,31 @@ function categorySection(key: CategoryKey, result: AuditResult, assets: BrandAss
 // Radio-driven tabs — CSS-only, no <script> needed (more robust for a
 // static file with no build step than a JS-driven implementation: works
 // even with JS disabled, nothing to error out). Each category gets a fixed
-// radio/label/panel id triplet via TAB_SLUG; GA4 opens by default. The tab
-// bar mirrors the site's own Stepper pattern for a many-items-in-a-row
+// radio/label/panel id triplet via TAB_SLUG; the first key present opens by
+// default. Only categories that actually ran this audit get a tab — GA4+GTM
+// audits show GA4+GTM only, the Website-alone route shows Website only
+// (renamed via categoryLabel — see its own doc comment), and the mixed
+// route shows that one tool + Website — never a tab for a category this
+// specific run didn't evaluate (scoring.ts's countedCategories guarantees
+// result.categories already holds exactly the run route's categories). The
+// tab bar mirrors the site's own Stepper pattern for a many-items-in-a-row
 // problem (src/styles/responsive.css's [data-name="Stepper"] rules) —
 // overflow-x:auto + flex-wrap:nowrap so it scrolls horizontally on mobile
 // instead of wrapping or cramming, rather than reintroducing page-level
 // horizontal overflow.
 function renderTabs(result: AuditResult, assets: BrandAssets): string {
-  const keys = Object.keys(CATEGORY_LABELS) as CategoryKey[];
+  const keys = (Object.keys(CATEGORY_LABELS) as CategoryKey[]).filter(k => result.categories.some(c => c.category === k));
 
   const radios = keys.map((k, i) => `<input type="radio" name="report-tab" id="tab-${TAB_SLUG[k]}" class="tab-radio"${i === 0 ? " checked" : ""} />`).join("");
 
   const tabBtns = keys
     .map(k => {
-      const cat = result.categories.find(c => c.category === k);
-      const dotColor = cat ? scoreColor(cat.score) : MUTED;
+      const cat = result.categories.find(c => c.category === k)!;
       return `
       <label for="tab-${TAB_SLUG[k]}" class="tab-btn" id="tabbtn-${TAB_SLUG[k]}" role="tab">
         <img class="tab-icon" src="${assets.categoryIconMap[k]}" alt="" width="16" height="16" />
-        <span>${biHtml(escapeHtml(CATEGORY_LABELS[k]), escapeHtml(CATEGORY_LABELS_AR[k]))}</span>
-        <span class="tab-dot" style="--c:${dotColor}"></span>
+        <span>${biHtml(escapeHtml(categoryLabel(k, result, false)), escapeHtml(categoryLabel(k, result, true)))}</span>
+        <span class="tab-dot" style="--c:${scoreColor(cat.score)}"></span>
       </label>`;
     })
     .join("");
@@ -959,7 +907,6 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 .weight-legend-item .dot{width:8px; height:8px; border-radius:50%; background:var(--c); flex-shrink:0; box-shadow:0 0 0 3px rgba(234,243,236,.07)}
 .weight-legend-item .name{color:var(--ink); font-weight:600; overflow-wrap:break-word; min-width:0}
 .weight-legend-item .value{color:var(--muted); font-variant-numeric:tabular-nums}
-.weight-legend-item.is-missing .name,.weight-legend-item.is-missing .value{color:var(--muted); font-weight:400}
 
 /* ---- category sections ---- */
 .report-section{padding:44px 0; border-top:1px solid var(--hairline)}
@@ -986,10 +933,6 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 .section-tally{white-space:normal; overflow-wrap:break-word; margin:4px 0 0; font-size:12px; color:var(--muted); max-width:220px}
 .section-bar{height:6px; border-radius:999px; background:var(--stone); margin-bottom:26px; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
 .section-bar-fill{height:100%; width:calc(var(--w) * 1%); background:var(--c); border-radius:999px; box-shadow:0 0 12px -2px var(--c)}
-
-.is-missing .section-head{margin-bottom:16px}
-.not-run-pill{color:var(--muted); border-color:var(--hairline)}
-.not-run-row{background:rgba(147,173,168,.06); border:1px solid var(--hairline); border-radius:var(--r-md); padding:18px 20px; color:var(--muted); font-size:14px; line-height:1.6}
 
 .findings-grid{display:grid; gap:14px}
 .finding{
