@@ -4,7 +4,7 @@ import svgMobilePaths from "./svg-mobile-meet";
 import imgRectangle2 from "../assets/8beafb71ac0e56f696268857cdb1244ee06d2dcc.webp";
 import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.webp";
 import imgRectangle4 from "../assets/2360b5bdc64c7364378a5a9d57d3b75bc52915d7.webp";
-import imgAlaa from "../assets/3ea05da11c2980d6a66b2e7e7d24667e55eea21a.webp";
+import imgAlaa from "../assets/alaa-abdullah.webp";
 import imgAdhamMarzouk from "../assets/adham-marzouk.png";
 import imgYaseenHossam from "../assets/yaseen-hossam.webp";
 import { useLanguage } from "../app/contexts/LanguageContext";
@@ -417,13 +417,13 @@ function Lights4() {
     return (
         <div className="absolute h-[303.931px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.66px]" data-name="Lights">
             <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
-                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(146,235,180,0.4)]" />
+                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(183,148,246,0.4)]" />
             </div>
-            <div className="absolute bottom-[-13.67px] h-[312px] left-[calc(50%+0.02px)] translate-x-[-50%] w-[326px]" data-name="liftapp">
+            <div className="absolute h-[312px] left-[calc(50%+0.02px)] top-[-4px] translate-x-[-50%] w-[326px]" data-name="liftapp">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 to-black" />
                     <div className="absolute inset-0 overflow-hidden">
-                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[1.15] origin-top translate-y-[-10px]" src={imgAlaa} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[1] origin-[50%_42%] translate-y-[0px]" src={imgAlaa} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -449,7 +449,7 @@ function BgElements4() {
                                         <feGaussianBlur result="effect1_foregroundBlur_1_338" stdDeviation="42.2616" />
                                     </filter>
                                     <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.145 -255.659 255.436 -240.397 540.257 366.262)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_338" r="1">
-                                        <stop offset="0.409332" stopColor="#92ebb4" />
+                                        <stop offset="0.409332" stopColor="#B794F6" />
                                         <stop offset="1" stopOpacity="0" />
                                         <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                                     </radialGradient>
@@ -490,7 +490,7 @@ function Card4() {
                 className="absolute inset-0 pointer-events-none rounded-[18.282px]"
                 style={{
                     padding: "0.8px",
-                    background: "linear-gradient(to left, #92ebb4 0%, #92ebb4 30%, transparent 100%)",
+                    background: "linear-gradient(to left, #B794F6 0%, #B794F6 30%, transparent 100%)",
                     WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                     WebkitMaskComposite: "xor",
                     maskComposite: "exclude",
@@ -515,19 +515,17 @@ const Safer4 = React.memo(function Safer4() {
     );
 });
 
-const YASEEN_PURPLE = "#B794F6";
-
 function Lights5() {
     return (
         <div className="absolute h-[303.931px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.66px]" data-name="Lights">
             <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
-                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(183,148,246,0.4)]" />
+                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(146,235,180,0.4)]" />
             </div>
-            <div className="absolute bottom-[-13.67px] h-[312px] left-[calc(50%+0.02px)] translate-x-[-50%] w-[326px]" data-name="liftapp">
+            <div className="absolute h-[312px] left-[calc(50%+0.02px)] top-[-4px] translate-x-[-50%] w-[326px]" data-name="liftapp">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 to-black" />
                     <div className="absolute inset-0 overflow-hidden">
-                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[1.3] origin-[50%_42%] translate-y-[-25px]" src={imgYaseenHossam} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[1.3] origin-[50%_42%] translate-y-[-15px]" src={imgYaseenHossam} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -553,7 +551,7 @@ function BgElements5() {
                                         <feGaussianBlur result="effect1_foregroundBlur_yaseen" stdDeviation="42.2616" />
                                     </filter>
                                     <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.145 -255.659 255.436 -240.397 540.257 366.262)" gradientUnits="userSpaceOnUse" id="paint0_radial_yaseen" r="1">
-                                        <stop offset="0.409332" stopColor={YASEEN_PURPLE} />
+                                        <stop offset="0.409332" stopColor="#92ebb4" />
                                         <stop offset="1" stopOpacity="0" />
                                         <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                                     </radialGradient>
@@ -595,7 +593,7 @@ function Card5() {
                 className="absolute inset-0 pointer-events-none rounded-[18.282px]"
                 style={{
                     padding: "0.8px",
-                    background: `linear-gradient(to left, ${YASEEN_PURPLE} 0%, ${YASEEN_PURPLE} 30%, transparent 100%)`,
+                    background: "linear-gradient(to left, #92ebb4 0%, #92ebb4 30%, transparent 100%)",
                     WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
                     WebkitMaskComposite: "xor",
                     maskComposite: "exclude",
@@ -945,13 +943,13 @@ function MobileLights3() {
   return (
     <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
       <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(146,235,180,0.4)]" />
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(183,148,246,0.4)]" />
       </div>
       <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
           <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
-            <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.427px] size-full scale-[1.2] origin-top translate-y-[0px]" src={imgAlaa} />
+            <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.427px] size-full scale-[1] origin-[50%_42%] translate-y-[0px]" src={imgAlaa} />
           </div>
         </div>
       </div>
@@ -977,7 +975,7 @@ function MobileBgElements3() {
                     <feGaussianBlur result="effect1_foregroundBlur_1_315" stdDeviation="28.1758" />
                   </filter>
                   <radialGradient cx="0" cy="0" gradientTransform="matrix(-160.105 -170.448 170.299 -160.273 360.189 244.187)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_315" r="1">
-                    <stop offset="0.409332" stopColor="#92ebb4" />
+                    <stop offset="0.409332" stopColor="#B794F6" />
                     <stop offset="1" stopOpacity="0" />
                     <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                   </radialGradient>
@@ -1016,7 +1014,7 @@ function MobileCard3() {
           className="absolute inset-0 pointer-events-none rounded-[12.188px]"
           style={{
               padding: "0.762px",
-              background: "linear-gradient(to left, #92ebb4 0%, #92ebb4 30%, transparent 100%)",
+              background: "linear-gradient(to left, #B794F6 0%, #B794F6 30%, transparent 100%)",
               WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
               WebkitMaskComposite: "xor",
               maskComposite: "exclude",
@@ -1145,7 +1143,7 @@ function MobileLights5() {
   return (
     <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
       <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(183,148,246,0.4)]" />
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(146,235,180,0.4)]" />
       </div>
       <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
@@ -1177,7 +1175,7 @@ function MobileBgElements5() {
                     <feGaussianBlur result="effect1_foregroundBlur_mobile_yaseen" stdDeviation="28.1758" />
                   </filter>
                   <radialGradient cx="0" cy="0" gradientTransform="matrix(-160.105 -170.448 170.299 -160.273 360.189 244.187)" gradientUnits="userSpaceOnUse" id="paint0_radial_mobile_yaseen" r="1">
-                    <stop offset="0.409332" stopColor={YASEEN_PURPLE} />
+                    <stop offset="0.409332" stopColor="#92ebb4" />
                     <stop offset="1" stopOpacity="0" />
                     <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
                   </radialGradient>
@@ -1217,7 +1215,7 @@ function MobileCard5() {
           className="absolute inset-0 pointer-events-none rounded-[12.188px]"
           style={{
               padding: "0.762px",
-              background: `linear-gradient(to left, ${YASEEN_PURPLE} 0%, ${YASEEN_PURPLE} 30%, transparent 100%)`,
+              background: "linear-gradient(to left, #92ebb4 0%, #92ebb4 30%, transparent 100%)",
               WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
               WebkitMaskComposite: "xor",
               maskComposite: "exclude",
@@ -1271,8 +1269,8 @@ export default function MeetTheTeam() {
         { name: "Alia Mahran", role: "Operation Manager", image: imgRectangle3, color: "#FFA69A" },
         { name: "Omar Maged", role: "Tech Manager", image: imgRectangle4, color: "#FDE68A" },
         { name: "Adham Marzouk", role: "Software Engineer", image: imgAdhamMarzouk, color: "#FFA437" },
-        { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#92EBB4" },
-        { name: "Yaseen Hossam", role: "Operations and Client Success Executive", image: imgYaseenHossam, color: YASEEN_PURPLE },
+        { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#B794F6" },
+        { name: "Yaseen Hossam", role: "Operations and Client Success Executive", image: imgYaseenHossam, color: "#92EBB4" },
     ];
 
     return (
