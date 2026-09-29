@@ -304,11 +304,13 @@ export const arTranslations: Record<string, string> = {
   "Omar Maged": "عمر ماجد",
   "Adham Marzouk": "أدهم مرزوق",
   "Alaa Abdullah": "علاء عبد الله",
+  "Yaseen Hossam": "ياسين حسام",
   "Founder & CEO": "المؤسس والرئيس التنفيذي",
   "Operation Manager": "مدير العمليات",
   "Tech Manager": "مدير التقنية",
   "Software Engineer": "مهندس برمجيات",
   "Quality Assurance": "ضمان الجودة",
+  "Operations and Client Success Executive": "تنفيذي العمليات ونجاح العملاء",
   "Learn CRO From Our CEO": "تعلم CRO من رئيسنا التنفيذي",
   "Behind The Scenes": "خلف الكواليس",
 

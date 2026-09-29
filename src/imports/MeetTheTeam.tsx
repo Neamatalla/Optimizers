@@ -6,11 +6,12 @@ import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.we
 import imgRectangle4 from "../assets/2360b5bdc64c7364378a5a9d57d3b75bc52915d7.webp";
 import imgAlaa from "../assets/3ea05da11c2980d6a66b2e7e7d24667e55eea21a.webp";
 import imgAdhamMarzouk from "../assets/adham-marzouk.png";
+import imgYaseenHossam from "../assets/yaseen-hossam.webp";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Lights() {
     return (
-        <div className="absolute h-[303.926px] left-[1.16px] overflow-clip top-[1.16px] w-[237.656px]" data-name="Lights">
+        <div className="absolute h-[303.926px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.656px]" data-name="Lights">
             <div className="absolute bg-[#050505] h-[303.926px] left-0 rounded-[17.139px] top-0 w-[237.656px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(95,130,191,0.4)]" />
             </div>
@@ -112,7 +113,7 @@ const Safer = React.memo(function Safer() {
 
 function Lights1() {
     return (
-        <div className="absolute h-[303.946px] left-[1.16px] overflow-clip top-[1.16px] w-[237.672px]" data-name="Lights">
+        <div className="absolute h-[303.946px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.672px]" data-name="Lights">
             <div className="absolute bg-[#333333] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(255,166,154,0.4)]" />
             </div>
@@ -212,7 +213,7 @@ const Safer1 = React.memo(function Safer1() {
 
 function Lights2() {
     return (
-        <div className="absolute h-[303.946px] left-[1.16px] overflow-clip top-[1.17px] w-[237.672px]" data-name="Lights">
+        <div className="absolute h-[303.946px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.17px] w-[237.672px]" data-name="Lights">
             <div className="absolute bg-[#333333] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(252,211,77,0.4)]" />
             </div>
@@ -314,7 +315,7 @@ const Safer2 = React.memo(function Safer2() {
 
 function Lights3() {
     return (
-        <div className="absolute h-[303.931px] left-[1.16px] overflow-clip top-[1.16px] w-[237.66px]" data-name="Lights">
+        <div className="absolute h-[303.931px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.66px]" data-name="Lights">
             <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(255,164,55,0.4)]" />
             </div>
@@ -414,7 +415,7 @@ const Safer3 = React.memo(function Safer3() {
 
 function Lights4() {
     return (
-        <div className="absolute h-[303.931px] left-[1.16px] overflow-clip top-[1.16px] w-[237.66px]" data-name="Lights">
+        <div className="absolute h-[303.931px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.66px]" data-name="Lights">
             <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(146,235,180,0.4)]" />
             </div>
@@ -514,6 +515,111 @@ const Safer4 = React.memo(function Safer4() {
     );
 });
 
+const YASEEN_PURPLE = "#B794F6";
+
+function Lights5() {
+    return (
+        <div className="absolute h-[303.931px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.66px]" data-name="Lights">
+            <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
+                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.57px_27.422px_-7.998px_rgba(183,148,246,0.4)]" />
+            </div>
+            <div className="absolute bottom-[-13.67px] h-[312px] left-[calc(50%+0.02px)] translate-x-[-50%] w-[326px]" data-name="liftapp">
+                <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+                    <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 to-black" />
+                    <div className="absolute inset-0 overflow-hidden">
+                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[1.3] origin-[50%_42%] translate-y-[-25px]" src={imgYaseenHossam} decoding="async" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function BgElements5() {
+    return (
+        <div className="absolute contents left-[-221.37px] top-[-263.6px]" data-name="Bg Elements">
+            <div className="absolute flex h-[840.295px] items-center justify-center left-[-220.57px] mix-blend-screen top-[-262.8px] w-[726.745px]" style={{ "--transform-inner-width": "0", "--transform-inner-height": "0" } as React.CSSProperties}>
+                <div className="flex-none rotate-[72.8deg]">
+                    <div className="h-[540.234px] relative w-[712.397px]" data-name="Light greyish">
+                        <div className="absolute inset-[-15.65%_-11.86%]">
+                            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.443 709.281">
+                                <g filter="url(#filter0_f_yaseen)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
+                                    <path d={svgPaths.p85e3500} fill="url(#paint0_radial_yaseen)" fillOpacity="0.4" />
+                                </g>
+                                <defs>
+                                    <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.281" id="filter0_f_yaseen" width="881.443" x="0" y="0">
+                                        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                                        <feGaussianBlur result="effect1_foregroundBlur_yaseen" stdDeviation="42.2616" />
+                                    </filter>
+                                    <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.145 -255.659 255.436 -240.397 540.257 366.262)" gradientUnits="userSpaceOnUse" id="paint0_radial_yaseen" r="1">
+                                        <stop offset="0.409332" stopColor={YASEEN_PURPLE} />
+                                        <stop offset="1" stopOpacity="0" />
+                                        <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
+                                    </radialGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Text5() {
+    const { t } = useLanguage();
+    return (
+        <div className="absolute contents left-[calc(50%-97.42px)] top-[53.19px] translate-x-[-50%]" data-name="Text">
+            <div className="absolute flex h-[131px] items-center justify-center left-[calc(50%-82.92px)] top-[53.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "99.03125", "--transform-inner-height": "19" } as React.CSSProperties}>
+                <div className="flex-none rotate-[90deg]">
+                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px] whitespace-nowrap">
+                        Yaseen Hossam
+                    </p>
+                </div>
+            </div>
+            {/* Two lines: the title is longer than the card is wide. */}
+            <div className="absolute flex h-[129px] items-center justify-center left-[calc(50%-122.92px)] top-[54.99px] translate-x-[-50%] w-[34px]" style={{ "--transform-inner-width": "131.09375", "--transform-inner-height": "19" } as React.CSSProperties}>
+                <div className="flex-none rotate-[90deg]">
+                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[16px] relative text-[13px] text-[rgba(255,255,255,0.5)] text-center w-[210px]">{t('Operations and Client Success Executive')}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Card5() {
+    return (
+        <div className="h-[239.946px] overflow-clip relative rounded-[18.282px] w-[307.359px]" data-name="Card">
+            <div
+                className="absolute inset-0 pointer-events-none rounded-[18.282px]"
+                style={{
+                    padding: "0.8px",
+                    background: `linear-gradient(to left, ${YASEEN_PURPLE} 0%, ${YASEEN_PURPLE} 30%, transparent 100%)`,
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                }}
+            />
+            <BgElements5 />
+            <Text5 />
+        </div>
+    );
+}
+
+const Safer5 = React.memo(function Safer5() {
+    return (
+        <div className="h-[305.22px] relative rounded-[27.422px] shrink-0 w-[239.988px]" data-name="Safer">
+            <Lights5 />
+            <div className="absolute flex h-[307.359px] items-center justify-center left-[0.02px] top-[0.01px] w-[239.946px]" style={{ "--transform-inner-width": "131.09375", "--transform-inner-height": "38" } as React.CSSProperties}>
+                <div className="flex-none rotate-[-90deg]">
+                    <Card5 />
+                </div>
+            </div>
+        </div>
+    );
+});
+
 function Frame1() {
     return (
         <div className="flex flex-wrap gap-[24px] items-center justify-center w-full px-4">
@@ -522,6 +628,7 @@ function Frame1() {
             <Safer2 />
             <Safer3 />
             <Safer4 />
+            <Safer5 />
         </div>
     );
 }
@@ -1023,7 +1130,7 @@ function MobileCard4() {
 
 function MobileSafer4() {
   return (
-    <div className="-translate-x-1/2 absolute h-[203.49px] left-[calc(50%+0.5px)] rounded-[18.282px] top-[516.75px] w-[160px]" data-name="MobileSafer">
+    <div className="absolute h-[203.49px] left-[20px] rounded-[18.282px] top-[516.75px] w-[160px]" data-name="MobileSafer">
       <MobileLights4 />
       <div className="absolute flex h-[204.916px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.972px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
         <div className="-rotate-90 flex-none">
@@ -1034,9 +1141,112 @@ function MobileSafer4() {
   );
 }
 
+function MobileLights5() {
+  return (
+    <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
+      <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.047px_18.282px_-5.332px_rgba(183,148,246,0.4)]" />
+      </div>
+      <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
+          <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
+          <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
+            <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.427px] size-full scale-[1.3] origin-[50%_42%] translate-y-[-15px]" src={imgYaseenHossam} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-const CANVAS_WIDTH = 1440;
-const CANVAS_HEIGHT = 650;
+function MobileBgElements5() {
+  return (
+    <div className="absolute contents left-[-147.82px] top-[-175.97px]" data-name="Bg Elements">
+      <div className="absolute flex h-[560.224px] items-center justify-center left-[-147.06px] mix-blend-screen top-[-175.21px] w-[484.52px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
+        <div className="flex-none rotate-[72.8deg]">
+          <div className="h-[360.174px] relative w-[474.955px]" data-name="Light greyish">
+            <div className="absolute inset-[-15.65%_-11.86%]">
+              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 587.658 472.877">
+                <g filter="url(#filter0_f_mobile_yaseen)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
+                  <path d={svgMobilePaths.p1d11f480} fill="url(#paint0_radial_mobile_yaseen)" fillOpacity="0.55" />
+                </g>
+                <defs>
+                  <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="472.877" id="filter0_f_mobile_yaseen" width="587.658" x="0" y="0">
+                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                    <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                    <feGaussianBlur result="effect1_foregroundBlur_mobile_yaseen" stdDeviation="28.1758" />
+                  </filter>
+                  <radialGradient cx="0" cy="0" gradientTransform="matrix(-160.105 -170.448 170.299 -160.273 360.189 244.187)" gradientUnits="userSpaceOnUse" id="paint0_radial_mobile_yaseen" r="1">
+                    <stop offset="0.409332" stopColor={YASEEN_PURPLE} />
+                    <stop offset="1" stopOpacity="0" />
+                    <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileText5() {
+  const { t } = useLanguage();
+  return (
+    <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.19px)] top-[33.24px]" data-name="MobileText">
+      <div className="-translate-x-1/2 absolute flex h-[92px] items-center justify-center left-[calc(50%-55.61px)] top-[34.01px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
+        <div className="flex-none rotate-90">
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.333px] relative text-[12.667px] text-white text-center tracking-[-0.2533px] whitespace-nowrap">Yaseen Hossam</p>
+        </div>
+      </div>
+      {/* Two lines: the title is longer than the card is wide. */}
+      <div className="-translate-x-1/2 absolute flex h-[62px] items-center justify-center left-[calc(50%-82.77px)] top-[48.98px] w-[24px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
+        <div className="flex-none rotate-90">
+          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.5px] relative text-[9.5px] text-[rgba(255,255,255,0.5)] text-center w-[140px]">{t('Operations and Client Success Executive')}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileCard5() {
+  return (
+    <div className="h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+      <div
+          className="absolute inset-0 pointer-events-none rounded-[12.188px]"
+          style={{
+              padding: "0.762px",
+              background: `linear-gradient(to left, ${YASEEN_PURPLE} 0%, ${YASEEN_PURPLE} 30%, transparent 100%)`,
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+          }}
+      />
+      <MobileBgElements5 />
+      <MobileText5 />
+    </div>
+  );
+}
+
+function MobileSafer5() {
+  return (
+    <div className="absolute h-[203.49px] left-[calc(50%+7.5px)] rounded-[18.282px] top-[516.75px] w-[160px]" data-name="MobileSafer">
+      <MobileLights5 />
+      <div className="absolute flex h-[204.916px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.972px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
+        <div className="-rotate-90 flex-none">
+          <MobileCard5 />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// Wide enough for all six 240px cards plus gaps in one row (a second row
+// would be cut off by the fixed canvas height).
+const CANVAS_WIDTH = 1600;
+const CANVAS_HEIGHT = 560;
 
 export default function MeetTheTeam() {
     const { t } = useLanguage();
@@ -1062,17 +1272,18 @@ export default function MeetTheTeam() {
         { name: "Omar Maged", role: "Tech Manager", image: imgRectangle4, color: "#FDE68A" },
         { name: "Adham Marzouk", role: "Software Engineer", image: imgAdhamMarzouk, color: "#FFA437" },
         { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#92EBB4" },
+        { name: "Yaseen Hossam", role: "Operations and Client Success Executive", image: imgYaseenHossam, color: YASEEN_PURPLE },
     ];
 
     return (
         <div className="bg-[#020601] relative w-full overflow-hidden">
             {/* Mobile: Responsive Grid from Figma */}
             <div 
-                className="lg:hidden relative w-full h-[800px] max-w-[375px] mx-auto overflow-hidden"
+                className="lg:hidden relative w-full h-[750px] max-w-[375px] mx-auto overflow-hidden"
                 style={{
                     transform: window.innerWidth >= 768 ? `scale(${Math.min(window.innerWidth / 400, 1.8)})` : 'none',
                     transformOrigin: 'top center',
-                    height: window.innerWidth >= 768 ? `${800 * Math.min(window.innerWidth / 400, 1.8)}px` : '800px'
+                    height: window.innerWidth >= 768 ? `${750 * Math.min(window.innerWidth / 400, 1.8)}px` : '750px'
                 }}
             >
                 <p className="absolute top-[40px] left-1/2 -translate-x-1/2 w-[335px] text-center font-['Sora',sans-serif] font-semibold text-[46px] leading-[48px] tracking-[-1.84px] bg-clip-text text-transparent bg-gradient-to-b from-[rgba(255,255,255,0.6)] to-[rgba(20,23,19,0.5)] z-0">
@@ -1083,6 +1294,7 @@ export default function MeetTheTeam() {
                 <MobileSafer2 />
                 <MobileSafer3 />
                 <MobileSafer4 />
+                <MobileSafer5 />
             </div>
 
             {/* Desktop: Scaled canvas */}
