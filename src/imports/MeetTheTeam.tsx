@@ -3,7 +3,7 @@ import svgPaths from "./svg-67sjau8p5h";
 import svgMobilePaths from "./svg-mobile-meet";
 import imgRectangle2 from "../assets/8beafb71ac0e56f696268857cdb1244ee06d2dcc.webp";
 import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.webp";
-import imgRectangle4 from "../assets/2360b5bdc64c7364378a5a9d57d3b75bc52915d7.webp";
+import imgRectangle4 from "../assets/omar-maged.webp";
 import imgAlaa from "../assets/alaa-abdullah.webp";
 import imgAdhamMarzouk from "../assets/adham-marzouk.png";
 import imgYaseenHossam from "../assets/yaseen-hossam.webp";
@@ -217,11 +217,11 @@ function Lights2() {
             <div className="absolute bg-[#333333] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
                 <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(252,211,77,0.4)]" />
             </div>
-            <div className="absolute h-[367px] left-[calc(50%-11.48px)] rounded-[17.14px] top-[-4.41px] translate-x-[-50%] w-[287px]">
+            <div className="absolute h-[312px] left-[calc(50%+0.02px)] rounded-[17.14px] top-[-4px] translate-x-[-50%] w-[326px]">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.14px]">
                     <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.14px] to-black" />
                     <div className="absolute inset-0 overflow-hidden rounded-[17.14px]">
-                        <img alt="" className="absolute max-w-none object-cover size-full scale-[1.25] origin-top translate-y-[-40px]" src={imgRectangle4} decoding="async" />
+                        <img alt="" className="absolute max-w-none object-cover object-top size-full scale-[1.35] origin-[50%_42%] translate-y-[-30px]" src={imgRectangle4} decoding="async" />
                     </div>
                 </div>
             </div>
@@ -849,7 +849,7 @@ function MobileLights2() {
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.455px]">
           <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.455px] to-black" />
           <div className="absolute inset-0 overflow-hidden rounded-[11.455px]">
-            <img alt="" className="absolute max-w-none object-cover rounded-[11.455px] size-full scale-[1.25] origin-top translate-y-[-4px]" src={imgRectangle4} />
+            <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.455px] size-full scale-[1.35] origin-[50%_42%] translate-y-[-28px]" src={imgRectangle4} />
           </div>
         </div>
       </div>
