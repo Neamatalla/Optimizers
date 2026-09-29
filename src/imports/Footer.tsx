@@ -1,5 +1,6 @@
 import { useLanguage } from "../app/contexts/LanguageContext";
 import svgPaths from "./svg-8wsjqhowl2";
+import { scrollToSection } from "../lib/scrollToSection";
 import imgBeOurNextSuccessStory from "../assets/835347f279bfb9f2ab07e91b8dc25069bcb6dcb2.webp";
 
 function DivBtnLabel() {
@@ -15,7 +16,7 @@ function DivBtnLabel() {
 
 function Link() {
   return (
-    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => scrollToSection('free-audit')}>
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
       </div>
@@ -259,7 +260,7 @@ function Frame4() {
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('ROI Calculator')}</p>
       </div>
-      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => scrollToSection('free-audit')}>
         <p className="css-4hzbpn leading-[17px]">{t('Contact')}</p>
       </div>
     </div>
@@ -282,16 +283,16 @@ function Frame7() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 text-[14px]">
-      <div className="css-g0mm18 flex flex-col justify-center relative shrink-0">
+      <div className="css-g0mm18 flex flex-col justify-center relative shrink-0 cursor-pointer hover:underline" onClick={() => scrollToSection('services')}>
         <p className="css-ew64yg leading-[17px]">{t('Conversion Rate Optimization')}</p>
       </div>
-      <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content]">
+      <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content] cursor-pointer hover:underline" onClick={() => scrollToSection('services')}>
         <p className="css-4hzbpn leading-[17px]">{t('A/B Testing')}</p>
       </div>
-      <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content]">
+      <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content] cursor-pointer hover:underline" onClick={() => scrollToSection('services')}>
         <p className="css-4hzbpn leading-[17px]">{t('User Experience Design')}</p>
       </div>
-      <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content]">
+      <div className="flex flex-col justify-center min-w-full relative shrink-0 w-[min-content] cursor-pointer hover:underline" onClick={() => scrollToSection('services')}>
         <p className="css-4hzbpn leading-[17px]">{t('Analytics & Tracking')}</p>
       </div>
     </div>

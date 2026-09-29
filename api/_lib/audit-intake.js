@@ -161,6 +161,8 @@ export function normalizeHostname(website) {
   }
 }
 
+export { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
+
 /**
  * Looks for an existing request from the same email or the same website.
  * Returns null when there's none, otherwise which key matched (email wins

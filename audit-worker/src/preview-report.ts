@@ -22,6 +22,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { captureSiteScreenshots } from "./screenshots.js";
+import { discoverPages } from "./discover-pages.js";
+import { runPageSpeed } from "./pagespeed.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
 import type { AuditResult, CategoryResult } from "./types.js";
 
@@ -342,7 +344,20 @@ async function main() {
     screenshots = { desktop: captured.desktop, mobile: captured.mobile };
   }
 
-  const base = { websiteUrl: shotsUrl ?? "https://example.com", businessName: "Nour Home & Living", discoveredPages, screenshots };
+  // Fixed sample scores by default; --speed runs real PageSpeed Insights against --shots' site.
+  const pageSpeed: AuditResult["pageSpeed"] = process.argv.includes("--speed") && shotsUrl
+    ? await runPageSpeed(await discoverPages(shotsUrl, ""))
+    : {
+        pages: [
+          { type: "home", url: discoveredPages[0], mobile: 42, desktop: 78 },
+          { type: "collection", url: discoveredPages[1], mobile: 38, desktop: 71 },
+          { type: "cart", url: discoveredPages[3], mobile: 61, desktop: 92 },
+          { type: "product", url: discoveredPages[2], mobile: 35, desktop: 66 },
+        ],
+        average: { mobile: 44, desktop: 77 },
+      };
+
+  const base = { websiteUrl: shotsUrl ?? "https://example.com", businessName: "Nour Home & Living", discoveredPages, screenshots, pageSpeed };
 
   const result: AuditResult =
     mode === "tracking"

@@ -14,6 +14,7 @@ import { Toaster } from "@/app/components/ui/sonner";
 import ScrollToTopButton from "@/app/components/ScrollToTopButton";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useLanguage } from "./contexts/LanguageContext";
+import { scrollToSection } from "@/lib/scrollToSection";
 import "../styles/services.css";
 
 // --- DEBUGGER COMPONENT ---
@@ -288,6 +289,21 @@ const queryClient = new QueryClient();
 export default function App() {
   const { language, t } = useLanguage();
   const isRTL = language === 'ar';
+
+  // An external link (e.g. the audit report's "Book a Strategy Session" CTA)
+  // lands on a bare "/#contact" URL. This is a pure client-rendered SPA, so
+  // index.html has no id="contact" element for the browser's native
+  // hash-scroll to find at load — React only renders it afterward, too late
+  // for that one-time check. Every in-page nav link instead scrolls via its
+  // own onClick handler (see Frame2147223128.tsx etc.), which never fires
+  // for a hash arriving from outside the app. scrollToSection also handles
+  // the target still being behind a not-yet-mounted lazy Suspense boundary.
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (!hash) return;
+    return scrollToSection(hash);
+  }, []);
+
   const services = [
     // ... (services data unchanged)
     {
@@ -351,7 +367,7 @@ export default function App() {
                   We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
                 </p>
                 <button
-                  onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => scrollToSection('free-audit')}
                   className="audit-button hidden lg:block"
                 >
                   Book a Free CRO Audit
@@ -409,7 +425,7 @@ export default function App() {
                   We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
                 </p>
                 <button
-                  onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => scrollToSection('free-audit')}
                   className="bg-[#020601] h-[50px] rounded-[100px] px-[28px] py-[12px] border border-[#6ae499] relative overflow-hidden w-fit cursor-pointer hover:scale-105 transition-transform"
                   style={{
                     fontFamily: "'Sora', sans-serif",
@@ -449,9 +465,6 @@ export default function App() {
           <Suspense fallback={<div className="w-full min-h-[100px]" />}>
             <PartnersAndTools />
           </Suspense>
-          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <GetFreeAudit />
-          </Suspense>
           <div className="relative w-full h-auto" id="contact">
             <StrategySession />
           </div>
@@ -460,6 +473,9 @@ export default function App() {
               <MeetTheTeam />
             </Suspense>
           </div>
+          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
+            <GetFreeAudit />
+          </Suspense>
           <Suspense fallback={<div className="w-full min-h-[100px]" />}>
             <FAQSection />
           </Suspense>

@@ -31,7 +31,9 @@ export function buildAuthorizeUrl({ clientId, redirectUri, state }) {
     response_type: "code",
     scope: SCOPES,
     access_type: "online", // one-shot read at consent time — no refresh token to store/secure long-term
-    prompt: "consent",
+    // select_account: always show the account picker, so "Connect a different
+    // Google account" in the form can actually switch accounts.
+    prompt: "select_account consent",
     state,
     include_granted_scopes: "false",
   });

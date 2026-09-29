@@ -6,10 +6,14 @@ import type { CategoryKey } from "./types.js";
 // Website always last since it's the one present on all but the
 // both-tools run.
 const CATEGORY_PHRASES: Record<CategoryKey, string> = {
-  GA4: "analytics",
-  GTM: "tag management",
-  Website: "your website's code",
+  GA4: "Google Analytics setup",
+  GTM: "Tag Manager setup",
+  Website: "website",
 };
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 const CATEGORY_ORDER: CategoryKey[] = ["GA4", "GTM", "Website"];
 
 function joinWithAnd(items: string[]): string {
@@ -59,37 +63,49 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
     throw new Error("sendAuditEmail needs either a reportUrl or an attachment");
   }
 
-  const siteUrl = process.env.PUBLIC_SITE_URL || "https://optimizers.agency";
+  const siteUrl = (process.env.PUBLIC_SITE_URL || "https://optimizers.agency").replace(/\/$/, "");
+  const bookUrl = `${siteUrl}/#contact`;
+  const name = opts.businessName ? escapeHtml(opts.businessName) : null;
+  const website = escapeHtml(opts.website.replace(/^https?:\/\//, "").replace(/\/$/, ""));
+  const coverage = coverageSentence(opts.categoriesAudited) || "website";
+  const p = "color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px;";
+  const button = (href: string, label: string, primary: boolean) =>
+    `<a href="${href}" style="display: inline-block; background: ${primary ? "#263328" : "#6ae499"}; color: ${primary ? "#ffffff" : "#0e1a10"}; font-weight: bold; font-size: 15px; text-decoration: none; padding: 14px 24px; border-radius: 999px;">${label}</a>`;
+
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from: "Optimizers <hello@optimizers.agency>",
     to: [opts.to],
-    subject: `${opts.isTest ? "[TEST] " : ""}${opts.businessName ? `Your Free CRO & Analytics Audit for ${opts.businessName}` : `Your Free CRO & Analytics Audit - ${opts.website}`}`,
+    subject: `${opts.isTest ? "[TEST] " : ""}${opts.businessName ? `${opts.businessName}, your free audit is ready` : "Your free website audit is ready"}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 8px 4px;">
         ${opts.isTest ? `<p style="background: #fff4e0; border: 1px solid #f2b75e; border-radius: 8px; color: #7a4b00; font-size: 13px; line-height: 1.6; padding: 10px 14px; margin: 0 0 18px;">
           <b>Test run.</b> Submitted in test mode, so this skipped the internal review step and came straight here. The report itself is stored in the test bucket, not alongside real client reports.
         </p>` : ""}
-        <h2 style="color: #263328; border-bottom: 2px solid #6ae499; padding-bottom: 10px;">
-          Your Audit Is Ready
-        </h2>
-        <p style="color: #333; font-size: 14px; line-height: 1.6;">
-          ${opts.businessName ? `Hi ${opts.businessName} team, we've` : "We've"} put together a
-          business-focused audit of ${opts.website} covering ${coverageSentence(opts.categoriesAudited)}.
-          ${opts.reportUrl ? "The full branded HTML report is ready at the link below." : "The full branded HTML report is attached to this email."}
+        <h1 style="color: #263328; font-size: 24px; line-height: 1.3; margin: 0 0 20px;">Your audit is ready${name ? `, ${name}` : ""}!</h1>
+        <p style="${p}">${name ? `Hi ${name} team,` : "Hi there,"}</p>
+        <p style="${p}">
+          Thank you for trusting us with a look at ${website}. Our team has gone through your ${coverage} and put everything
+          we found into one clear report: what is already working well, what is quietly costing you sales, and what to fix first.
         </p>
-        ${opts.reportUrl ? `<p style="font-size: 14px; line-height: 1.6;">
-          <a href="${opts.reportUrl}" style="display: inline-block; background: #263328; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px;">
-            View your audit report
-          </a>
-        </p>` : ""}
-        <p style="font-size: 14px; line-height: 1.6;">
-          <a href="${siteUrl.replace(/\/$/, "")}/#contact" style="color: #263328; font-weight: bold;">
-            Book a strategy session
-          </a>
+        <p style="${p}">
+          ${opts.reportUrl ? "Grab a coffee and have a look. It is written in plain language, so you do not need to be technical to follow it." : "Your full report is attached to this email. It is written in plain language, so you do not need to be technical to follow it."}
         </p>
-        <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-          Sent from the Optimizers "Get a Free Audit" tool.
+        ${opts.reportUrl ? `<p style="margin: 24px 0 32px;">${button(opts.reportUrl, "See my audit", true)}</p>` : ""}
+        <h2 style="color: #263328; font-size: 18px; margin: 8px 0 12px;">So, what's next?</h2>
+        <p style="${p}">
+          The good news: most of what we found can be fixed, and the biggest wins often take days, not months. That is exactly
+          what we do. For over 8 years we have helped e-commerce brands turn more of the visitors they already have into
+          customers, without spending more on ads. And if we don't improve your conversions, you don't pay.
+        </p>
+        <p style="${p}">
+          Want us to walk you through it? Book a free call and we will go through your results together, point out the quickest
+          wins, and show you exactly what we would do for your store. No pressure and no jargon.
+        </p>
+        <p style="margin: 24px 0 32px;">${button(bookUrl, "Book my free call", false)}</p>
+        <p style="${p}">Talk soon,<br /><b>The Optimizers team</b></p>
+        <p style="color: #7a857b; font-size: 12px; line-height: 1.6; margin-top: 28px; padding-top: 18px; border-top: 1px solid #e2e6e2;">
+          You are receiving this because you requested a free audit at <a href="${siteUrl}" style="color: #7a857b;">optimizers.agency</a>.
         </p>
       </div>
     `.trim(),
@@ -124,6 +140,30 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
     throw new Error("RESEND_API_KEY is not set - see audit-worker/.env.example");
   }
 
+  // Attached so the reviewer can hand both straight to Claude ("here's the
+  // key and slug, fetch the report, here's what to change") without having
+  // to go look them up separately. Same credential that authenticates
+  // /api/report/edit (see api/_lib/report-edit.js) — omitted from the email
+  // entirely if unset rather than rendering an empty/broken-looking block.
+  const editApiKey = process.env.REPORT_EDIT_API_KEY;
+  const siteUrl = (process.env.PUBLIC_SITE_URL || "https://optimizers.agency").replace(/\/$/, "");
+  const editEndpoint = `${siteUrl}/api/report/edit`;
+  const editSection = editApiKey
+    ? `
+        <div style="background: #f5f5f5; border-radius: 8px; padding: 14px 18px; margin-top: 16px;">
+          <p style="color: #263328; font-size: 13px; font-weight: bold; margin: 0 0 8px;">Editing this report</p>
+          <p style="color: #333; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
+            Give these to Claude along with what you want changed — it can GET the
+            current html, edit it, then PATCH it back:
+          </p>
+          <p style="color: #333; font-size: 13px; line-height: 1.8; margin: 0; font-family: monospace;">
+            Endpoint: ${editEndpoint}<br/>
+            Slug: ${opts.slug}<br/>
+            x-api-key: ${editApiKey}
+          </p>
+        </div>`
+    : "";
+
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from: "Optimizers Audits <hello@optimizers.agency>",
@@ -141,7 +181,7 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
         </p>
         <p style="font-size: 14px; line-height: 1.6;">
           <a href="${opts.reportUrl}" style="display: inline-block; background: #263328; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px; margin-right: 8px;">
-            View report
+            Review
           </a>
           <a href="${opts.approveUrl}" style="display: inline-block; background: #6ae499; color: #263328; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px;">
             Approve &amp; schedule send
@@ -150,7 +190,7 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
         <p style="color: #666; font-size: 12px; line-height: 1.6; margin-top: 16px;">
           Approving schedules the client email for 2 days from now. Edit the live
           report any time before then via the report-edit API using the slug above.
-        </p>
+        </p>${editSection}
       </div>
     `.trim(),
   });
@@ -158,6 +198,47 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
   if (error) {
     throw new Error(`Resend API error: ${error.message}`);
   }
+}
+
+// Sent once, when a request has used up every attempt and been marked
+// failed, so a stuck audit never sits unnoticed in the queue.
+export async function sendAuditFailedEmail(opts: {
+  to: string;
+  requestId: string;
+  website: string;
+  businessName: string | null;
+  requesterEmail: string;
+  attempts: number;
+  error: string;
+  isTest: boolean;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not set - see audit-worker/.env.example");
+  }
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from: "Optimizers Audits <hello@optimizers.agency>",
+    to: [opts.to],
+    subject: `${opts.isTest ? "[TEST] " : ""}Audit failed after ${opts.attempts} attempts: ${opts.businessName || opts.website}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #7a1f14; border-bottom: 2px solid #ff6b57; padding-bottom: 10px;">Audit failed</h2>
+        <p style="color: #333; font-size: 14px; line-height: 1.6;">
+          The audit for <b>${escapeHtml(opts.website)}</b> (requested by ${escapeHtml(opts.requesterEmail)}) failed ${opts.attempts} times and has stopped retrying.
+          The requester has not been emailed.
+        </p>
+        <p style="color: #333; font-size: 13px; margin: 0 0 6px;"><b>Last error</b></p>
+        <pre style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word;">${escapeHtml(opts.error.slice(0, 2000))}</pre>
+        <p style="color: #333; font-size: 13px; line-height: 1.6;">
+          Once the cause is fixed, retry it from the audit-worker folder with:<br />
+          <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">npm run requeue -- ${opts.requestId}</code><br />
+          It resumes from the last stage that finished.
+        </p>
+      </div>
+    `.trim(),
+  });
+  if (error) throw new Error(`Resend API error: ${error.message}`);
 }
 
 export interface DigestRow {

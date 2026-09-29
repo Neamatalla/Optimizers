@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import type { AuditRequestRow } from "./types.js";
+import type { AuditRequestRow, JobProgress } from "./types.js";
 
 let client: SupabaseClient | null = null;
 
@@ -14,43 +14,139 @@ function getClient(): SupabaseClient {
   return client;
 }
 
-/**
- * Atomically claims the oldest pending row by flipping it to "processing" and
- * returning it — using status="pending" in the WHERE clause means two worker
- * instances racing on the same row will only have one succeed the update.
- */
-export async function claimNextPendingRequest(): Promise<AuditRequestRow | null> {
-  const supabase = getClient();
+// A processing row whose heartbeat is older than this belongs to a worker
+// that died (crash, reboot, sleep, deploy). The live worker refreshes the
+// heartbeat every HEARTBEAT_MS, so a healthy long claude -p run never expires.
+export const LEASE_MS = Number(process.env.LEASE_MS ?? 10 * 60_000);
+export const HEARTBEAT_MS = 60_000;
 
-  // retry_after is null on a fresh row and only ever set by
-  // markRequestRateLimited() below — excluding rows still inside their
-  // backoff window is what makes the queue "wait out" a rate limit instead
-  // of hammering it, while a still-pending row's created_at (untouched)
-  // keeps its original place in line once retry_after passes.
-  const nowIso = new Date().toISOString();
-  const { data: candidates, error: selectError } = await supabase
+// Thrown when this worker no longer holds a row (another worker reclaimed it
+// after our lease lapsed). The caller must stop without touching the row.
+export class LostLeaseError extends Error {}
+
+/**
+ * Claims the next job: the oldest ready pending row, or else a processing row
+ * whose lease expired. Either way the claim is a conditional update on the
+ * exact state that was read (status, and the stale heartbeat for a reclaim),
+ * so two workers racing on one row can't both win. Claiming counts an attempt.
+ */
+export async function claimNextRequest(workerId: string): Promise<AuditRequestRow | null> {
+  const supabase = getClient();
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  // retry_after holds a row back while it waits out a backoff (rate limit or
+  // a failed attempt); created_at is never touched, so it keeps its place.
+  const { data: pending, error: pendingError } = await supabase
     .from("audit_requests")
-    .select("id")
+    .select("id, attempts")
     .eq("status", "pending")
     .or(`retry_after.is.null,retry_after.lte.${nowIso}`)
     .order("created_at", { ascending: true })
     .limit(1);
+  if (pendingError) throw new Error(`Supabase select error: ${pendingError.message}`);
 
-  if (selectError) throw new Error(`Supabase select error: ${selectError.message}`);
-  if (!candidates || candidates.length === 0) return null;
+  if (pending && pending.length > 0) {
+    const { data: claimed, error } = await supabase
+      .from("audit_requests")
+      .update({ status: "processing", locked_by: workerId, heartbeat_at: nowIso, attempts: (pending[0].attempts ?? 0) + 1 })
+      .eq("id", pending[0].id)
+      .eq("status", "pending")
+      .select()
+      .maybeSingle();
+    if (error) throw new Error(`Supabase claim error: ${error.message}`);
+    // Null: another worker got it between the select and the update.
+    return (claimed as AuditRequestRow) ?? null;
+  }
 
-  const { data: claimed, error: updateError } = await supabase
+  const staleBefore = new Date(now.getTime() - LEASE_MS).toISOString();
+  const { data: stale, error: staleError } = await supabase
     .from("audit_requests")
-    .update({ status: "processing" })
-    .eq("id", candidates[0].id)
-    .eq("status", "pending")
-    .select()
-    .maybeSingle();
+    .select("id, attempts, heartbeat_at")
+    .eq("status", "processing")
+    .or(`heartbeat_at.is.null,heartbeat_at.lt.${staleBefore}`)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (staleError) throw new Error(`Supabase stale select error: ${staleError.message}`);
+  if (!stale || stale.length === 0) return null;
 
-  if (updateError) throw new Error(`Supabase claim error: ${updateError.message}`);
-  // Null means another worker instance claimed it first between the select and
-  // the update — not an error, just try again next poll tick.
-  return (claimed as AuditRequestRow) ?? null;
+  const row = stale[0];
+  let reclaim = supabase
+    .from("audit_requests")
+    .update({ locked_by: workerId, heartbeat_at: nowIso, attempts: (row.attempts ?? 0) + 1 })
+    .eq("id", row.id)
+    .eq("status", "processing");
+  reclaim = row.heartbeat_at ? reclaim.eq("heartbeat_at", row.heartbeat_at) : reclaim.is("heartbeat_at", null);
+  const { data: reclaimed, error: reclaimError } = await reclaim.select().maybeSingle();
+  if (reclaimError) throw new Error(`Supabase reclaim error: ${reclaimError.message}`);
+  if (reclaimed) console.warn(`[supabase] Reclaimed ${row.id} from a worker whose lease expired`);
+  return (reclaimed as AuditRequestRow) ?? null;
+}
+
+/**
+ * Refreshes this worker's lease. Returns false when the row is no longer
+ * ours (another worker reclaimed it, or it left 'processing'), so the caller
+ * can stop before it double-delivers.
+ */
+export async function heartbeat(id: string, workerId: string): Promise<boolean> {
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from("audit_requests")
+    .update({ heartbeat_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "processing")
+    .eq("locked_by", workerId)
+    .select("id");
+  if (error) throw new Error(`Supabase heartbeat error: ${error.message}`);
+  return Boolean(data && data.length > 0);
+}
+
+/** Persists the progress object after a stage finishes. Only while we hold the lease. */
+export async function saveProgress(id: string, workerId: string, progress: JobProgress): Promise<void> {
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from("audit_requests")
+    .update({ progress, heartbeat_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("locked_by", workerId)
+    .select("id");
+  if (error) throw new Error(`Supabase saveProgress error: ${error.message}`);
+  if (!data || data.length === 0) throw new LostLeaseError(`Lost the lease on ${id} while saving progress`);
+}
+
+/**
+ * Manual retry (npm run requeue). Puts a request back in line with fresh
+ * attempts. Keeps saved progress unless `fresh`, so by default it resumes.
+ * Refuses rows already past the audit (awaiting approval, scheduled, done)
+ * unless `force`, since re-running those would redo delivered work.
+ */
+export async function requeueRequest(id: string, opts: { fresh?: boolean; force?: boolean } = {}): Promise<{ previousStatus: string }> {
+  const supabase = getClient();
+  const { data: row, error: readError } = await supabase.from("audit_requests").select("id, status").eq("id", id).maybeSingle();
+  if (readError) throw new Error(`Supabase read error: ${readError.message}`);
+  if (!row) throw new Error(`No audit request with id ${id}`);
+  const allowed = ["failed", "pending", "processing"];
+  if (!allowed.includes(row.status) && !opts.force) {
+    throw new Error(`${id} is '${row.status}'. Re-running it would redo work that already finished; pass --force if that's intended.`);
+  }
+  const update: Record<string, unknown> = { status: "pending", attempts: 0, retry_after: null, locked_by: null, heartbeat_at: null, result_error: null };
+  if (opts.fresh) update.progress = {};
+  const { error } = await supabase.from("audit_requests").update(update).eq("id", id);
+  if (error) throw new Error(`Supabase requeue error: ${error.message}`);
+  return { previousStatus: row.status };
+}
+
+/**
+ * A failed attempt that still has attempts left: back to pending after a
+ * backoff, keeping its saved progress so the next attempt resumes.
+ */
+export async function scheduleRetry(id: string, message: string, retryAfter: Date): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from("audit_requests")
+    .update({ status: "pending", retry_after: retryAfter.toISOString(), result_error: message.slice(0, 2000), locked_by: null, heartbeat_at: null })
+    .eq("id", id);
+  if (error) throw new Error(`Supabase scheduleRetry error: ${error.message}`);
 }
 
 // ASCII-only on purpose: business names here are frequently Arabic-script
@@ -153,7 +249,7 @@ export async function markRequestFailed(id: string, message: string): Promise<vo
   const supabase = getClient();
   const { error } = await supabase
     .from("audit_requests")
-    .update({ status: "failed", result_error: message.slice(0, 2000) })
+    .update({ status: "failed", result_error: message.slice(0, 2000), locked_by: null, heartbeat_at: null })
     .eq("id", id);
   if (error) throw new Error(`Supabase markRequestFailed error: ${error.message}`);
 }
@@ -166,6 +262,9 @@ export async function markRequestFailed(id: string, message: string): Promise<vo
 export async function markRequestRateLimited(
   id: string,
   previousRetryCount: number,
+  // attempts as it was before this claim: a rate limit isn't the job's fault,
+  // so it gives the attempt back instead of burning one of MAX_ATTEMPTS.
+  attemptsBeforeClaim: number,
   message: string,
   // The limit's own stated reset time, when the message carried one (see
   // poll.ts's parseLimitResetAt). A plan usage limit resets at an appointed
@@ -184,7 +283,10 @@ export async function markRequestRateLimited(
       status: "pending",
       retry_after: retryAfter.toISOString(),
       retry_count: previousRetryCount + 1,
+      attempts: attemptsBeforeClaim,
       result_error: message.slice(0, 2000),
+      locked_by: null,
+      heartbeat_at: null,
     })
     .eq("id", id);
   if (error) throw new Error(`Supabase markRequestRateLimited error: ${error.message}`);
@@ -207,6 +309,8 @@ export async function markTestRequestSent(id: string, opts: { reportUrl: string;
       categories_audited: opts.categoriesAudited,
       sent_to_client_at: new Date().toISOString(),
       result_error: null,
+      locked_by: null,
+      heartbeat_at: null,
     })
     .eq("id", id);
   if (error) throw new Error(`Supabase markTestRequestSent error: ${error.message}`);
@@ -225,6 +329,8 @@ export async function markRequestAwaitingApproval(id: string, opts: { reportUrl:
       approval_token: opts.approvalToken,
       categories_audited: opts.categoriesAudited,
       result_error: null,
+      locked_by: null,
+      heartbeat_at: null,
     })
     .eq("id", id);
   if (error) throw new Error(`Supabase markRequestAwaitingApproval error: ${error.message}`);

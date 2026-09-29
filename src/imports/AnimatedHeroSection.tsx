@@ -10,6 +10,7 @@ import Section6 from "./Section6";
 import imgTopclientsResults4 from "../assets/f6cb95ddf6fbcaa6d79196a0ac804e1747a8b1c4.webp";
 import '../styles/top-clients-scroll.css';
 import { MOB_DURATIONS, MOB_EASE } from "../lib/animations";
+import { scrollToSection } from "../lib/scrollToSection";
 
 // Mobile carousel client data — mockup + profile images from each Section
 import imgMockup1 from "../assets/dc7b94025c6990629360e685e3f89e4c1a875b87.webp";
@@ -501,7 +502,7 @@ export default function AnimatedHeroSection() {
                             {language === 'ar' ? 'مستعد لتكون قصة نجاحنا القادمة؟' : 'Ready to be our next success story?'}
                         </p>
                         <div
-                            onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                            onClick={() => scrollToSection('free-audit')}
                             className="bg-[rgba(2,6,1,0.7)] backdrop-blur-md h-auto relative rounded-[100px] border border-[#6ae499]/50 cursor-pointer hover:scale-105 hover:bg-[rgba(106,228,153,0.1)] transition-all shadow-[0px_0px_30px_0px_rgba(106,228,153,0.3)]"
                             style={{ padding: '1.17vw 2.34vw' }}
                         >

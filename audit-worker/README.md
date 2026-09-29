@@ -63,17 +63,72 @@ Leave this running in a terminal. It polls every `POLL_INTERVAL_MS` (default
 sleep when the queue's empty. `Ctrl+C` shuts it down cleanly after the current
 job finishes.
 
-**Production (VPS):**
+**Production (server):**
 
-1. Copy this whole `audit-worker/` folder to the VPS, plus the three MCP
-   script projects it points at (`ga4-admin-mcp`, the GTM MCP server, and
-   `clarity-mcp`) and their service-account key files — none of those are
-   committed to this repo.
-2. `npm install`, set up `.env` with paths matching the VPS's filesystem.
-3. Run it under a process supervisor so it survives reboots/crashes — a
-   systemd unit running `npm run start` (after `npm run build`) is the
-   straightforward option; this repo doesn't ship a unit file yet, so write
-   one when you set the VPS up.
+Any small Linux VPS works (Ubuntu 22.04/24.04, 2 GB RAM or more for Chrome).
+The worker only makes outbound connections, so no ports need opening.
+
+1. Install Node.js 20+ and Google Chrome (or Chrome for Testing), then create
+   a user for the service:
+   ```bash
+   sudo useradd --create-home --shell /bin/bash auditworker
+   ```
+2. As that user, install the Claude CLI and log in once, so `claude -p` works
+   headlessly (`claude` must be on `PATH`, or set `CLAUDE_BIN`):
+   ```bash
+   sudo -iu auditworker
+   claude    # complete the login, then exit
+   ```
+3. Copy this `audit-worker/` folder to `/opt/optimizers/audit-worker`, plus the
+   MCP script projects it points at (`ga4-admin-mcp`, the GTM MCP server) and
+   their service-account key files. None of those are committed to this repo.
+   Make the folder owned by `auditworker`.
+4. In that folder: `npm install`, then create `.env` from `.env.example` with
+   paths matching the server's filesystem. Set `PUBLIC_SITE_URL` to the live
+   site (`https://optimizers.agency`), not an ngrok tunnel, or emailed report
+   links will die when the tunnel does. Set `CHROME_PATH` if Chrome isn't
+   found automatically.
+5. `npm run build` (compiles to `dist/`).
+6. Install and start the service (`deploy/audit-worker.service`; edit `User`
+   and `WorkingDirectory` first if you used different ones):
+   ```bash
+   sudo cp deploy/audit-worker.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now audit-worker
+   journalctl -u audit-worker -f     # live logs
+   ```
+7. Stop any other copy of the worker (e.g. one left running on a laptop).
+   Two workers are safe (the lease stops them taking the same job), but the
+   laptop one would stop whenever the laptop sleeps.
+
+To deploy an update: copy the new code over, `npm install`, `npm run build`,
+then `sudo systemctl restart audit-worker`. The restart waits for the current
+job to finish (up to 20 minutes); anything cut off resumes on the next start.
+
+### How the queue recovers from problems
+
+- **Crash, reboot, sleep or deploy mid-job:** the worker refreshes a lease
+  (`heartbeat_at`) every minute. If that stops for 10 minutes, any worker
+  reclaims the job.
+- **Errors:** a failed attempt retries automatically after 2, then 10 minutes
+  (`MAX_ATTEMPTS`, default 3). Rate/usage limits wait out the limit and don't
+  use up an attempt. After the last attempt the job is marked `failed` and
+  the reviewer gets an email with the error.
+- **Saved progress:** each stage (audit, Arabic translation, publish, emails)
+  is saved to the row's `progress` as it finishes. A retry resumes from the
+  last finished stage, so a failed upload never re-runs the audit, and no
+  email is ever sent twice.
+- **Manual retry** (after fixing the cause of a failure):
+  ```bash
+  npm run requeue -- <request-id>            # resume from saved progress
+  npm run requeue -- <request-id> --fresh    # start the whole audit again
+  ```
+  It refuses rows already awaiting approval, scheduled or done unless you add
+  `--force`.
+
+Upgrading an existing project: run
+`supabase/migrations/2026-09-28-job-queue.sql` once in the Supabase SQL editor
+before starting a worker built from this version.
 
 ## Test mode
 

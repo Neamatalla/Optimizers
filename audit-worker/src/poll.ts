@@ -1,7 +1,14 @@
+import "./logger.js";
 import "dotenv/config";
 import crypto from "node:crypto";
+import os from "node:os";
 import {
-  claimNextPendingRequest,
+  claimNextRequest,
+  heartbeat,
+  saveProgress,
+  scheduleRetry,
+  LostLeaseError,
+  HEARTBEAT_MS,
   markRequestFailed,
   markRequestRateLimited,
   markRequestAwaitingApproval,
@@ -16,13 +23,23 @@ import {
 import { crawlWebsite } from "./crawl.js";
 import { captureSiteScreenshots } from "./screenshots.js";
 import { discoverPages } from "./discover-pages.js";
+import { runPageSpeed } from "./pagespeed.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
-import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail } from "./email.js";
-import type { AuditRequestRow, AuditResult } from "./types.js";
+import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail } from "./email.js";
+import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
+
+// Identifies this process in audit_requests.locked_by, so two workers (or a
+// restarted one) can tell whose lease a row is under.
+const WORKER_ID = `${os.hostname()}-${process.pid}`;
+// Real attempts before a request is marked failed and the reviewer emailed.
+// Rate limits don't count (they give their attempt back).
+const MAX_ATTEMPTS = Number(process.env.MAX_ATTEMPTS ?? 3);
+// Wait before attempt 2, 3, ... (the last value repeats if MAX_ATTEMPTS is raised).
+const RETRY_BACKOFF_MINUTES = [2, 10, 30];
 
 // Every completed audit is emailed here first for review — never straight to
 // the requester. See processRequest's tail and api/_lib/audit-approve.js.
@@ -85,117 +102,190 @@ function parseLimitResetAt(err: unknown): Date | null {
   return usable.length ? new Date(usable[0]) : null;
 }
 
-async function processRequest(row: AuditRequestRow): Promise<void> {
-  console.log(`[audit-worker] Processing ${row.id} (${row.website})`);
+/**
+ * Runs one audit request as a sequence of resumable stages. After each stage
+ * its output is saved to row.progress, so a retry (after a crash, a lost
+ * lease or a failed attempt) skips everything that already finished:
+ *
+ *   1. audit      crawl + claude -p audit + PageSpeed + screenshots
+ *   2. translate  Arabic text for every finding (best-effort)
+ *   3. publish    build the HTML report and upload it
+ *   4. deliver    test run: email the requester. Real run: email the
+ *                 reviewer, then park the row for approval.
+ *
+ * Emails are recorded the moment they succeed, so none is ever sent twice.
+ */
+async function processRequest(row: AuditRequestRow, workerId: string): Promise<void> {
+  const progress: JobProgress = { ...(row.progress ?? {}) };
+  const done = [progress.categories && "audit", progress.translated && "translate", progress.reportUrl && "publish"].filter(Boolean);
+  console.log(
+    `[audit-worker] Processing ${row.id} (${row.website}), attempt ${row.attempts}/${MAX_ATTEMPTS}` +
+    (done.length ? `, resuming after: ${done.join(", ")}` : ""),
+  );
+  const save = () => saveProgress(row.id, workerId, progress);
+  // Before any email: confirm we still own the row, so a worker that lost
+  // its lease never emails on top of the worker that took over.
+  const ensureLease = async () => {
+    if (!(await heartbeat(row.id, workerId))) throw new LostLeaseError(`Lost the lease on ${row.id}`);
+  };
 
-  const crawl = await crawlWebsite(row.website);
-  // Homepage first, then one representative page per commerce-relevant
-  // type — the browser checks that need a specific page type pick from
-  // here (see audit-prompt.ts). Cheap: the site's own sitemap.xml, or the
-  // already-fetched homepage HTML's links when there isn't one.
-  const discoveredPages = await discoverPages(row.website, crawl.html);
+  // 1. audit
+  if (!progress.categories) {
+    const crawl = await crawlWebsite(row.website);
+    // Homepage first, then one representative page per commerce-relevant
+    // type — the browser checks that need a specific page type pick from
+    // here (see audit-prompt.ts).
+    const discoveredPages = await discoverPages(row.website, crawl.html);
+    // Started now, awaited after the main audit, so its PSI calls overlap it instead of adding to the run time.
+    const pageSpeedPromise = runPageSpeed(discoveredPages);
 
-  // Illustration for the report hero, not audit evidence — best-effort, and
-  // deliberately not allowed to fail the run (see screenshots.ts).
-  const screenshots = await captureSiteScreenshots(row.website);
-  if (screenshots.error) {
-    console.warn(`[audit-worker] Screenshots unavailable for ${row.id}: ${screenshots.error}`);
-  } else {
-    console.log(`[audit-worker] Captured site screenshots (desktop: ${Boolean(screenshots.desktop)}, mobile: ${Boolean(screenshots.mobile)})`);
+    // Illustration for the report hero, not audit evidence — best-effort, and
+    // deliberately not allowed to fail the run (see screenshots.ts).
+    const screenshots = await captureSiteScreenshots(row.website);
+    if (screenshots.error) {
+      console.warn(`[audit-worker] Screenshots unavailable for ${row.id}: ${screenshots.error}`);
+    } else {
+      console.log(`[audit-worker] Captured site screenshots (desktop: ${Boolean(screenshots.desktop)}, mobile: ${Boolean(screenshots.mobile)})`);
+    }
+
+    const needed = neededMcpServers({ tools: row.tools, ga4OAuthData: row.ga4_oauth_data, gtmOAuthData: row.gtm_oauth_data });
+    const mcp = await buildMcpConfig(row.id, needed);
+    let categories;
+    try {
+      categories = await runAudit({
+        website: row.website,
+        tools: row.tools,
+        discoveredPages,
+        crawl,
+        mcpConfigPath: mcp.configPath,
+        businessName: row.business_name,
+        userProvidedGa4Id: row.ga4_measurement_id,
+        userProvidedGtmId: row.gtm_container_id,
+        ga4OAuthData: row.ga4_oauth_data,
+        gtmOAuthData: row.gtm_oauth_data,
+      });
+    } finally {
+      await mcp.cleanup();
+    }
+
+    const pageSpeed = await pageSpeedPromise;
+    if (pageSpeed.error) {
+      console.warn(`[audit-worker] PageSpeed unavailable for ${row.id}: ${pageSpeed.error}`);
+    } else {
+      console.log(`[audit-worker] PageSpeed scored ${pageSpeed.pages.length} pages (avg mobile ${pageSpeed.average.mobile}, desktop ${pageSpeed.average.desktop})`);
+    }
+    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile } });
+    await save();
+    console.log(`[audit-worker] Saved audit result for ${row.id}`);
   }
 
-  const needed = neededMcpServers({ tools: row.tools, ga4OAuthData: row.ga4_oauth_data, gtmOAuthData: row.gtm_oauth_data });
-  const mcp = await buildMcpConfig(row.id, needed);
-  let result: AuditResult;
-  let htmlReport: string;
+  const categories = progress.categories!;
+  const { earned, possible } = computeOverallPoints(categories);
+  const result: AuditResult = {
+    categories,
+    overallScore: earned,
+    possiblePoints: possible,
+    websiteUrl: row.website,
+    businessName: row.business_name,
+    discoveredPages: progress.discoveredPages ?? [],
+    pageSpeed: progress.pageSpeed,
+    screenshots: progress.screenshots,
+  };
+  const categoriesAudited = categories.map(c => c.category);
 
-  try {
-    const categories = await runAudit({
-      website: row.website,
-      tools: row.tools,
-      discoveredPages,
-      crawl,
-      mcpConfigPath: mcp.configPath,
-      businessName: row.business_name,
-      userProvidedGa4Id: row.ga4_measurement_id,
-      userProvidedGtmId: row.gtm_container_id,
-      ga4OAuthData: row.ga4_oauth_data,
-      gtmOAuthData: row.gtm_oauth_data,
-    });
-
-    const { earned, possible } = computeOverallPoints(categories);
-    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: row.website, businessName: row.business_name, discoveredPages, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile } };
-
-    // Arabic toggle in the report — best-effort, same contract as
-    // screenshots above: never allowed to fail a run that otherwise
-    // produced 50 real findings (see translate-ar.ts).
+  // 2. translate — best-effort, same contract as screenshots: never allowed
+  // to fail a run that otherwise produced 50 real findings (translate-ar.ts).
+  // It writes the Arabic straight onto result.categories, which is the same
+  // array saved in progress.
+  if (!progress.translated) {
     const arabic = await translateFindingsToArabic(result, row.id);
     if (arabic.error) {
       console.warn(`[audit-worker] Arabic translation unavailable for ${row.id}: ${arabic.error}`);
     } else {
       console.log(`[audit-worker] Translated ${arabic.translated}/${arabic.total} findings to Arabic`);
     }
-
-    const report = await buildAuditHtmlReport(result);
-    htmlReport = report.html;
-  } finally {
-    await mcp.cleanup();
+    progress.translated = true;
+    await save();
   }
 
-  const { publicUrl: reportUrl, slug } = await publishAuditReport({ requestId: row.id, html: htmlReport, businessName: row.business_name, website: row.website, isTest: row.is_test });
+  // 3. publish
+  if (!progress.reportUrl) {
+    const report = await buildAuditHtmlReport(result);
+    const { publicUrl, slug } = await publishAuditReport({ requestId: row.id, html: report.html, businessName: row.business_name, website: row.website, isTest: row.is_test });
+    Object.assign(progress, { reportUrl: publicUrl, slug });
+    await save();
+  }
+  const reportUrl = progress.reportUrl!;
 
-  // Test mode (both fields submitted with a leading "-", see
-  // api/_lib/audit-intake.js): the whole pipeline above ran for real, but
-  // delivery skips the review queue entirely — straight to whoever was in
-  // the form, right now. No approval token is minted, nothing lands in the
-  // reviewer's inbox or the daily digest, and the row goes to 'done' here
-  // rather than waiting out an approval + 2-day delay.
+  // 4. deliver. Test mode (both fields submitted with a leading "-", see
+  // api/_lib/audit-intake.js) skips the review queue entirely: straight to
+  // whoever was in the form, no approval token, row goes to 'done' here.
   if (row.is_test) {
-    await sendAuditEmail({
-      to: row.email,
-      website: row.website,
-      businessName: row.business_name,
-      reportUrl,
-      categoriesAudited: result.categories.map(c => c.category),
-      isTest: true,
-    });
-    await markTestRequestSent(row.id, { reportUrl, categoriesAudited: result.categories.map(c => c.category) });
+    if (!progress.testEmailSent) {
+      await ensureLease();
+      await sendAuditEmail({ to: row.email, website: row.website, businessName: row.business_name, reportUrl, categoriesAudited, isTest: true });
+      progress.testEmailSent = true;
+      await save();
+    }
+    await markTestRequestSent(row.id, { reportUrl, categoriesAudited });
     console.log(`[audit-worker] TEST run ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, emailed ${row.email} directly, report: ${reportUrl}`);
     return;
   }
 
-  // Parked for review, NOT emailed to the requester yet — sendAuditEmail
-  // below only ever runs later, from processDueSends, once the reviewer has
-  // approved and the 2-day delay has actually elapsed.
-  const approvalToken = crypto.randomBytes(24).toString("hex");
-  await markRequestAwaitingApproval(row.id, { reportUrl, approvalToken, categoriesAudited: result.categories.map(c => c.category) });
-
-  const siteUrl = (process.env.PUBLIC_SITE_URL || "https://optimizers.agency").replace(/\/$/, "");
-  const approveUrl = `${siteUrl}/api/audit-approve?id=${encodeURIComponent(row.id)}&token=${encodeURIComponent(approvalToken)}`;
-  await sendInternalReviewEmail({
-    to: REVIEWER_EMAIL,
-    website: row.website,
-    businessName: row.business_name,
-    requesterEmail: row.email,
-    reportUrl,
-    approveUrl,
-    slug,
-  });
+  // Parked for review, NOT emailed to the requester yet — sendAuditEmail only
+  // runs later, from processDueSends, once the reviewer has approved and the
+  // 2-day delay has elapsed. The token is saved before the email so a retry
+  // reuses the same approval link instead of minting a second one.
+  if (!progress.approvalToken) {
+    progress.approvalToken = crypto.randomBytes(24).toString("hex");
+    await save();
+  }
+  if (!progress.reviewEmailSent) {
+    await ensureLease();
+    const siteUrl = (process.env.PUBLIC_SITE_URL || "https://optimizers.agency").replace(/\/$/, "");
+    const approveUrl = `${siteUrl}/api/audit-approve?id=${encodeURIComponent(row.id)}&token=${encodeURIComponent(progress.approvalToken)}`;
+    await sendInternalReviewEmail({
+      to: REVIEWER_EMAIL,
+      website: row.website,
+      businessName: row.business_name,
+      requesterEmail: row.email,
+      reportUrl,
+      approveUrl,
+      slug: progress.slug ?? "",
+    });
+    progress.reviewEmailSent = true;
+    await save();
+  }
+  await markRequestAwaitingApproval(row.id, { reportUrl, approvalToken: progress.approvalToken, categoriesAudited });
 
   console.log(`[audit-worker] Awaiting approval ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, report: ${reportUrl}`);
 }
 
 async function tick(): Promise<boolean> {
-  const row = await claimNextPendingRequest();
+  const row = await claimNextRequest(WORKER_ID);
   if (!row) return false;
 
+  // Keeps the lease alive through long claude -p runs. A missed beat is only
+  // logged: the lease survives several, and saveProgress/ensureLease are what
+  // actually stop work if it is lost.
+  const beat = setInterval(() => {
+    heartbeat(row.id, WORKER_ID).catch(err => console.warn(`[audit-worker] Heartbeat failed for ${row.id}:`, err?.message ?? err));
+  }, HEARTBEAT_MS);
+
   try {
-    await processRequest(row);
+    await processRequest(row, WORKER_ID);
   } catch (err: any) {
+    const message = err?.message ?? String(err);
+
+    if (err instanceof LostLeaseError) {
+      console.warn(`[audit-worker] ${message}; another worker owns it now, stopping without touching the row`);
+      return true;
+    }
+
     if (isRateLimitError(err)) {
       try {
         const resetAt = parseLimitResetAt(err);
-        const retryAfter = await markRequestRateLimited(row.id, row.retry_count, err?.message ?? String(err), resetAt);
+        const retryAfter = await markRequestRateLimited(row.id, row.retry_count, row.attempts - 1, message, resetAt);
         console.warn(
           `[audit-worker] Usage/rate limit on ${row.id}, retaining queue position - retrying after ${retryAfter.toISOString()}` +
           (resetAt ? " (the limit's own stated reset time)" : " (backoff; no reset time in the message)"),
@@ -206,12 +296,41 @@ async function tick(): Promise<boolean> {
       return true;
     }
 
-    console.error(`[audit-worker] Failed ${row.id}:`, err);
+    if (row.attempts < MAX_ATTEMPTS) {
+      const minutes = RETRY_BACKOFF_MINUTES[Math.min(row.attempts - 1, RETRY_BACKOFF_MINUTES.length - 1)];
+      const retryAfter = new Date(Date.now() + minutes * 60_000);
+      console.error(`[audit-worker] Attempt ${row.attempts}/${MAX_ATTEMPTS} failed for ${row.id}, retrying after ${retryAfter.toISOString()}:`, err);
+      try {
+        await scheduleRetry(row.id, message, retryAfter);
+      } catch (markErr) {
+        // The lease will expire and another claim will pick it up anyway.
+        console.error(`[audit-worker] Also failed to schedule a retry for ${row.id}:`, markErr);
+      }
+      return true;
+    }
+
+    console.error(`[audit-worker] Failed ${row.id} after ${row.attempts} attempts, giving up:`, err);
     try {
-      await markRequestFailed(row.id, err?.message ?? String(err));
+      await markRequestFailed(row.id, message);
     } catch (markErr) {
       console.error(`[audit-worker] Also failed to mark ${row.id} as failed:`, markErr);
     }
+    try {
+      await sendAuditFailedEmail({
+        to: REVIEWER_EMAIL,
+        requestId: row.id,
+        website: row.website,
+        businessName: row.business_name,
+        requesterEmail: row.email,
+        attempts: row.attempts,
+        error: message,
+        isTest: row.is_test,
+      });
+    } catch (mailErr) {
+      console.error(`[audit-worker] Also failed to email the reviewer about ${row.id}:`, mailErr);
+    }
+  } finally {
+    clearInterval(beat);
   }
   return true;
 }
@@ -262,7 +381,7 @@ async function maybeSendDailyDigest(): Promise<void> {
 
 async function main() {
   const pollIntervalMs = Number(process.env.POLL_INTERVAL_MS ?? 60_000);
-  console.log(`[audit-worker] Starting poll loop (every ${pollIntervalMs}ms)`);
+  console.log(`[audit-worker] Starting poll loop (every ${pollIntervalMs}ms) as ${WORKER_ID}, up to ${MAX_ATTEMPTS} attempts per request`);
 
   // Every report link this worker emails is built from PUBLIC_SITE_URL (see
   // supabase.ts's publishAuditReport), so a stale value is the one config

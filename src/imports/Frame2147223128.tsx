@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useLanguage } from "../app/contexts/LanguageContext";
+import { scrollToSection } from "../lib/scrollToSection";
 import svgPaths from "./svg-ahyjsadytk";
 import img6687D1Be6301F78Fecf93Bc763Bd507De1Ccf48089402Fa4UOYhhM4ZWeg3AkxNwMMdc44TbzMuFvnANywZtcyIzg from "../assets/5c2837e232462b4d4fbcb5d03a7b4d3d04ae2294.webp";
 import imgB9B3C47F590C9Afc97BcB866Bad86A72 from "../assets/45fdc402ef0fb2fb47ced0eabff3aed75e3aa444.webp";
@@ -1272,7 +1273,7 @@ function Links() {
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>{t('ROI Calculator')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>{t('Case Studies')}</p>
       <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}>{t('Team')}</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>{t('Contact')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => scrollToSection('free-audit')}>{t('Contact')}</p>
     </div>
   );
 }
@@ -1407,10 +1408,10 @@ function Link() {
       className="bg-[#020601] h-[40px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform tap-feedback flex"
       data-name="Link"
       id="roi-link"
-      href="#contact"
+      href="#free-audit"
       onClick={(e) => {
         e.preventDefault();
-        document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+        scrollToSection('free-audit');
       }}
     >
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[12px] md:px-[28px] py-[12px] relative rounded-[inherit]">
@@ -1454,7 +1455,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     { label: 'ROI Calculator', id: 'roi-calculator' },
     { label: 'Case Studies', id: 'case-studies' },
     { label: 'Team', id: 'team' },
-    { label: 'Contact', id: 'contact' },
+    { label: 'Contact', id: 'free-audit' },
   ];
 
   return (
@@ -1513,7 +1514,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
               transitionDelay: `${i * 60}ms`,
             }}
             onClick={() => {
-              document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' });
+              scrollToSection(item.id);
               onClose();
             }}
           >
@@ -1552,7 +1553,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         {/* CTA Button */}
         <button
           onClick={() => {
-            document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+            scrollToSection('free-audit');
             onClose();
           }}
           className="w-full flex items-center justify-center relative rounded-[100px] bg-[#020601] font-['Sora',sans-serif] font-semibold text-[16px] text-white tracking-[-0.01em] transition-all active:scale-[0.98] py-4"

@@ -46,10 +46,13 @@ const CATEGORY_ICON: Record<CategoryKey, string> = {
   Website: "cart.png",
 };
 
+// Plain-language "where this came from" line shown under each section title.
+// Worded as "checking your setup", not "reviewing your account": GA4/GTM can
+// also be audited from public detection when no Google access was granted.
 const CATEGORY_CAPTION: Record<CategoryKey, string> = {
-  GA4: "Measurement layer — key events, conversions, audience data",
-  GTM: "Container deployment — tags, triggers, pixel firing",
-  Website: "Live-site crawl + live browser — deployed tracking, structure, resource weight, conversion readiness",
+  GA4: "This section was gathered by checking your Google Analytics 4 setup: which visitor actions it tracks, which of them it counts as sales or leads, and what it records about your audience.",
+  GTM: "This section was gathered by checking your Google Tag Manager setup: which tracking tags it runs and whether each one fires at the right moment.",
+  Website: "This section was gathered by visiting your website the way a real customer would, then checking its tracking, how it is built, how heavy its pages are, and how ready it is to turn visitors into buyers.",
 };
 
 const SEVERITY_LABEL: Record<FindingSeverity, string> = {
@@ -96,9 +99,9 @@ const CATEGORY_LABELS_AR: Record<CategoryKey, string> = {
 };
 
 const CATEGORY_CAPTION_AR: Record<CategoryKey, string> = {
-  GA4: "طبقة القياس — الأحداث الرئيسية، التحويلات، بيانات الجمهور",
-  GTM: "نشر الحاوية — العلامات، المحفِّزات، تفعيل بيكسل التتبع",
-  Website: "زحف مباشر للموقع + متصفح حقيقي — التتبع المنشور فعليًا، بنية الموقع، حجم الموارد، جاهزية التحويل",
+  GA4: "تم جمع هذا القسم من خلال فحص إعدادات تحليلات جوجل 4 لديك: ما الإجراءات التي يتتبعها من الزوار، وأيها يحتسبها كمبيعات أو عملاء محتملين، وما الذي يسجّله عن جمهورك.",
+  GTM: "تم جمع هذا القسم من خلال فحص إعدادات مدير علامات جوجل لديك: ما علامات التتبع التي يشغّلها، وهل تعمل كل واحدة منها في اللحظة الصحيحة.",
+  Website: "تم جمع هذا القسم من خلال زيارة موقعك كما يفعل أي عميل حقيقي، ثم فحص التتبع فيه، وطريقة بنائه، ووزن صفحاته، ومدى جاهزيته لتحويل الزوار إلى مشترين.",
 };
 
 // "Website & CRO" (CATEGORY_LABELS.Website) frames Website as a supplement
@@ -238,18 +241,13 @@ function deviceMockupHtml(result: AuditResult): string {
       </div>`;
 }
 
+// Percent of checks passed. No letter grade on purpose: a mid-range score read
+// as a harsh "F", so the color alone carries the verdict (0-40 red, 40-80
+// amber, 80+ green, i.e. 0-20 / 20-40 / 40-50 on a 50-check audit).
 function scoreColor(score: number): string {
-  if (score >= 75) return ACCENT;
-  if (score >= 50) return MEDIUM;
+  if (score >= 80) return ACCENT;
+  if (score >= 40) return MEDIUM;
   return "#FF8979";
-}
-
-function letterGrade(score: number): string {
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
 }
 
 // "1 check" vs "13 checks" — not a weighted point scale, a flat count of
@@ -295,7 +293,7 @@ async function dataUri(relativePath: string, mime: string): Promise<string> {
 
 async function fontFaceUri(relativePath: string): Promise<string> {
   const file = await readFile(path.join(ASSETS, relativePath));
-  return `data:font/ttf;base64,${file.toString("base64")}`;
+  return `data:font/woff2;base64,${file.toString("base64")}`;
 }
 
 async function brandAssets() {
@@ -305,15 +303,15 @@ async function brandAssets() {
   const [wordmark, icon, fontRegular, fontSemiBold, fontBold, arFontRegular, arFontSemiBold, arFontBold, ...categoryIcons] = await Promise.all([
     dataUri("wordmark-white-trim.png", "image/png"),
     dataUri("icon-white-trim.png", "image/png"),
-    fontFaceUri("Sora-Regular.ttf"),
-    fontFaceUri("Sora-SemiBold.ttf"),
-    fontFaceUri("Sora-Bold.ttf"),
+    fontFaceUri("Sora-Regular.woff2"),
+    fontFaceUri("Sora-SemiBold.woff2"),
+    fontFaceUri("Sora-Bold.woff2"),
     // Sora has no Arabic glyphs — Noto Sans Arabic is the main site's own
     // choice for Arabic (src/styles/fonts.css), pulled in here rather than
     // loaded from Google Fonts so the report stays one self-contained file.
-    fontFaceUri("NotoSansArabic-Regular.ttf"),
-    fontFaceUri("NotoSansArabic-SemiBold.ttf"),
-    fontFaceUri("NotoSansArabic-Bold.ttf"),
+    fontFaceUri("NotoSansArabic-Regular.woff2"),
+    fontFaceUri("NotoSansArabic-SemiBold.woff2"),
+    fontFaceUri("NotoSansArabic-Bold.woff2"),
     ...(Object.keys(CATEGORY_ICON) as CategoryKey[]).map(k => dataUri(`icons/${CATEGORY_ICON[k]}`, "image/png")),
     ...(Object.keys(SEVERITY_ICON) as FindingSeverity[]).map(s => dataUri(`icons/${SEVERITY_ICON[s]}`, "image/png")),
   ]);
@@ -398,11 +396,107 @@ function checklistForDisplay(category: CategoryKey, total: number): ChecklistPoi
 // hand-built fixture like preview-report.ts that doesn't bother covering
 // every point, or a real gap computeCategoryResult already logs a warning
 // for) — even then, never checklist.ts's expectedState/commonFailure.
+function techToggleId(cat: Pick<CategoryResult, "category">, point: Pick<ChecklistPoint, "id">): string {
+  return `tech-${cat.category}-${point.id}`.replace(/[^A-Za-z0-9_-]/g, "-");
+}
+
+// The three most serious failed checks across the whole report, worst first
+// (stable within a severity: category order, then checklist order), each
+// linking down to its full card.
+function fixFirstHtml(result: AuditResult): string {
+  const failed = result.categories.flatMap(cat =>
+    cat.findings.filter(f => f.status === "fail").map(f => ({ cat, f })),
+  );
+  const top = failed.sort((a, b) => SEVERITY_RANK[a.f.severity] - SEVERITY_RANK[b.f.severity]).slice(0, 3);
+  if (top.length === 0) return "";
+  const items = top
+    .map(({ cat, f }, i) => {
+      const ar = f.ar?.business ?? f.business;
+      return `
+        <li class="fix-first-item">
+          <span class="fix-first-num">${i + 1}</span>
+          <div class="fix-first-body">
+            <div class="fix-first-meta">
+              <span class="pill severity-pill" style="--c:${SEVERITY_COLOR[f.severity]}">${bi(SEVERITY_LABEL[f.severity], SEVERITY_LABEL_AR[f.severity])}</span>
+              <span class="fix-first-cat">${biHtml(escapeHtml(categoryLabel(cat.category, result, false)), escapeHtml(categoryLabel(cat.category, result, true)))}</span>
+            </div>
+            <p class="fix-first-title"><span class="i18n-en">${escapeHtml(f.business.summary)}</span><span class="i18n-ar" dir="rtl">${escapeHtml(ar.summary)}</span></p>
+          </div>
+          <button type="button" class="fix-first-go" data-jump-row="row-${techToggleId(cat, { id: f.checklistId })}">${bi("See details", "عرض التفاصيل")}</button>
+        </li>`;
+    })
+    .join("");
+  return `
+    <section class="fix-first reveal">
+      <p class="eyebrow">${bi("Start here", "ابدأ من هنا")}</p>
+      <h2>${bi("Fix these first", "أصلح هذه أولًا")}</h2>
+      <ol class="fix-first-list">${items}</ol>
+    </section>`;
+}
+
+// Per-check "Show technical details" switch. Business wording shows by
+// default; ticking this swaps that one check to its technical wording.
+// CSS-only (the checkbox sits at the top of the row, see .tech-toggle rules),
+// so it works with JavaScript off, same as the language toggle.
+function techSwitchHtml(id: string): string {
+  return `<label for="${id}" class="tech-switch"><span class="tech-box" aria-hidden="true"></span>${bi("Show technical details", "عرض التفاصيل التقنية")}</label>`;
+}
+
+// Checks inside each tool's tab, split by what kind of check they are.
+// Ids not listed land in a trailing "Other checks" group, so a checklist.ts
+// addition never silently disappears from the report.
+const GA4_DATA_IDS = Array.from({ length: 15 }, (_, i) => `GA4-D${i + 1}`);
+const CHECK_GROUPS: Record<CategoryKey, Array<{ en: string; ar: string; ids: string[] }>> = {
+  GA4: [
+    { en: "What your data is telling you", ar: "ما تخبرك به بياناتك", ids: GA4_DATA_IDS },
+    { en: "Sales, leads & event tracking", ar: "تتبع المبيعات والعملاء المحتملين والأحداث", ids: ["GA4-3", "GA4-12", "GA4-13"] },
+    { en: "Account setup & attribution", ar: "إعداد الحساب ونسب التحويلات", ids: ["GA4-1", "GA4-4", "GA4-8"] },
+    { en: "Privacy & data protection", ar: "الخصوصية وحماية البيانات", ids: ["GA4-2", "GA4-5", "GA4-6", "GA4-10"] },
+  ],
+  GTM: [
+    { en: "Installation & setup", ar: "التثبيت والإعداد", ids: ["GTM-1", "GTM-2", "GTM-3", "GTM-4", "GTM-5"] },
+    { en: "Data accuracy", ar: "دقة البيانات", ids: ["GTM-6", "GTM-7", "GTM-8", "GTM-9", "GTM-10", "GTM-11"] },
+    { en: "Container cleanup & site speed", ar: "تنظيف الحاوية وسرعة الموقع", ids: ["GTM-12", "GTM-13", "GTM-14", "GTM-15"] },
+    { en: "Privacy & consent", ar: "الخصوصية والموافقة", ids: ["GTM-16", "GTM-17", "GTM-18", "GTM-19"] },
+    { en: "Advanced tracking", ar: "التتبع المتقدم", ids: ["GTM-20", "GTM-21", "GTM-22", "GTM-23", "GTM-24", "GTM-25"] },
+  ],
+  Website: [
+    { en: "Tracking, data & consent", ar: "التتبع والبيانات والموافقة", ids: ["WEB-1", "WEB-2", "WEB-3", "WEB-4", "WEB-5", "WEB-6", "WEB-7", "WEB-16", "WEB-17", "WEB-24", "WEB-50", "WEB-57", "WEB-58", "WEB-59"] },
+    { en: "Errors, checkout & mobile experience", ar: "الأخطاء وصفحة الدفع وتجربة الموبايل", ids: ["WEB-14", "WEB-15", "WEB-18", "WEB-21", "WEB-23", "WEB-26", "WEB-54", "WEB-56"] },
+    { en: "Speed & performance", ar: "السرعة والأداء", ids: ["WEB-8", "WEB-13", "WEB-60", "WEB-61", "WEB-62", "WEB-63"] },
+    { en: "Security & trust", ar: "الأمان والثقة", ids: ["WEB-22", "WEB-27", "WEB-28", "WEB-29", "WEB-30", "WEB-31", "WEB-32", "WEB-33", "WEB-34"] },
+    { en: "Search visibility & accessibility", ar: "الظهور في البحث وسهولة الوصول", ids: ["WEB-35", "WEB-36", "WEB-37", "WEB-38", "WEB-40", "WEB-41", "WEB-42", "WEB-55", "WEB-43", "WEB-44", "WEB-45", "WEB-46", "WEB-49"] },
+  ],
+};
+
+function groupChecklist(key: CategoryKey, checklist: ChecklistPoint[]) {
+  const byId = new Map(checklist.map(p => [p.id, p]));
+  const used = new Set<string>();
+  const groups = CHECK_GROUPS[key].map(g => {
+    const points = g.ids.map(id => byId.get(id)).filter((p): p is ChecklistPoint => Boolean(p));
+    points.forEach(p => used.add(p.id));
+    return { en: g.en, ar: g.ar, points };
+  });
+  const rest = checklist.filter(p => !used.has(p.id));
+  if (rest.length) groups.push({ en: "Other checks", ar: "بنود أخرى", points: rest });
+  return groups.filter(g => g.points.length > 0);
+}
+
+const SEVERITY_RANK: Record<FindingSeverity, number> = { critical: 0, medium: 1, low: 2 };
+
 function checklistRows(cat: CategoryResult, checklist: ChecklistPoint[], assets: BrandAssets): string {
   const findingsById = new Map(cat.findings.map(f => [f.checklistId, f]));
+  // Issues first, worst first; passed checks last. Array sort is stable, so
+  // ties keep checklist order.
+  const rank = (point: ChecklistPoint): number => {
+    const f = findingsById.get(point.id);
+    return f?.status === "fail" ? SEVERITY_RANK[f.severity] : 3;
+  };
+  const groups = groupChecklist(cat.category, checklist).map(g => ({ ...g, points: [...g.points].sort((a, b) => rank(a) - rank(b)) }));
 
-  const rows = checklist
-    .map((point, index) => {
+  let counter = 0;
+  const renderRow = (point: ChecklistPoint): string => {
+      const index = counter++;
       const idx = String(index + 1).padStart(2, "0");
       const finding = findingsById.get(point.id);
       const status = finding?.status ?? "pass";
@@ -415,14 +509,15 @@ function checklistRows(cat: CategoryResult, checklist: ChecklistPoint[], assets:
         const arBusiness = finding.ar?.business ?? finding.business;
         const arTechnical = finding.ar?.technical ?? finding.technical;
         return `
-    <article class="finding finding--${finding.severity} reveal" data-status="${finding.severity}" style="--i:${index}">
+    <article class="finding finding--${finding.severity} reveal" id="row-${techToggleId(cat, point)}" data-status="${finding.severity}" style="--i:${index}">
+      <input type="checkbox" class="tech-toggle" id="${techToggleId(cat, point)}" />
       <button type="button" class="finding-toggle" aria-expanded="true">
         <div class="finding-meta">
           <span class="idx">${idx}</span>
           <span class="pill severity-pill" style="--c:${SEVERITY_COLOR[finding.severity]}">${bi(SEVERITY_LABEL[finding.severity], SEVERITY_LABEL_AR[finding.severity])}</span>
           <span class="pill">${bi(DATA_SOURCE_LABEL[finding.dataSource] ?? finding.dataSource, DATA_SOURCE_LABEL_AR[finding.dataSource] ?? finding.dataSource)}</span>
           <span class="pill checklist-id-pill">${escapeHtml(finding.checklistId)}</span>
-          <span class="chevron" aria-hidden="true">⌄</span>
+          <span class="chevron" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </div>
         <h3 class="voice voice-business i18n-en">${escapeHtml(finding.business.summary)}</h3>
         <h3 class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(arBusiness.summary)}</h3>
@@ -434,6 +529,7 @@ function checklistRows(cat: CategoryResult, checklist: ChecklistPoint[], assets:
         <p class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(arBusiness.detail)}</p>
         <p class="voice voice-technical i18n-en">${escapeHtml(finding.technical.detail)}</p>
         <p class="voice voice-technical i18n-ar" dir="rtl">${escapeHtml(arTechnical.detail)}</p>
+        ${techSwitchHtml(techToggleId(cat, point))}
       </div>
     </article>`;
       }
@@ -444,9 +540,9 @@ function checklistRows(cat: CategoryResult, checklist: ChecklistPoint[], assets:
       const passTechnical = finding?.technical ?? { summary: fallbackSummary, detail: "" };
       const passBusinessAr = finding?.ar?.business ?? (finding ? finding.business : { summary: fallbackSummaryAr, detail: "" });
       const passTechnicalAr = finding?.ar?.technical ?? (finding ? finding.technical : { summary: fallbackSummaryAr, detail: "" });
-      const passSeverity = finding?.severity ?? point.severity;
       return `
     <div class="check-pass-row reveal" data-status="pass" style="--i:${index}">
+      ${finding ? `<input type="checkbox" class="tech-toggle" id="${techToggleId(cat, point)}" />` : ""}
       <button type="button" class="check-pass-toggle" aria-expanded="false">
         <span class="idx">${idx}</span>
         <span class="check-icon"><img src="${assets.severityIconMap.low}" alt="" width="12" height="12" /></span>
@@ -456,20 +552,41 @@ function checklistRows(cat: CategoryResult, checklist: ChecklistPoint[], assets:
         <span class="check-title voice voice-technical i18n-en">${escapeHtml(passTechnical.summary)}</span>
         <span class="check-title voice voice-technical i18n-ar" dir="rtl">${escapeHtml(passTechnicalAr.summary)}</span>
         <span class="pill pass-pill">${bi("Passed", "ناجح")}</span>
-        <span class="chevron" aria-hidden="true">⌄</span>
+        <span class="chevron" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </button>
       <div class="check-pass-body">
         ${passBusiness.detail ? `<p class="voice voice-business i18n-en">${escapeHtml(passBusiness.detail)}</p>` : ""}
         ${passBusinessAr.detail ? `<p class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(passBusinessAr.detail)}</p>` : ""}
         ${passTechnical.detail ? `<p class="voice voice-technical i18n-en">${escapeHtml(passTechnical.detail)}</p>` : ""}
         ${passTechnicalAr.detail ? `<p class="voice voice-technical i18n-ar" dir="rtl">${escapeHtml(passTechnicalAr.detail)}</p>` : ""}
-        <p class="check-pass-severity"><span class="pill severity-pill" style="--c:${SEVERITY_COLOR[passSeverity]}">${bi(`${SEVERITY_LABEL[passSeverity]} if failed`, `${SEVERITY_LABEL_AR[passSeverity]} إذا فشل هذا البند`)}</span></p>
+        ${finding ? techSwitchHtml(techToggleId(cat, point)) : ""}
       </div>
+    </div>`;
+  };
+
+  return groups
+    .map(g => {
+      const issuePoints = g.points.filter(p => rank(p) < 3);
+      const passedPoints = g.points.filter(p => rank(p) === 3);
+      const issues = issuePoints.length;
+      const passed = passedPoints.length;
+      // Passed checks fold away by default so the issues read first; the
+      // filter script opens these when "Passed only" or a search is used.
+      return `
+    <div class="check-group">
+      <div class="check-group-head reveal">
+        <h3 class="check-group-title">${bi(g.en, g.ar)}</h3>
+        <span class="check-group-count">${bi(`${issues} to fix · ${passed} passed`, `${issues} للإصلاح · ${passed} ناجح`)}</span>
+      </div>
+      ${issues ? `<div class="findings-grid">${issuePoints.map(renderRow).join("")}</div>` : ""}
+      ${passed ? `
+      <details class="passed-fold"${issues ? "" : " open"}>
+        <summary>${bi(`Show ${passed} passed ${passed === 1 ? "check" : "checks"}`, `عرض ${passed} ${arChecksNoun(passed)} ناجحة`)}</summary>
+        <div class="findings-grid">${passedPoints.map(renderRow).join("")}</div>
+      </details>` : ""}
     </div>`;
     })
     .join("");
-
-  return `<div class="findings-grid">${rows}</div>`;
 }
 
 // Search box + status dropdown rendered above a category's checklist rows —
@@ -500,25 +617,42 @@ function filterBarHtml(): string {
     <p class="filter-empty i18n-ar" dir="rtl" hidden>لا توجد بنود مطابقة لبحثك.</p>`;
 }
 
-// The pages the audit actually looked at (AuditResult.discoveredPages —
-// discover-pages.ts's homepage-plus-one-per-commerce-type pick). Rendered
-// under the Website section so the reader can see the audit wasn't just a
-// homepage glance: the browser checks for cart/checkout (WEB-54/56) and a
-// product page (WEB-55) navigate to these exact URLs. Replaces the much
-// heavier per-page Lighthouse detail the removed PageSpeed tab used to
-// render for the same page list.
-function pagesCoveredHtml(pages: string[]): string {
-  if (pages.length === 0) return "";
-  const items = pages.map(u => `<li>${escapeHtml(u)}</li>`).join("");
+// Every source this run actually drew on, shown once for the whole report.
+// GA4/GTM wording depends on whether any finding in that category came from
+// live account data (Google access granted) or only from the public site.
+function dataSourcesHtml(result: AuditResult): string {
+  const cat = (k: CategoryKey) => result.categories.find(c => c.category === k);
+  const usedLiveData = (k: CategoryKey) => cat(k)?.findings.some(f => f.dataSource === "live") ?? false;
+  const sources: string[] = [];
+
+  if (cat("GA4")) {
+    sources.push(usedLiveData("GA4")
+      ? bi("Your Google Analytics 4 account, through the read-only access you granted", "حساب تحليلات جوجل 4 الخاص بك، عبر صلاحية القراءة فقط التي منحتها لنا")
+      : bi("The Google Analytics 4 tracking code publicly visible on your site", "كود تتبع تحليلات جوجل 4 الظاهر للعامة على موقعك"));
+  }
+  if (cat("GTM")) {
+    sources.push(usedLiveData("GTM")
+      ? bi("Your Google Tag Manager container, through the read-only access you granted", "حاوية مدير علامات جوجل الخاصة بك، عبر صلاحية القراءة فقط التي منحتها لنا")
+      : bi("The Google Tag Manager code publicly visible on your site", "كود مدير علامات جوجل الظاهر للعامة على موقعك"));
+  }
+  sources.push(bi("Your website's public code, settings and sitemap", "الكود العام لموقعك وإعداداته وخريطة الموقع"));
+  if (cat("Website")) {
+    sources.push(bi("A real browser visit to your site, the same way a customer experiences it", "زيارة حقيقية لموقعك عبر متصفح، بنفس الطريقة التي يراه بها العميل"));
+  }
+  const speedPages = result.pageSpeed?.pages.filter(p => p.mobile !== null || p.desktop !== null).length ?? 0;
+  if (speedPages > 0) {
+    sources.push(bi(`Google PageSpeed Insights, run on ${speedPages} of your pages`, `أداة Google PageSpeed Insights، على ${speedPages} من صفحاتك`));
+  }
+
+  const pageItems = result.discoveredPages.map(u => `<li>${escapeHtml(u)}</li>`).join("");
   return `
-    <div class="pages-covered reveal">
-      <h3 class="subhead">${bi("Pages covered this audit", "الصفحات التي شملها هذا التدقيق")}</h3>
-      <p class="subhead-caption">${bi(
-        "Picked deterministically from the site's own sitemap (or its homepage links) — the homepage plus one representative page per commerce-relevant type.",
-        "يتم اختيارها بشكل ثابت من خريطة الموقع نفسها (أو روابط الصفحة الرئيسية) — الصفحة الرئيسية بالإضافة إلى صفحة واحدة تمثيلية لكل نوع ذي صلة بالتجارة الإلكترونية.",
-      )}</p>
-      <ul class="page-list">${items}</ul>
-    </div>`;
+    <section class="data-sources reveal">
+      <h2 class="subhead">${bi("The data in this audit was gathered from", "تم جمع بيانات هذا التدقيق من")}</h2>
+      <ul class="source-list">${sources.map(s => `<li>${s}</li>`).join("")}</ul>
+      ${pageItems ? `
+      <h3 class="subhead subhead-sm">${bi("Pages we checked", "الصفحات التي فحصناها")}</h3>
+      <ul class="page-list">${pageItems}</ul>` : ""}
+    </section>`;
 }
 
 // Every key in result.categories is guaranteed present — countedCategories
@@ -535,10 +669,11 @@ function categorySection(key: CategoryKey, result: AuditResult, assets: BrandAss
           <span class="icon-circle"><img src="${assets.categoryIconMap[key]}" alt="" width="20" height="20" /></span>
           <div>
             <p class="section-caption">${biHtml(
-              `${escapeHtml(CATEGORY_CAPTION[key])} · ${cat.checklistTally.evaluated} checklist ${cat.checklistTally.evaluated === 1 ? "item" : "items"}`,
-              `${escapeHtml(CATEGORY_CAPTION_AR[key])} · ${cat.checklistTally.evaluated} ${arChecksNoun(cat.checklistTally.evaluated)} من قائمة التحقق`,
+              `${cat.checklistTally.evaluated} ${checksLabel(cat.checklistTally.evaluated)}`,
+              `${cat.checklistTally.evaluated} ${arChecksNoun(cat.checklistTally.evaluated)}`,
             )}</p>
             <h2>${biHtml(escapeHtml(categoryLabel(key, result, false)), escapeHtml(categoryLabel(key, result, true)))}</h2>
+            <p class="section-desc">${biHtml(escapeHtml(CATEGORY_CAPTION[key]), escapeHtml(CATEGORY_CAPTION_AR[key]))}</p>
           </div>
         </div>
         <div class="section-score">
@@ -550,6 +685,68 @@ function categorySection(key: CategoryKey, result: AuditResult, assets: BrandAss
       ${filterBarHtml()}
       ${checklistRows(cat, checklistForDisplay(key, cat.checklistTally.total), assets)}
       ${extraHtml}
+    </section>`;
+}
+
+// Google's own PageSpeed bands, not scoreColor's, so the numbers read the
+// same as they would in PageSpeed Insights itself.
+function speedColor(score: number): string {
+  if (score >= 90) return ACCENT;
+  if (score >= 50) return MEDIUM;
+  return "#FF8979";
+}
+
+const SPEED_PAGE_LABEL: Record<string, [string, string]> = {
+  home: ["Homepage", "الصفحة الرئيسية"],
+  collection: ["Collection page", "صفحة المجموعة"],
+  cart: ["Cart", "سلة التسوق"],
+  product: ["Product page", "صفحة المنتج"],
+};
+
+const SPEED_ICON = `<svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 17a8 8 0 1 1 15 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 14l4-4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="14" r="1.6" fill="currentColor"/></svg>`;
+
+function speedValue(score: number | null): string {
+  return score === null ? `<span class="speed-na">—</span>` : `<span style="color:${speedColor(score)}">${score}</span>`;
+}
+
+function pageSpeedSection(ps: NonNullable<AuditResult["pageSpeed"]>): string {
+  const rows = ps.pages
+    .map(p => {
+      const [en, ar] = SPEED_PAGE_LABEL[p.type] ?? [p.type, p.type];
+      return `
+        <tr>
+          <th scope="row">${bi(en, ar)}<span class="speed-url">${escapeHtml(p.url)}</span></th>
+          <td>${speedValue(p.mobile)}</td>
+          <td>${speedValue(p.desktop)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  return `
+    <section class="report-section" id="speed">
+      <div class="section-head reveal">
+        <div class="section-head-left">
+          <span class="icon-circle speed-icon">${SPEED_ICON}</span>
+          <div>
+            <p class="section-caption">${bi("Google PageSpeed", "Google PageSpeed")}</p>
+            <h2>${bi("Page Speed", "سرعة الصفحات")}</h2>
+            <p class="section-desc">${bi(
+              "This section was gathered with Google PageSpeed Insights, Google's own speed test. Each page gets a score out of 100 on mobile and on desktop: 90 and above is fast, 50 to 89 needs work, and under 50 is slow. It is separate from your 50-check score.",
+              "تم جمع هذا القسم باستخدام Google PageSpeed Insights، وهو أداة Google الرسمية لقياس السرعة. تحصل كل صفحة على درجة من 100 على الموبايل وعلى الكمبيوتر: 90 فأكثر سريعة، ومن 50 إلى 89 تحتاج إلى تحسين، وأقل من 50 بطيئة. هذا القسم منفصل عن درجة البنود الخمسين.",
+            )}</p>
+          </div>
+        </div>
+      </div>
+      <div class="speed-averages reveal">
+        <div class="speed-avg"><span class="speed-avg-label">${bi("Average on mobile", "المتوسط على الموبايل")}</span><span class="speed-avg-row"><strong>${speedValue(ps.average.mobile)}</strong><span class="speed-avg-den">/ 100</span></span></div>
+        <div class="speed-avg"><span class="speed-avg-label">${bi("Average on desktop", "المتوسط على الكمبيوتر")}</span><span class="speed-avg-row"><strong>${speedValue(ps.average.desktop)}</strong><span class="speed-avg-den">/ 100</span></span></div>
+      </div>
+      <div class="speed-table-wrap reveal">
+        <table class="speed-table">
+          <thead><tr><th scope="col">${bi("Page", "الصفحة")}</th><th scope="col">${bi("Mobile", "الموبايل")}</th><th scope="col">${bi("Desktop", "الكمبيوتر")}</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
     </section>`;
 }
 
@@ -571,7 +768,11 @@ function categorySection(key: CategoryKey, result: AuditResult, assets: BrandAss
 function renderTabs(result: AuditResult, assets: BrandAssets): string {
   const keys = (Object.keys(CATEGORY_LABELS) as CategoryKey[]).filter(k => result.categories.some(c => c.category === k));
 
-  const radios = keys.map((k, i) => `<input type="radio" name="report-tab" id="tab-${TAB_SLUG[k]}" class="tab-radio"${i === 0 ? " checked" : ""} />`).join("");
+  const speed = result.pageSpeed && result.pageSpeed.pages.some(p => p.mobile !== null || p.desktop !== null) ? result.pageSpeed : null;
+
+  const radios =
+    keys.map((k, i) => `<input type="radio" name="report-tab" id="tab-${TAB_SLUG[k]}" class="tab-radio"${i === 0 ? " checked" : ""} />`).join("") +
+    (speed ? `<input type="radio" name="report-tab" id="tab-speed" class="tab-radio" />` : "");
 
   const tabBtns = keys
     .map(k => {
@@ -583,38 +784,47 @@ function renderTabs(result: AuditResult, assets: BrandAssets): string {
         <span class="tab-dot" style="--c:${scoreColor(cat.score)}"></span>
       </label>`;
     })
-    .join("");
+    .join("") +
+    (speed
+      ? `
+      <label for="tab-speed" class="tab-btn" id="tabbtn-speed" role="tab">
+        ${SPEED_ICON}
+        <span>${bi("Page Speed", "سرعة الصفحات")}</span>
+        ${speed.average.mobile !== null ? `<span class="tab-dot" style="--c:${speedColor(speed.average.mobile)}"></span>` : ""}
+      </label>`
+      : "");
 
-  const panels = keys
-    .map(k => `<div class="tab-panel" id="panel-${TAB_SLUG[k]}">${categorySection(k, result, assets, k === "Website" ? pagesCoveredHtml(result.discoveredPages) : "")}</div>`)
-    .join("");
+  const panels =
+    keys
+      .map(k => `<div class="tab-panel" id="panel-${TAB_SLUG[k]}">${categorySection(k, result, assets)}</div>`)
+      .join("") + (speed ? `<div class="tab-panel" id="panel-speed">${pageSpeedSection(speed)}</div>` : "");
 
   return `
     <div class="tabs">
       ${radios}
-      <div class="lang-switch reveal">
-        <div class="lang-switch-label">${bi("Reading this as", "أنت تقرأ هذا التقرير بصيغة")}</div>
-        <div class="lang-switch-buttons">
-          <label for="lang-business" class="lang-btn" id="langbtn-business">${bi("Business impact", "الأثر على الأعمال")}</label>
-          <label for="lang-technical" class="lang-btn" id="langbtn-technical">${bi("Technical detail", "التفاصيل التقنية")}</label>
-        </div>
-        <p class="lang-switch-note voice voice-business i18n-en">Every check below, in plain language: what it means and what it costs or protects.</p>
-        <p class="lang-switch-note voice voice-business i18n-ar" dir="rtl">كل بند أدناه، بلغة مبسّطة: ماذا يعني، وما الذي يُكلِّفه أو يحميه.</p>
-        <p class="lang-switch-note voice voice-technical i18n-en">Every check below, as configuration and data: the exact values found, and the mechanism behind them.</p>
-        <p class="lang-switch-note voice voice-technical i18n-ar" dir="rtl">كل بند أدناه، كإعدادات وبيانات: القيم الدقيقة التي تم رصدها، والآلية التي تقف خلفها.</p>
-      </div>
+      <p class="lang-switch-note reveal">${bi(
+        "Every check below is written in plain language: what it means for your business and what it costs or protects. Tick \"Show technical details\" on any check to see the exact setup behind it.",
+        "كل بند أدناه مكتوب بلغة مبسّطة: ماذا يعني لعملك، وما الذي يُكلِّفه أو يحميه. فعِّل \"عرض التفاصيل التقنية\" على أي بند لرؤية الإعدادات الدقيقة التي تقف خلفه.",
+      )}</p>
+      <button type="button" class="tech-all" id="tech-all" aria-pressed="false" hidden>
+        <span class="tech-box" aria-hidden="true"></span>
+        <span class="tech-all-off">${bi("Show technical details for every check", "عرض التفاصيل التقنية لكل البنود")}</span>
+        <span class="tech-all-on">${bi("Hide technical details for every check", "إخفاء التفاصيل التقنية لكل البنود")}</span>
+      </button>
       <div class="tab-bar reveal" role="tablist">${tabBtns}</div>
       <div class="tab-panels">${panels}</div>
     </div>`;
 }
 
 function fontFace(family: string, weight: number, uri: string): string {
-  return `@font-face{font-family:'${family}';font-weight:${weight};font-style:normal;font-display:swap;src:url("${uri}") format("truetype");}`;
+  return `@font-face{font-family:'${family}';font-weight:${weight};font-style:normal;font-display:swap;src:url("${uri}") format("woff2");}`;
 }
 
 async function renderReport(result: AuditResult): Promise<string> {
   const assets = await brandAssets();
   const counts = severityCounts(result);
+  const overallPercent = result.possiblePoints > 0 ? (result.overallScore / result.possiblePoints) * 100 : 0;
+  const overallColor = scoreColor(overallPercent);
   const contactUrl = `${SITE_URL.replace(/\/$/, "")}/#contact`;
   const generatedAt = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   // Arabic month name, Latin digits for the year/day — matches how Arabic
@@ -756,24 +966,25 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
   direction:rtl;
   font-family:'Noto Sans Arabic','Sora',-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,sans-serif;
 }
-/* The findings' own register toggle (#lang-business/#lang-technical) still
-   decides WHICH voice shows; this only adds the second axis (which
-   LANGUAGE that voice is in) on top — see checklistRows and the
-   lang-switch-note rows in renderTabs, which are the only three tag types
-   (h3/p/span) this combination needs to cover. */
-#lang-business:checked ~ #i18n-en:checked ~ main h3.voice-business.i18n-en,
-#lang-business:checked ~ #i18n-en:checked ~ main p.voice-business.i18n-en,
-#lang-technical:checked ~ #i18n-en:checked ~ main h3.voice-technical.i18n-en,
-#lang-technical:checked ~ #i18n-en:checked ~ main p.voice-technical.i18n-en,
-#lang-business:checked ~ #i18n-ar:checked ~ main h3.voice-business.i18n-ar,
-#lang-business:checked ~ #i18n-ar:checked ~ main p.voice-business.i18n-ar,
-#lang-technical:checked ~ #i18n-ar:checked ~ main h3.voice-technical.i18n-ar,
-#lang-technical:checked ~ #i18n-ar:checked ~ main p.voice-technical.i18n-ar
+/* Which VOICE shows is decided per check by its own .tech-toggle checkbox
+   (first child of each .finding/.check-pass-row): unchecked = business,
+   checked = technical. The language radio picks which copy of that voice.
+   A passed check with no finding behind it has no toggle at all, so its
+   single fallback text is matched by the :not(:has) rows. h3/p are block,
+   the pass-row title is an inline span. */
+#i18n-en:checked ~ main .tech-toggle:not(:checked) ~ * :is(h3,p).voice-business.i18n-en,
+#i18n-en:checked ~ main .tech-toggle:checked ~ * :is(h3,p).voice-technical.i18n-en,
+#i18n-ar:checked ~ main .tech-toggle:not(:checked) ~ * :is(h3,p).voice-business.i18n-ar,
+#i18n-ar:checked ~ main .tech-toggle:checked ~ * :is(h3,p).voice-technical.i18n-ar,
+#i18n-en:checked ~ main .check-pass-row:not(:has(> .tech-toggle)) :is(h3,p).voice-business.i18n-en,
+#i18n-ar:checked ~ main .check-pass-row:not(:has(> .tech-toggle)) :is(h3,p).voice-business.i18n-ar
 {display:block}
-#lang-business:checked ~ #i18n-en:checked ~ main span.voice-business.i18n-en,
-#lang-technical:checked ~ #i18n-en:checked ~ main span.voice-technical.i18n-en,
-#lang-business:checked ~ #i18n-ar:checked ~ main span.voice-business.i18n-ar,
-#lang-technical:checked ~ #i18n-ar:checked ~ main span.voice-technical.i18n-ar
+#i18n-en:checked ~ main .tech-toggle:not(:checked) ~ * span.voice-business.i18n-en,
+#i18n-en:checked ~ main .tech-toggle:checked ~ * span.voice-technical.i18n-en,
+#i18n-ar:checked ~ main .tech-toggle:not(:checked) ~ * span.voice-business.i18n-ar,
+#i18n-ar:checked ~ main .tech-toggle:checked ~ * span.voice-technical.i18n-ar,
+#i18n-en:checked ~ main .check-pass-row:not(:has(> .tech-toggle)) span.voice-business.i18n-en,
+#i18n-ar:checked ~ main .check-pass-row:not(:has(> .tech-toggle)) span.voice-business.i18n-ar
 {display:inline}
 .i18n-toggle{display:inline-flex; gap:4px; background:rgba(234,243,236,.05); border:1px solid var(--hairline); border-radius:999px; padding:4px; flex-shrink:0}
 .i18n-toggle-btn{display:inline-flex; align-items:center; cursor:pointer; user-select:none; padding:7px 13px; border-radius:999px; font-size:12.5px; font-weight:700; color:var(--muted)}
@@ -871,12 +1082,13 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 .score-row{display:flex; align-items:baseline; gap:8px; font-variant-numeric:tabular-nums; flex-wrap:wrap; min-width:0}
 .score-num{font-size:clamp(44px,10vw,68px); line-height:1; font-weight:700; color:var(--green); letter-spacing:-.02em}
 .score-den{font-size:17px; color:var(--muted)}
-.score-grade{
-  display:inline-block; font-size:12px; color:var(--ink); margin-top:12px; font-weight:700;
-  background:rgba(106,228,153,.14); border:1px solid rgba(106,228,153,.3); border-radius:999px;
-  padding:4px 12px; letter-spacing:.02em;
-}
 .score-verdict{font-size:13.5px; color:var(--ink); margin-top:18px; line-height:1.55; padding-top:16px; border-top:1px solid var(--hairline)}
+.score-verdict.is-critical{
+  display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-top:0;
+  font-size:14.5px; font-weight:600; color:var(--crit);
+  background:rgba(255,107,87,.10); border:1px solid rgba(255,107,87,.35); border-radius:12px;
+}
+.verdict-icon{flex-shrink:0; margin-top:1px}
 .severity-counts{display:flex; gap:8px; margin-top:16px; font-size:11.5px; color:var(--muted); flex-wrap:wrap}
 /* Direct-child combinator, not a descendant selector: each pill's own
    .i18n-en/.i18n-ar text spans (see bi()) are nested one level deeper, and
@@ -922,6 +1134,7 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 }
 .icon-circle img{width:20px; height:20px}
 .section-caption{margin:0 0 5px; font-size:12px; color:var(--green); font-weight:600; text-transform:uppercase; letter-spacing:.04em; overflow-wrap:break-word}
+.section-desc{margin:8px 0 0; font-size:13.5px; color:var(--muted); line-height:1.6; max-width:68ch}
 .section-head h2{font-size:24px}
 .section-score{
   font-variant-numeric:tabular-nums; white-space:nowrap; text-align:end;
@@ -935,6 +1148,54 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 .section-bar-fill{height:100%; width:calc(var(--w) * 1%); background:var(--c); border-radius:999px; box-shadow:0 0 12px -2px var(--c)}
 
 .findings-grid{display:grid; gap:14px}
+/* ---- fix these first ---- */
+.fix-first{margin:0 0 40px; padding:28px 30px; background:var(--stone); border:1px solid rgba(255,107,87,.3); border-radius:var(--r-md); box-shadow:var(--shadow-card)}
+.fix-first h2{margin:0 0 18px; font-size:clamp(22px,3vw,28px)}
+.fix-first .eyebrow{margin-bottom:6px}
+.fix-first-list{list-style:none; margin:0; padding:0; display:grid; gap:12px}
+.fix-first-item{display:flex; align-items:center; gap:14px; padding:14px 16px; border:1px solid var(--hairline); border-radius:12px; background:rgba(2,6,1,.25)}
+.fix-first-num{flex-shrink:0; width:30px; height:30px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; background:rgba(255,107,87,.14); color:var(--crit)}
+.fix-first-body{flex:1; min-width:0}
+.fix-first-meta{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px}
+.fix-first-cat{font-size:12px; color:var(--muted)}
+.fix-first-title{margin:0; font-size:15px; font-weight:600; line-height:1.45; overflow-wrap:break-word}
+.fix-first-go{
+  all:unset; flex-shrink:0; cursor:pointer; font-size:12.5px; font-weight:700; font-family:inherit; white-space:nowrap;
+  padding:9px 14px; border-radius:999px; background:var(--green); color:var(--forest);
+}
+.fix-first-go:focus-visible{outline:2px solid var(--green); outline-offset:3px}
+@media (max-width:560px){
+  .fix-first{padding:22px 18px}
+  .fix-first-item{flex-wrap:wrap}
+  .fix-first-go{margin-inline-start:44px}
+}
+.check-group + .check-group{margin-top:36px}
+.check-group[hidden]{display:none}
+/* The filter hides rows with the hidden attribute; without this,
+   .check-pass-row's own display:flex overrides it and passed checks stay
+   visible under every filter. */
+.findings-grid > [hidden]{display:none}
+.passed-fold{margin-top:14px}
+.findings-grid + .passed-fold{margin-top:18px}
+.passed-fold > summary{
+  display:inline-flex; align-items:center; gap:8px; cursor:pointer; list-style:none; user-select:none;
+  font-size:13px; font-weight:600; color:var(--green); padding:8px 14px; border-radius:999px;
+  border:1px solid rgba(106,228,153,.3); background:rgba(106,228,153,.06);
+}
+.passed-fold > summary::-webkit-details-marker{display:none}
+.passed-fold > summary::before{content:"+"; font-size:15px; line-height:1}
+.passed-fold[open] > summary::before{content:"−"}
+.passed-fold[open] > summary{margin-bottom:14px}
+.passed-fold > summary:focus-visible{outline:2px solid var(--green); outline-offset:3px}
+.check-group-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--hairline)}
+.check-group-title{margin:0; font-size:18px; font-weight:700}
+.check-group-count{font-size:12.5px; color:var(--muted)}
+/* Business view shows only the severity tag; the data-source tag and the
+   internal check id are technical detail, revealed by the row's own
+   "Show technical details" toggle. */
+.finding-meta .pill:not(.severity-pill), .check-pass-row .check-id{display:none}
+.tech-toggle:checked ~ * .finding-meta .pill:not(.severity-pill){display:inline-block}
+.tech-toggle:checked ~ * .check-id{display:inline}
 .finding{
   position:relative; background:var(--stone); border:1px solid var(--hairline); border-inline-start:3px solid var(--hairline);
   border-radius:var(--r-md); padding:22px 24px; box-shadow:var(--shadow-card);
@@ -950,7 +1211,7 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 .finding h3{font-size:17px; font-weight:600; line-height:1.4; margin:0 0 9px; overflow-wrap:break-word}
 .finding p{margin:0; color:var(--muted); font-size:14.5px; line-height:1.6; overflow-wrap:break-word}
 
-.check-pass-row{display:flex; align-items:center; gap:12px; background:rgba(106,228,153,.04); border:1px solid rgba(106,228,153,.14); border-radius:var(--r-md); padding:12px 16px}
+.check-pass-row{position:relative; display:flex; align-items:center; gap:12px; background:rgba(106,228,153,.04); border:1px solid rgba(106,228,153,.14); border-radius:var(--r-md); padding:12px 16px}
 .check-pass-row .idx{color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; flex-shrink:0}
 .check-pass-row .check-icon{flex-shrink:0; width:22px; height:22px; border-radius:50%; background:rgba(106,228,153,.14); display:flex; align-items:center; justify-content:center}
 .check-pass-row .check-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:10.5px; color:var(--muted); flex-shrink:0}
@@ -980,21 +1241,26 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 .tab-panel{display:none}
 #tab-ga4:checked ~ .tab-bar #tabbtn-ga4,
 #tab-gtm:checked ~ .tab-bar #tabbtn-gtm,
-#tab-website:checked ~ .tab-bar #tabbtn-website{
+#tab-website:checked ~ .tab-bar #tabbtn-website,
+#tab-speed:checked ~ .tab-bar #tabbtn-speed{
   color:var(--forest); background:var(--green); box-shadow:0 8px 20px -8px rgba(106,228,153,.55);
 }
 #tab-ga4:checked ~ .tab-bar #tabbtn-ga4:hover,
 #tab-gtm:checked ~ .tab-bar #tabbtn-gtm:hover,
-#tab-website:checked ~ .tab-bar #tabbtn-website:hover{color:var(--forest); background:var(--green)}
+#tab-website:checked ~ .tab-bar #tabbtn-website:hover,
+#tab-speed:checked ~ .tab-bar #tabbtn-speed:hover{color:var(--forest); background:var(--green)}
 #tab-ga4:checked ~ .tab-bar #tabbtn-ga4 .tab-icon,
 #tab-gtm:checked ~ .tab-bar #tabbtn-gtm .tab-icon,
-#tab-website:checked ~ .tab-bar #tabbtn-website .tab-icon{filter:none; opacity:1}
+#tab-website:checked ~ .tab-bar #tabbtn-website .tab-icon,
+#tab-speed:checked ~ .tab-bar #tabbtn-speed .tab-icon{filter:none; opacity:1}
 #tab-ga4:checked ~ .tab-bar #tabbtn-ga4 .tab-dot,
 #tab-gtm:checked ~ .tab-bar #tabbtn-gtm .tab-dot,
-#tab-website:checked ~ .tab-bar #tabbtn-website .tab-dot{background:var(--forest); opacity:.45}
+#tab-website:checked ~ .tab-bar #tabbtn-website .tab-dot,
+#tab-speed:checked ~ .tab-bar #tabbtn-speed .tab-dot{background:var(--forest); opacity:.45}
 #tab-ga4:checked ~ .tab-panels #panel-ga4,
 #tab-gtm:checked ~ .tab-panels #panel-gtm,
-#tab-website:checked ~ .tab-panels #panel-website{display:block}
+#tab-website:checked ~ .tab-panels #panel-website,
+#tab-speed:checked ~ .tab-panels #panel-speed{display:block}
 .tab-panel > .report-section{border-top:none; padding-top:4px}
 
 /* ---- language switch: business register vs technical register ----
@@ -1014,40 +1280,83 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
    always already on-screen at any scroll position, so there's nothing for
    the browser to scroll into view. */
 .lang-radio{position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none}
-.lang-switch{margin-bottom:18px}
-.lang-switch-label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px}
-.lang-switch-buttons{
-  display:inline-flex; gap:4px; background:var(--stone); border:1px solid var(--hairline);
-  border-radius:999px; padding:4px; box-shadow:var(--shadow-card);
-}
-.lang-btn{
-  display:inline-flex; align-items:center; cursor:pointer; user-select:none; white-space:nowrap;
-  padding:8px 16px; border-radius:999px; font-size:12.5px; font-weight:600; color:var(--muted);
-}
-.lang-btn:hover{color:var(--ink)}
-.lang-switch-note{font-size:12.5px; color:var(--muted); margin:10px 0 0; max-width:64ch; line-height:1.6}
-/* Reserve two lines so switching register does not nudge the tab bar down
-   — the technical note wraps to two lines and the business one does not. */
-.lang-switch-note{min-height:40px}  /* two lines at this size/line-height */
-
-#lang-business:checked ~ main #langbtn-business,
-#lang-technical:checked ~ main #langbtn-technical{
-  background:var(--green); color:var(--forest); box-shadow:0 6px 16px -8px rgba(106,228,153,.55);
-}
+.lang-switch-note{font-size:13px; color:var(--muted); margin:0 0 18px; max-width:72ch; line-height:1.6}
 
 .voice{display:none}
+
+/* Per-check business/technical switch. The real checkbox is visually hidden
+   but stays in place inside its (position:relative) row, so focusing it via
+   its label never scroll-jumps the page. */
+.tech-toggle{position:absolute; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none}
+.tech-switch{
+  display:inline-flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer; user-select:none;
+  font-size:12.5px; font-weight:600; color:var(--green);
+}
+.tech-switch:hover{color:var(--ink)}
+.tech-box{
+  width:16px; height:16px; border-radius:4px; border:1.5px solid currentColor; flex-shrink:0;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.tech-toggle:checked ~ * .tech-box{background:var(--green); border-color:var(--green)}
+.tech-toggle:checked ~ * .tech-box::after{
+  content:""; width:4px; height:8px; border:solid var(--forest); border-width:0 2px 2px 0; transform:translateY(-1px) rotate(45deg);
+}
+.tech-toggle:focus-visible ~ * .tech-switch{outline:2px solid var(--green); outline-offset:3px; border-radius:4px}
+.tech-all{
+  all:unset; display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin:0 0 18px;
+  font-size:12.5px; font-weight:600; color:var(--green); font-family:inherit;
+}
+.tech-all[hidden]{display:none}
+.tech-all:hover{color:var(--ink)}
+.tech-all:focus-visible{outline:2px solid var(--green); outline-offset:3px; border-radius:4px}
+.tech-all .tech-all-on{display:none}
+.tech-all[aria-pressed="true"] .tech-all-on{display:inline}
+.tech-all[aria-pressed="true"] .tech-all-off{display:none}
+.tech-all[aria-pressed="true"] .tech-box{background:var(--green); border-color:var(--green)}
+.tech-all[aria-pressed="true"] .tech-box::after{
+  content:""; width:4px; height:8px; border:solid var(--forest); border-width:0 2px 2px 0; transform:translateY(-1px) rotate(45deg);
+}
 /* The actual show/hide-by-register-and-language rules for .voice elements
    live up near the i18n toggle CSS (the #lang-*:checked ~ #i18n-*:checked
    ~ main ... block) — both axes have to be checked together now, not
    register alone, or an element would show in whichever language it
    happens to be regardless of the language toggle. */
 
-/* ---- pages covered (under the Website tab) ---- */
-.pages-covered{margin-top:36px; padding-top:28px; border-top:1px solid var(--hairline)}
+/* ---- where the data came from ---- */
+.data-sources{margin-top:56px; padding:28px 30px; background:var(--stone); border:1px solid var(--hairline); border-radius:var(--r-md); box-shadow:var(--shadow-card)}
 .subhead{font-size:17px; margin:0 0 5px}
+.subhead-sm{font-size:14px; margin-top:22px; color:var(--muted)}
 .subhead-caption{color:var(--muted); font-size:13px; margin:0 0 16px}
+.source-list{margin:12px 0 0; padding-inline-start:18px; font-size:14px; line-height:1.9; color:var(--ink)}
+.source-list li::marker{color:var(--green)}
 .page-list{margin:0; padding-inline-start:18px; font-size:13px; color:var(--muted); line-height:1.9}
 .page-list li{overflow-wrap:anywhere}
+/* ---- page speed tab ---- */
+.speed-icon{color:var(--green)}
+.tab-btn svg.tab-icon{color:currentColor}
+.speed-averages{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:24px 0}
+.speed-avg{
+  display:flex; flex-direction:column; gap:6px; background:var(--stone); border:1px solid var(--hairline);
+  border-radius:var(--r-md); padding:20px 22px; box-shadow:var(--shadow-card);
+}
+.speed-avg-label{font-size:12.5px; color:var(--muted); font-weight:600}
+.speed-avg strong{font-size:clamp(34px,6vw,46px); line-height:1; font-weight:700; font-variant-numeric:tabular-nums}
+.speed-avg-row{display:flex; align-items:baseline; gap:6px}
+.speed-avg-den{font-size:14px; color:var(--muted)}
+.speed-table-wrap{overflow-x:auto; border:1px solid var(--hairline); border-radius:var(--r-md); background:var(--stone)}
+.speed-table{width:100%; border-collapse:collapse; font-size:14px}
+.speed-table th,.speed-table td{padding:14px 18px; text-align:start; border-bottom:1px solid var(--hairline)}
+.speed-table tbody tr:last-child th,.speed-table tbody tr:last-child td{border-bottom:0}
+.speed-table thead th{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600}
+.speed-table tbody th{font-weight:600; color:var(--ink)}
+.speed-table td{font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; width:110px}
+.speed-url{display:block; font-size:11.5px; font-weight:400; color:var(--muted); margin-top:3px; overflow-wrap:anywhere}
+.speed-na{color:var(--muted)}
+@media (max-width:560px){
+  .speed-averages{grid-template-columns:1fr}
+  .speed-table th,.speed-table td{padding:12px}
+  .speed-table td{width:auto}
+}
 /* ---- CTA ---- */
 .cta{margin:48px 0 0; padding:64px 0}
 .cta-panel{
@@ -1155,7 +1464,10 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
 
 .finding-toggle{all:unset; display:flex; flex-direction:column; width:100%; cursor:pointer; font-family:inherit; color:inherit}
 .finding-toggle:focus-visible{outline:2px solid var(--green); outline-offset:4px; border-radius:10px}
-.finding-meta .chevron{margin-inline-start:auto; color:var(--muted); font-size:13px; line-height:1; transition:transform .2s ease; flex-shrink:0}
+.finding-meta .chevron,.check-pass-toggle .chevron{
+  margin-inline-start:auto; flex-shrink:0; width:30px; height:30px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--hairline); background:rgba(234,243,236,.06); color:var(--ink); font-size:15px; line-height:1; transition:transform .2s ease;
+}
 .finding.is-collapsed .finding-meta .chevron{transform:rotate(-90deg)}
 .finding.is-collapsed .finding-body{display:none}
 .finding.flash{animation:findingFlash 1.6s ease-out}
@@ -1171,7 +1483,6 @@ h1,h2,h3{font-weight:700; margin:0; text-wrap:balance}
   font-family:inherit; color:inherit; padding:12px 16px; box-sizing:border-box;
 }
 .check-pass-toggle:focus-visible{outline:2px solid var(--green); outline-offset:-2px; border-radius:var(--r-md)}
-.check-pass-toggle .chevron{margin-inline-start:auto; color:var(--muted); font-size:12px; line-height:1; transition:transform .2s ease; flex-shrink:0}
 .check-pass-row.is-expanded .check-pass-toggle .chevron{transform:rotate(180deg)}
 .check-pass-body{display:none; padding-block:0 14px; padding-inline-start:50px; padding-inline-end:16px}
 .check-pass-row.is-expanded .check-pass-body{display:block}
@@ -1227,11 +1538,13 @@ html.js .hero .reveal{opacity:0; animation:heroIn .7s cubic-bezier(.16,1,.3,1) b
 @keyframes panelIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
 #tab-ga4:checked ~ .tab-panels #panel-ga4,
 #tab-gtm:checked ~ .tab-panels #panel-gtm,
-#tab-website:checked ~ .tab-panels #panel-website{animation:panelIn .45s cubic-bezier(.16,1,.3,1) both}
+#tab-website:checked ~ .tab-panels #panel-website,
+#tab-speed:checked ~ .tab-panels #panel-speed{animation:panelIn .45s cubic-bezier(.16,1,.3,1) both}
 @media (prefers-reduced-motion: reduce){
   #tab-ga4:checked ~ .tab-panels #panel-ga4,
   #tab-gtm:checked ~ .tab-panels #panel-gtm,
-  #tab-website:checked ~ .tab-panels #panel-website{animation:none}
+  #tab-website:checked ~ .tab-panels #panel-website,
+#tab-speed:checked ~ .tab-panels #panel-speed{animation:none}
 }
 
 /* Score bar + weight strip grow in from zero once their section scrolls
@@ -1351,19 +1664,10 @@ html.js .weight-panel:not(.is-visible) .weight-seg{transform:scaleX(0)}
 </head>
 <body>
 <div class="page">
-  <!-- Language toggle. Every finding is written twice (see types.ts's
-       FindingVoice) and BOTH copies ship in the HTML; these two radios pick
-       which one is visible. Deliberately CSS-only and placed here, as
-       siblings of <main>, so the switch works with JavaScript disabled and
-       in an email client's preview — the same reasoning as the category
-       tabs. Business is checked by default: the audit goes to a business
-       owner, and the technical register is one click away for whoever
-       actually implements the fixes. -->
-  <input type="radio" name="report-lang" id="lang-business" class="lang-radio" checked />
-  <input type="radio" name="report-lang" id="lang-technical" class="lang-radio" />
-  <!-- Same CSS-only mechanism, second axis: which LANGUAGE is showing,
-       independent of which register (see the i18n-* rules above lang-radio's
-       own :root block). English checked by default. -->
+  <!-- Language toggle: CSS-only and placed here, as siblings of <main>, so
+       the switch works with JavaScript disabled and in an email client's
+       preview. English checked by default. Which VOICE (business/technical)
+       shows is per-check instead, see .tech-toggle. -->
   <input type="radio" name="report-i18n" id="i18n-en" class="lang-radio" checked />
   <input type="radio" name="report-i18n" id="i18n-ar" class="lang-radio" />
   <div class="topbar">
@@ -1385,7 +1689,7 @@ html.js .weight-panel:not(.is-visible) .weight-seg{transform:scaleX(0)}
       <div class="wrap hero-grid">
         <div class="reveal" style="--i:0">
           <p class="eyebrow">${bi("Free CRO & Analytics Audit", "تدقيق مجاني لتحسين التحويل والتحليلات")}</p>
-          <h1>${escapeHtml(result.businessName || "Audit report")}</h1>
+          <h1>${result.businessName ? escapeHtml(result.businessName) : bi("Audit report", "تقرير التدقيق")}</h1>
           <p>${biHtml(
             `Analytics, tag deployment, and on-site conversion signals for ${escapeHtml(result.websiteUrl)}, scored against ${result.possiblePoints} checks for the audit path that applied.`,
             `تحليلات الموقع، ونشر العلامات، وإشارات التحويل داخل الموقع لـ ${escapeHtml(result.websiteUrl)}، بتقييم مقابل ${result.possiblePoints} ${arChecksNoun(result.possiblePoints)} لمسار التدقيق المطبَّق.`,
@@ -1400,9 +1704,8 @@ html.js .weight-panel:not(.is-visible) .weight-seg{transform:scaleX(0)}
           </div>
         </div>
         <aside class="score-card reveal" style="--i:1">
-          <div class="score-row"><span class="score-num" data-count-to="${result.overallScore}">${result.overallScore}</span><span class="score-den">/ ${result.possiblePoints}</span></div>
-          <div class="score-grade">${bi("Grade", "التقييم")} ${letterGrade(result.possiblePoints > 0 ? (result.overallScore / result.possiblePoints) * 100 : 0)}</div>
-          <div class="score-verdict"><span class="i18n-en">${escapeHtml(verdict)}</span><span class="i18n-ar" dir="rtl">${escapeHtml(verdictAr)}</span></div>
+          <div class="score-row"><span class="score-num" data-count-to="${result.overallScore}" style="color:${overallColor}">${result.overallScore}</span><span class="score-den">/ ${result.possiblePoints}</span></div>
+          <div class="score-verdict${counts.critical > 0 ? " is-critical" : ""}">${counts.critical > 0 ? `<svg class="verdict-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5L2.5 20h19L12 3.5z" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.15" fill="currentColor"/></svg>` : ""}<span class="i18n-en">${escapeHtml(verdict)}</span><span class="i18n-ar" dir="rtl">${escapeHtml(verdictAr)}</span></div>
           <div class="severity-counts">
             <span${counts.critical ? ' data-jump="critical" role="button" tabindex="0"' : ""}><b>${counts.critical}</b> ${bi("critical", "حرج")}</span>
             <span${counts.medium ? ' data-jump="medium" role="button" tabindex="0"' : ""}><b>${counts.medium}</b> ${bi("medium", "متوسط")}</span>
@@ -1416,18 +1719,23 @@ ${deviceMockupHtml(result)}
     ${weightStrip(result)}
 
     <div class="wrap">
+      ${fixFirstHtml(result)}
       ${tabsHtml}
+
+      ${dataSourcesHtml(result)}
 
       <section class="cta">
         <div class="cta-panel reveal">
           <div>
-            <h2>${bi("Turn this audit into a fix plan.", "حوِّل هذا التدقيق إلى خطة عمل فعلية.")}</h2>
+            <h2>${counts.total > 0
+              ? bi("You've seen the problems. Let's fix them together.", "رأيت المشكلات. لنُصلحها معًا.")
+              : bi("Your foundation is solid. Let's build on it.", "أساسك قوي. لنبنِ عليه.")}</h2>
             <p>${bi(
-              "Book a free strategy session and we'll walk through every finding, prioritized by revenue impact.",
-              "احجز جلسة استراتيجية مجانية وسنراجع معك كل نتيجة، مرتّبة بحسب تأثيرها على الإيراد.",
+              "Book a free call with our team. We'll go through your results with you, show you which fixes will bring in the most sales first, and map out exactly what we'd do for your store. Clear answers, no jargon, and no obligation.",
+              "احجز مكالمة مجانية مع فريقنا. سنراجع نتائجك معك، ونوضح لك أي الإصلاحات ستجلب أكبر قدر من المبيعات أولًا، ونرسم لك بالضبط ما سنفعله لمتجرك. إجابات واضحة، بلا مصطلحات معقدة، ودون أي التزام.",
             )}</p>
           </div>
-          <a href="${contactUrl}">${bi("Book a Strategy Session", "احجز جلسة استراتيجية")}</a>
+          <a href="${contactUrl}">${bi("Book my free call", "احجز مكالمتي المجانية")}</a>
         </div>
       </section>
     </div>
@@ -1456,10 +1764,10 @@ ${deviceMockupHtml(result)}
         </div>
         <div class="footer-col reveal" style="--i:2">
           <h3>${bi("Services", "خدماتنا")}</h3>
-          <p class="footer-service-lead">${bi("Conversion Rate Optimization", "تحسين معدل التحويل")}</p>
-          <p>${bi("A/B Testing", "اختبارات A/B")}</p>
-          <p>${bi("User Experience Design", "تصميم تجربة المستخدم")}</p>
-          <p>${bi("Analytics & Tracking", "التحليلات والتتبع")}</p>
+          <a class="footer-service-lead" href="${SITE_URL.replace(/\/$/, "")}/#services">${bi("Conversion Rate Optimization", "تحسين معدل التحويل")}</a>
+          <a href="${SITE_URL.replace(/\/$/, "")}/#services">${bi("A/B Testing", "اختبارات A/B")}</a>
+          <a href="${SITE_URL.replace(/\/$/, "")}/#services">${bi("User Experience Design", "تصميم تجربة المستخدم")}</a>
+          <a href="${SITE_URL.replace(/\/$/, "")}/#services">${bi("Analytics & Tracking", "التحليلات والتتبع")}</a>
         </div>
         <div class="footer-col reveal" style="--i:3">
           <h3>${bi("Contact Us", "معلومات التواصل")}</h3>
@@ -1504,10 +1812,12 @@ ${deviceMockupHtml(result)}
       return;
     }
 
-    var jump = e.target.closest("[data-jump]");
+    var jumpRow = e.target.closest("[data-jump-row]");
+    var jump = jumpRow || e.target.closest("[data-jump]");
     if (jump) {
-      var severity = jump.getAttribute("data-jump");
-      var target = document.querySelector(".finding--" + severity);
+      var target = jumpRow
+        ? document.getElementById(jumpRow.getAttribute("data-jump-row"))
+        : document.querySelector(".finding--" + jump.getAttribute("data-jump"));
       if (!target) return;
       var panel = target.closest(".tab-panel");
       if (panel) {
@@ -1524,6 +1834,18 @@ ${deviceMockupHtml(result)}
     }
   });
 
+  // Global "technical details for every check": flips every per-check
+  // .tech-toggle at once. Only revealed when this script runs.
+  var techAll = document.getElementById("tech-all");
+  if (techAll) {
+    techAll.hidden = false;
+    techAll.addEventListener("click", function(){
+      var on = techAll.getAttribute("aria-pressed") !== "true";
+      techAll.setAttribute("aria-pressed", String(on));
+      document.querySelectorAll(".tech-toggle").forEach(function(box){ box.checked = on; });
+    });
+  }
+
   // Per-category search + status filter — narrows a category's checklist
   // rows (findings + passed checks alike) by text and by data-status.
   //
@@ -1535,8 +1857,8 @@ ${deviceMockupHtml(result)}
   // actually holds a value.
   document.querySelectorAll(".filter-bar").forEach(function(bar){
     var section = bar.closest(".report-section");
-    var grid = section && section.querySelector(".findings-grid");
-    if (!grid) return;
+    var groups = section ? Array.prototype.slice.call(section.querySelectorAll(".check-group")) : [];
+    if (!groups.length) return;
     var searches = Array.prototype.slice.call(bar.querySelectorAll(".filter-search"));
     var selects = Array.prototype.slice.call(bar.querySelectorAll(".filter-select"));
     var empties = Array.prototype.slice.call(section.querySelectorAll(".filter-empty"));
@@ -1546,12 +1868,20 @@ ${deviceMockupHtml(result)}
       q = q.toLowerCase();
       var status = selects.map(function(el){ return el.value; }).find(function(v){ return v && v !== "all"; }) || "all";
       var visible = 0;
-      Array.prototype.forEach.call(grid.children, function(row){
-        var rowStatus = row.getAttribute("data-status");
-        var text = row.textContent.toLowerCase();
-        var show = (status === "all" || rowStatus === status) && (!q || text.indexOf(q) !== -1);
-        row.hidden = !show;
-        if (show) visible++;
+      groups.forEach(function(group){
+        var groupVisible = 0;
+        Array.prototype.forEach.call(group.querySelectorAll(".findings-grid > [data-status]"), function(row){
+          var rowStatus = row.getAttribute("data-status");
+          var text = row.textContent.toLowerCase();
+          var show = (status === "all" || rowStatus === status) && (!q || text.indexOf(q) !== -1);
+          row.hidden = !show;
+          if (show) groupVisible++;
+        });
+        group.hidden = groupVisible === 0;
+        if (status === "pass" || q) {
+          group.querySelectorAll(".passed-fold").forEach(function(d){ d.open = true; });
+        }
+        visible += groupVisible;
       });
       empties.forEach(function(el){ el.hidden = visible !== 0; });
     }
@@ -1642,32 +1972,6 @@ ${deviceMockupHtml(result)}
     });
   }
 
-  // Business/Technical register toggle scrolls to this category's first
-  // point instead of leaving the reader wherever they happened to be —
-  // switching register re-reads the SAME findings in the other voice, so
-  // the natural landing spot is the top of that list, not mid-scroll (and
-  // definitely not the page top, which is what the hidden radio's own
-  // default focus-scroll used to do before .lang-radio moved to
-  // position:fixed above).
-  var langRadios = document.querySelectorAll('input[name="report-lang"]');
-  if (langRadios.length) {
-    var scrollToFirstPoint = function(){
-      var panels = document.querySelectorAll(".tab-panel");
-      var activePanel = null;
-      for (var i = 0; i < panels.length; i++) {
-        if (window.getComputedStyle(panels[i]).display !== "none") { activePanel = panels[i]; break; }
-      }
-      // No .tab-panel at all on the single-category route — search the
-      // whole document instead of leaving activePanel null.
-      var scope = activePanel || document;
-      var firstPoint = scope.querySelector(".findings-grid > *");
-      if (!firstPoint) return;
-      var offset = (topbar ? topbar.getBoundingClientRect().height : 0) + 16;
-      var top = firstPoint.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top: top, behavior: reduceMotion ? "auto" : "smooth" });
-    };
-    langRadios.forEach(function(el){ el.addEventListener("change", scrollToFirstPoint); });
-  }
 })();
 </script>
 </body>

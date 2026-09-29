@@ -178,7 +178,21 @@ export async function crawlWebsite(url: string): Promise<CrawlFindings> {
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   }
-  const html = await res.text();
+
+  // The signal above bounds getting a response at all, but doesn't reliably
+  // bound consuming its body once the connection is already open — seen in
+  // practice (2026-09-17, misimu.com/ar): the response came back fine, then
+  // res.text() hung indefinitely — no error, no socket, nothing to catch,
+  // for 20+ minutes. A second, explicit deadline on the body read itself
+  // closes that gap regardless of whether that's an undici quirk or the
+  // server drip-feeding the body forever.
+  let bodyTimeout: ReturnType<typeof setTimeout>;
+  const html = await Promise.race([
+    res.text(),
+    new Promise<never>((_, reject) => {
+      bodyTimeout = setTimeout(() => reject(new Error(`Timed out reading response body from ${url} after 20s`)), 20_000);
+    }),
+  ]).finally(() => clearTimeout(bodyTimeout));
 
   const headers: CrawlFindings["headers"] = {};
   for (const name of SECURITY_HEADER_NAMES) {

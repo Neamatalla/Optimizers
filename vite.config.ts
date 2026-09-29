@@ -2,13 +2,41 @@ import { defineConfig, loadEnv } from 'vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { spawn } from 'child_process'
-import { appendFileSync } from 'fs'
+import { appendFileSync, mkdirSync } from 'fs'
+import { inspect } from 'util'
 import crypto from 'crypto'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// Tees every console.* call (dev-server startup, and every /api/* middleware
+// below — contact, audit-request, oauth, report edit/approve) to a daily log
+// file, so requests coming in through the tmole tunnel are captured even
+// with no one watching the terminal. Same approach as audit-worker/src/logger.ts.
+const devLogDir = path.join(__dirname, 'logs')
+mkdirSync(devLogDir, { recursive: true })
+function currentDevLogFile() {
+  return path.join(devLogDir, `dev-server-${new Date().toISOString().slice(0, 10)}.log`)
+}
+function formatLogArgs(args: unknown[]): string {
+  return args.map(a => (typeof a === 'string' ? a : inspect(a, { depth: 4 }))).join(' ')
+}
+function wrapConsole(level: string, original: (...args: unknown[]) => void) {
+  return (...args: unknown[]) => {
+    original(...args)
+    try {
+      appendFileSync(currentDevLogFile(), `[${new Date().toISOString()}] [${level}] ${formatLogArgs(args)}\n`)
+    } catch {
+      // Logging must never crash the dev server — stdout already has it either way.
+    }
+  }
+}
+console.log = wrapConsole('LOG', console.log.bind(console))
+console.info = wrapConsole('INFO', console.info.bind(console))
+console.warn = wrapConsole('WARN', console.warn.bind(console))
+console.error = wrapConsole('ERROR', console.error.bind(console))
 
 // Plugin to handle /api/contact locally during dev
 function apiMiddlewarePlugin() {
@@ -145,6 +173,16 @@ function apiMiddlewarePlugin() {
           return;
         }
 
+        // Logs every outcome (status + error text only, no request data), so a
+        // rejected submission is diagnosable from the log instead of silent.
+        const originalEnd = res.end.bind(res);
+        res.end = (chunk?: any, ...rest: any[]) => {
+          let reason = '';
+          try { reason = JSON.parse(String(chunk ?? '{}')).error ?? ''; } catch {}
+          console.log(`[audit-request] ${res.statusCode}${reason ? ` ${reason}` : ''}`);
+          return originalEnd(chunk, ...rest);
+        };
+
         let body = '';
         req.on('data', (chunk: any) => { body += chunk.toString(); });
         req.on('end', async () => {
@@ -197,6 +235,13 @@ function apiMiddlewarePlugin() {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'Please enter a valid website URL.' }));
+                return;
+              }
+              const { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } = await import('./api/_lib/audit-intake.js');
+              if (isBlockedAuditDomain(websiteUrl.hostname)) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: BLOCKED_DOMAIN_MESSAGE }));
                 return;
               }
             } catch {
@@ -620,6 +665,28 @@ function apiMiddlewarePlugin() {
         }
       });
 
+      // Derives the redirect_uri from whatever host this request actually
+      // arrived on, instead of a single fixed env value — so OAuth works
+      // whether you're testing on localhost:5173 or through the ngrok
+      // tunnel, without editing .env or restarting between the two. Google
+      // only requires the value to match one of the OAuth client's
+      // registered Authorized redirect URIs (both localhost and the ngrok
+      // domain need to be registered there — see .env's comment) AND to
+      // match between the authorize request and the token-exchange request;
+      // since both dev handlers below independently derive it from the
+      // SAME incoming request's Host header, and Google redirects the
+      // browser back to literally the URI it was given, authorize and
+      // callback always land on the same origin — which also fixes the
+      // g_oauth_state cookie (HttpOnly, scoped to that origin) actually
+      // being present when the callback reads it back.
+      function dynamicRedirectUri(req: any): string {
+        const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+        const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
+        const isLocalHost = /^(localhost|127.0.0.1|\[::1\])(:|$)/.test(requestHost);
+        const protocol = forwardedProto || (isLocalHost ? 'http' : 'https');
+        return `${protocol}://${requestHost}/api/oauth/google/callback`;
+      }
+
       // Google OAuth (GA4 + GTM readonly) — dev twin of api/oauth/google/*.js,
       // reusing the SAME shared logic module rather than duplicating the
       // token-exchange/API-fetch code the way /api/contact and
@@ -628,37 +695,14 @@ function apiMiddlewarePlugin() {
       server.middlewares.use('/api/oauth/google/authorize', async (req: any, res: any) => {
         const env = loadEnv('development', process.cwd(), '');
         const clientId = env.GOOGLE_OAUTH_CLIENT_ID;
-        const redirectUri = env.GOOGLE_OAUTH_REDIRECT_URI;
-        if (!clientId || !redirectUri) {
+        if (!clientId) {
           res.statusCode = 500;
           res.end('Google OAuth is not configured.');
           return;
         }
+        const redirectUri = dynamicRedirectUri(req);
         const { buildAuthorizeUrl } = await import('./api/_lib/google-oauth.js');
-        console.log('[oauth-authorize] hit');
-
-        // Serving through a tunnel (ngrok) while GOOGLE_OAUTH_REDIRECT_URI
-        // still points at localhost is a silent double failure: Google
-        // rejects the redirect outright with redirect_uri_mismatch, and even
-        // if it didn't, the callback posts its result to the origin derived
-        // from this same env value — a different origin than the page doing
-        // the listening, so GetFreeAudit.tsx's own origin check drops it and
-        // the popup just closes with nothing happening. Cheap to detect
-        // here, at the exact moment it starts to matter.
-        try {
-          const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '');
-          const configuredHost = new URL(redirectUri).host;
-          if (requestHost && configuredHost && requestHost !== configuredHost) {
-            console.warn(
-              `[oauth-authorize] HOST MISMATCH — this request arrived on "${requestHost}" but GOOGLE_OAUTH_REDIRECT_URI is set to "${configuredHost}". ` +
-              `Google will reject this with redirect_uri_mismatch. Set GOOGLE_OAUTH_REDIRECT_URI=https://${requestHost}/api/oauth/google/callback in .env, ` +
-              `add that exact URI to the OAuth client in Google Cloud Console, and restart the dev server.`,
-            );
-          }
-        } catch {
-          // A malformed GOOGLE_OAUTH_REDIRECT_URI is already surfaced by the
-          // real flow failing; no need to make the warning itself fatal.
-        }
+        console.log('[oauth-authorize] hit, redirectUri:', redirectUri);
 
         // No candidate GA4/GTM IDs embedded in state any more — the callback
         // now returns every accessible property/container, and matching
@@ -675,12 +719,12 @@ function apiMiddlewarePlugin() {
         const env = loadEnv('development', process.cwd(), '');
         const clientId = env.GOOGLE_OAUTH_CLIENT_ID;
         const clientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET;
-        const redirectUri = env.GOOGLE_OAUTH_REDIRECT_URI;
-        if (!clientId || !clientSecret || !redirectUri) {
+        if (!clientId || !clientSecret) {
           res.statusCode = 500;
           res.end('Google OAuth is not configured.');
           return;
         }
+        const redirectUri = dynamicRedirectUri(req);
         const { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult } = await import('./api/_lib/google-oauth.js');
 
         const url = new URL(req.url, 'http://localhost');

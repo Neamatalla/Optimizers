@@ -9,11 +9,21 @@ import {
   findExistingAuditRequest,
   isUniqueViolation,
   duplicateMessage,
+  isBlockedAuditDomain,
+  BLOCKED_DOMAIN_MESSAGE,
 } from "./_lib/audit-intake.js";
 
 const VALID_TOOLS = new Set(["GA4", "GTM"]);
 
 export default async function handler(req, res) {
+  // Logs every outcome (status + error text only, no request data), so a
+  // rejected submission shows up in the Vercel logs instead of vanishing.
+  const originalJson = res.json.bind(res);
+  res.json = body => {
+    console.log(`[audit-request] ${res.statusCode}${body?.error ? ` ${body.error}` : ""}`);
+    return originalJson(body);
+  };
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -60,6 +70,9 @@ export default async function handler(req, res) {
       const websiteUrl = new URL(String(website).trim());
       if (!websiteUrl.hostname.includes(".")) {
         return res.status(400).json({ error: "Please enter a valid website URL." });
+      }
+      if (isBlockedAuditDomain(websiteUrl.hostname)) {
+        return res.status(400).json({ error: BLOCKED_DOMAIN_MESSAGE });
       }
     } catch {
       return res.status(400).json({ error: "Please enter a valid website URL." });

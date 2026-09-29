@@ -602,7 +602,14 @@ export async function runAudit(input: AuditPromptInput): Promise<CategoryResult[
   const parsed = extractJsonPayload(raw) as { categories?: RawCategoryResult[] };
 
   if (!parsed || !Array.isArray(parsed.categories)) {
-    throw new Error("Audit response missing a 'categories' array");
+    // The raw response is included (not just a generic message) for two
+    // reasons: so result_error actually preserves something diagnosable
+    // instead of a dead end, and so poll.ts's isRateLimitError can still
+    // catch a usage-limit refusal that came back shaped like this (exit 0,
+    // no categories) instead of misclassifying it as a permanent failure —
+    // the same failure mode its own doc comment warns about, just in a path
+    // that fix didn't cover.
+    throw new Error(`Audit response missing a 'categories' array: ${raw.slice(0, 4000)}`);
   }
 
   return parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools)));

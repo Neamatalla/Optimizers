@@ -9,7 +9,7 @@ export type ToolId = "GA4" | "GTM";
 // pending -> processing -> done, emailed to the submitter on the spot. And
 // failed reachable from processing (non-rate-limit error) and a rate-limit
 // hit during processing bouncing back to pending (see retry_after below)
-// instead of failed — see supabase.ts's claimNextPendingRequest/
+// instead of failed — see supabase.ts's claimNextRequest/
 // markRequestRateLimited and poll.ts's isRateLimitError.
 export type RequestStatus = "pending" | "processing" | "awaiting_approval" | "scheduled" | "done" | "failed";
 
@@ -41,7 +41,7 @@ export interface AuditRequestRow {
   result_error: string | null;
   report_url: string | null;
   // Set instead of failing the row outright when a run hits a rate limit —
-  // claimNextPendingRequest() won't reclaim a pending row until this passes,
+  // claimNextRequest() won't reclaim a pending row until this passes,
   // so the request keeps its place in line (created_at is untouched) and
   // just waits out the limit. Null once claimed normally.
   retry_after: string | null;
@@ -62,8 +62,36 @@ export interface AuditRequestRow {
   // longer has the AuditResult in scope), for the client email's coverage
   // sentence. Null until the audit completes.
   categories_audited: CategoryKey[] | null;
+  // Job-queue bookkeeping (supabase/migrations/2026-09-28-job-queue.sql).
+  // attempts counts real attempts (incremented at claim); locked_by and
+  // heartbeat_at form the lease a live worker keeps refreshing.
+  attempts: number;
+  locked_by: string | null;
+  heartbeat_at: string | null;
+  // Output of every stage that already finished, so a retry resumes instead
+  // of starting over. See poll.ts's processRequest for the stage order.
+  progress: JobProgress;
   created_at: string;
   updated_at: string;
+}
+
+export interface JobProgress {
+  // Stage 1: the audit itself (the expensive claude -p run) plus the data
+  // gathered alongside it.
+  categories?: CategoryResult[];
+  discoveredPages?: string[];
+  pageSpeed?: AuditResult["pageSpeed"];
+  screenshots?: AuditResult["screenshots"];
+  // Stage 2: categories above already carry their Arabic text.
+  translated?: boolean;
+  // Stage 3: report built and uploaded.
+  reportUrl?: string;
+  slug?: string;
+  // Stage 4: delivery. Recorded right after each email so a retry never
+  // sends the same email twice.
+  approvalToken?: string;
+  reviewEmailSent?: boolean;
+  testEmailSent?: boolean;
 }
 
 // PageSpeed was a fourth category (4 checks, backed by a site-wide
@@ -184,9 +212,11 @@ export interface AuditResult {
   // on the site, homepage first — the pages the browser checks are drawn
   // from this list (cart/checkout for WEB-54/56, a product page for
   // WEB-55), and the report shows which pages the audit actually covered.
-  // Carried a full PageSpeed sweep per page until 2026-09-09; now just the
-  // URLs, since nothing fetches Lighthouse data for them any more.
   discoveredPages: string[];
+  // PageSpeed performance scores for the home/collection/cart/product pages
+  // (pagespeed.ts), shown in the report's Page Speed tab. Informational only,
+  // never part of overallScore. Absent on results from before this existed.
+  pageSpeed?: import("./pagespeed.js").PageSpeedResult;
   // Above-the-fold screenshots of the site at desktop and mobile widths
   // (screenshots.ts), rendered as a device-framed mockup under the report
   // hero. Best-effort: either or both may be null when no browser was

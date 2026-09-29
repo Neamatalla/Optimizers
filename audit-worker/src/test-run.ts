@@ -15,6 +15,7 @@ import { fileURLToPath } from "url";
 import { crawlWebsite } from "./crawl.js";
 import { captureSiteScreenshots } from "./screenshots.js";
 import { discoverPages } from "./discover-pages.js";
+import { runPageSpeed } from "./pagespeed.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
@@ -63,6 +64,7 @@ async function main() {
   console.log("[test-run] discovering pages...");
   const discoveredPages = await discoverPages(website, crawl.html);
   console.log("[test-run] pages the audit will cover:", discoveredPages);
+  const pageSpeedPromise = runPageSpeed(discoveredPages);
 
   const shots = await captureSiteScreenshots(website);
   console.log("[test-run] screenshots:", shots.error ?? `desktop=${Boolean(shots.desktop)} mobile=${Boolean(shots.mobile)}`);
@@ -95,7 +97,10 @@ async function main() {
     const { earned, possible } = computeOverallPoints(categories);
     console.log("[test-run] overall score:", `${earned}/${possible}`);
 
-    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, screenshots };
+    const pageSpeed = await pageSpeedPromise;
+    console.log("[test-run] pagespeed:", pageSpeed.error ?? JSON.stringify(pageSpeed.average), pageSpeed.pages.map(p => `${p.type}=${p.mobile}/${p.desktop}`).join(" "));
+
+    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, pageSpeed, screenshots };
 
     console.log("[test-run] translating findings to Arabic...");
     const arabic = await translateFindingsToArabic(result, requestId);

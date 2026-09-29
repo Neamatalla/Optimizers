@@ -5,8 +5,9 @@
 // MAX_SWEEP_PAGES until that file was deleted with the PageSpeed category
 // (2026-09-09); back then it also bounded run time, since every one of
 // these pages cost a sequential mobile+desktop PageSpeed Insights call.
-// Now the pages are only URLs handed to the prompt, so the cap is purely
-// about keeping the browser's page-by-page work bounded.
+// The pages are handed to the prompt, and the home/collection/cart/product
+// ones also get a parallel PageSpeed score (pagespeed.ts), so the cap keeps
+// both the browser's page-by-page work and those calls bounded.
 const MAX_DISCOVERED_PAGES = 5;
 
 /**
@@ -27,6 +28,20 @@ const PAGE_CATEGORIES: Array<{ name: string; test: (pathname: string) => boolean
   { name: "cart", test: p => p === "/cart" || p.startsWith("/cart/") },
   { name: "blog", test: p => p.includes("/blogs/") },
 ];
+
+export type PageType = "home" | "product" | "collection" | "cart" | "blog" | "other";
+
+/** Which PAGE_CATEGORIES type a discovered URL belongs to; `homepage` is the site root. */
+export function pageTypeOf(url: string, homepage: string): PageType {
+  if (url === homepage) return "home";
+  try {
+    const pathname = new URL(url).pathname;
+    const match = PAGE_CATEGORIES.find(c => c.test(pathname));
+    return (match?.name as PageType | undefined) ?? "other";
+  } catch {
+    return "other";
+  }
+}
 
 /**
  * Finds one page URL per commerce-relevant TYPE for the audit to actually
@@ -129,7 +144,16 @@ async function fromSitemap(origin: string): Promise<string[]> {
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) return [];
-    xml = await res.text();
+    // Same body-read gap as crawl.ts's fetch — the signal above doesn't
+    // reliably bound consuming the body once the connection is already
+    // open, and a hang here would never reach the catch below.
+    let bodyTimeout: ReturnType<typeof setTimeout>;
+    xml = await Promise.race([
+      res.text(),
+      new Promise<never>((_, reject) => {
+        bodyTimeout = setTimeout(() => reject(new Error("sitemap body read timed out after 15s")), 15_000);
+      }),
+    ]).finally(() => clearTimeout(bodyTimeout));
   } catch {
     return [];
   }

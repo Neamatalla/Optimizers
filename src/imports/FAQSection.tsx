@@ -8,6 +8,7 @@ import {
 } from "@/app/components/ui/accordion";
 import imgFrequentlyAskedQuestions from "../assets/666a6dfa4c8f6032da118c9f1f873233b2397282.webp";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { scrollToSection } from "@/lib/scrollToSection";
 
 const faqDataKeys = [
     {
@@ -71,7 +72,7 @@ function Link() {
         ? 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
         : 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)';
     return (
-        <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity lg:shadow-[0px_0px_25px_rgba(106,228,153,0.3)]" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+        <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity lg:shadow-[0px_0px_25px_rgba(106,228,153,0.3)]" data-name="Link" onClick={() => scrollToSection('contact')}>
             <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[24px] lg:px-[28px] py-[12px] relative rounded-[inherit]">
                 <DivBtnLabel />
             </div>

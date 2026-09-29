@@ -40,12 +40,20 @@ function extractUnique(html, pattern) {
  * plain fetch, no JS execution).
  */
 export async function detectTracking(url) {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; OptimizersAuditBot/1.0; +https://optimizers.agency)" },
-    signal: AbortSignal.timeout(8000),
-  });
+  // `reachable` lets the form stop a visitor who typed a dead or mistyped
+  // address before they go further. Redirects are followed by fetch. 403
+  // counts as reachable: many stores block bots but are real, live sites.
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; OptimizersAuditBot/1.0; +https://optimizers.agency)" },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    return { reachable: false, ga4MeasurementIds: [], gtmContainerIds: [] };
+  }
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    return { reachable: res.status === 403, status: res.status, ga4MeasurementIds: [], gtmContainerIds: [] };
   }
   const html = await res.text();
 
@@ -53,6 +61,8 @@ export async function detectTracking(url) {
   const gtmContainerIds = GTM_PATTERNS.flatMap(p => extractUnique(html, p));
 
   return {
+    reachable: true,
+    status: res.status,
     ga4MeasurementIds: Array.from(new Set(ga4MeasurementIds)),
     gtmContainerIds: Array.from(new Set(gtmContainerIds)),
   };

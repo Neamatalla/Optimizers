@@ -1,5 +1,6 @@
 import imgOurServices from "../assets/462979b8a94cb599bf6cf91c5d11489a30eeae28.webp";
 import { useLanguage } from "../app/contexts/LanguageContext";
+import { scrollToSection } from "../lib/scrollToSection";
 
 function Frame() {
   const { t } = useLanguage();
@@ -573,7 +574,7 @@ function DivBtnLabel() {
 
 function Link() {
   return (
-    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => scrollToSection('free-audit')}>
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
       </div>

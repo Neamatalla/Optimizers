@@ -6,6 +6,7 @@ import { useLanguage } from "../app/contexts/LanguageContext";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "../../api/_lib/blocked-domains.js";
 
 // Kept off until Google's sensitive-scope verification actually clears —
 // flipping this on while unverified means every visitor sees Google's
@@ -39,6 +40,7 @@ const validateWebsite = (url: string): string => {
   try {
     const urlObj = new URL(urlToValidate);
     if (!urlObj.hostname.includes(".")) return "Please enter a valid website URL";
+    if (isBlockedAuditDomain(urlObj.hostname)) return BLOCKED_DOMAIN_MESSAGE;
     return "";
   } catch {
     return "Please enter a valid website URL";
@@ -192,12 +194,16 @@ const STEP_LABELS: Record<StepKey, string> = {
 
 // --- UI pieces ---
 
+// Same step-question style as StrategySession.tsx's book-a-call form.
+const QUESTION_CLASS =
+  "css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center tracking-[0px] w-full lg:w-auto text-balance bg-gradient-to-b from-white to-[#c4c4c4] bg-clip-text text-transparent";
+
 function ToolCard({ label, hint, isSelected, onClick, className = "" }: { label: string; hint: string; isSelected: boolean; onClick: () => void; className?: string }) {
   return (
     <div
       onClick={onClick}
-      className={`flex flex-row items-center gap-[14px] px-[20px] py-[18px] lg:px-[28px] lg:py-[22px] relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full cursor-pointer transition-all duration-300 ${isSelected ? "scale-[0.98]" : "hover:scale-[1.01]"} ${className}`}
-      style={{ background: isSelected ? "linear-gradient(90deg, rgba(49,218,114,0.12) 0%, rgba(49,218,114,0.12) 100%), #191b18" : "#191b18" }}
+      className={`flex flex-row items-center gap-[14px] px-[20px] py-[18px] lg:px-[28px] lg:py-[24px] relative rounded-[12px] lg:rounded-[16px] shrink-0 w-full cursor-pointer transition-all duration-300 ${isSelected ? "scale-[0.97]" : "lg:hover:scale-[1.02]"} ${className}`}
+      style={{ background: isSelected ? "linear-gradient(90deg, rgba(0, 255, 90, 0.1) 0%, rgba(0, 255, 90, 0.1) 100%), #777" : "#777" }}
     >
       <div
         className={`flex-shrink-0 w-[22px] h-[22px] rounded-[6px] flex items-center justify-center transition-all duration-200 ${isSelected ? "bg-[#31da72]" : "bg-transparent border-2 border-white/30"}`}
@@ -210,13 +216,52 @@ function ToolCard({ label, hint, isSelected, onClick, className = "" }: { label:
       </div>
       <div className="flex flex-col min-w-0">
         <p className={`font-['Sora:SemiBold',sans-serif] font-semibold text-[15px] lg:text-[17px] leading-tight truncate transition-colors duration-300 ${isSelected ? "text-[#31da72]" : "text-white"}`}>{label}</p>
-        <p className="font-['Sora:Regular',sans-serif] font-normal text-[12px] lg:text-[13px] text-white/50">{hint}</p>
+        <p className="font-['Sora:Regular',sans-serif] font-normal text-[12px] lg:text-[13px] text-white/70">{hint}</p>
       </div>
 
-      {!isSelected && <div aria-hidden="true" className="absolute border border-white/15 border-solid inset-0 pointer-events-none rounded-[inherit]" />}
-      {isSelected && (
-        <div aria-hidden="true" className="absolute border-2 border-[#31da72] border-solid inset-0 pointer-events-none rounded-[inherit]" style={{ boxShadow: "0 0 16px rgba(49,218,114,0.25), inset 0 0 12px rgba(49,218,114,0.08)" }} />
+      {!isSelected && (
+        <>
+          <div aria-hidden="true" className="lg:hidden absolute border border-white/40 border-solid inset-0 pointer-events-none rounded-[12px]" />
+          <div
+            aria-hidden="true"
+            className="hidden lg:block absolute inset-0 pointer-events-none rounded-[16px]"
+            style={{
+              padding: "1px",
+              background: "radial-gradient(ellipse 50% 60% at 0% 0%, #4ade80 0%, transparent 100%), radial-gradient(ellipse 50% 60% at 100% 100%, #4ade80 0%, transparent 100%)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+            }}
+          />
+        </>
       )}
+      {isSelected && (
+        <>
+          <div aria-hidden="true" className="lg:hidden absolute border border-[#31da72] border-solid inset-0 pointer-events-none rounded-[12px]" />
+          <div aria-hidden="true" className="hidden lg:block absolute border-2 border-[#31da72] border-solid inset-0 pointer-events-none rounded-[16px]" style={{ boxShadow: "0 0 16px rgba(49,218,114,0.25), inset 0 0 12px rgba(49,218,114,0.08)" }} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// Claims here must stay true to api/_lib/google-oauth.js: read-only scopes, access_type "online" (no refresh token), token discarded after the one fetch.
+function PrivacyNote() {
+  const { t } = useLanguage();
+  return (
+    <div className="flex items-start gap-[10px] w-full max-w-[560px] rounded-xl border border-[#31da72]/25 bg-[#31da72]/[0.06] px-[16px] py-[12px]">
+      <svg className="shrink-0 mt-[2px]" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3L4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3z" stroke="#31da72" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8.8 12.2l2.2 2.2 4.3-4.6" stroke="#31da72" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <p className="font-['Sora:Regular',sans-serif] text-[12.5px] lg:text-[13px] leading-[1.6] text-white/65 text-start">
+        <span className="font-['Sora:SemiBold',sans-serif] font-semibold text-white/90">{t("Your data stays yours")}</span>
+        {" — "}
+        {t("If you connect Google, we take a one-time, read-only snapshot of your GA4 and GTM setup to build a more accurate, data-driven audit. We never see your password, can't change anything in your account, and don't keep access afterwards.")}{" "}
+        <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener noreferrer" className="text-[#31da72] underline underline-offset-2">
+          {t("You can also remove the connection anytime in your Google account.")}
+        </a>
+      </p>
     </div>
   );
 }
@@ -299,6 +344,8 @@ export default function GetFreeAudit() {
   // panel rather than only a toast — it's a final answer, not a transient
   // error, and the visitor shouldn't be left re-pressing the button.
   const [alreadyAuditedMessage, setAlreadyAuditedMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [checkingSite, setCheckingSite] = useState(false);
 
   const steps = useMemo(() => buildSteps(formData.tools), [formData.tools]);
   // Both fields prefixed = test mode; exactly one = the server rejects it
@@ -312,40 +359,33 @@ export default function GetFreeAudit() {
 
   const submitAuditMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("POST", "/api/audit-request", data),
-    // Fires synchronously the instant .mutate() is called, before the
-    // request even goes out — the real audit pipeline can take several
-    // minutes (site crawl, live browser checks, a full checklist
-    // evaluation), so the visitor moves to the "working on it" screen right
-    // away instead of watching the submit button sit in a loading state for
-    // that whole time. onSuccess/onError below still run whenever the real
-    // response eventually lands — the visitor just isn't blocked staring at
-    // it while that happens.
+    // Not optimistic: the request only queues the audit (the pipeline runs
+    // later in the worker), so it answers quickly. Showing the thank-you
+    // screen before the server confirmed meant a rejected request flashed
+    // "thank you" and then silently dropped the visitor back on the form.
     onMutate: () => {
       setAlreadyAuditedMessage(null);
-      setSubmitted(true);
+      setSubmitError(null);
     },
     onSuccess: (data: any) => {
+      setSubmitted(true);
       if (data?.reportUrl) {
         toast({ title: "Audit ready!", description: "Your report link is ready below." });
         setReportUrl(data.reportUrl);
       } else {
-        toast({ title: "Request received!", description: "Check your inbox shortly for your audit." });
+        toast({ title: t("Request received!"), description: t("Expect your audit within 2 to 3 business days.") });
       }
     },
     onError: (error: any) => {
-      // Unlike onMutate's optimistic transition, a real failure needs to
-      // actually undo it — send the visitor back to the form (if they're
-      // still on this tab) rather than leave them on a screen falsely
-      // implying the audit is running.
-      setSubmitted(false);
       // 409 = the one-audit-per-website/email limit, not a failure: there's
-      // nothing to retry, so it gets a panel that stays put instead of a
-      // toast that disappears.
+      // nothing to retry, so it gets its own panel.
       if (error?.status === 409) {
         setAlreadyAuditedMessage(error.message || "A free audit has already been requested for this website or email address.");
         return;
       }
-      toast({ title: "Error", description: error.message || "Failed to submit request.", variant: "destructive" });
+      // Shown inside the card, next to the button, not only as a corner toast
+      // that is easy to miss.
+      setSubmitError(error?.message || t("We couldn't submit your request. Please try again."));
     },
   });
 
@@ -395,14 +435,22 @@ export default function GetFreeAudit() {
   // back, and renderStepContent uses it to star that same match in the
   // dropdown. detectedForUrlRef guards against re-firing for the same URL if
   // the visitor goes back to the website step and forward again unchanged.
-  const runDetection = useCallback((rawWebsite: string) => {
+  // Resolves to whether the site answered: true/false from the crawl, or null
+  // when the check itself failed on our side (never blocks the visitor then).
+  const reachableRef = useRef<boolean | null>(null);
+  const runDetection = useCallback(async (rawWebsite: string): Promise<boolean | null> => {
     const normalized = normalizeWebsiteUrl(rawWebsite);
-    if (detectedForUrlRef.current === normalized) return;
+    if (detectedForUrlRef.current === normalized) return reachableRef.current;
+    try {
+      const data = await (await fetch(`/api/detect-tracking?website=${encodeURIComponent(normalized)}`)).json();
+      setDetectionResult({ ga4MeasurementIds: data.ga4MeasurementIds || [], gtmContainerIds: data.gtmContainerIds || [] });
+      reachableRef.current = typeof data.reachable === "boolean" ? data.reachable : null;
+    } catch {
+      setDetectionResult({ ga4MeasurementIds: [], gtmContainerIds: [] });
+      reachableRef.current = null;
+    }
     detectedForUrlRef.current = normalized;
-    fetch(`/api/detect-tracking?website=${encodeURIComponent(normalized)}`)
-      .then(res => res.json())
-      .then(data => setDetectionResult({ ga4MeasurementIds: data.ga4MeasurementIds || [], gtmContainerIds: data.gtmContainerIds || [] }))
-      .catch(() => setDetectionResult({ ga4MeasurementIds: [], gtmContainerIds: [] }));
+    return reachableRef.current;
   }, []);
 
   // Popup OAuth flow — the callback page posts its result here rather than a
@@ -533,15 +581,15 @@ export default function GetFreeAudit() {
   }, []);
 
   const isNextDisabled = () => {
-    if (submitAuditMutation.isPending) return true;
+    if (submitAuditMutation.isPending || checkingSite) return true;
     switch (currentStepKey) {
       case "google-access": {
         // "Ready" also when the connected account simply has no
         // properties/containers for a selected tool — nothing to pick, so
         // that tool just degrades to public detection rather than blocking
         // the form.
-        const ga4Ready = !formData.tools.includes("GA4") || formData.ga4Properties.length === 0 || !!formData.ga4MeasurementId;
-        const gtmReady = !formData.tools.includes("GTM") || formData.gtmContainers.length === 0 || !!formData.gtmContainerId;
+        const ga4Ready = !formData.tools.includes("GA4") || !!formData.ga4MeasurementId;
+        const gtmReady = !formData.tools.includes("GTM") || !!formData.gtmContainerId;
         return !formData.googleAccessConfirmed || !ga4Ready || !gtmReady;
       }
       case "website":
@@ -557,37 +605,70 @@ export default function GetFreeAudit() {
   // hardcoded key.
   const isLastStep = clampedIndex === steps.length - 1;
 
-  const handleNext = () => {
+  const submitAudit = (fields: {
+    tools: ToolId[];
+    ga4MeasurementId?: string;
+    gtmContainerId?: string;
+    ga4OAuthData?: unknown;
+    gtmOAuthData?: unknown;
+  }) => {
+    // A half-prefixed pair is a 400 from the server; stop it here so the
+    // visitor sees the inline explanation instead of a failed request.
+    if (testPrefixMismatch) return;
+    submitAuditMutation.mutate({
+      ...fields,
+      // The prefix goes back on both fields (never just one) so the
+      // server's own parseTestPrefix is what decides this is a test run —
+      // the client never gets to assert it with a flag of its own.
+      website: `${isTestSubmission ? TEST_PREFIX : ""}${normalizeWebsiteUrl(formData.website)}`,
+      email: `${isTestSubmission ? TEST_PREFIX : ""}${stripTestPrefix(formData.email)}`,
+    });
+  };
+
+  // "Changed my mind" on the google-access step: no Google data at all. The
+  // server requires a valid ID for every selected tool, so only tools the
+  // public site crawl found an ID for are kept; with none, this becomes the
+  // same code/speed/CRO audit as "None of these".
+  const handleSkipGoogleAccess = () => {
     if (submitAuditMutation.isPending) return;
+    const ga4Id = formData.tools.includes("GA4") ? detectionResult?.ga4MeasurementIds[0] : undefined;
+    const gtmId = formData.tools.includes("GTM") ? detectionResult?.gtmContainerIds[0] : undefined;
+    submitAudit({
+      tools: formData.tools.filter(tool => (tool === "GA4" ? !!ga4Id : !!gtmId)),
+      ga4MeasurementId: ga4Id,
+      gtmContainerId: gtmId,
+    });
+  };
+
+  const handleNext = async () => {
+    if (submitAuditMutation.isPending || checkingSite) return;
 
     if (currentStepKey === "website") {
       const websiteErr = validateRequired(formData.website, "Website") || validateWebsite(formData.website);
       const emailErr = validateRequired(formData.email, "Email") || validateEmail(formData.email);
       setValidationErrors(prev => ({ ...prev, website: websiteErr, email: emailErr }));
       if (websiteErr || emailErr || testPrefixMismatch) return;
-      runDetection(formData.website);
+      setCheckingSite(true);
+      const reachable = await runDetection(formData.website);
+      setCheckingSite(false);
+      if (reachable === false) {
+        setValidationErrors(prev => ({ ...prev, website: t("We couldn't reach this website. Please check the address and try again.") }));
+        return;
+      }
     }
 
     if (currentStepKey === "google-access") {
       // Dropdown values always come straight from formData.ga4Properties/
       // gtmContainers, so there's nothing left to format-validate — just
       // the same readiness check isNextDisabled already gates the button on.
-      const ga4Ready = !formData.tools.includes("GA4") || formData.ga4Properties.length === 0 || !!formData.ga4MeasurementId;
-      const gtmReady = !formData.tools.includes("GTM") || formData.gtmContainers.length === 0 || !!formData.gtmContainerId;
+      const ga4Ready = !formData.tools.includes("GA4") || !!formData.ga4MeasurementId;
+      const gtmReady = !formData.tools.includes("GTM") || !!formData.gtmContainerId;
       if (!ga4Ready || !gtmReady || !formData.googleAccessConfirmed) return;
     }
 
     if (isLastStep) {
-      // A half-prefixed pair is a 400 from the server; stop it here so the
-      // visitor sees the inline explanation instead of a failed request.
-      if (testPrefixMismatch) return;
-      submitAuditMutation.mutate({
+      submitAudit({
         tools: formData.tools,
-        // The prefix goes back on both fields (never just one) so the
-        // server's own parseTestPrefix is what decides this is a test run —
-        // the client never gets to assert it with a flag of its own.
-        website: `${isTestSubmission ? TEST_PREFIX : ""}${normalizeWebsiteUrl(formData.website)}`,
-        email: `${isTestSubmission ? TEST_PREFIX : ""}${stripTestPrefix(formData.email)}`,
         ga4MeasurementId: formData.tools.includes("GA4") ? formData.ga4MeasurementId.trim() || undefined : undefined,
         gtmContainerId: formData.tools.includes("GTM") ? formData.gtmContainerId.trim() || undefined : undefined,
         ga4OAuthData: formData.ga4OAuthData ?? undefined,
@@ -599,6 +680,16 @@ export default function GetFreeAudit() {
     const nextIndex = clampedIndex + 1;
     setStepIndex(nextIndex);
     setMaxStepIndexReached(prev => Math.max(prev, nextIndex));
+  };
+
+  // Enter advances like "Next" (and submits on the last step). Skipped when a
+  // button/select/link has focus, so Enter keeps its native meaning there.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter" || e.shiftKey || submitted) return;
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === "BUTTON" || tag === "SELECT" || tag === "A" || tag === "TEXTAREA") return;
+    e.preventDefault();
+    if (!isNextDisabled()) handleNext();
   };
 
   const handleBack = () => {
@@ -614,12 +705,13 @@ export default function GetFreeAudit() {
       case "tools":
         return (
           <div className="flex flex-col gap-[20px] items-center w-full">
-            <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.3] text-[16px] lg:text-[2.2vw] text-center text-white w-full">
+            <p className={QUESTION_CLASS} style={{ wordSpacing: "3px" }}>
               {t("Which of these does your site already have?")}
             </p>
             <p className="text-[13px] text-white/60 font-['Sora:Regular',sans-serif] text-center">
               {t("Select any that apply — or tell us you have none and we'll dig into your site's code and speed instead.")}
             </p>
+            <PrivacyNote />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-[12px] w-full max-w-[560px]">
               {TOOL_OPTIONS.map(opt => (
                 <ToolCard key={opt.id} label={opt.label} hint={opt.hint} isSelected={formData.tools.includes(opt.id)} onClick={() => toggleTool(opt.id)} />
@@ -655,14 +747,15 @@ export default function GetFreeAudit() {
 
         return (
           <div className="flex flex-col gap-[16px] items-center w-full max-w-[440px]">
-            <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.3] text-[16px] lg:text-[2vw] text-center text-white w-full">
-              {t("Give us access for a live GA4/GTM audit")}
+            <p className={QUESTION_CLASS} style={{ wordSpacing: "3px" }}>
+              {t("Connect Google for a deeper audit")}
             </p>
             <p className="text-[13px] text-white/60 font-['Sora:Regular',sans-serif] text-center">
               {oauthStatus === "connected"
-                ? t("Pick the property/container for this site below — ★ marks the one we found live on your site.")
-                : t("Connect your Google account first — we'll then show every GA4 property and GTM container it can see, so you pick the right one instead of typing an ID.")}
+                ? t("Pick the ones for this website. ★ marks the one we found live on your site.")
+                : t("We read your Google Analytics and Tag Manager setup to check what is tracked, what is missing, and where your sales data breaks. After connecting, you just pick your website from a list.")}
             </p>
+            <PrivacyNote />
 
             {oauthStatus !== "connected" && (
               <Button
@@ -685,7 +778,7 @@ export default function GetFreeAudit() {
                         {t("Couldn't read your GA4 properties:")} {ga4ListError}
                       </p>
                     ) : formData.ga4Properties.length === 0 ? (
-                      <p className="text-[12px] text-white/40">{t("No accessible GA4 properties found on this Google account — we'll fall back to public detection.")}</p>
+                      <p className="text-[12px] text-[#f2b75e]">{t("This Google account has no Google Analytics 4 property. Connect the account that manages your site, or run the audit without access using the link below.")}</p>
                     ) : (
                       <select className={selectClass} value={formData.ga4MeasurementId} onChange={e => selectGa4Property(e.target.value)}>
                         {formData.ga4Properties.map(prop => (
@@ -705,7 +798,7 @@ export default function GetFreeAudit() {
                         {t("Couldn't read your GTM containers:")} {gtmListError}
                       </p>
                     ) : formData.gtmContainers.length === 0 ? (
-                      <p className="text-[12px] text-white/40">{t("No accessible GTM containers found on this Google account — we'll fall back to public detection.")}</p>
+                      <p className="text-[12px] text-[#f2b75e]">{t("This Google account has no Tag Manager container. Connect the account that manages your site, or run the audit without access using the link below.")}</p>
                     ) : (
                       <select className={selectClass} value={formData.gtmContainerId} onChange={e => selectGtmContainer(e.target.value)}>
                         {formData.gtmContainers.map(container => (
@@ -717,7 +810,13 @@ export default function GetFreeAudit() {
                     )}
                   </div>
                 )}
-                <p className="text-[#31da72] text-xs text-center">{t("✓ Access confirmed.")}</p>
+                {(formData.tools.includes("GA4") && !formData.ga4MeasurementId) || (formData.tools.includes("GTM") && !formData.gtmContainerId) ? (
+                  <button type="button" onClick={handleConnectGoogle} className="self-center text-[13px] font-semibold text-[#31da72] underline underline-offset-4 bg-transparent border-0 p-0 cursor-pointer">
+                    {t("Connect a different Google account")}
+                  </button>
+                ) : (
+                  <p className="text-[#31da72] text-xs text-center">{t("✓ Access confirmed.")}</p>
+                )}
               </div>
             )}
           </div>
@@ -726,26 +825,38 @@ export default function GetFreeAudit() {
       case "website":
         return (
           <div className="flex flex-col gap-[16px] items-center w-full">
-            <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.3] text-[16px] lg:text-[2.2vw] text-center text-white w-full">
+            <p className={QUESTION_CLASS} style={{ wordSpacing: "3px" }}>
               {t("What's your website?")}
             </p>
             <div className="w-full max-w-[380px] flex flex-col gap-3">
               <div className="flex flex-col gap-2">
+                <label htmlFor="audit-website" className="text-[13px] text-white/80 font-['Sora:Regular',sans-serif] text-start">
+                  {t("Enter your website URL")}
+                </label>
                 <Input
+                  id="audit-website"
                   name="website"
+                  type="url"
+                  inputMode="url"
                   value={formData.website}
                   onChange={handleWebsiteChange}
-                  placeholder="https://yourwebsite.com"
+                  placeholder={t("e.g. yourstore.com")}
                   className={`bg-white/10 border-2 ${validationErrors.website ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
                 />
                 {validationErrors.website && <p className="text-red-500 text-sm">{validationErrors.website}</p>}
               </div>
               <div className="flex flex-col gap-2">
+                <label htmlFor="audit-email" className="text-[13px] text-white/80 font-['Sora:Regular',sans-serif] text-start">
+                  {t("Enter the email address where you want to receive your report")}
+                </label>
                 <Input
+                  id="audit-email"
                   name="email"
+                  type="email"
+                  inputMode="email"
                   value={formData.email}
                   onChange={handleEmailChange}
-                  placeholder={t("Where should we send your audit?")}
+                  placeholder={t("e.g. you@yourcompany.com")}
                   className={`bg-white/10 border-2 ${validationErrors.email ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
                 />
                 {validationErrors.email && <p className="text-red-500 text-sm">{validationErrors.email}</p>}
@@ -760,17 +871,30 @@ export default function GetFreeAudit() {
 
   return (
     <div className="bg-[#020601] relative w-full h-auto py-[40px] lg:py-[6vw] flex flex-col items-center" id="free-audit">
-      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.15] text-[32px] lg:text-[3.6vw] text-center text-white tracking-[-1px] mb-[32px] lg:mb-[3vw] px-4">
+      <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[1.15] text-[32px] lg:text-[3.6vw] text-center tracking-[-1px] mb-[32px] lg:mb-[3vw] px-4 bg-gradient-to-b from-white to-[#c4c4c4] bg-clip-text text-transparent">
         {t("Get a Free Audit")}
       </p>
 
       <div
-        className="relative flex flex-col items-center justify-center mx-auto rounded-[16px] lg:rounded-[24px] w-[96%] md:w-[90%] lg:w-full max-w-[96vw] md:max-w-[700px] lg:max-w-[840px] z-10"
-        style={{ background: "#0f120e" }}
+        className="relative flex flex-col items-center justify-center mx-auto rounded-[16px] lg:rounded-[24px] w-[96%] md:w-[90%] lg:w-full max-w-[96vw] md:max-w-[700px] lg:max-w-[840px] z-10 animate-wave-fast"
+        style={{
+          backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.05) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\'0 0 1240 733\\' xmlns=\\'http://www.w3.org/2000/svg\\' preserveAspectRatio=\\'none\\'><rect x=\\'0\\' y=\\'0\\' height=\\'100%\\' width=\\'100%\\' fill=\\'url(%23grad)\\' opacity=\\'1\\'/><defs><radialGradient id=\\'grad\\' gradientUnits=\\'userSpaceOnUse\\' cx=\\'0\\' cy=\\'0\\' r=\\'10\\' gradientTransform=\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\'><stop stop-color=\\'rgba(0,0,0,1)\\' offset=\\'0\\'/><stop stop-color=\\'rgba(0,0,0,1)\\' offset=\\'0.55823\\'/><stop stop-color=\\'rgba(0,0,0,0.3)\\' offset=\\'0.73997\\'/><stop stop-color=\\'rgba(0,0,0,0)\\' offset=\\'1\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",
+          backgroundSize: "100% 100%, 100% 100%, 400% 400%",
+        }}
       >
-        <div aria-hidden="true" className="absolute border border-white/10 border-solid inset-0 pointer-events-none rounded-[inherit]" />
+        <style>{`
+          @keyframes wave-gradient {
+            0% { background-position: 0% 0%, 0% 0%, 0% 0%; }
+            50% { background-position: 0% 0%, 0% 0%, 100% 100%; }
+            100% { background-position: 0% 0%, 0% 0%, 0% 0%; }
+          }
+          .animate-wave-fast {
+            animation: wave-gradient 8s ease-in-out infinite;
+          }
+        `}</style>
+        <div aria-hidden="true" className="absolute border border-transparent lg:border-[1.5px] lg:border-white/40 border-solid inset-0 pointer-events-none rounded-[16px] lg:rounded-[24px]" />
 
-        <div className="flex flex-col gap-[24px] lg:gap-[32px] items-center relative w-full pt-[28px] lg:pt-[40px] px-[16px] lg:px-[48px] pb-[24px] lg:pb-[32px]">
+        <div onKeyDown={handleKeyDown} className="flex flex-col gap-[24px] lg:gap-[32px] items-center relative w-full pt-[28px] lg:pt-[40px] px-[16px] lg:px-[48px] pb-[24px] lg:pb-[32px]">
           {!submitted && <ProgressDots total={steps.length} current={clampedIndex} />}
 
           {submitted ? (
@@ -781,13 +905,18 @@ export default function GetFreeAudit() {
                 </svg>
               </div>
               <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[20px] text-white text-center">
-                {reportUrl ? t("Your audit is ready") : t("Thanks — check your inbox shortly")}
+                {reportUrl ? t("Your audit is ready") : t("Thank you! Your audit is on its way")}
               </p>
               <p className="font-['Sora:Regular',sans-serif] text-[14px] text-white/60 text-center max-w-[380px]">
                 {reportUrl
                   ? t("Generated locally for this dev session — production delivers this by email instead.")
-                  : t("We're putting your audit together now. It'll land in your email in a few minutes.")}
+                  : t("Every audit is reviewed by an expert on our team before it's sent. Expect yours in your inbox within 2 to 3 business days, and keep an eye on your spam folder too, just in case.")}
               </p>
+              {!reportUrl && isTestSubmission && (
+                <p className="font-['Sora:Regular',sans-serif] text-[12px] text-[#f2b75e] text-center max-w-[380px]">
+                  {t("Test run: this one skips the review and arrives as soon as it's ready.")}
+                </p>
+              )}
               {reportUrl && (
                 <a
                   href={reportUrl}
@@ -837,6 +966,17 @@ export default function GetFreeAudit() {
                 </div>
               )}
 
+              {submitError && (
+                <div role="alert" className="w-full max-w-[560px] rounded-xl border border-red-500/50 bg-red-500/10 px-[18px] py-[12px]">
+                  <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[13px] text-red-400">
+                    {t("Your request wasn't sent")}
+                  </p>
+                  <p className="font-['Sora:Regular',sans-serif] text-[12.5px] text-white/75 leading-[1.6] mt-[4px]">
+                    {submitError}
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center justify-center gap-4 w-full">
                 {clampedIndex > 0 && (
                   <Button onClick={handleBack} disabled={submitAuditMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">
@@ -844,12 +984,25 @@ export default function GetFreeAudit() {
                   </Button>
                 )}
                 <Button onClick={handleNext} disabled={isNextDisabled()} className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold min-w-[80px] transition-all">
-                  {submitAuditMutation.isPending ? t("Submitting...") : isLastStep ? t("Get My Audit") : t("Next")}
+                  {submitAuditMutation.isPending ? t("Submitting...") : checkingSite ? t("Checking your website...") : isLastStep ? t("Get My Audit") : t("Next")}
                 </Button>
               </div>
+
+              {currentStepKey === "google-access" && (
+                <button
+                  type="button"
+                  onClick={handleSkipGoogleAccess}
+                  disabled={submitAuditMutation.isPending || testPrefixMismatch}
+                  className="-mt-[8px] font-['Sora:Regular',sans-serif] text-[13px] text-[#31da72] underline underline-offset-4 decoration-[#31da72]/50 hover:decoration-[#31da72] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent border-0 p-0"
+                >
+                  {t("I changed my mind — run the audit that doesn't need access")}
+                </button>
+              )}
             </>
           )}
         </div>
+
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-16.5px_36.9px_0px_rgba(255,255,255,0.25)] lg:shadow-[inset_0px_16.5px_36.9px_0px_rgba(255,255,255,0.12)]" />
       </div>
     </div>
   );
