@@ -259,6 +259,9 @@ function Frame4() {
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('ROI Calculator')}</p>
       </div>
+      <a className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" href="https://www.optimizers.agency/blog">
+        <p className="css-4hzbpn leading-[17px]">{t('Blog')}</p>
+      </a>
       <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('Contact')}</p>
       </div>

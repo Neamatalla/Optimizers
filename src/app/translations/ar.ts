@@ -8,6 +8,7 @@ export const arTranslations: Record<string, string> = {
   "Case Studies": "دراسات الحالة",
   "Team": "فريق العمل",
   "Contact": "تواصل معنا",
+  "Blog": "المدونة",
   "Quick Links": "روابط سريعة",
   "About": "من نحن",
   "About Us": "من نحن",
