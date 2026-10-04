@@ -598,7 +598,7 @@ export async function runAudit(input: AuditPromptInput): Promise<CategoryResult[
   const usesBrowser = neededMcpServers({ tools: input.tools, ga4OAuthData: input.ga4OAuthData, gtmOAuthData: input.gtmOAuthData }).browser;
   const timeoutMs = usesBrowser ? BROWSER_ROUTE_TIMEOUT_MS : API_ONLY_ROUTE_TIMEOUT_MS;
   console.log(`[audit-prompt] claude -p budget: ${Math.round(timeoutMs / 60000)}min (${usesBrowser ? "browser route" : "API-only route"})`);
-  const raw = await runClaudeHeadless({ prompt, mcpConfigPath: input.mcpConfigPath, allowedTools, timeoutMs });
+  const raw = await runClaudeHeadless({ prompt, mcpConfigPath: input.mcpConfigPath, allowedTools, timeoutMs, label: "audit" });
   const parsed = extractJsonPayload(raw) as { categories?: RawCategoryResult[] };
 
   if (!parsed || !Array.isArray(parsed.categories)) {

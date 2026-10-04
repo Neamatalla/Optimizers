@@ -1,4 +1,8 @@
 import { spawn } from "child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { recordClaudeCall, type UsageWindows } from "./run-metrics.js";
 
 export interface ClaudeRunOptions {
   prompt: string;
@@ -11,12 +15,75 @@ export interface ClaudeRunOptions {
   // mechanical, no-tool work like translate-ar.ts's pass, where extended
   // thinking is pure overhead on a task that has nothing to decide.
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  // Name for this call in the [claude-usage] log and run-metrics summary.
+  label?: string;
+}
+
+// How much raw stdout to keep for error messages. stream-json writes every
+// turn (tool results included, which can be whole page snapshots), so the
+// full stream is never held in memory — only parsed line by line.
+const STDOUT_TAIL_CHARS = 8000;
+
+function readWindows(info: any): UsageWindows | undefined {
+  const windows = info?.unifiedWindows;
+  if (!windows) return undefined;
+  return {
+    fiveHour: typeof windows.five_hour?.utilization === "number" ? windows.five_hour.utilization : undefined,
+    sevenDay: typeof windows.seven_day?.utilization === "number" ? windows.seven_day.utilization : undefined,
+    fiveHourResetsAt: typeof windows.five_hour?.resetsAt === "number" ? windows.five_hour.resetsAt : undefined,
+  };
+}
+
+/**
+ * One throwaway `claude -p` call made only to read the account's current
+ * 5-hour/7-day utilization. The CLI emits a single rate_limit_event per
+ * call, at its start — so the last real call of a run can't report what it
+ * used itself; this reading after it can. Stripped to the minimum
+ * (no tools, MCP, skills or session file; low effort), measured at ~21k
+ * tokens vs ~105k for a default call on this machine. --bare would be
+ * smaller still, but it only accepts ANTHROPIC_API_KEY auth, not the plan
+ * login the worker runs on. Never throws; undefined if it fails.
+ */
+export async function readUsageWindows(): Promise<UsageWindows | undefined> {
+  const bin = process.env.CLAUDE_BIN || "claude";
+  const emptyMcp = path.join(os.tmpdir(), "audit-worker-empty-mcp.json");
+  try {
+    fs.writeFileSync(emptyMcp, JSON.stringify({ mcpServers: {} }));
+  } catch {
+    return undefined;
+  }
+  const args = [
+    "-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence",
+    "--disable-slash-commands", "--strict-mcp-config", "--mcp-config", emptyMcp, "--tools", "", "--effort", "low",
+  ];
+  return new Promise(resolve => {
+    let pending = "";
+    let windows: UsageWindows | undefined;
+    const child = spawn(bin, args, { stdio: ["pipe", "pipe", "ignore"] });
+    const timer = setTimeout(() => child.kill("SIGKILL"), 90_000);
+    child.stdin.end("Reply with the single word ok.");
+    child.stdout.on("data", chunk => {
+      const lines = (pending + chunk.toString()).split(/\r?\n/);
+      pending = lines.pop() ?? "";
+      for (const line of lines) {
+        try {
+          const event = JSON.parse(line);
+          if (event?.type === "rate_limit_event") windows = readWindows(event.rate_limit_info) ?? windows;
+        } catch {
+          // not a JSON line
+        }
+      }
+    });
+    child.on("error", () => { clearTimeout(timer); resolve(undefined); });
+    child.on("close", () => { clearTimeout(timer); resolve(windows); });
+  });
 }
 
 /**
  * Runs `claude -p` (headless/non-interactive mode) with a scoped MCP config
  * and a pre-approved tool allowlist (required for headless runs — there's no
- * TTY to answer an interactive permission prompt). Returns raw stdout.
+ * TTY to answer an interactive permission prompt). Resolves with the final
+ * result envelope as JSON text (what --output-format json used to print).
  */
 export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string> {
   const bin = process.env.CLAUDE_BIN || "claude";
@@ -27,7 +94,12 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   // past that on its own, and did — spawn() failed outright with
   // ENAMETOOLONG before claude ever ran. `-p` with no following value reads
   // the prompt from stdin instead, which has no such length limit.
-  const args = ["-p", "--output-format", "json", "--mcp-config", opts.mcpConfigPath];
+  // stream-json (not json) because only the stream carries rate_limit_event
+  // lines — the account's live 5-hour/7-day window utilization, which
+  // run-metrics.ts reports per run. --verbose is required for stream-json in
+  // print mode. The final `result` line is the same envelope --output-format
+  // json used to print, and is what this function still resolves with.
+  const args = ["-p", "--output-format", "stream-json", "--verbose", "--mcp-config", opts.mcpConfigPath];
   // Omit the flag entirely when empty (e.g. OAuth already covered both GA4
   // and GTM, so no MCP server is needed) rather than passing --allowedTools "" — an
   // empty value there is untested territory, not obviously equivalent to
@@ -42,8 +114,15 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
     child.stdin.end(opts.prompt);
-    let stdout = "";
+    let stdoutBytes = 0;
+    let stdoutTail = "";
+    let pendingLine = "";
     let stderr = "";
+    // The final `result` line (the old --output-format json envelope) and
+    // the usage readings, pulled out of the stream as it arrives.
+    let resultEvent: any = null;
+    let usageStart: UsageWindows | undefined;
+    let usageEnd: UsageWindows | undefined;
     // The curated checklist (checklist.ts) puts 50 detailed points in front
     // of Claude at once, each answered in two registers (types.ts's
     // FindingVoice), plus live GA4/GTM API calls and — on the routes that
@@ -65,51 +144,113 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       ? envTimeout
       : opts.timeoutMs ?? 20 * 60 * 1000;
     const startedAt = Date.now();
+    let recorded = false;
+    const record = (ok: boolean) => {
+      if (recorded) return;
+      recorded = true;
+      const usage = resultEvent?.usage;
+      recordClaudeCall({
+        label: opts.label ?? "claude -p",
+        startedAt,
+        endedAt: Date.now(),
+        ok,
+        apiMs: typeof resultEvent?.duration_api_ms === "number" ? resultEvent.duration_api_ms : undefined,
+        turns: typeof resultEvent?.num_turns === "number" ? resultEvent.num_turns : undefined,
+        costUsd: typeof resultEvent?.total_cost_usd === "number" ? resultEvent.total_cost_usd : undefined,
+        tokens: usage
+          ? {
+              input: usage.input_tokens ?? 0,
+              output: usage.output_tokens ?? 0,
+              cacheRead: usage.cache_read_input_tokens ?? 0,
+              cacheCreation: usage.cache_creation_input_tokens ?? 0,
+            }
+          : undefined,
+        usageStart,
+        usageEnd,
+      });
+    };
+    const handleLine = (line: string) => {
+      if (!line.trim()) return;
+      let event: any;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        return;
+      }
+      if (event?.type === "rate_limit_event") {
+        const windows = readWindows(event.rate_limit_info);
+        if (windows) {
+          usageStart ??= windows;
+          usageEnd = windows;
+        }
+      } else if (event?.type === "result") {
+        resultEvent = event;
+      }
+    };
+    // Everything the process printed that isn't parsed out above is only
+    // kept as a short tail, for the error messages below.
+    const failureDetail = () => {
+      const resultText = typeof resultEvent?.result === "string" ? resultEvent.result : "";
+      return [stderr.trim(), resultText.trim(), stdoutTail.trim()].filter(Boolean).join(" | ");
+    };
     // A prior timeout here (2026-09-15, GA4+GTM route, 25min) discarded
-    // stdout/stderr entirely on reject — even though both had been
-    // accumulating the whole run via the 'data' listeners below — so there
-    // was zero evidence of what claude -p was actually doing when it got
-    // killed. --output-format json only writes its one JSON blob at the
-    // very end (no incremental output to lose), which is WHY that timeout's
-    // stdout was empty either way — but stderr isn't guaranteed empty, and
-    // a heartbeat at least tells the next occurrence whether the process
-    // was making progress (byte counts climbing) or truly hung (flatlined)
-    // without needing to switch to --output-format stream-json just to see
-    // that.
+    // stdout/stderr entirely on reject, so there was zero evidence of what
+    // claude -p was doing when it got killed. The heartbeat tells the next
+    // occurrence whether the process was making progress (stdout climbing —
+    // stream-json writes every turn as it happens) or truly hung (flatlined).
     const heartbeat = setInterval(() => {
       const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
-      console.log(`[claude] still running after ${elapsedSec}s — stdout ${stdout.length}B, stderr ${stderr.length}B`);
+      console.log(`[claude] still running after ${elapsedSec}s — stdout ${stdoutBytes}B, stderr ${stderr.length}B`);
     }, 60_000);
     const timer = setTimeout(() => {
       clearInterval(heartbeat);
       child.kill("SIGKILL");
-      const detail = [stderr.trim(), stdout.trim()].filter(Boolean).join(" | ") || "(no output captured on either stream before the kill)";
+      record(false);
+      const detail = failureDetail() || "(no output captured on either stream before the kill)";
       reject(new Error(`claude -p timed out after ${timeoutMs}ms: ${detail.slice(0, 4000)}`));
     }, timeoutMs);
 
-    child.stdout.on("data", chunk => { stdout += chunk.toString(); });
+    child.stdout.on("data", chunk => {
+      const text = chunk.toString();
+      stdoutBytes += text.length;
+      stdoutTail = (stdoutTail + text).slice(-STDOUT_TAIL_CHARS);
+      const lines = (pendingLine + text).split(/\r?\n/);
+      pendingLine = lines.pop() ?? "";
+      for (const line of lines) handleLine(line);
+    });
     child.stderr.on("data", chunk => { stderr += chunk.toString(); });
     child.on("error", err => {
       clearTimeout(timer);
       clearInterval(heartbeat);
+      record(false);
       reject(err);
     });
     child.on("close", code => {
       clearTimeout(timer);
       clearInterval(heartbeat);
+      handleLine(pendingLine);
+      pendingLine = "";
+      record(code === 0 && resultEvent !== null);
       if (code !== 0) {
-        // BOTH streams, because the CLI puts its actual diagnosis on STDOUT,
-        // not stderr — a usage-limit refusal exits 1 with stderr completely
-        // empty. Reporting stderr alone produced "claude -p exited with code
-        // 1: " with nothing after the colon, which threw away the only copy
-        // of the reason AND defeated poll.ts's isRateLimitError (it matches
-        // on this message), so a transient limit was recorded as a permanent
-        // failure instead of being retried. Two real audits died that way.
-        const detail = [stderr.trim(), stdout.trim()].filter(Boolean).join(" | ") || "(no output on either stream)";
+        // Both streams AND the result text, because the CLI puts its actual
+        // diagnosis on STDOUT, not stderr — a usage-limit refusal exits 1
+        // with stderr completely empty. Reporting stderr alone produced
+        // "claude -p exited with code 1: " with nothing after the colon,
+        // which threw away the only copy of the reason AND defeated poll.ts's
+        // isRateLimitError (it matches on this message), so a transient
+        // limit was recorded as a permanent failure instead of being
+        // retried. Two real audits died that way.
+        const detail = failureDetail() || "(no output on either stream)";
         reject(new Error(`claude -p exited with code ${code}: ${detail.slice(0, 4000)}`));
         return;
       }
-      resolve(stdout);
+      if (!resultEvent) {
+        reject(new Error(`claude -p exited 0 without a result event: ${(failureDetail() || "(no output)").slice(0, 4000)}`));
+        return;
+      }
+      // Same envelope --output-format json printed, so extractJsonPayload /
+      // extractTextPayload below are unchanged.
+      resolve(JSON.stringify(resultEvent));
     });
   });
 }

@@ -30,6 +30,8 @@ import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
 import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail } from "./email.js";
+import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
+import { readUsageWindows } from "./claude.js";
 import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
 
 // Identifies this process in audit_requests.locked_by, so two workers (or a
@@ -272,10 +274,15 @@ async function tick(): Promise<boolean> {
     heartbeat(row.id, WORKER_ID).catch(err => console.warn(`[audit-worker] Heartbeat failed for ${row.id}:`, err?.message ?? err));
   }, HEARTBEAT_MS);
 
+  // Wall-clock + Claude plan usage for this attempt, from claim to end,
+  // printed and saved to output/run-metrics.jsonl in the finally below.
+  startRunMetrics(row.id, row.website, row.attempts);
+  let outcome = "completed";
   try {
     await processRequest(row, WORKER_ID);
   } catch (err: any) {
     const message = err?.message ?? String(err);
+    outcome = `error: ${message.slice(0, 200)}`;
 
     if (err instanceof LostLeaseError) {
       console.warn(`[audit-worker] ${message}; another worker owns it now, stopping without touching the row`);
@@ -331,6 +338,9 @@ async function tick(): Promise<boolean> {
     }
   } finally {
     clearInterval(beat);
+    // One cheap extra claude -p for the closing 5-hour reading (see
+    // readUsageWindows) — skipped when the run made no Claude calls.
+    finishRunMetrics(outcome, hasClaudeCalls() ? await readUsageWindows() : undefined);
   }
   return true;
 }

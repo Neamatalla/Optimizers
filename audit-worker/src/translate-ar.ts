@@ -97,6 +97,7 @@ async function translateBatch(items: FlatFinding[], jobId: string): Promise<{ by
       allowedTools: [],
       timeoutMs: TRANSLATE_TIMEOUT_MS,
       effort: "low",
+      label: `translate (${items.length} findings)`,
     });
 
     const parsed = extractJsonPayload(raw);
