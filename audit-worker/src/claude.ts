@@ -99,7 +99,10 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   // run-metrics.ts reports per run. --verbose is required for stream-json in
   // print mode. The final `result` line is the same envelope --output-format
   // json used to print, and is what this function still resolves with.
-  const args = ["-p", "--output-format", "stream-json", "--verbose", "--mcp-config", opts.mcpConfigPath];
+  // --no-session-persistence: nothing ever reads these transcripts back, and
+  // each one holds whole page snapshots — in the container, HOME is on the
+  // persistent volume, so they'd pile up there run after run.
+  const args = ["-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence", "--mcp-config", opts.mcpConfigPath];
   // Omit the flag entirely when empty (e.g. OAuth already covered both GA4
   // and GTM, so no MCP server is needed) rather than passing --allowedTools "" — an
   // empty value there is untested territory, not obviously equivalent to

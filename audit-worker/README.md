@@ -38,13 +38,12 @@ wherever you start it.
    SQL Editor → New query → paste → Run. Creates the `audit_requests` table.
 4. Make sure `claude` is on `PATH` for whatever user/service runs this (or set
    `CLAUDE_BIN` to an absolute path).
-5. For requests where the visitor picked no tools at all, the audit runs a
-   real headless Chrome pass (console errors, network/tag-firing checks) via
-   `chrome-devtools-mcp`, fetched at runtime with `npx` — no separate install
-   step needed in this project, but the VPS needs Google Chrome (or Chrome
-   for Testing) present so `npx chrome-devtools-mcp@latest --headless` has a
-   browser to launch. First run on a fresh VPS will download Chrome's ~300MB
-   binary via npx/puppeteer if it isn't already cached.
+5. For requests where the visitor picked zero or one of GA4/GTM, the audit
+   runs a real headless Chrome pass (console errors, network/tag-firing
+   checks) via `chrome-devtools-mcp`, a pinned dependency in `package.json`
+   (installed by step 1). The machine needs Google Chrome (or Chrome for
+   Testing) installed for it to launch; set `CHROME_PATH` if it's somewhere
+   unusual. The Docker image (see "Running in Docker" below) ships its own.
 
 No browser login or OAuth consent step is needed anywhere in this setup — GA4
 and GTM both authenticate via service account, same as your existing MCP
@@ -129,6 +128,56 @@ job to finish (up to 20 minutes); anything cut off resumes on the next start.
 Upgrading an existing project: run
 `supabase/migrations/2026-09-28-job-queue.sql` once in the Supabase SQL editor
 before starting a worker built from this version.
+
+## Running in Docker
+
+The `Dockerfile` here builds one image with everything the worker needs:
+Node 24, Google Chrome (plus Noto fonts for Arabic screenshots), the Claude
+Code CLI pinned to a known version, the pinned `chrome-devtools-mcp`, and the
+compiled worker. Nothing comes from the host. The same image is what Railway
+builds (service root directory: `audit-worker`).
+
+Anything that has to survive a rebuild lives on **one volume at `/data`**
+(Railway allows one per service):
+
+| Path | What |
+| --- | --- |
+| `/data/home` | `HOME`: the Claude login (`.claude/.credentials.json`), `.claude.json`, history |
+| `/data/logs` | worker daily logs (`/app/logs` links here) |
+| `/data/output` | `run-metrics.jsonl`, previews (`/app/output` links here) |
+| `/data/secrets` | GA4/GTM service-account keys, once those servers are added |
+
+The container runs as root (Railway volumes need it) and Chrome runs without
+its sandbox, which containers can't provide.
+
+```bash
+docker build -t audit-worker:dev .
+
+# keep it up without polling, with a named volume at /data
+docker run -d --name audit-worker --shm-size=1g \
+  -v audit-worker-data:/data audit-worker:dev sleep infinity
+# add --env-file .env and drop "sleep infinity" to run the poll loop instead
+
+docker exec -it -w /workspace audit-worker bash
+docker rm -f audit-worker     # the volume, and the login on it, stay
+```
+
+**Logging in to Claude** happens once, inside the container: `claude`, then
+`/login`, open the link on your own machine and paste the code back. The
+login is saved under `/data/home` and refreshes itself, so it survives new
+containers and redeploys for as long as the volume exists. Never bake it into
+the image.
+
+`/workspace` holds baked Claude config for interactive sessions: an
+`.mcp.json` that connects Chrome (with the container's flags), settings that
+pre-approve its tools, and a `CLAUDE.md` describing the container. The
+server itself is approved by `/etc/claude-code/managed-settings.json`, since a
+project can't approve its own servers. Run `claude` from there and `/mcp`
+shows `chrome-devtools` connected.
+
+From **Git Bash** on Windows, prefix `docker exec -w …` and `docker cp`
+commands with `MSYS_NO_PATHCONV=1`, or Git Bash rewrites `/workspace` into a
+Windows path (`Cwd must be an absolute path`). PowerShell needs nothing.
 
 ## Test mode
 

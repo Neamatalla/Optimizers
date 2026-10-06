@@ -16,8 +16,12 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/poll.js"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "chrome-devtools-mcp": "1.10.1",
     "dotenv": "^16.4.5",
     "puppeteer-core": "^23.11.1",
     "resend": "^6.9.2"

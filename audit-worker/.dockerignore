@@ -1,0 +1,16 @@
+# Keep secrets, local state and one-off scripts out of the build context.
+.env
+.env.*
+!.env.example
+secrets/
+node_modules/
+vendor/mcp/*/node_modules/
+dist/
+logs/
+output/
+*.log
+check-*.mjs
+src/_regen-*.ts
+deploy/
+BACKLOG.md
+README.md
