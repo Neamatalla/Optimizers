@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Headless worker that claims 'Get a Free Audit' requests from Supabase and processes them via `claude -p`. Not built by Vite, not deployed to Vercel — runs on a machine the operator controls (laptop for testing, VPS for production).",
+  "description": "Headless worker that claims 'Get a Free Audit' requests from Supabase and processes them via `claude -p`. Not built by Vite, not deployed to Vercel — runs as a Docker container (Railway in production; see Dockerfile and README).",
   "scripts": {
     "poll": "tsx src/poll.ts",
     "test-run": "tsx src/test-run.ts",

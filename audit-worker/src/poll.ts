@@ -29,9 +29,9 @@ import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
-import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail } from "./email.js";
+import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows } from "./claude.js";
+import { readUsageWindows, checkClaudeLogin } from "./claude.js";
 import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
 
 // Identifies this process in audit_requests.locked_by, so two workers (or a
@@ -263,6 +263,39 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   console.log(`[audit-worker] Awaiting approval ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, report: ${reportUrl}`);
 }
 
+// The login state last seen (null until the first check), so the alert goes
+// out once per outage rather than on every poll.
+let claudeLoggedIn: boolean | null = null;
+
+/**
+ * Checked before claiming any audit. Logged out means every claim would fail
+ * "Not logged in" and burn one of that request's attempts, so instead the
+ * worker claims nothing until the login is back. On the change to logged out
+ * (including at startup) it logs and emails the reviewer once; on the change
+ * back it logs and carries on, no restart needed. Never throws.
+ */
+async function claudeReady(): Promise<boolean> {
+  const status = await checkClaudeLogin();
+  if (status.loggedIn) {
+    if (claudeLoggedIn !== true) {
+      console.log(`[audit-worker] Claude login OK (${status.detail})${claudeLoggedIn === false ? ", resuming audits" : ""}`);
+    }
+    claudeLoggedIn = true;
+    return true;
+  }
+  if (claudeLoggedIn !== false) {
+    console.error(`[audit-worker] Claude isn't logged in (${status.detail}). Not claiming audits until it is; requests wait in the queue.`);
+    try {
+      await sendClaudeLoginAlertEmail({ to: REVIEWER_EMAIL, workerId: WORKER_ID, detail: status.detail });
+      console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the missing Claude login`);
+    } catch (err) {
+      console.error("[audit-worker] Also failed to email the login alert:", err);
+    }
+  }
+  claudeLoggedIn = false;
+  return false;
+}
+
 async function tick(): Promise<boolean> {
   const row = await claimNextRequest(WORKER_ID);
   if (!row) return false;
@@ -420,7 +453,7 @@ async function main() {
   while (running) {
     let foundWork = false;
     try {
-      foundWork = await tick();
+      foundWork = (await claudeReady()) && (await tick());
     } catch (err) {
       console.error("[audit-worker] Unexpected error in tick:", err);
     }

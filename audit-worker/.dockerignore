@@ -11,6 +11,5 @@ output/
 *.log
 check-*.mjs
 src/_regen-*.ts
-deploy/
 BACKLOG.md
 README.md

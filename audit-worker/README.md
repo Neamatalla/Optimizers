@@ -8,8 +8,9 @@ browser over the site, generating a branded HTML report page, and emailing
 the link via Resend.
 
 This is a **separate Node project from the website** — not built by Vite, not
-deployed to Vercel. It runs on a machine you actually control, because it logs
-in as `claude` and that can't happen inside a stateless serverless function.
+deployed to Vercel. It runs as a long-lived container (see "Running in
+Docker"), because it logs in as `claude` and that can't happen inside a
+stateless serverless function.
 
 ## Why it's separate
 
@@ -62,47 +63,12 @@ Leave this running in a terminal. It polls every `POLL_INTERVAL_MS` (default
 sleep when the queue's empty. `Ctrl+C` shuts it down cleanly after the current
 job finishes.
 
-**Production (server):**
-
-Any small Linux VPS works (Ubuntu 22.04/24.04, 2 GB RAM or more for Chrome).
-The worker only makes outbound connections, so no ports need opening.
-
-1. Install Node.js 20+ and Google Chrome (or Chrome for Testing), then create
-   a user for the service:
-   ```bash
-   sudo useradd --create-home --shell /bin/bash auditworker
-   ```
-2. As that user, install the Claude CLI and log in once, so `claude -p` works
-   headlessly (`claude` must be on `PATH`, or set `CLAUDE_BIN`):
-   ```bash
-   sudo -iu auditworker
-   claude    # complete the login, then exit
-   ```
-3. Copy this `audit-worker/` folder to `/opt/optimizers/audit-worker`, plus the
-   MCP script projects it points at (`ga4-admin-mcp`, the GTM MCP server) and
-   their service-account key files. None of those are committed to this repo.
-   Make the folder owned by `auditworker`.
-4. In that folder: `npm install`, then create `.env` from `.env.example` with
-   paths matching the server's filesystem. Set `PUBLIC_SITE_URL` to the live
-   site (`https://optimizers.agency`), not an ngrok tunnel, or emailed report
-   links will die when the tunnel does. Set `CHROME_PATH` if Chrome isn't
-   found automatically.
-5. `npm run build` (compiles to `dist/`).
-6. Install and start the service (`deploy/audit-worker.service`; edit `User`
-   and `WorkingDirectory` first if you used different ones):
-   ```bash
-   sudo cp deploy/audit-worker.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now audit-worker
-   journalctl -u audit-worker -f     # live logs
-   ```
-7. Stop any other copy of the worker (e.g. one left running on a laptop).
-   Two workers are safe (the lease stops them taking the same job), but the
-   laptop one would stop whenever the laptop sleeps.
-
-To deploy an update: copy the new code over, `npm install`, `npm run build`,
-then `sudo systemctl restart audit-worker`. The restart waits for the current
-job to finish (up to 20 minutes); anything cut off resumes on the next start.
+**Production:** the Docker image, deployed on Railway with a volume at
+`/data` — see "Running in Docker" below. (The hand-built VPS + systemd setup
+this section used to describe is retired.) Set `PUBLIC_SITE_URL` to the live
+site (`https://optimizers.agency`), not a tunnel, or emailed report links die
+with the tunnel. Run one worker at a time: stop any laptop copy before the
+container starts polling.
 
 ### How the queue recovers from problems
 
@@ -117,10 +83,16 @@ job to finish (up to 20 minutes); anything cut off resumes on the next start.
   is saved to the row's `progress` as it finishes. A retry resumes from the
   last finished stage, so a failed upload never re-runs the audit, and no
   email is ever sent twice.
+- **Claude logged out:** before claiming anything, the worker checks
+  `claude auth status`. Logged out (at startup or later), it claims nothing,
+  logs it, and emails `AUDIT_REVIEWER_EMAIL` once; requests wait in the queue
+  instead of failing. After a fresh `/login` it carries on within a minute,
+  no restart needed. Client sends and the daily digest keep running.
 - **Manual retry** (after fixing the cause of a failure):
   ```bash
   npm run requeue -- <request-id>            # resume from saved progress
   npm run requeue -- <request-id> --fresh    # start the whole audit again
+  # inside the container: node dist/requeue.js <request-id> [--fresh]
   ```
   It refuses rows already awaiting approval, scheduled or done unless you add
   `--force`.
@@ -148,7 +120,9 @@ Anything that has to survive a rebuild lives on **one volume at `/data`**
 | `/data/secrets` | GA4/GTM service-account keys, once those servers are added |
 
 The container runs as root (Railway volumes need it) and Chrome runs without
-its sandbox, which containers can't provide.
+its sandbox, which containers can't provide. If a container starts without a
+volume at `/data`, the entrypoint prints a warning: everything above would be
+lost with that container (Docker Desktop's Run button attaches no volume).
 
 ```bash
 docker build -t audit-worker:dev .

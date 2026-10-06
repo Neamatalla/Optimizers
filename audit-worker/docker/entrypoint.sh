@@ -3,6 +3,13 @@
 # default, or e.g. `sleep infinity` to keep it up for a shell.
 set -eu
 
+# Without a volume, /data is just a folder inside this container: the Claude
+# login, logs and keys vanish when the container is deleted. Easy to miss when
+# starting it from Docker Desktop's Run button, which attaches no volume.
+if ! mountpoint -q /data; then
+  echo "[entrypoint] WARNING: /data is not a volume. The Claude login, logs and keys will be lost when this container is deleted. Start it with -v audit-worker-data:/data." >&2
+fi
+
 # A fresh volume gets its layout on first boot; later boots find it there.
 mkdir -p /data/home /data/logs /data/output /data/secrets
 chmod 700 /data/home /data/secrets

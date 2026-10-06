@@ -79,6 +79,44 @@ export async function readUsageWindows(): Promise<UsageWindows | undefined> {
   });
 }
 
+export interface ClaudeLoginStatus {
+  loggedIn: boolean;
+  // Who/how when logged in, or why not — for the log line and alert email.
+  detail: string;
+}
+
+/**
+ * Whether the CLI has a usable login, from `claude auth status` (reads local
+ * credentials; no model call, no plan usage). poll.ts checks it before
+ * claiming work: without a login every audit fails "Not logged in", and each
+ * claim would burn one of that request's attempts before anyone heard.
+ * Never throws.
+ */
+export async function checkClaudeLogin(): Promise<ClaudeLoginStatus> {
+  const bin = process.env.CLAUDE_BIN || "claude";
+  return new Promise(resolve => {
+    let out = "";
+    const child = spawn(bin, ["auth", "status", "--json"], { stdio: ["ignore", "pipe", "ignore"] });
+    const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
+    child.stdout.on("data", chunk => { out += chunk.toString(); });
+    child.on("error", err => {
+      clearTimeout(timer);
+      resolve({ loggedIn: false, detail: `could not run ${bin}: ${err.message}` });
+    });
+    child.on("close", () => {
+      clearTimeout(timer);
+      try {
+        const status = JSON.parse(out);
+        resolve(status?.loggedIn
+          ? { loggedIn: true, detail: `${status.authMethod ?? "logged in"}${status.email ? ` as ${status.email}` : ""}` }
+          : { loggedIn: false, detail: "`claude auth status` reports loggedIn: false" });
+      } catch {
+        resolve({ loggedIn: false, detail: `unreadable \`claude auth status\` output: ${out.slice(0, 200) || "(none)"}` });
+      }
+    });
+  });
+}
+
 /**
  * Runs `claude -p` (headless/non-interactive mode) with a scoped MCP config
  * and a pre-approved tool allowlist (required for headless runs — there's no
