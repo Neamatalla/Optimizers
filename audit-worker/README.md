@@ -8,8 +8,9 @@ browser over the site, generating a branded HTML report page, and emailing
 the link via Resend.
 
 This is a **separate Node project from the website** — not built by Vite, not
-deployed to Vercel. It runs on a machine you actually control, because it logs
-in as `claude` and that can't happen inside a stateless serverless function.
+deployed to Vercel. It runs as a long-lived container (see "Running in
+Docker"), because it logs in as `claude` and that can't happen inside a
+stateless serverless function.
 
 ## Why it's separate
 
@@ -38,13 +39,12 @@ wherever you start it.
    SQL Editor → New query → paste → Run. Creates the `audit_requests` table.
 4. Make sure `claude` is on `PATH` for whatever user/service runs this (or set
    `CLAUDE_BIN` to an absolute path).
-5. For requests where the visitor picked no tools at all, the audit runs a
-   real headless Chrome pass (console errors, network/tag-firing checks) via
-   `chrome-devtools-mcp`, fetched at runtime with `npx` — no separate install
-   step needed in this project, but the VPS needs Google Chrome (or Chrome
-   for Testing) present so `npx chrome-devtools-mcp@latest --headless` has a
-   browser to launch. First run on a fresh VPS will download Chrome's ~300MB
-   binary via npx/puppeteer if it isn't already cached.
+5. For requests where the visitor picked zero or one of GA4/GTM, the audit
+   runs a real headless Chrome pass (console errors, network/tag-firing
+   checks) via `chrome-devtools-mcp`, a pinned dependency in `package.json`
+   (installed by step 1). The machine needs Google Chrome (or Chrome for
+   Testing) installed for it to launch; set `CHROME_PATH` if it's somewhere
+   unusual. The Docker image (see "Running in Docker" below) ships its own.
 
 No browser login or OAuth consent step is needed anywhere in this setup — GA4
 and GTM both authenticate via service account, same as your existing MCP
@@ -63,47 +63,12 @@ Leave this running in a terminal. It polls every `POLL_INTERVAL_MS` (default
 sleep when the queue's empty. `Ctrl+C` shuts it down cleanly after the current
 job finishes.
 
-**Production (server):**
-
-Any small Linux VPS works (Ubuntu 22.04/24.04, 2 GB RAM or more for Chrome).
-The worker only makes outbound connections, so no ports need opening.
-
-1. Install Node.js 20+ and Google Chrome (or Chrome for Testing), then create
-   a user for the service:
-   ```bash
-   sudo useradd --create-home --shell /bin/bash auditworker
-   ```
-2. As that user, install the Claude CLI and log in once, so `claude -p` works
-   headlessly (`claude` must be on `PATH`, or set `CLAUDE_BIN`):
-   ```bash
-   sudo -iu auditworker
-   claude    # complete the login, then exit
-   ```
-3. Copy this `audit-worker/` folder to `/opt/optimizers/audit-worker`, plus the
-   MCP script projects it points at (`ga4-admin-mcp`, the GTM MCP server) and
-   their service-account key files. None of those are committed to this repo.
-   Make the folder owned by `auditworker`.
-4. In that folder: `npm install`, then create `.env` from `.env.example` with
-   paths matching the server's filesystem. Set `PUBLIC_SITE_URL` to the live
-   site (`https://optimizers.agency`), not an ngrok tunnel, or emailed report
-   links will die when the tunnel does. Set `CHROME_PATH` if Chrome isn't
-   found automatically.
-5. `npm run build` (compiles to `dist/`).
-6. Install and start the service (`deploy/audit-worker.service`; edit `User`
-   and `WorkingDirectory` first if you used different ones):
-   ```bash
-   sudo cp deploy/audit-worker.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now audit-worker
-   journalctl -u audit-worker -f     # live logs
-   ```
-7. Stop any other copy of the worker (e.g. one left running on a laptop).
-   Two workers are safe (the lease stops them taking the same job), but the
-   laptop one would stop whenever the laptop sleeps.
-
-To deploy an update: copy the new code over, `npm install`, `npm run build`,
-then `sudo systemctl restart audit-worker`. The restart waits for the current
-job to finish (up to 20 minutes); anything cut off resumes on the next start.
+**Production:** the Docker image, deployed on Railway with a volume at
+`/data` — see "Running in Docker" below. (The hand-built VPS + systemd setup
+this section used to describe is retired.) Set `PUBLIC_SITE_URL` to the live
+site (`https://optimizers.agency`), not a tunnel, or emailed report links die
+with the tunnel. Run one worker at a time: stop any laptop copy before the
+container starts polling.
 
 ### How the queue recovers from problems
 
@@ -118,10 +83,16 @@ job to finish (up to 20 minutes); anything cut off resumes on the next start.
   is saved to the row's `progress` as it finishes. A retry resumes from the
   last finished stage, so a failed upload never re-runs the audit, and no
   email is ever sent twice.
+- **Claude logged out:** before claiming anything, the worker checks
+  `claude auth status`. Logged out (at startup or later), it claims nothing,
+  logs it, and emails `AUDIT_REVIEWER_EMAIL` once; requests wait in the queue
+  instead of failing. After a fresh `/login` it carries on within a minute,
+  no restart needed. Client sends and the daily digest keep running.
 - **Manual retry** (after fixing the cause of a failure):
   ```bash
   npm run requeue -- <request-id>            # resume from saved progress
   npm run requeue -- <request-id> --fresh    # start the whole audit again
+  # inside the container: node dist/requeue.js <request-id> [--fresh]
   ```
   It refuses rows already awaiting approval, scheduled or done unless you add
   `--force`.
@@ -129,6 +100,58 @@ job to finish (up to 20 minutes); anything cut off resumes on the next start.
 Upgrading an existing project: run
 `supabase/migrations/2026-09-28-job-queue.sql` once in the Supabase SQL editor
 before starting a worker built from this version.
+
+## Running in Docker
+
+The `Dockerfile` here builds one image with everything the worker needs:
+Node 24, Google Chrome (plus Noto fonts for Arabic screenshots), the Claude
+Code CLI pinned to a known version, the pinned `chrome-devtools-mcp`, and the
+compiled worker. Nothing comes from the host. The same image is what Railway
+builds (service root directory: `audit-worker`).
+
+Anything that has to survive a rebuild lives on **one volume at `/data`**
+(Railway allows one per service):
+
+| Path | What |
+| --- | --- |
+| `/data/home` | `HOME`: the Claude login (`.claude/.credentials.json`), `.claude.json`, history |
+| `/data/logs` | worker daily logs (`/app/logs` links here) |
+| `/data/output` | `run-metrics.jsonl`, previews (`/app/output` links here) |
+| `/data/secrets` | GA4/GTM service-account keys, once those servers are added |
+
+The container runs as root (Railway volumes need it) and Chrome runs without
+its sandbox, which containers can't provide. If a container starts without a
+volume at `/data`, the entrypoint prints a warning: everything above would be
+lost with that container (Docker Desktop's Run button attaches no volume).
+
+```bash
+docker build -t audit-worker:dev .
+
+# keep it up without polling, with a named volume at /data
+docker run -d --name audit-worker --shm-size=1g \
+  -v audit-worker-data:/data audit-worker:dev sleep infinity
+# add --env-file .env and drop "sleep infinity" to run the poll loop instead
+
+docker exec -it -w /workspace audit-worker bash
+docker rm -f audit-worker     # the volume, and the login on it, stay
+```
+
+**Logging in to Claude** happens once, inside the container: `claude`, then
+`/login`, open the link on your own machine and paste the code back. The
+login is saved under `/data/home` and refreshes itself, so it survives new
+containers and redeploys for as long as the volume exists. Never bake it into
+the image.
+
+`/workspace` holds baked Claude config for interactive sessions: an
+`.mcp.json` that connects Chrome (with the container's flags), settings that
+pre-approve its tools, and a `CLAUDE.md` describing the container. The
+server itself is approved by `/etc/claude-code/managed-settings.json`, since a
+project can't approve its own servers. Run `claude` from there and `/mcp`
+shows `chrome-devtools` connected.
+
+From **Git Bash** on Windows, prefix `docker exec -w …` and `docker cp`
+commands with `MSYS_NO_PATHCONV=1`, or Git Bash rewrites `/workspace` into a
+Windows path (`Cwd must be an absolute path`). PowerShell needs nothing.
 
 ## Test mode
 

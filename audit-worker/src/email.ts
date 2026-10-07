@@ -241,6 +241,41 @@ export async function sendAuditFailedEmail(opts: {
   if (error) throw new Error(`Resend API error: ${error.message}`);
 }
 
+// Sent when the worker finds Claude logged out (at startup, or later if the
+// login stops working). While logged out it claims nothing, so requests wait
+// in the queue instead of failing; this email is how anyone finds out.
+export async function sendClaudeLoginAlertEmail(opts: { to: string; workerId: string; detail: string }): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not set - see audit-worker/.env.example");
+  }
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from: "Optimizers Audits <hello@optimizers.agency>",
+    to: [opts.to],
+    subject: "Audit worker is paused: Claude isn't logged in",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #7a1f14; border-bottom: 2px solid #ff6b57; padding-bottom: 10px;">Audit worker paused</h2>
+        <p style="color: #333; font-size: 14px; line-height: 1.6;">
+          The audit worker <b>${escapeHtml(opts.workerId)}</b> can't use Claude, so it has stopped picking up audit requests.
+          Nothing is lost: new requests wait in the queue and are processed once Claude is logged in again.
+          Approved audits still go out to clients on schedule.
+        </p>
+        <p style="color: #333; font-size: 13px; margin: 0 0 6px;"><b>What it found</b></p>
+        <pre style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word;">${escapeHtml(opts.detail)}</pre>
+        <p style="color: #333; font-size: 13px; line-height: 1.6;">
+          To fix it, open a shell in the worker's container (<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">railway ssh</code>, or
+          <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">docker exec -it audit-worker bash</code> locally), run
+          <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">claude</code> and then <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">/login</code>.
+          The worker notices within a minute; no restart needed.
+        </p>
+      </div>
+    `.trim(),
+  });
+  if (error) throw new Error(`Resend API error: ${error.message}`);
+}
+
 export interface DigestRow {
   email: string;
   website: string;

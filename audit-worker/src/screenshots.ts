@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import path from "path";
 import os from "os";
 import puppeteer from "puppeteer-core";
@@ -51,9 +51,9 @@ const MOBILE_UA =
  * Where Chrome actually is. No single answer works across the operator's
  * Windows dev box and a Linux VPS, and puppeteer-core deliberately ships no
  * browser of its own, so this checks the conventional install paths for each
- * platform plus the Chrome-for-Testing cache that chrome-devtools-mcp's own
- * npx run may have populated. CHROME_PATH overrides everything for anything
- * unusual.
+ * platform plus the Chrome-for-Testing cache that puppeteer tooling may have
+ * populated. CHROME_PATH overrides everything for anything unusual (the
+ * Docker image sets it to its own Chrome).
  */
 function findChrome(): string | null {
   const fromEnv = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -79,8 +79,7 @@ function findChrome(): string | null {
     );
   }
 
-  // Chrome for Testing, as installed by puppeteer/@puppeteer/browsers — the
-  // same cache chrome-devtools-mcp fills on its first npx run.
+  // Chrome for Testing, as installed by puppeteer/@puppeteer/browsers.
   const cache = path.join(os.homedir(), ".cache", "puppeteer");
   if (existsSync(cache)) {
     const exe = process.platform === "win32" ? "chrome.exe" : "chrome";
@@ -90,7 +89,7 @@ function findChrome(): string | null {
       // Any versioned subdir will do; take them in reverse order so a newer
       // build wins without needing to parse version strings.
       try {
-        const versions = require("fs").readdirSync(base).sort().reverse() as string[];
+        const versions = readdirSync(base).sort().reverse();
         for (const v of versions) {
           for (const inner of ["chrome-win64", "chrome-linux64", "chrome-mac-x64", "chrome-mac-arm64", ""]) {
             const candidate = path.join(base, v, inner, exe);

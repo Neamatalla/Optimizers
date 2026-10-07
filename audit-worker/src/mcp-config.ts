@@ -1,7 +1,23 @@
 import { promises as fs } from "fs";
+import { createRequire } from "module";
 import os from "os";
 import path from "path";
 import type { ToolId } from "./types.js";
+
+const require = createRequire(import.meta.url);
+
+/**
+ * Entry script of the pinned chrome-devtools-mcp dependency (package.json).
+ * Started with `node` rather than `npx -y …@latest`: no npm fetch on every
+ * audit, a new release can't change audits until we bump the pin, and a
+ * plain node path behaves the same on Windows and Linux (no .bin shim).
+ */
+function chromeDevtoolsEntry(): string {
+  const pkgPath = require.resolve("chrome-devtools-mcp/package.json");
+  const pkg = require(pkgPath);
+  const bin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin["chrome-devtools-mcp"];
+  return path.join(path.dirname(pkgPath), bin);
+}
 
 interface McpServerEntry {
   type: "stdio";
@@ -68,9 +84,8 @@ function requireEnv(name: string): string {
  * same identity every job, no login step, works headless on a VPS.
  *
  * The browser server (chrome-devtools-mcp, real headless Chrome via
- * puppeteer, npx-fetched — no direct dependency needed in package.json)
- * adds real latency (browser boot + navigation) and a one-time ~300MB
- * Chromium install on the VPS, so it's only built when this run's other
+ * puppeteer, a pinned dependency — see chromeDevtoolsEntry above) adds
+ * real latency (browser boot + navigation), so it's only built when this run's other
  * 25 (or 50) points come from a real website-code audit rather than a
  * second tracking-tool checklist — the visitor picked zero or one of
  * GA4/GTM (see neededMcpServers.browser's own comment).
@@ -97,17 +112,20 @@ export async function buildMcpConfig(jobId: string, needed: NeededMcpServers): P
   }
 
   if (needed.browser) {
-    mcpServers["chrome-devtools"] = {
-      type: "stdio",
-      command: "npx",
-      // --isolated: temp Chrome profile per launch, not the shared default
-      // one — avoids a profile-lock conflict if a prior run's browser
-      // process ever gets left behind. --headless: no display on the VPS.
-      // --no-usage-statistics: client website data shouldn't phone home to
-      // Google's telemetry by default.
-      args: ["-y", "chrome-devtools-mcp@latest", "--headless", "--isolated", "--no-usage-statistics"],
-      env: {},
-    };
+    // --isolated: temp Chrome profile per launch, not the shared default
+    // one — avoids a profile-lock conflict if a prior run's browser
+    // process ever gets left behind. --headless: no display on the VPS.
+    // --no-usage-statistics: client website data shouldn't phone home to
+    // Google's telemetry by default.
+    const args = [chromeDevtoolsEntry(), "--headless", "--isolated", "--no-usage-statistics"];
+    // CHROME_PATH: the image's own Chrome (also what screenshots.ts uses).
+    if (process.env.CHROME_PATH) args.push("--executablePath", process.env.CHROME_PATH);
+    // Set only in the Docker image: containers don't grant the kernel
+    // features Chrome's sandbox needs, and /dev/shm is tiny there.
+    if (process.env.CHROME_NO_SANDBOX === "1") {
+      args.push("--chromeArg=--no-sandbox", "--chromeArg=--disable-dev-shm-usage");
+    }
+    mcpServers["chrome-devtools"] = { type: "stdio", command: "node", args, env: {} };
   }
 
   const serverNames = Object.keys(mcpServers);
