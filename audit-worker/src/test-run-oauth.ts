@@ -86,7 +86,7 @@ async function main() {
   let result: AuditResult;
   let htmlReport: string;
   try {
-    const categories = await runAudit({
+    const { categories, ga4Metrics } = await runAudit({
       website,
       tools,
       discoveredPages,
@@ -110,7 +110,7 @@ async function main() {
     const { earned, possible } = computeOverallPoints(categories);
     console.log("[test-run-oauth] overall score:", `${earned}/${possible}`);
 
-    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, screenshots };
+    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, screenshots, ga4Metrics };
 
     console.log("[test-run-oauth] translating findings to Arabic...");
     const arabic = await translateFindingsToArabic(result, requestId);

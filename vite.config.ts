@@ -725,7 +725,7 @@ function apiMiddlewarePlugin() {
           return;
         }
         const redirectUri = dynamicRedirectUri(req);
-        const { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult } = await import('./api/_lib/google-oauth.js');
+        const { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult } = await import('./api/_lib/google-oauth.js');
 
         const url = new URL(req.url, 'http://localhost');
         const code = url.searchParams.get('code');
@@ -768,19 +768,17 @@ Connected — you can close this window.
         try {
           const token = await exchangeCodeForToken({ clientId, clientSecret, redirectUri, code });
           console.log('[oauth-callback] token exchange OK');
-          const [ga4Properties, gtmContainers] = await Promise.all([fetchAllGA4Properties(token), fetchAllGTMContainers(token)]);
+          // GA4 only — no tagmanager scope is requested anymore (GTM audit is paid).
+          const ga4Properties = await fetchAllGA4Properties(token);
           console.log('[oauth-callback] ga4Properties:', Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`);
-          console.log('[oauth-callback] gtmContainers:', Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`);
-          console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
+          console.log(describeOAuthResult({ ga4Properties }));
           res.statusCode = 200;
           // Fetch errors travel as their own fields rather than collapsing
           // into an empty list — see the Vercel callback for why.
           res.end(popupHtml({
             type: 'google-oauth-result',
             ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
-            gtmContainers: Array.isArray(gtmContainers) ? gtmContainers : [],
             ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
-            gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
           }));
         } catch (err: any) {
           console.log('[oauth-callback] FAILED:', err.message || err);

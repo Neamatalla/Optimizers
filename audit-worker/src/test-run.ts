@@ -76,7 +76,7 @@ async function main() {
   let result: AuditResult;
   let htmlReport: string;
   try {
-    const categories = await runAudit({
+    const { categories, ga4Metrics } = await runAudit({
       website,
       tools,
       discoveredPages,
@@ -100,7 +100,7 @@ async function main() {
     const pageSpeed = await pageSpeedPromise;
     console.log("[test-run] pagespeed:", pageSpeed.error ?? JSON.stringify(pageSpeed.average), pageSpeed.pages.map(p => `${p.type}=${p.mobile}/${p.desktop}`).join(" "));
 
-    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, pageSpeed, screenshots };
+    result = { categories, overallScore: earned, possiblePoints: possible, websiteUrl: website, businessName, discoveredPages, pageSpeed, screenshots, ga4Metrics };
 
     console.log("[test-run] translating findings to Arabic...");
     const arabic = await translateFindingsToArabic(result, requestId);

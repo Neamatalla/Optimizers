@@ -19,9 +19,11 @@ const GA4_ADMIN_ALPHA_BASE = "https://analyticsadmin.googleapis.com/v1alpha";
 const GA4_DATA_BASE = "https://analyticsdata.googleapis.com/v1beta";
 const GTM_BASE = "https://www.googleapis.com/tagmanager/v2";
 
+// GA4 only — the GTM audit is a paid service now (booked via a call), so the
+// free audit no longer asks for tagmanager.readonly. fetchAllGTMContainers
+// below is kept for when/if that scope comes back, but nothing calls it.
 const SCOPES = [
   "https://www.googleapis.com/auth/analytics.readonly",
-  "https://www.googleapis.com/auth/tagmanager.readonly",
 ].join(" ");
 
 export function buildAuthorizeUrl({ clientId, redirectUri, state }) {

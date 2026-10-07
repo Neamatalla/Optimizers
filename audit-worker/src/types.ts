@@ -82,6 +82,7 @@ export interface JobProgress {
   discoveredPages?: string[];
   pageSpeed?: AuditResult["pageSpeed"];
   screenshots?: AuditResult["screenshots"];
+  ga4Metrics?: Ga4Metrics | null;
   // Stage 2: categories above already carry their Arabic text.
   translated?: boolean;
   // Stage 3: report built and uploaded.
@@ -217,10 +218,34 @@ export interface AuditResult {
   // (pagespeed.ts), shown in the report's Page Speed tab. Informational only,
   // never part of overallScore. Absent on results from before this existed.
   pageSpeed?: import("./pagespeed.js").PageSpeedResult;
-  // Above-the-fold screenshots of the site at desktop and mobile widths
-  // (screenshots.ts), rendered as a device-framed mockup under the report
-  // hero. Best-effort: either or both may be null when no browser was
+  // Full-length screenshots of the homepage at desktop and mobile widths
+  // (screenshots.ts), scrolled top to bottom inside the report's device
+  // frames. Results from before 2026-10-05 hold first-screen shots only. Best-effort: either or both may be null when no browser was
   // found or the page would not load, and the report simply omits the
   // mockup rather than showing a broken frame.
   screenshots?: { desktop: string | null; mobile: string | null };
+  // The store's own GA4 numbers for the report's charts (funnel, channel and
+  // new-vs-returning conversion). Copied by Claude from the GA4-D data pulls
+  // it already makes, never estimated, and only kept when the GA4 property
+  // was a live exact match (see audit-prompt.ts's sanitizeGa4Metrics).
+  // Absent or null when there was no live GA4 data or on older results.
+  ga4Metrics?: Ga4Metrics | null;
+}
+
+export type Ga4FunnelEvent = "page_view" | "view_item" | "add_to_cart" | "begin_checkout" | "add_shipping_info" | "add_payment_info" | "purchase";
+
+export interface Ga4Metrics {
+  periodDays: number;
+  currency: string | null;
+  sessions: number | null;
+  conversions: number | null;
+  // Percent, e.g. 2.36.
+  conversionRate: number | null;
+  revenue: number | null;
+  // Event counts in funnel order; at least two steps when present.
+  funnel: Array<{ event: Ga4FunnelEvent; count: number }>;
+  // Conversion rate by default channel group.
+  channels: Array<{ name: string; sessions: number | null; conversionRate: number }>;
+  // New vs returning visitors.
+  segments: Array<{ name: "new" | "returning"; sessions: number | null; conversionRate: number }>;
 }

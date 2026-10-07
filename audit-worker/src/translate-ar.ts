@@ -69,6 +69,8 @@ Translate every "summary" and "detail" string into natural, professional Arabic.
 - Numbers, percentages, currency codes (e.g. "AED 9,240"), and dates stay as digits/codes, written left-to-right as usual in Arabic text.
 - Preserve emphasis and meaning exactly — this is a translation, not a rewrite or a summary. Every sentence in the English source should have a corresponding sentence in the Arabic output.
 - Natural Arabic sentence structure, not a word-for-word calque of the English syntax.
+- Reading level for the business text: the reader is a busy store owner in Egypt or the Gulf, not an analyst. Use plain, everyday Modern Standard Arabic, the kind used in business news, not formal or literary Arabic: short sentences with one idea each (split a long English sentence into two Arabic ones rather than chaining it with و/ف/حيث/إذ), common words over formal ones ("يُظهر" not "يتجلّى"، "لذلك" not "ومن ثَمّ"، "حتى الآن" not "حتى تاريخه"), and no long chains of nouns in إضافة. Speak to the owner directly ("متجرك"، "مبيعاتك") where it reads naturally. Keep the meaning and every fact; only the wording gets simpler.
+- The technical text keeps the exact identifiers and values, but also in short sentences.
 - Every entry in the input must produce exactly one entry in the output, in the same order, with the same "key" — never skip, merge, or drop one, even a short/simple one.
 
 Return ONLY a JSON array, same length and same order as the input, each entry shaped exactly like:

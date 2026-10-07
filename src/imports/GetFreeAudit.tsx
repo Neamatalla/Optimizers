@@ -74,9 +74,12 @@ const normalizeWebsiteUrl = (url: string): string => {
 // exists for it).
 type ToolId = "GA4" | "GTM";
 
-const TOOL_OPTIONS: { id: ToolId; label: string; hint: string }[] = [
+// GTM is gated behind a paid audit: shown (so visitors know it exists) but
+// dimmed and unselectable, pointing them to book a call instead. The OAuth
+// flow no longer requests the tagmanager scope either (api/_lib/google-oauth.js).
+const TOOL_OPTIONS: { id: ToolId; label: string; hint: string; locked?: boolean }[] = [
   { id: "GA4", label: "Google Analytics 4", hint: "GA4 tracking" },
-  { id: "GTM", label: "Google Tag Manager", hint: "GTM container" },
+  { id: "GTM", label: "Google Tag Manager", hint: "GTM container", locked: true },
 ];
 
 // Full property/container objects returned by api/oauth/google/callback.js
@@ -245,6 +248,40 @@ function ToolCard({ label, hint, isSelected, onClick, className = "" }: { label:
   );
 }
 
+// Paid-only tool: dimmed card, not selectable. Desktop shows the "contact us"
+// CTA on hover/focus; touch devices (no hover) show it inline under the hint.
+function LockedToolCard({ label, hint }: { label: string; hint: string }) {
+  const { t } = useLanguage();
+  return (
+    <a
+      href="/#contact"
+      aria-label={`${label}: ${t("Contact us to get a GTM audit")}`}
+      className="group relative flex flex-row items-center gap-[14px] px-[20px] py-[18px] lg:px-[28px] lg:py-[24px] rounded-[12px] lg:rounded-[16px] shrink-0 w-full overflow-hidden bg-[#777]/40 border border-white/15 transition-colors duration-300 lg:hover:border-[#31da72]/60 focus-visible:border-[#31da72]/60 outline-none"
+    >
+      <div className="flex flex-row items-center gap-[14px] min-w-0 opacity-45 transition-opacity duration-300 lg:group-hover:opacity-10 lg:group-focus-visible:opacity-10">
+        <div className="flex-shrink-0 w-[22px] h-[22px] rounded-[6px] flex items-center justify-center border-2 border-white/30">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="10" rx="2" stroke="white" strokeWidth="2.2" />
+            <path d="M8 11V7a4 4 0 018 0v4" stroke="white" strokeWidth="2.2" />
+          </svg>
+        </div>
+        <div className="flex flex-col min-w-0">
+          <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[15px] lg:text-[17px] leading-tight truncate text-white">{label}</p>
+          <p className="font-['Sora:Regular',sans-serif] font-normal text-[12px] lg:text-[13px] text-white/70">{hint}</p>
+        </div>
+      </div>
+      <span className="lg:hidden ms-auto shrink-0 text-[12px] font-semibold text-[#31da72] underline underline-offset-4">
+        {t("Contact us")}
+      </span>
+      <div className="hidden lg:flex absolute inset-0 items-center justify-center px-[16px] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[14px] text-[#31da72] text-center leading-snug">
+          {t("Contact us to get a GTM audit")} →
+        </p>
+      </div>
+    </a>
+  );
+}
+
 // Claims here must stay true to api/_lib/google-oauth.js: read-only scopes, access_type "online" (no refresh token), token discarded after the one fetch.
 function PrivacyNote() {
   const { t } = useLanguage();
@@ -257,10 +294,10 @@ function PrivacyNote() {
       <p className="font-['Sora:Regular',sans-serif] text-[12.5px] lg:text-[13px] leading-[1.6] text-white/65 text-start">
         <span className="font-['Sora:SemiBold',sans-serif] font-semibold text-white/90">{t("Your data stays yours")}</span>
         {" — "}
-        {t("If you connect Google, we take a one-time, read-only snapshot of your GA4 and GTM setup to build a more accurate, data-driven audit. We never see your password, can't change anything in your account, and don't keep access afterwards.")}{" "}
-        <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener noreferrer" className="text-[#31da72] underline underline-offset-2">
+        {t("If you connect Google, we take a one-time, read-only snapshot of your GA4 setup to build a more accurate, data-driven audit. We never see your password, can't change anything in your account, and don't keep access afterwards.")}{" "}
+        <span className="font-['Sora:SemiBold',sans-serif] font-semibold text-[#31da72]">
           {t("You can also remove the connection anytime in your Google account.")}
-        </a>
+        </span>
       </p>
     </div>
   );
@@ -628,7 +665,7 @@ export default function GetFreeAudit() {
   // "Changed my mind" on the google-access step: no Google data at all. The
   // server requires a valid ID for every selected tool, so only tools the
   // public site crawl found an ID for are kept; with none, this becomes the
-  // same code/speed/CRO audit as "None of these".
+  // same code/speed/CRO audit as leaving both tools unselected.
   const handleSkipGoogleAccess = () => {
     if (submitAuditMutation.isPending) return;
     const ga4Id = formData.tools.includes("GA4") ? detectionResult?.ga4MeasurementIds[0] : undefined;
@@ -709,21 +746,22 @@ export default function GetFreeAudit() {
               {t("Which of these does your site already have?")}
             </p>
             <p className="text-[13px] text-white/60 font-['Sora:Regular',sans-serif] text-center">
-              {t("Select any that apply — or tell us you have none and we'll dig into your site's code and speed instead.")}
+              {t("Select GA4 if your site uses it. If not, leave it unselected and continue: we'll audit your website's code and speed instead.")}
             </p>
-            <PrivacyNote />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-[12px] w-full max-w-[560px]">
-              {TOOL_OPTIONS.map(opt => (
-                <ToolCard key={opt.id} label={opt.label} hint={opt.hint} isSelected={formData.tools.includes(opt.id)} onClick={() => toggleTool(opt.id)} />
-              ))}
-              <ToolCard
-                label={t("None of these")}
-                hint={t("We'll audit your site's code, speed & CRO instead")}
-                isSelected={formData.tools.length === 0}
-                onClick={() => setFormData(prev => ({ ...prev, tools: [] }))}
-                className="sm:col-span-2"
-              />
+              {TOOL_OPTIONS.map(opt =>
+                opt.locked ? (
+                  <LockedToolCard key={opt.id} label={opt.label} hint={opt.hint} />
+                ) : (
+                  <ToolCard key={opt.id} label={opt.label} hint={opt.hint} isSelected={formData.tools.includes(opt.id)} onClick={() => toggleTool(opt.id)} />
+                )
+              )}
             </div>
+            {formData.tools.length === 0 && (
+              <p className="text-[13px] text-[#31da72] font-['Sora:Regular',sans-serif] text-center" aria-live="polite">
+                {t("Nothing selected: we'll audit your website's code and speed.")}
+              </p>
+            )}
           </div>
         );
       case "google-access": {
@@ -753,10 +791,8 @@ export default function GetFreeAudit() {
             <p className="text-[13px] text-white/60 font-['Sora:Regular',sans-serif] text-center">
               {oauthStatus === "connected"
                 ? t("Pick the ones for this website. ★ marks the one we found live on your site.")
-                : t("We read your Google Analytics and Tag Manager setup to check what is tracked, what is missing, and where your sales data breaks. After connecting, you just pick your website from a list.")}
+                : t("We read your Google Analytics setup to check what is tracked, what is missing, and where your sales data breaks. After connecting, you just pick your website from a list.")}
             </p>
-            <PrivacyNote />
-
             {oauthStatus !== "connected" && (
               <Button
                 onClick={handleConnectGoogle}
@@ -767,6 +803,7 @@ export default function GetFreeAudit() {
               </Button>
             )}
             {oauthStatus === "error" && <p className="text-red-500 text-xs text-center">{oauthErrorMessage}</p>}
+            <PrivacyNote />
 
             {oauthStatus === "connected" && (
               <div className="w-full flex flex-col gap-3">

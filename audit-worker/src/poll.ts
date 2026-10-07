@@ -153,8 +153,9 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     const needed = neededMcpServers({ tools: row.tools, ga4OAuthData: row.ga4_oauth_data, gtmOAuthData: row.gtm_oauth_data });
     const mcp = await buildMcpConfig(row.id, needed);
     let categories;
+    let ga4Metrics;
     try {
-      categories = await runAudit({
+      ({ categories, ga4Metrics } = await runAudit({
         website: row.website,
         tools: row.tools,
         discoveredPages,
@@ -165,7 +166,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
         userProvidedGtmId: row.gtm_container_id,
         ga4OAuthData: row.ga4_oauth_data,
         gtmOAuthData: row.gtm_oauth_data,
-      });
+      }));
     } finally {
       await mcp.cleanup();
     }
@@ -176,7 +177,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     } else {
       console.log(`[audit-worker] PageSpeed scored ${pageSpeed.pages.length} pages (avg mobile ${pageSpeed.average.mobile}, desktop ${pageSpeed.average.desktop})`);
     }
-    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile } });
+    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics });
     await save();
     console.log(`[audit-worker] Saved audit result for ${row.id}`);
   }
@@ -192,6 +193,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     discoveredPages: progress.discoveredPages ?? [],
     pageSpeed: progress.pageSpeed,
     screenshots: progress.screenshots,
+    ga4Metrics: progress.ga4Metrics ?? null,
   };
   const categoriesAudited = categories.map(c => c.category);
 

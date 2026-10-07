@@ -1,7 +1,7 @@
 import { countedCategories } from "./scoring.js";
 import { extractJsonPayload, runClaudeHeadless } from "./claude.js";
 import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type ChecklistPoint } from "./checklist.js";
-import type { CategoryResult, CategoryFinding, ToolId, CategoryKey } from "./types.js";
+import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, Ga4FunnelEvent } from "./types.js";
 import type { CrawlFindings } from "./crawl.js";
 
 import { neededMcpServers } from "./mcp-config.js";
@@ -196,14 +196,52 @@ background:
 - Worked example of the register, for a real traffic spike found in the
   data: business summary = "Visits jumped sharply on 14 August and nothing
   in the setup flags it." business detail = "Nobody is told when traffic
-  moves like this, so a spike this size gets noticed weeks later, if at all
-  — and by then whatever caused it (a campaign, a press mention, a bot) is
-  cold. The 14 August jump goes unexplained until somebody digs through the
-  data by hand, which usually means it never gets explained at all, and the
-  thing that worked never gets repeated."
+  moves like this, so a spike this size gets noticed weeks later, if at all.
+  By then whatever caused it (a campaign, a press mention, a bot) is cold,
+  and if it was a campaign that worked, nobody knows to run it again."
 - Never restate severity as the impact ("this is critical") — say what
   actually happens. Never moralize or sell; describe the consequence and
   stop. No "we recommend engaging our team".
+
+WRITING RULES — both voices, every finding. The reader is a store owner
+reading a report from an agency, so it has to read like a sharp person
+wrote it, not a template:
+- End on the last concrete fact or consequence. No closing line that just
+  reassures or sums up ("The numbers reflect real shoppers.", "Reports can
+  be trusted.", "There are no blind spots."). If the sentence would fit
+  unchanged in another store's report, cut it or replace it with a number,
+  name or date from THIS store.
+- No "X, not Y" endings ("find buyers, not browsers", "clutter, not
+  breakage", "trustworthy, not inflated"). State the positive fact once.
+- Don't lean on the same adverbs: drop "actually", "exactly", "quietly",
+  "silently", "simply", "truly" unless the sentence breaks without them.
+- No setup phrases or reader guidance: "One thing to note:", "It is worth
+  checking", "matters most", "which matters a lot", "the key point is".
+  Say the thing.
+- No em dashes in finding text. Use a full stop or a comma.
+- Vary sentence openings across findings. Passed checks especially must not
+  all follow the same "X is set up, so Y can be trusted" shape.
+- Never use: delve, leverage, utilize, robust, seamless, streamline,
+  empower, crucial, pivotal, testament, game changer.
+
+READING LEVEL — the business voice is read by a busy store owner who has
+never opened GA4 or GTM. Write it at about a grade 6-8 reading level:
+- Short sentences: one idea each, under 20 words. Split anything longer.
+- Everyday words: "use" not "utilize", "about" not "approximately", "find
+  out" not "determine", "show" not "indicate", "set up" not "implement",
+  "help" not "facilitate", "before" not "prior to", "so" not
+  "consequently", "because" not "due to the fact that".
+- No analytics jargon in the business voice. Say "where a visit came from"
+  not "attribution", "the tracking code" not "tag" or "pixel", "a sale
+  counted twice" not "duplicate transaction", "visits" not "sessions",
+  "people who bought" not "converters". If a tool must be named, explain it
+  once in a few words ("Hotjar, a screen-recording tool").
+- Talk about the shop: sales, orders, ad money, customers, the team's
+  decisions. Use "you" and "your store" where it reads naturally.
+- Active voice: "Google counts each order once", not "each order is
+  counted once".
+- The technical voice keeps the real names, values and identifiers, but
+  also uses short sentences and plain connecting words.
 
 1. It's clean → "status": "pass". The technical voice states what you
    actually checked and the real result (e.g. "Property timezone is
@@ -365,7 +403,15 @@ response, from a straight count of each finding's own "status" field
 (pass/fail) — see above.
 
 Produce EXACTLY these categories in your output, no more, no fewer: ${categories.join(", ")}
-
+${categories.includes("GA4") ? `
+## Store numbers for the report's charts ("ga4Metrics")
+Only when the GA4 property was a live exact match: also return the real
+numbers you already pulled for GA4-D2/D4/D5/D6/D10/D11 as "ga4Metrics", so
+the report can chart the store's funnel and conversion rates. Copy numbers
+straight from the data calls, same 28-day window. Never estimate, round up,
+or fill a gap: leave a field null or an array empty when no call returned
+it. When there was no live GA4 property, set "ga4Metrics" to null.
+` : ""}
 Respond with ONLY a JSON object (no prose, no markdown fence) matching this
 shape exactly:
 {
@@ -389,7 +435,18 @@ shape exactly:
         }
       ]
     }
-  ]
+  ]${categories.includes("GA4") ? `,
+  "ga4Metrics": null | {
+    "periodDays": 28,
+    "currency": "<property currency code, e.g. EGP, or null>",
+    "sessions": <total sessions or null>,
+    "conversions": <total key-event conversions or null>,
+    "conversionRate": <purchase or key-event conversion rate in percent, e.g. 2.36, or null>,
+    "revenue": <purchaseRevenue or null>,
+    "funnel": [{ "event": "<page_view|view_item|add_to_cart|begin_checkout|add_shipping_info|add_payment_info|purchase>", "count": <eventCount from GA4-D2> }],
+    "channels": [{ "name": "<sessionDefaultChannelGroup as GA4 names it>", "sessions": <sessions or null>, "conversionRate": <percent> }],
+    "segments": [{ "name": "<new|returning>", "sessions": <sessions or null>, "conversionRate": <percent> }]
+  }` : ""}
 }`;
 }
 
@@ -592,14 +649,69 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
 const BROWSER_ROUTE_TIMEOUT_MS = 35 * 60 * 1000;
 const API_ONLY_ROUTE_TIMEOUT_MS = 35 * 60 * 1000;
 
-export async function runAudit(input: AuditPromptInput): Promise<CategoryResult[]> {
+const FUNNEL_ORDER: Ga4FunnelEvent[] = ["page_view", "view_item", "add_to_cart", "begin_checkout", "add_shipping_info", "add_payment_info", "purchase"];
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+}
+
+/**
+ * Keeps only well-formed numbers from the response's ga4Metrics block, and
+ * only when at least one GA4 finding is backed by live data: on the
+ * detection route there was no property to pull from, so any numbers there
+ * would be invented. Returns null when nothing chartable is left.
+ */
+export function sanitizeGa4Metrics(raw: unknown, categories: CategoryResult[]): Ga4Metrics | null {
+  const ga4 = categories.find(c => c.category === "GA4");
+  if (!ga4 || !ga4.findings.some(f => f.dataSource === "live")) return null;
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const rate = (v: unknown) => { const n = num(v); return n !== null && n <= 100 ? n : null; };
+  const byEvent = new Map<Ga4FunnelEvent, number>();
+  for (const step of Array.isArray(r.funnel) ? r.funnel : []) {
+    const s = (step ?? {}) as Record<string, unknown>;
+    const event = s.event as Ga4FunnelEvent;
+    const count = num(s.count);
+    if (FUNNEL_ORDER.includes(event) && count !== null && count > 0 && !byEvent.has(event)) byEvent.set(event, count);
+  }
+  const funnel = FUNNEL_ORDER.filter(e => byEvent.has(e)).map(event => ({ event, count: byEvent.get(event)! }));
+  const channels = (Array.isArray(r.channels) ? r.channels : [])
+    .map(c => (c ?? {}) as Record<string, unknown>)
+    .filter(c => typeof c.name === "string" && rate(c.conversionRate) !== null)
+    .map(c => ({ name: String(c.name).slice(0, 40), sessions: num(c.sessions), conversionRate: rate(c.conversionRate)! }))
+    .slice(0, 10);
+  const segments = (Array.isArray(r.segments) ? r.segments : [])
+    .map(s => (s ?? {}) as Record<string, unknown>)
+    .filter(s => (s.name === "new" || s.name === "returning") && rate(s.conversionRate) !== null)
+    .map(s => ({ name: s.name as "new" | "returning", sessions: num(s.sessions), conversionRate: rate(s.conversionRate)! }));
+  const metrics: Ga4Metrics = {
+    periodDays: num(r.periodDays) ?? 28,
+    currency: typeof r.currency === "string" && /^[A-Z]{3}$/.test(r.currency) ? r.currency : null,
+    sessions: num(r.sessions),
+    conversions: num(r.conversions),
+    conversionRate: rate(r.conversionRate),
+    revenue: num(r.revenue),
+    funnel: funnel.length >= 2 ? funnel : [],
+    channels: channels.length >= 2 ? channels : [],
+    segments: segments.length === 2 ? segments : [],
+  };
+  const chartable = metrics.funnel.length > 0 || metrics.channels.length > 0 || metrics.segments.length > 0 || metrics.sessions !== null;
+  return chartable ? metrics : null;
+}
+
+export interface AuditRunResult {
+  categories: CategoryResult[];
+  ga4Metrics: Ga4Metrics | null;
+}
+
+export async function runAudit(input: AuditPromptInput): Promise<AuditRunResult> {
   const prompt = buildPrompt(input);
   const allowedTools = buildAllowedTools(input);
   const usesBrowser = neededMcpServers({ tools: input.tools, ga4OAuthData: input.ga4OAuthData, gtmOAuthData: input.gtmOAuthData }).browser;
   const timeoutMs = usesBrowser ? BROWSER_ROUTE_TIMEOUT_MS : API_ONLY_ROUTE_TIMEOUT_MS;
   console.log(`[audit-prompt] claude -p budget: ${Math.round(timeoutMs / 60000)}min (${usesBrowser ? "browser route" : "API-only route"})`);
   const raw = await runClaudeHeadless({ prompt, mcpConfigPath: input.mcpConfigPath, allowedTools, timeoutMs, label: "audit" });
-  const parsed = extractJsonPayload(raw) as { categories?: RawCategoryResult[] };
+  const parsed = extractJsonPayload(raw) as { categories?: RawCategoryResult[]; ga4Metrics?: unknown };
 
   if (!parsed || !Array.isArray(parsed.categories)) {
     // The raw response is included (not just a generic message) for two
@@ -612,5 +724,6 @@ export async function runAudit(input: AuditPromptInput): Promise<CategoryResult[
     throw new Error(`Audit response missing a 'categories' array: ${raw.slice(0, 4000)}`);
   }
 
-  return parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools)));
+  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools)));
+  return { categories, ga4Metrics: sanitizeGa4Metrics(parsed.ga4Metrics, categories) };
 }

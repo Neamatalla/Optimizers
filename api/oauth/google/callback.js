@@ -1,4 +1,4 @@
-import { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult } from "../../_lib/google-oauth.js";
+import { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult } from "../../_lib/google-oauth.js";
 
 function popupResponseHtml(payload) {
   // Self-closing page: posts the result to the opener (the main site tab)
@@ -62,19 +62,13 @@ export default async function handler(req, res) {
   try {
     const token = await exchangeCodeForToken({ clientId, clientSecret, redirectUri, code });
     console.log("[oauth-callback] token exchange OK");
-    const [ga4Properties, gtmContainers] = await Promise.all([
-      fetchAllGA4Properties(token),
-      fetchAllGTMContainers(token),
-    ]);
+    // GA4 only — no tagmanager scope is requested anymore (GTM audit is paid).
+    const ga4Properties = await fetchAllGA4Properties(token);
     console.log(
       "[oauth-callback] ga4Properties:",
       Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`
     );
-    console.log(
-      "[oauth-callback] gtmContainers:",
-      Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`
-    );
-    console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
+    console.log(describeOAuthResult({ ga4Properties }));
     res.statusCode = 200;
     // A failed fetch travels as its own field rather than collapsing into an
     // empty list: the form used to render "no accessible GA4 properties" for
@@ -83,9 +77,7 @@ export default async function handler(req, res) {
     res.end(popupResponseHtml({
       type: "google-oauth-result",
       ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
-      gtmContainers: Array.isArray(gtmContainers) ? gtmContainers : [],
       ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
-      gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
     }));
   } catch (err) {
     console.log("[oauth-callback] FAILED:", err.message || err);
