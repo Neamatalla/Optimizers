@@ -85,53 +85,10 @@ export function buildHeadsUpEmail({ email, website }) {
   };
 }
 
-// Test mode: a submission whose email AND website were both typed with a
-// leading "-" — e.g. `-omar@optimizers.agency` + `-https://example.com`.
-// It runs the real pipeline end to end, but publishes to a separate Storage
-// bucket, emails the report straight to whoever was in the form (no
-// internal review, no 2-day delay), and is exempt from the
-// one-audit-per-site/email limit so the same site can be re-tested freely.
-export const TEST_PREFIX = "-";
-
-/**
- * Splits the test prefix off both fields. Returns the cleaned values plus
- * `isTest`, or `mismatch: true` when exactly one of the two carried the
- * prefix.
- *
- * Requiring BOTH is the safety property, not pedantry: if one prefixed
- * field were enough, a stray leading dash typed into the email box would
- * silently turn a real prospect's submission into a test run — skipping
- * review and mailing them an unreviewed report. A mismatch is therefore a
- * hard 400 rather than a guess in either direction.
- *
- * Everything downstream (validation, normalization, storage, dedupe) sees
- * only the cleaned values — the prefix exists purely as the trigger.
- */
-export function parseTestPrefix({ email, website }) {
-  const rawEmail = String(email || "").trim();
-  const rawWebsite = String(website || "").trim();
-  const emailPrefixed = rawEmail.startsWith(TEST_PREFIX);
-  const websitePrefixed = rawWebsite.startsWith(TEST_PREFIX);
-
-  if (emailPrefixed !== websitePrefixed) {
-    return { isTest: false, mismatch: true, email: rawEmail, website: rawWebsite };
-  }
-
-  if (!emailPrefixed) {
-    return { isTest: false, mismatch: false, email: rawEmail, website: rawWebsite };
-  }
-
-  return {
-    isTest: true,
-    mismatch: false,
-    email: rawEmail.slice(TEST_PREFIX.length).trim(),
-    website: rawWebsite.slice(TEST_PREFIX.length).trim(),
-  };
-}
-
-/** What the visitor reads when only one of the two fields was prefixed. */
-export const TEST_PREFIX_MISMATCH_MESSAGE =
-  `Test mode needs the "${TEST_PREFIX}" prefix on both the website and the email, or on neither.`;
+// Test mode (dash prefix on both fields + an @optimizers.agency email)
+// lives in its own dependency-free module so the form can run the exact
+// same rule client-side; re-exported here for the server callers.
+export { TEST_PREFIX, TEST_EMAIL_DOMAIN, parseTestPrefix } from "./test-mode.js";
 
 /** lower + trim. What gets stored in audit_requests.email_normalized. */
 export function normalizeEmail(email) {
