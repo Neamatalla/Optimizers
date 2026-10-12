@@ -42,7 +42,8 @@ Rules:
 - Keep every fact and every number exactly (counts, percentages, money, dates, product and tool names). Don't add facts, claims or advice that aren't in the original.
 - Short sentences: one idea each, under 20 words. Split longer ones.
 - Everyday words: "use" not "utilize", "about" not "approximately", "find out" not "determine", "show" not "indicate", "set up" not "implement", "help" not "facilitate", "before" not "prior to", "so" not "consequently".
-- No analytics jargon: "where a visit came from" not "attribution", "the tracking code" not "tag" or "pixel", "a sale counted twice" not "duplicate transaction", "visits" not "sessions", "share of visits that buy" not "conversion rate" (the words "conversion rate" may stay once if the original leans on them). If a tool is named, keep its name and add a few words on what it is the first time.
+- No analytics jargon: "where a visit came from" not "attribution", "the tracking code" not "tag" or "pixel", "a sale counted twice" not "duplicate transaction", "visits" not "sessions". If a tool is named, keep its name and add a few words on what it is the first time.
+- Standard e-commerce/CRO metric names are NOT jargon — keep them by name, never replace them with a description: "conversion rate", "average order value", "cart abandonment", "bounce rate", "add to cart", "checkout", "landing page", "funnel", "revenue". A few plain words after the first mention are fine ("your conversion rate, the share of visits that buy, is 1.2%").
 - Talk about the shop: sales, orders, ad money, customers. Use "you" and "your store" where it reads naturally. Active voice.
 - End on the last concrete fact or consequence. No closing line that only reassures or sums up. No "X, not Y" endings. No em dashes.
 - Keep the summary to one sentence (two short ones at most).

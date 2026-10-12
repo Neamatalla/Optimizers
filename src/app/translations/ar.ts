@@ -343,6 +343,7 @@ export const arTranslations: Record<string, string> = {
   "Already audited": "تم تدقيقه مسبقًا",
   "Contact us to get a GTM audit": "تواصل معنا للحصول على تدقيق GTM",
   "Contact us": "تواصل معنا",
+  "Your browser is blocking site storage, so we can't connect Google here. Use the option below to run the audit without access.": "متصفحك يمنع تخزين بيانات الموقع، لذلك لا يمكننا ربط Google هنا. استخدم الخيار أدناه لتشغيل التدقيق دون منح صلاحية الوصول.",
   "Talk to us instead →": "تحدث إلينا بدلاً من ذلك →",
 
   // ═══════════════════════════════════════════════

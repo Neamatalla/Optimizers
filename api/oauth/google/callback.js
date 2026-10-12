@@ -1,19 +1,4 @@
-import { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult } from "../../_lib/google-oauth.js";
-
-function popupResponseHtml(payload) {
-  // Self-closing page: posts the result to the opener (the main site tab)
-  // and closes. targetOrigin is derived from our own configured redirect
-  // URI, never from request headers — keeps the postMessage recipient
-  // pinned to a known origin regardless of how this page was reached.
-  const origin = new URL(process.env.GOOGLE_OAUTH_REDIRECT_URI).origin;
-  return `<!doctype html><html><body>
-<script>
-  window.opener && window.opener.postMessage(${JSON.stringify(payload)}, ${JSON.stringify(origin)});
-  window.close();
-</script>
-Connected — you can close this window.
-</body></html>`;
-}
+import { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult, oauthResultHtml } from "../../_lib/google-oauth.js";
 
 function parseCookies(header) {
   const out = {};
@@ -41,7 +26,7 @@ export default async function handler(req, res) {
   if (oauthError) {
     console.log("[oauth-callback] Google denied access:", oauthError);
     res.statusCode = 200;
-    res.end(popupResponseHtml({ type: "google-oauth-result", error: `Google denied access: ${oauthError}` }));
+    res.end(oauthResultHtml({ type: "google-oauth-result", error: `Google denied access: ${oauthError}` }));
     return;
   }
 
@@ -55,7 +40,7 @@ export default async function handler(req, res) {
   if (!nonce || nonce !== cookies.g_oauth_state) {
     console.log("[oauth-callback] state mismatch — nonce:", nonce, "cookie:", cookies.g_oauth_state);
     res.statusCode = 200;
-    res.end(popupResponseHtml({ type: "google-oauth-result", error: "State mismatch — please try connecting again." }));
+    res.end(oauthResultHtml({ type: "google-oauth-result", error: "State mismatch — please try connecting again." }));
     return;
   }
 
@@ -74,7 +59,7 @@ export default async function handler(req, res) {
     // empty list: the form used to render "no accessible GA4 properties" for
     // a 403/quota error, which reads as "your account has none" and sends
     // the visitor looking in the wrong place.
-    res.end(popupResponseHtml({
+    res.end(oauthResultHtml({
       type: "google-oauth-result",
       ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
       ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
@@ -82,6 +67,6 @@ export default async function handler(req, res) {
   } catch (err) {
     console.log("[oauth-callback] FAILED:", err.message || err);
     res.statusCode = 200;
-    res.end(popupResponseHtml({ type: "google-oauth-result", error: err.message || "Connection failed." }));
+    res.end(oauthResultHtml({ type: "google-oauth-result", error: err.message || "Connection failed." }));
   }
 }

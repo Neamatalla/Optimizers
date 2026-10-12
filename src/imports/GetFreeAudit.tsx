@@ -115,6 +115,21 @@ interface GtmContainer {
   [key: string]: unknown;
 }
 
+// Connect Google is a same-tab redirect, so the form's progress is parked in
+// sessionStorage while the visitor is on Google's consent page.
+// OAUTH_RESULT_KEY must match OAUTH_RESULT_STORAGE_KEY in api/_lib/google-oauth.js.
+const FORM_SNAPSHOT_KEY = "gfa_form_snapshot";
+const OAUTH_RESULT_KEY = "gfa_oauth_result";
+interface FormSnapshot {
+  tools: ToolId[];
+  website: string;
+  email: string;
+  stepIndex: number;
+  maxStepIndexReached: number;
+  detectionResult: { ga4MeasurementIds: string[]; gtmContainerIds: string[] } | null;
+  reachable: boolean | null;
+}
+
 // Unions every connected GTM container's own discovered GA4 IDs — used
 // alongside the pre-OAuth site crawl's candidates to decide which GA4
 // property gets starred/defaulted. Checked across ALL containers, not just
@@ -490,51 +505,81 @@ export default function GetFreeAudit() {
     return reachableRef.current;
   }, []);
 
-  // Popup OAuth flow — the callback page posts its result here rather than a
-  // full-page redirect, so this multi-step form's state never has to survive
-  // a page reload. Ignores messages from any other origin/shape. Only stores
-  // the raw property/container lists here — picking the default/starred
-  // selection is the separate effect below, which can react to a site-crawl
-  // result that arrives either before OR after this message (see that
-  // effect's own doc comment for why that split matters).
+  // Same-tab OAuth flow (Google's consent page refuses to be framed, and a
+  // popup lands wherever the browser puts it or gets blocked): before leaving,
+  // handleConnectGoogle snapshots the form to sessionStorage; the callback
+  // page (api/_lib/google-oauth.js oauthResultHtml) writes its result there
+  // too and sends the visitor back to /#free-audit. On mount, restore both
+  // and land on the Connect Google step. Only stores the raw property lists
+  // here — picking the default/starred selection is the separate effect
+  // below, which can react to a site-crawl result in either order.
   useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (!event.data || event.data.type !== "google-oauth-result") return;
+    let rawResult: string | null = null;
+    let rawSnapshot: string | null = null;
+    try {
+      rawResult = sessionStorage.getItem(OAUTH_RESULT_KEY);
+      rawSnapshot = sessionStorage.getItem(FORM_SNAPSHOT_KEY);
+      sessionStorage.removeItem(OAUTH_RESULT_KEY);
+      sessionStorage.removeItem(FORM_SNAPSHOT_KEY);
+    } catch {
+      return;
+    }
+    if (!rawResult) return;
 
-      if (event.data.error) {
-        setOauthStatus("error");
-        setOauthErrorMessage(event.data.error);
-        return;
+    let result: any = null;
+    let snapshot: FormSnapshot | null = null;
+    try {
+      result = JSON.parse(rawResult);
+      snapshot = rawSnapshot ? JSON.parse(rawSnapshot) : null;
+    } catch {
+      return;
+    }
+    if (!result || result.type !== "google-oauth-result") return;
+
+    if (snapshot) {
+      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email }));
+      if (snapshot.detectionResult) {
+        setDetectionResult(snapshot.detectionResult);
+        detectedForUrlRef.current = normalizeWebsiteUrl(snapshot.website);
+        reachableRef.current = snapshot.reachable;
       }
+      setStepIndex(snapshot.stepIndex);
+      setMaxStepIndexReached(snapshot.maxStepIndexReached);
+    }
+    // The section is lazy-loaded far down the page, so the #free-audit hash
+    // alone can't scroll to it — do it once it's actually rendered.
+    requestAnimationFrame(() => document.getElementById("free-audit")?.scrollIntoView({ block: "start" }));
 
-      const ga4Properties: Ga4Property[] = Array.isArray(event.data.ga4Properties) ? event.data.ga4Properties : [];
-      const gtmContainers: GtmContainer[] = Array.isArray(event.data.gtmContainers) ? event.data.gtmContainers : [];
-      setGa4ListError(event.data.ga4Error ?? null);
-      setGtmListError(event.data.gtmError ?? null);
+    if (result.error) {
+      setOauthStatus("error");
+      setOauthErrorMessage(result.error);
+      return;
+    }
 
-      // A fresh connection is fresh information: whatever the visitor picked
-      // by hand against a PREVIOUS connection's list shouldn't freeze the
-      // new one's auto-selection. Without this reset, reconnecting (a
-      // different Google account, or a retry after fixing access) left the
-      // dropdowns pinned to the earlier manual choice with no ★ logic
-      // running at all.
-      ga4ManuallySelectedRef.current = false;
-      gtmManuallySelectedRef.current = false;
+    const ga4Properties: Ga4Property[] = Array.isArray(result.ga4Properties) ? result.ga4Properties : [];
+    const gtmContainers: GtmContainer[] = Array.isArray(result.gtmContainers) ? result.gtmContainers : [];
+    setGa4ListError(result.ga4Error ?? null);
+    setGtmListError(result.gtmError ?? null);
 
-      setFormData(prev => ({
-        ...prev,
-        ga4Properties,
-        gtmContainers,
-        // A successful connection is itself proof of access — stronger
-        // than the manual checkbox, so it satisfies the same gate
-        // automatically.
-        googleAccessConfirmed: true,
-      }));
-      setOauthStatus("connected");
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    // A fresh connection is fresh information: whatever the visitor picked
+    // by hand against a PREVIOUS connection's list shouldn't freeze the
+    // new one's auto-selection. Without this reset, reconnecting (a
+    // different Google account, or a retry after fixing access) left the
+    // dropdowns pinned to the earlier manual choice with no ★ logic
+    // running at all.
+    ga4ManuallySelectedRef.current = false;
+    gtmManuallySelectedRef.current = false;
+
+    setFormData(prev => ({
+      ...prev,
+      ga4Properties,
+      gtmContainers,
+      // A successful connection is itself proof of access — stronger
+      // than the manual checkbox, so it satisfies the same gate
+      // automatically.
+      googleAccessConfirmed: true,
+    }));
+    setOauthStatus("connected");
   }, []);
 
   // Picks the default/starred GA4 property + GTM container once real data is
@@ -607,15 +652,29 @@ export default function GetFreeAudit() {
   const handleConnectGoogle = useCallback(() => {
     setOauthStatus("connecting");
     setOauthErrorMessage("");
-    // No candidate IDs passed any more — the callback returns every
-    // accessible property/container, and the crawl-match star is computed
-    // client-side once they come back (see the effect above).
-    const popup = window.open("/api/oauth/google/authorize", "google-oauth", "width=520,height=680");
-    if (!popup) {
+    // Snapshot what the visitor has entered so far — the page navigates
+    // away to Google and comes back fresh (see the restore effect above).
+    const snapshot: FormSnapshot = {
+      tools: formData.tools,
+      website: formData.website,
+      email: formData.email,
+      stepIndex: clampedIndex,
+      maxStepIndexReached,
+      detectionResult,
+      reachable: reachableRef.current,
+    };
+    try {
+      sessionStorage.setItem(FORM_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    } catch {
       setOauthStatus("error");
-      setOauthErrorMessage("Popup was blocked — allow popups for this site and try again.");
+      setOauthErrorMessage(t("Your browser is blocking site storage, so we can't connect Google here. Use the option below to run the audit without access."));
+      return;
     }
-  }, []);
+    // No candidate IDs passed any more — the callback returns every
+    // accessible property, and the crawl-match star is computed client-side
+    // once they come back (see the effect above).
+    window.location.assign("/api/oauth/google/authorize");
+  }, [formData.tools, formData.website, formData.email, clampedIndex, maxStepIndexReached, detectionResult, t]);
 
   const isNextDisabled = () => {
     if (submitAuditMutation.isPending || checkingSite) return true;
@@ -1015,7 +1074,7 @@ export default function GetFreeAudit() {
               )}
 
               <div className="flex items-center justify-center gap-4 w-full">
-                {clampedIndex > 0 && (
+                {clampedIndex > 0 && currentStepKey !== "google-access" && (
                   <Button onClick={handleBack} disabled={submitAuditMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">
                     {t("Back")}
                   </Button>

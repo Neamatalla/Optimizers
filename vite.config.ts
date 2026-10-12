@@ -725,7 +725,7 @@ function apiMiddlewarePlugin() {
           return;
         }
         const redirectUri = dynamicRedirectUri(req);
-        const { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult } = await import('./api/_lib/google-oauth.js');
+        const { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult, oauthResultHtml } = await import('./api/_lib/google-oauth.js');
 
         const url = new URL(req.url, 'http://localhost');
         const code = url.searchParams.get('code');
@@ -733,16 +733,8 @@ function apiMiddlewarePlugin() {
         const oauthError = url.searchParams.get('error');
         console.log('[oauth-callback] hit, has code:', Boolean(code), 'has error:', Boolean(oauthError));
 
-        const popupHtml = (payload: any) => {
-          const origin = new URL(redirectUri).origin;
-          return `<!doctype html><html><body>
-<script>
-  window.opener && window.opener.postMessage(${JSON.stringify(payload)}, ${JSON.stringify(origin)});
-  window.close();
-</script>
-Connected — you can close this window.
-</body></html>`;
-        };
+        // Same-tab redirect back to the form — see oauthResultHtml.
+        const popupHtml = (payload: any) => oauthResultHtml(payload);
 
         res.setHeader('Content-Type', 'text/html');
 
