@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "../../api/_lib/blocked-domains.js";
+import { parseTestPrefix, TEST_PREFIX } from "../../api/_lib/test-mode.js";
 
 // Kept off until Google's sensitive-scope verification actually clears —
 // flipping this on while unverified means every visitor sees Google's
@@ -14,20 +15,16 @@ import { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "../../api/_lib/blo
 // not runtime-toggleable — flip and redeploy once verification is done.
 const OAUTH_ENABLED = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === "true";
 
-// Test mode: typing a leading "-" on BOTH the website and the email runs
-// the real pipeline but delivers differently — the report goes to a separate
-// Supabase Storage bucket and is emailed straight to the address in the form,
-// with no internal review step and no 2-day delay, and the run is exempt from
-// the one-audit-per-site/email limit. The server is the authority on all of
-// that (api/_lib/audit-intake.js's parseTestPrefix); everything here just
-// keeps the prefix from tripping the format validators, and tells the visitor
-// what they've switched on.
-const TEST_PREFIX = "-";
+// Test mode (api/_lib/test-mode.js): a leading "-" on BOTH the website and
+// an @optimizers.agency email runs the real pipeline but skips the review
+// and delay. The server is the authority; everything here just keeps the
+// prefix from tripping the format validators, and flags any non-qualifying
+// prefix as a plain invalid field. Deliberately nothing in the UI says test
+// mode is on — a test run looks exactly like a real submission.
 const stripTestPrefix = (value: string): string => {
   const trimmed = value.trim();
   return trimmed.startsWith(TEST_PREFIX) ? trimmed.slice(TEST_PREFIX.length).trim() : trimmed;
 };
-const hasTestPrefix = (value: string): boolean => value.trim().startsWith(TEST_PREFIX);
 
 // --- Validation & Helpers (mirrors src/imports/StrategySession.tsx) ---
 const validateWebsite = (url: string): string => {
@@ -400,12 +397,14 @@ export default function GetFreeAudit() {
   const [checkingSite, setCheckingSite] = useState(false);
 
   const steps = useMemo(() => buildSteps(formData.tools), [formData.tools]);
-  // Both fields prefixed = test mode; exactly one = the server rejects it
-  // with a 400, so say so here before the visitor gets that far.
-  const websitePrefixed = hasTestPrefix(formData.website);
-  const emailPrefixed = hasTestPrefix(formData.email);
-  const isTestSubmission = websitePrefixed && emailPrefixed;
-  const testPrefixMismatch = websitePrefixed !== emailPrefixed;
+  // Same rule the server applies. A prefix that doesn't qualify for test
+  // mode is shown as the ordinary invalid-field error (the server 400s it
+  // with the same wording), never as anything test-mode specific.
+  const testMode = parseTestPrefix({ email: formData.email, website: formData.website });
+  const isTestSubmission = testMode.isTest;
+  const testPrefixInvalid = testMode.invalidFields.length > 0;
+  const websiteError = validationErrors.website || (testMode.invalidFields.includes("website") ? "Please enter a valid website URL" : "");
+  const emailError = validationErrors.email || (testMode.invalidFields.includes("email") ? "Please enter a valid email address" : "");
   const clampedIndex = Math.min(stepIndex, steps.length - 1);
   const currentStepKey = steps[clampedIndex];
 
@@ -689,7 +688,7 @@ export default function GetFreeAudit() {
         return !formData.googleAccessConfirmed || !ga4Ready || !gtmReady;
       }
       case "website":
-        return !formData.website.trim() || !!validationErrors.website || !formData.email.trim() || !!validationErrors.email || testPrefixMismatch;
+        return !formData.website.trim() || !!websiteError || !formData.email.trim() || !!emailError;
       default:
         return false;
     }
@@ -708,9 +707,9 @@ export default function GetFreeAudit() {
     ga4OAuthData?: unknown;
     gtmOAuthData?: unknown;
   }) => {
-    // A half-prefixed pair is a 400 from the server; stop it here so the
-    // visitor sees the inline explanation instead of a failed request.
-    if (testPrefixMismatch) return;
+    // A non-qualifying prefix is a 400 from the server; stop it here so the
+    // visitor sees the inline field error instead of a failed request.
+    if (testPrefixInvalid) return;
     submitAuditMutation.mutate({
       ...fields,
       // The prefix goes back on both fields (never just one) so the
@@ -743,7 +742,7 @@ export default function GetFreeAudit() {
       const websiteErr = validateRequired(formData.website, "Website") || validateWebsite(formData.website);
       const emailErr = validateRequired(formData.email, "Email") || validateEmail(formData.email);
       setValidationErrors(prev => ({ ...prev, website: websiteErr, email: emailErr }));
-      if (websiteErr || emailErr || testPrefixMismatch) return;
+      if (websiteErr || emailErr || testPrefixInvalid) return;
       setCheckingSite(true);
       const reachable = await runDetection(formData.website);
       setCheckingSite(false);
@@ -937,9 +936,9 @@ export default function GetFreeAudit() {
                   value={formData.website}
                   onChange={handleWebsiteChange}
                   placeholder={t("e.g. yourstore.com")}
-                  className={`bg-white/10 border-2 ${validationErrors.website ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
+                  className={`bg-white/10 border-2 ${websiteError ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
                 />
-                {validationErrors.website && <p className="text-red-500 text-sm">{validationErrors.website}</p>}
+                {websiteError && <p className="text-red-500 text-sm">{websiteError}</p>}
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="audit-email" className="text-[13px] text-white/80 font-['Sora:Regular',sans-serif] text-start">
@@ -953,9 +952,9 @@ export default function GetFreeAudit() {
                   value={formData.email}
                   onChange={handleEmailChange}
                   placeholder={t("e.g. you@yourcompany.com")}
-                  className={`bg-white/10 border-2 ${validationErrors.email ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
+                  className={`bg-white/10 border-2 ${emailError ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
                 />
-                {validationErrors.email && <p className="text-red-500 text-sm">{validationErrors.email}</p>}
+                {emailError && <p className="text-red-500 text-sm">{emailError}</p>}
               </div>
             </div>
           </div>
@@ -1008,11 +1007,6 @@ export default function GetFreeAudit() {
                   ? t("Generated locally for this dev session — production delivers this by email instead.")
                   : t("Every audit is reviewed by an expert on our team before it's sent. Expect yours in your inbox within 2 to 3 business days, and keep an eye on your spam folder too, just in case.")}
               </p>
-              {!reportUrl && isTestSubmission && (
-                <p className="font-['Sora:Regular',sans-serif] text-[12px] text-[#f2b75e] text-center max-w-[380px]">
-                  {t("Test run: this one skips the review and arrives as soon as it's ready.")}
-                </p>
-              )}
               {reportUrl && (
                 <a
                   href={reportUrl}
@@ -1027,23 +1021,6 @@ export default function GetFreeAudit() {
           ) : (
             <>
               <div className="w-full min-h-[220px] flex flex-col items-center justify-center">{renderStepContent()}</div>
-
-              {testPrefixMismatch && (
-                <p className="text-[#f2b75e] text-xs text-center max-w-[420px]">
-                  {t("Test mode needs the \"-\" prefix on both the website and the email, or on neither.")}
-                </p>
-              )}
-
-              {isTestSubmission && (
-                <div className="w-full max-w-[560px] rounded-xl border border-[#f2b75e]/40 bg-[#f2b75e]/10 px-[18px] py-[12px]">
-                  <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[13px] text-[#f2b75e]">
-                    {t("Test mode")}
-                  </p>
-                  <p className="font-['Sora:Regular',sans-serif] text-[12.5px] text-white/70 leading-[1.6] mt-[4px]">
-                    {t("Runs the real audit, then emails the report straight to the address above — no internal review, no delay, and it won't use up this site's one free audit. The report is stored separately from real client reports.")}
-                  </p>
-                </div>
-              )}
 
               {alreadyAuditedMessage && (
                 <div className="w-full max-w-[560px] rounded-xl border border-[#f2b75e]/40 bg-[#f2b75e]/10 px-[18px] py-[14px] flex flex-col gap-[10px]">
@@ -1088,7 +1065,7 @@ export default function GetFreeAudit() {
                 <button
                   type="button"
                   onClick={handleSkipGoogleAccess}
-                  disabled={submitAuditMutation.isPending || testPrefixMismatch}
+                  disabled={submitAuditMutation.isPending || testPrefixInvalid}
                   className="-mt-[8px] font-['Sora:Regular',sans-serif] text-[13px] text-[#31da72] underline underline-offset-4 decoration-[#31da72]/50 hover:decoration-[#31da72] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent border-0 p-0"
                 >
                   {t("I changed my mind — run the audit that doesn't need access")}

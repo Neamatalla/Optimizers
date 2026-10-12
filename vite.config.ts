@@ -193,13 +193,18 @@ function apiMiddlewarePlugin() {
 
             // Test-mode prefix comes off first, so every check below runs on
             // the real values — dev twin of api/audit-request.js, same
-            // shared parser.
-            const { parseTestPrefix, TEST_PREFIX_MISMATCH_MESSAGE, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
+            // shared parser, same "just another invalid field" answer for a
+            // prefix that doesn't qualify.
+            const { parseTestPrefix, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
             const parsedIntake = parseTestPrefix({ email: rawEmail, website: rawWebsite });
-            if (parsedIntake.mismatch) {
+            if (parsedIntake.invalidFields.length > 0) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: TEST_PREFIX_MISMATCH_MESSAGE }));
+              res.end(JSON.stringify({
+                error: parsedIntake.invalidFields.includes('email')
+                  ? 'Please enter a valid email address.'
+                  : 'Please enter a valid website URL.',
+              }));
               return;
             }
             const { isTest, email, website } = parsedIntake;
@@ -523,10 +528,7 @@ function apiMiddlewarePlugin() {
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
               success: true,
-              isTest,
-              message: isTest
-                ? `Test run queued for ${website}. The report will be emailed straight to ${email} — no review step.`
-                : 'Audit request received. Check your inbox shortly.',
+              message: 'Audit request received. Check your inbox shortly.',
             }));
           } catch (err: any) {
             console.error('Dev API error (audit-request):', err);
