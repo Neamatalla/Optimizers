@@ -4,6 +4,8 @@ import { findChrome } from "../screenshots.js";
 import type { FudPageType } from "../types.js";
 import type { PageEvidence, StoreEvidence, TextBlock } from "./evidence.js";
 import { widgetsIn } from "./signals.js";
+import { FACTS_JS, POPUPS_JS, STICKY_JS } from "./facts-js.js";
+import type { PageFacts } from "./evidence.js";
 
 /**
  * Visits the home, one product and the cart page the way a phone shopper
@@ -494,11 +496,16 @@ async function preparePage(browserContext: Awaited<ReturnType<Browser["createBro
   return page;
 }
 
-async function settle(page: Page): Promise<void> {
+type Popups = NonNullable<PageEvidence["popups"]>;
+
+async function settle(page: Page): Promise<Popups> {
   await sleep(2500);
-  // Close the newsletter/cookie popup most stores open on first visit, so
-  // the crops show the page and not the popup.
+  // What the shopper meets on arrival (rule U1), then close it so the crops
+  // show the page and not the popup.
+  const onLoad = ((await page.evaluate(POPUPS_JS).catch(() => [])) as Popups["onLoad"]) ?? [];
   await page.keyboard.press("Escape").catch(() => {});
+  await sleep(400);
+  const after = ((await page.evaluate(POPUPS_JS).catch(() => [])) as Popups["onLoad"]) ?? [];
   await page
     .evaluate(String.raw`(async function () {
       var end = Math.min(document.documentElement.scrollHeight, 6000);
@@ -507,6 +514,7 @@ async function settle(page: Page): Promise<void> {
     })()`)
     .catch(() => {});
   await sleep(600);
+  return { onLoad, afterEscape: after.length };
 }
 
 async function extract(page: Page, rootSel: string | null, prefix: string): Promise<Extracted | null> {
@@ -555,11 +563,14 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
       await sleep(2000);
     }
   }
-  await settle(page);
+  const popups = await settle(page);
   const x = await extract(page, null, prefix).catch(() => null);
   if (!x) return failed(pageType, url, "could not read the page");
   if (BOT_WALL.test(x.title) && x.blocks.length < 15) return failed(pageType, url, "blocked by a bot check");
   const ev = toEvidence(pageType, page.url(), x);
+  ev.popups = popups;
+  ev.facts = ((await page.evaluate(FACTS_JS).catch(() => null)) as PageFacts | null) ?? undefined;
+  if (pageType === "product" && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
   if (!withCrops) return ev;
   ev.crops.fold = await crop(page, { x: 0, y: 0, width: MOBILE.width, height: MOBILE.height });
   if (ev.cta) {
@@ -695,6 +706,31 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // After the cart, so a slow listing page can never cost the cart rules
     // (unless it was already needed above to find a product).
     pages.push(collection ?? (collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site")));
+
+    // Search test (rule N2): search for a word from the product's name and
+    // count product links on the results page.
+    let searchTest: StoreEvidence["searchTest"];
+    const home = pages.find(p => p.pageType === "home" && p.loaded);
+    if (home?.facts?.search.present && product.loaded) {
+      const source = product.facts?.h1[0] || product.title || "";
+      // Skip the brand: a word that is in the domain finds every product.
+      const brand = new URL(home.url).hostname.replace(/^www\./, "").split(".")[0].toLowerCase();
+      const query = source
+        .split(/[\s\-–|·,]+/)
+        .map(w => w.replace(/[^\p{L}\p{N}]/gu, ""))
+        .find(w => w.length >= 3 && !/^(the|and|for|with|new|من|في|على|مع)$/i.test(w) && !brand.includes(w.toLowerCase()) && !w.toLowerCase().includes(brand));
+      if (query) {
+        try {
+          const base = new URL(home.url);
+          const action = home.facts.search.action && !/^javascript:/i.test(home.facts.search.action) ? new URL(home.facts.search.action, base) : new URL("/search", base);
+          action.searchParams.set(home.facts.search.param || "q", query);
+          const res = await visit(page, "collection", action.toString(), "s", false);
+          searchTest = { query, url: action.toString(), results: res.listing?.cards ?? 0, loaded: res.loaded };
+        } catch {
+          searchTest = undefined;
+        }
+      }
+    }
     await context.close().catch(() => {});
 
     // Desktop: text and positions only, in its own throwaway context.
@@ -711,7 +747,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       }
     }
 
-    return { website, pages, desktop, addToCart: atc, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    return { website, pages, desktop, addToCart: atc, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.

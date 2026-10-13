@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import type { AuditResult, CategoryKey, CategoryResult, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4FunnelEvent } from "./types.js";
 import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type ChecklistPoint } from "./checklist.js";
+import { groupOf, ruleById, type FudGroup } from "./fud/rules.js";
+import { formatMoney } from "./fud/insights.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS = path.join(__dirname, "..", "assets");
@@ -359,7 +361,7 @@ function summaryHtml(result: AuditResult, counts: ReturnType<typeof resultCounts
   if (friction !== null && friction !== undefined) {
     facts.push(`
           <div class="fact">
-            <dt>${bi("Buyer confidence", "ثقة المشتري")}</dt>
+            <dt>${bi("Conversion score", "مؤشر التحويل")}</dt>
             <dd><a href="#friction"><b class="count" data-to="${friction}" style="color:${scoreColor(friction)}">${friction}</b> / 100</a><span class="bar"><span style="width:${friction}%;background:${scoreColor(friction)}"></span></span></dd>
           </div>`);
   }
@@ -707,6 +709,23 @@ const FUD_DESKTOP_NOTE: Record<"issue" | "pass", Partial<Record<NonNullable<FudF
     worse: ["On desktop we did not find this in the same place. Worth a look on a large screen.", "على سطح المكتب لم نجد هذا في المكان نفسه. يستحق المراجعة على شاشة كبيرة."],
   },
 };
+const FUD_GROUP_LABEL: Record<FudGroup, [string, string]> = {
+  trust: ["Trust & cost", "الثقة والتكلفة"],
+  homepage: ["Homepage", "الصفحة الرئيسية"],
+  product: ["Product page", "صفحة المنتج"],
+  navigation: ["Navigation & search", "التنقل والبحث"],
+  collection: ["Collection page", "صفحة المجموعة"],
+  buy_more: ["Order value", "قيمة الطلب"],
+  buy_again: ["Repeat purchases", "تكرار الشراء"],
+  local: ["Local market", "السوق المحلي"],
+  popups: ["Popups", "النوافذ المنبثقة"],
+};
+
+function fudGroupLabel(ruleId: string): [string, string] {
+  const rule = ruleById(ruleId);
+  return FUD_GROUP_LABEL[rule ? groupOf(rule) : "trust"];
+}
+
 const FUNNEL_STEP_TEXT: Partial<Record<string, [string, string]>> = {
   "view_item>add_to_cart": ["of product views led to an add to cart", "من مشاهدات المنتجات انتهت بالإضافة إلى السلة"],
   "add_to_cart>begin_checkout": ["of add-to-carts went on to start checkout", "من الإضافات إلى السلة انتقلت إلى بدء إتمام الشراء"],
@@ -752,7 +771,8 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null): st
                   </figure>`
     : "";
   const meta = `<span class="check-meta"><code>${escapeHtml(f.ruleId)}</code>${f.band && f.pexti ? `${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}<span>PEXTI ${f.pexti.score}</span>` : ""}${bi(pageEn, pageAr)}</span>`;
-  const bandTag = issue && f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}</span>` : "";
+  const [groupEn, groupAr] = fudGroupLabel(f.ruleId);
+  const bandTag = `<span class="fud-tags">${issue && f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}</span>` : ""}<span class="fud-group-tag">${bi(groupEn, groupAr)}</span></span>`;
 
   return `
           <article class="check check--${tone} fud-row${open ? "" : " is-collapsed"}" id="row-${id}" data-fud-status="${f.status}">
@@ -787,6 +807,92 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null): st
           </article>`;
 }
 
+const TONE_LABEL: Record<"good" | "bad" | "neutral", [string, string]> = {
+  good: ["Strength", "نقطة قوة"],
+  bad: ["Opportunity", "فرصة"],
+  neutral: ["Context", "سياق"],
+};
+
+// "Where the money is": the store's own GA4 numbers, turned into a revenue
+// range (clearly an estimate) and a few plain-language segment findings.
+function insightsHtml(fud: NonNullable<AuditResult["fud"]>): string {
+  const ins = fud.insights;
+  if (!ins || (!ins.text && ins.lines.length === 0)) return "";
+  const opp = ins.opportunity;
+  const head = opp && ins.text
+    ? `
+          <p class="fud-money-figure">${biHtml(
+            `<b>${escapeHtml(formatMoney(opp.low, ins.currency))}–${escapeHtml(formatMoney(opp.high, ins.currency))}</b> a month`,
+            `<b>${escapeHtml(formatMoney(opp.low, ins.currency, true))}–${escapeHtml(formatMoney(opp.high, ins.currency, true))}</b> شهريًا`,
+          )}</p>
+          <p class="fud-money-text">${bi(ins.text.en, ins.text.ar)}</p>
+          <p class="fud-note">${bi(
+            `An estimate, not a promise: it assumes the weakest steps of your funnel close a quarter to a half of the gap to typical benchmarks, from your last ${ins.periodDays} days of GA4 data (revenue ${formatMoney(opp.monthlyRevenue, ins.currency)} a month). It is capped at 30% of current revenue.`,
+            `تقدير وليس وعدًا: يفترض أن أضعف خطوات مسار الشراء تقلّص ربع إلى نصف الفجوة مع المعدلات المعتادة، اعتمادًا على بيانات GA4 لآخر ${ins.periodDays} يومًا (إيرادات ${formatMoney(opp.monthlyRevenue, ins.currency, true)} شهريًا). الحد الأقصى 30% من الإيرادات الحالية.`,
+          )}</p>`
+    : "";
+  const lines = ins.lines
+    .map(l => `
+            <li class="fud-insight fud-insight--${l.tone}"><span class="fud-insight-tag">${bi(TONE_LABEL[l.tone][0], TONE_LABEL[l.tone][1])}</span><span>${bi(l.en, l.ar)}</span></li>`)
+    .join("");
+  return `
+        <div class="fud-money">
+          <h3>${bi("Where the money is", "أين تكمن الفرصة")}</h3>
+          ${head}
+          ${lines ? `<ul class="fud-insights">${lines}</ul>` : ""}
+        </div>`;
+}
+
+const STATUS_WORD: Record<string, [string, string]> = {
+  pass: ["Working", "يعمل"],
+  warn: ["Needs work", "يحتاج تحسينًا"],
+  fail: ["Missing", "غير موجود"],
+  unassessed: ["Not checked", "لم يُفحص"],
+};
+
+// "You vs them": the same rules on the competitor the visitor named.
+function competitorHtml(fud: NonNullable<AuditResult["fud"]>): string {
+  const c = fud.competitor;
+  if (!c || "error" in c) return "";
+  const host = escapeHtml(hostOf(c.website));
+  const rank = (st?: string) => (st === "pass" ? 2 : st === "warn" ? 1 : st === "fail" ? 0 : -1);
+  const rows = fud.findings
+    .filter(f => f.override?.to !== "hidden")
+    .filter(f => f.status !== "unassessed" || (c.statuses[f.ruleId] && c.statuses[f.ruleId] !== "unassessed"))
+    .map(f => {
+      const theirs = c.statuses[f.ruleId];
+      const rule = ruleById(f.ruleId);
+      const title = rule ? rule.title : { en: f.ruleId, ar: f.ruleId };
+      const behind = rank(theirs) > rank(f.status) && rank(f.status) >= 0;
+      const ahead = rank(f.status) > rank(theirs) && rank(theirs) >= 0;
+      const cell = (st?: string) => (st ? `<span class="fud-cmp fud-cmp--${st}">${bi(STATUS_WORD[st][0], STATUS_WORD[st][1])}</span>` : "—");
+      return `
+              <tr class="${behind ? "is-behind" : ahead ? "is-ahead" : ""}">
+                <th scope="row">${bi(title.en, title.ar)}</th>
+                <td>${cell(f.status)}</td>
+                <td>${cell(theirs)}</td>
+              </tr>`;
+    })
+    .join("");
+  if (!rows) return "";
+  const ahead = fud.findings.filter(f => rank(f.status) > rank(c.statuses[f.ruleId]) && rank(c.statuses[f.ruleId]) >= 0).length;
+  const behind = fud.findings.filter(f => rank(c.statuses[f.ruleId]) > rank(f.status) && rank(f.status) >= 0).length;
+  return `
+        <div class="fud-compare">
+          <h3>${bi(`You vs ${hostOf(c.website)}`, `متجرك مقابل ${hostOf(c.website)}`)}</h3>
+          <p class="section-lead">${bi(
+            `We ran the same checks on ${hostOf(c.website)}. You are ahead on ${ahead} and behind on ${behind}${fud.score !== null && c.score !== null ? ` (score ${fud.score} vs ${c.score})` : ""}. Rows where they do better are highlighted.`,
+            `طبقنا الفحوصات نفسها على ${hostOf(c.website)}. أنت متقدم في ${ahead} ومتأخر في ${behind}${fud.score !== null && c.score !== null ? ` (المؤشر ${fud.score} مقابل ${c.score})` : ""}. الصفوف التي يتفوق فيها المنافس مميزة.`,
+          )}</p>
+          <div class="fud-compare-wrap">
+            <table class="fud-compare-table">
+              <thead><tr><th scope="col">${bi("Check", "البند")}</th><th scope="col">${bi("Your store", "متجرك")}</th><th scope="col" dir="ltr">${host}</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+}
+
 function frictionSectionHtml(result: AuditResult): string {
   const fud = result.fud;
   if (!fud || fud.assessed === 0) return "";
@@ -805,11 +911,11 @@ function frictionSectionHtml(result: AuditResult): string {
   const scannedEn = scanned.map(s => s[0]).join(", ");
   const scannedAr = scanned.map(s => s[1]).join("، ");
   const leadEn = fud.score !== null
-    ? `Buyer confidence ${fud.score}/100 — ${fud.assessed} of ${fud.applicable} checks assessed on your ${scannedEn}, on a phone. These are the doubts that make shoppers hesitate or leave before paying.`
-    : `We checked your ${scannedEn} on a phone for the doubts that make shoppers hesitate or leave before paying. Too few checks could be completed for a score, so only the findings are shown.`;
+    ? `Conversion score ${fud.score}/100 — ${fud.assessed} of ${fud.applicable} checks assessed on your ${scannedEn}, on a phone: the doubts that make shoppers hesitate, and the layout, navigation and offer gaps that cost sales and order value.`
+    : `We checked your ${scannedEn} on a phone for what stops shoppers buying and what lowers order value. Too few checks could be completed for a score, so only the findings are shown.`;
   const leadAr = fud.score !== null
-    ? `ثقة المشتري ${fud.score}/100 — تم فحص ${fud.assessed} من ${fud.applicable} بندًا على ${scannedAr} لديك من الهاتف. هذه هي الشكوك التي تجعل المتسوق يتردد أو يغادر قبل الدفع.`
-    : `فحصنا ${scannedAr} لديك من الهاتف بحثًا عن الشكوك التي تجعل المتسوق يتردد أو يغادر قبل الدفع. لم نتمكن من فحص عدد كافٍ من البنود لحساب مؤشر، لذلك نعرض النتائج فقط.`;
+    ? `مؤشر التحويل ${fud.score}/100 — تم فحص ${fud.assessed} من ${fud.applicable} بندًا على ${scannedAr} لديك من الهاتف: الشكوك التي تجعل المتسوق يتردد، وفجوات التصميم والتنقل والعروض التي تكلفك مبيعات وقيمة طلب.`
+    : `فحصنا ${scannedAr} لديك من الهاتف بحثًا عمّا يمنع المتسوق من الشراء وما يخفض قيمة الطلب. لم نتمكن من فحص عدد كافٍ من البنود لحساب مؤشر، لذلك نعرض النتائج فقط.`;
 
   const group = (titleEn: string, titleAr: string, list: FudFinding[], open: boolean) =>
     list.length
@@ -837,12 +943,14 @@ function frictionSectionHtml(result: AuditResult): string {
 
   return `
       <section class="doc-section fud" id="friction">
-        <h2>${bi("Purchase friction", "عوائق الشراء")}</h2>
+        <h2>${bi("Conversion review", "مراجعة التحويل")}</h2>
         <p class="section-lead">${bi(leadEn, leadAr)}</p>
+        ${insightsHtml(fud)}
         ${group("Fix these first", "أصلح هذه أولًا", quick, true)}
         ${group(quick.length ? "Also worth improving" : "Worth improving", quick.length ? "تستحق التحسين أيضًا" : "تستحق التحسين", rest, false)}
-        ${!issues.length ? `<p class="fud-note">${bi("No purchase doubts stood out on the pages we checked.", "لم تظهر عوائق شراء واضحة في الصفحات التي فحصناها.")}</p>` : ""}
+        ${!issues.length ? `<p class="fud-note">${bi("Nothing stood out on the pages we checked.", "لم يظهر ما يستدعي التحسين في الصفحات التي فحصناها.")}</p>` : ""}
         ${workingFold}
+        ${competitorHtml(fud)}
         ${notChecked}
       </section>`;
 }
@@ -924,7 +1032,7 @@ function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolea
   const links: Array<[string, string, string]> = [["overview", "Summary", "الملخص"]];
   if (hasFixFirst) links.push(["fix-first", "Fix first", "أصلح أولًا"]);
   if (hasNumbers) links.push(["numbers", "Numbers", "الأرقام"]);
-  if (hasFriction) links.push(["friction", "Friction", "عوائق الشراء"]);
+  if (hasFriction) links.push(["friction", "Conversion", "التحويل"]);
   for (const cat of result.categories) {
     const [en, ar] = CATEGORY_SHORT[cat.category];
     links.push([`sec-${SECTION_SLUG[cat.category]}`, en, ar]);
@@ -945,7 +1053,7 @@ function tocHtml(result: AuditResult, hasFixFirst: boolean, hasScreens: boolean,
   if (hasNumbers) items.push(link("numbers", "Your numbers", "أرقامك"));
   if (hasFriction) {
     const score = result.fud?.score;
-    items.push(`<li><a href="#friction" data-spy="friction">${bi("Purchase friction", "عوائق الشراء")}${score !== null && score !== undefined ? `<span class="toc-n">${score}/100</span>` : ""}</a></li>`);
+    items.push(`<li><a href="#friction" data-spy="friction">${bi("Conversion review", "مراجعة التحويل")}${score !== null && score !== undefined ? `<span class="toc-n">${score}/100</span>` : ""}</a></li>`);
   }
   for (const cat of result.categories) {
     const { passed, total } = cat.checklistTally;
@@ -1238,7 +1346,7 @@ function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>,
   }
   if (has.friction && result.fud) {
     const issues = result.fud.findings.filter(f => f.override?.to !== "hidden" && (f.status === "fail" || f.status === "warn")).length;
-    stops.push(["friction", `${issues} purchase doubts`, `${issues} من عوائق الشراء`, issues > 0 ? "bad" : "ok"]);
+    stops.push(["friction", `${issues} to improve`, `${issues} للتحسين`, issues > 0 ? "bad" : "ok"]);
   }
   stops.push(["checks", `${counts.failed} need work`, `${counts.failed} تحتاج إصلاحًا`, counts.failed > 0 ? "bad" : "ok"]);
   for (const cat of result.categories) {
@@ -1515,6 +1623,37 @@ p{margin:0; text-wrap:pretty}
 
 
 .fud-group{margin-top:32px}
+.fud-tags{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px}
+.fud .check-titles .fud-band{display:inline; margin-top:0}
+.fud-group-tag{font-size:13px; font-weight:500; color:var(--ink-3)}
+.fud-money{margin-top:28px; padding:22px 24px; border-radius:14px; background:var(--bg-soft); border:1px solid var(--card-border)}
+.fud-money h3{font-family:var(--display); font-size:18px; font-weight:600}
+.fud-money-figure{margin-top:12px; font-family:var(--display); font-size:clamp(26px,3.4vw,34px); line-height:1.15; color:var(--green-ink)}
+.fud-money-figure b{font-weight:700}
+.fud-money-text{margin-top:6px; font-size:16px; color:var(--ink); max-width:68ch}
+.fud-money .fud-note{margin-top:10px}
+.fud-insights{list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:12px}
+.fud-insight{display:grid; grid-template-columns:104px minmax(0,1fr); gap:4px 16px; font-size:16px; color:var(--ink-2); max-width:76ch}
+.fud-insight-tag{font-size:13px; font-weight:700; padding-top:3px}
+.fud-insight--good .fud-insight-tag{color:var(--green-ink)}
+.fud-insight--bad .fud-insight-tag{color:var(--amber-ink)}
+.fud-insight--neutral .fud-insight-tag{color:var(--ink-3)}
+.fud-compare{margin-top:40px}
+.fud-compare h3{font-family:var(--display); font-size:18px; font-weight:600}
+.fud-compare-wrap{margin-top:16px; overflow-x:auto; border:1px solid var(--line-strong); border-radius:12px}
+.fud-compare-table{width:100%; border-collapse:collapse; font-size:15px}
+.fud-compare-table th, .fud-compare-table td{padding:12px 16px; text-align:start; border-bottom:1px solid var(--line); vertical-align:top}
+.fud-compare-table thead th{font-size:13px; font-weight:600; color:var(--ink-3)}
+.fud-compare-table tbody th{font-weight:500; color:var(--ink)}
+.fud-compare-table tr:last-child th, .fud-compare-table tr:last-child td{border-bottom:0}
+.fud-compare-table tr.is-behind{background:var(--amber-tint)}
+.fud-compare-table tr.is-ahead{background:var(--green-tint)}
+.fud-cmp{font-weight:600; white-space:nowrap}
+.fud-cmp--pass{color:var(--green-ink)}
+.fud-cmp--warn{color:var(--amber-ink)}
+.fud-cmp--fail{color:var(--red-ink)}
+.fud-cmp--unassessed{color:var(--ink-3); font-weight:500}
+@media (max-width:767px){ .fud-insight{grid-template-columns:1fr} .fud-money{padding:18px} .fud-compare-table th, .fud-compare-table td{padding:10px 12px} }
 .fud .check-titles .fud-band{display:inline-block; margin-top:6px; font-size:13px; font-weight:600; color:var(--ink-3)}
 .fud-band--quick_win{color:var(--green-ink) !important}
 .fud-funnel{font-weight:600; color:var(--amber-ink) !important}

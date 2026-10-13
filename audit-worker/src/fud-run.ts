@@ -6,6 +6,8 @@
  *   npm run fud-run -- https://store.com                 collect + judge
  *   npm run fud-run -- https://store.com --collect-only  browser only, no Claude call
  *   npm run fud-run -- --evidence=output/fud-<host>-evidence.json   re-judge saved evidence
+ *   add --competitor=<url> to benchmark a competitor, --request=<id> to use
+ *   that audit request's GA4 data for the money/segment insights
  *
  * Writes output/fud-<host>-evidence.json and output/fud-<host>-result.json
  * (gitignored). Render the result in a report with:
@@ -35,6 +37,11 @@ async function main() {
   const args = process.argv.slice(2);
   const evidenceFile = args.find(a => a.startsWith("--evidence="))?.split("=").slice(1).join("=");
   const collectOnly = args.includes("--collect-only");
+  // --competitor=<url> also benchmarks a competitor (status only).
+  const competitorUrl = args.find(a => a.startsWith("--competitor="))?.split("=").slice(1).join("=") || null;
+  // --request=<id> reads that audit request's GA4 OAuth data from Supabase,
+  // for the money/segment insights.
+  const requestId = args.find(a => a.startsWith("--request="))?.split("=")[1];
   let url = args.find(a => !a.startsWith("--"));
 
   const outDir = path.join(__dirname, "..", "output");
@@ -68,7 +75,16 @@ async function main() {
     return;
   }
 
-  const result = await runFudPass({ website: url!, discoveredPages: [], ga4Metrics: null, jobId: `fud-run-${host}`, allowFail: true, evidence });
+  let ga4OAuthData: unknown = null;
+  let ga4Metrics = null;
+  if (requestId) {
+    const { getRequestById } = await import("./supabase.js");
+    const row = await getRequestById(requestId);
+    ga4OAuthData = row?.ga4_oauth_data ?? null;
+    ga4Metrics = row?.progress?.ga4Metrics ?? null;
+    console.log(`[fud-run] GA4 data from request ${row?.id ?? "(not found)"}`);
+  }
+  const result = await runFudPass({ website: url!, discoveredPages: [], ga4Metrics, ga4OAuthData, jobId: `fud-run-${host}`, allowFail: true, evidence, competitorUrl });
   const resultPath = path.join(outDir, `fud-${host}-result.json`);
   await writeFile(resultPath, JSON.stringify(result, null, 2), "utf8");
   if ("error" in result) {
@@ -76,7 +92,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  console.log(`\nBuyer confidence: ${result.score ?? "n/a"} (${result.assessed}/${result.applicable} assessed)`);
+  console.log(`\nConversion score: ${result.score ?? "n/a"} (${result.assessed}/${result.applicable} assessed)`);
   for (const f of result.findings) {
     console.log(`  ${f.ruleId.padEnd(3)} ${f.status.padEnd(10)} ${f.pexti ? `PEXTI ${String(f.pexti.score).padStart(3)} ${f.band}` : "".padEnd(20)}  ${f.business.summary}${f.unassessedReason ? ` [${f.unassessedReason}]` : ""}`);
   }

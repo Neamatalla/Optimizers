@@ -122,7 +122,7 @@ export async function saveProgress(id: string, workerId: string, progress: JobPr
  */
 export async function requeueRequest(id: string, opts: { fresh?: boolean; force?: boolean } = {}): Promise<{ previousStatus: string }> {
   const supabase = getClient();
-  const { data: row, error: readError } = await supabase.from("audit_requests").select("id, status").eq("id", id).maybeSingle();
+  const { data: row, error: readError } = await supabase.from("audit_requests").select("id, status, progress").eq("id", id).maybeSingle();
   if (readError) throw new Error(`Supabase read error: ${readError.message}`);
   if (!row) throw new Error(`No audit request with id ${id}`);
   const allowed = ["failed", "pending", "processing"];
@@ -130,7 +130,8 @@ export async function requeueRequest(id: string, opts: { fresh?: boolean; force?
     throw new Error(`${id} is '${row.status}'. Re-running it would redo work that already finished; pass --force if that's intended.`);
   }
   const update: Record<string, unknown> = { status: "pending", attempts: 0, retry_after: null, locked_by: null, heartbeat_at: null, result_error: null };
-  if (opts.fresh) update.progress = {};
+  // --fresh drops every finished stage, but not the visitor's own input.
+  if (opts.fresh) update.progress = (row as { progress?: { competitorUrl?: string } }).progress?.competitorUrl ? { competitorUrl: (row as { progress: { competitorUrl: string } }).progress.competitorUrl } : {};
   const { error } = await supabase.from("audit_requests").update(update).eq("id", id);
   if (error) throw new Error(`Supabase requeue error: ${error.message}`);
   return { previousStatus: row.status };

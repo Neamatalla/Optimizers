@@ -138,7 +138,7 @@ async function main() {
         console.error(`[calibrate] ${host}: failed — ${result.error}`);
         continue;
       }
-      console.log(`[calibrate] ${host}: Buyer confidence ${result.score ?? "n/a"}, ${result.assessed}/${result.applicable} assessed, cart from ${evidence.pages.find(p => p.pageType === "cart")?.cart?.source ?? "nothing"}, leaks ${evidence.leakedHits?.length ?? 0}`);
+      console.log(`[calibrate] ${host}: Conversion score ${result.score ?? "n/a"}, ${result.assessed}/${result.applicable} assessed, cart from ${evidence.pages.find(p => p.pageType === "cart")?.cart?.source ?? "nothing"}, leaks ${evidence.leakedHits?.length ?? 0}`);
       for (const f of result.findings) {
         lines.push([host, f.ruleId, f.status, f.confidence.toFixed(2), f.pexti?.score ?? "", f.band ?? "", f.desktop ?? "", f.pageUrl ?? "", f.business.summary, "", "", f.unassessedReason ?? ""].map(cell).join(","));
       }

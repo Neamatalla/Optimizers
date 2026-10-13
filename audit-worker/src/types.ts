@@ -92,6 +92,9 @@ export interface JobProgress {
   // retry doesn't run it again and the report just omits the section.
   // Undefined means it hasn't run (or FUD_PASS kept it off).
   fud?: FudResult | { error: string };
+  // Optional competitor URL from the form, stored here at intake (no schema
+  // change needed); the friction pass benchmarks it. Kept on requeue --fresh.
+  competitorUrl?: string;
   // Stage 3: report built and uploaded.
   reportUrl?: string;
   slug?: string;
@@ -313,6 +316,47 @@ export interface FudResult {
   // Ordered for display: fail/warn by PEXTI (highest first), then pass,
   // then unassessed.
   findings: FudFinding[];
+  // Money and segment insights from the store's own GA4 data (fud/insights.ts).
+  // Null when there was no GA4 data or too little traffic.
+  insights?: FudInsights | null;
+  // The same rules run on a competitor the visitor named (status only).
+  competitor?: FudCompetitor | { website: string; error: string } | null;
+}
+
+export interface FudInsightLine {
+  kind: "device" | "new_returning" | "channel" | "landing" | "funnel";
+  tone: "good" | "bad" | "neutral";
+  en: string;
+  ar: string;
+}
+
+export interface FudInsights {
+  source: "ga4_oauth" | "ga4_summary";
+  currency: string | null;
+  periodDays: number;
+  sessions: number | null;
+  purchases: number | null;
+  revenue: number | null;
+  conversionRate: number | null;
+  aov: number | null;
+  // Estimated extra revenue per month (a range, never a promise).
+  opportunity: {
+    low: number;
+    high: number;
+    monthlyRevenue: number;
+    basis: "funnel" | "conversion_rate";
+    steps: Array<{ from: string; to: string; rate: number; benchmark: number; lowMultiplier: number; highMultiplier: number }>;
+  } | null;
+  lines: FudInsightLine[];
+  text: { en: string; ar: string } | null;
+}
+
+export interface FudCompetitor {
+  website: string;
+  score: number | null;
+  // ruleId → status for the competitor, gated the same way as the client's.
+  statuses: Record<string, FudStatus>;
+  notes: Record<string, string>;
 }
 
 export type Ga4FunnelEvent = "page_view" | "view_item" | "add_to_cart" | "begin_checkout" | "add_shipping_info" | "add_payment_info" | "purchase";

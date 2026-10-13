@@ -1,7 +1,7 @@
 /**
  * Reviewer override for one purchase-friction finding, before the report is
  * approved or sent. Changes the finding's status (or hides it), recomputes
- * the Buyer confidence score, saves it on the request, and republishes the
+ * the Conversion score score, saves it on the request, and republishes the
  * report at the same URL. The machine's original status is kept on the
  * finding (`override.from`) — those are the labels the rules get calibrated
  * against.
@@ -30,7 +30,7 @@ import type { AuditRequestRow, AuditResult, FudResult, FudStatus, JobProgress } 
 const STATUSES = ["pass", "warn", "fail", "unassessed", "hidden"] as const;
 
 function list(fud: FudResult): void {
-  console.log(`Buyer confidence: ${fud.score ?? "n/a"} (${fud.assessed}/${fud.applicable} assessed), rules ${fud.ruleSetVersion}`);
+  console.log(`Conversion score: ${fud.score ?? "n/a"} (${fud.assessed}/${fud.applicable} assessed), rules ${fud.ruleSetVersion}`);
   for (const f of fud.findings) {
     const o = f.override ? `  [override: ${f.override.from} -> ${f.override.to}: ${f.override.reason}]` : "";
     console.log(`  ${f.ruleId.padEnd(3)} ${f.status.padEnd(10)} ${f.pexti ? `PEXTI ${String(f.pexti.score).padStart(3)}` : "         "}  ${f.business.summary}${o}`);

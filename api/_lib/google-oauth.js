@@ -147,7 +147,7 @@ const FUNNEL_EVENTS = ["view_item_list", "view_item", "add_to_cart", "add_shippi
 async function fetchGa4ReportData(propertyName, token) {
   const runReport = (body) => gpost(`${GA4_DATA_BASE}/${propertyName}:runReport`, token, body).catch(e => ({ error: e.message }));
 
-  const [realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel] = await Promise.all([
+  const [realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion] = await Promise.all([
     gpost(`${GA4_DATA_BASE}/${propertyName}:runRealtimeReport`, token, { metrics: [{ name: "activeUsers" }] }).catch(e => ({ error: e.message })),
     // NOTE: `dateRange` must NOT be listed in `dimensions` — confirmed
     // directly against the real API: "Field dateRange is not a dimension.
@@ -225,9 +225,17 @@ async function fetchGa4ReportData(propertyName, token) {
         filter: { fieldName: "eventName", inListFilter: { values: FUNNEL_EVENTS } },
       },
     }),
+    // Conversion and revenue by device — the audit worker's purchase-friction
+    // pass turns this into the mobile-vs-desktop insight
+    // (audit-worker/src/fud/insights.ts). geoDevice above only has sessions.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "deviceCategory" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "purchaseRevenue" }, { name: "transactions" }],
+    }),
   ]);
 
-  return { realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel };
+  return { realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion };
 }
 
 /**

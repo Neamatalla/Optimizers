@@ -57,8 +57,35 @@ export interface PageEvidence {
     // Sub-category links sitting above the product grid.
     pills: number;
   };
+  // Layout facts the text alone can't give (facts-js.ts). Absent on cart
+  // drawers and on evidence saved before they existed.
+  facts?: PageFacts;
+  // Overlays on screen when the page first loads, and whether Escape closed
+  // them. Only kept for the first page of a visit (later pages reuse cookies).
+  popups?: { onLoad: Array<{ kind: string; cover: number; text: string }>; afterEscape: number };
+  // Product pages: label of a buy button still on screen after scrolling
+  // well past the main one (sticky add-to-cart), or null.
+  sticky?: string | null;
   // Region crops, JPEG data URIs: "fold" (first screen), "cta", "cart".
   crops: Partial<Record<"fold" | "cta" | "cart", string>>;
+}
+
+export interface PageFacts {
+  lang: string;
+  dir: string;
+  hreflang: string[];
+  langSwitch: boolean;
+  h1: string[];
+  h1Count: number;
+  // Top-level header/menu link labels (from the desktop visit for nav rules).
+  nav: string[];
+  search: { present: boolean; visible: boolean; action: string; param: string };
+  media: { images: number; video: boolean; zoom: boolean };
+  infoSections: { details: number; expanders: number };
+  // Filled/outlined buttons on the first screen, outside the header.
+  heroButtons: string[];
+  hero: { kind: string; src: string; alt: string; coverPct: number } | null;
+  capture: { email: boolean; phone: boolean; account: boolean };
 }
 
 export interface StoreEvidence {
@@ -75,6 +102,12 @@ export interface StoreEvidence {
   leakedHits?: string[];
   // Add-to-Cart attempt on the product page, for the cart rules and Sources.
   addToCart: { attempted: boolean; ok: boolean; reason?: string };
+  // Store-level numbers from GA4 the rules can use (index.ts fills it in
+  // before judging): average order value for M3.
+  context?: { aov?: number; currency?: string | null };
+  // Searched the store for a word from the product's name and counted the
+  // product links on the results page. Absent when no search was found.
+  searchTest?: { query: string; url: string; results: number; loaded: boolean };
   // Analytics/ad hits aborted during collection (should be > 0 on any store
   // with tracking — proves the bot stayed out of the client's data).
   blockedHits: number;

@@ -476,3 +476,36 @@ existing 50-check audit.
 - **Desktop findings are detector-only.** No desktop crops and no separate desktop verdicts.
 - **Checkout steps** remain out of scope, as do review-platform and replay connectors (category E).
 - §15 questions 3 and 5 (daily digest, health/claims rules) are still undecided.
+
+## 19. Rule set fud-2.0.0: the wider CRO review (2026-10-13)
+
+Added on top of the trust/cost rules, from the CRO framework the audit is based on:
+
+| Group | Rules | Measured by |
+|---|---|---|
+| Homepage | H1 3-second clarity, H2 one clear next step | first-screen text, buttons, hero image (stock-photo flag) |
+| Product page | P1 photos/video/zoom, P2 option buttons, P3 sticky buy button, P4 organised details | image count, variant control, a scroll test, expandable sections |
+| Navigation | N1 short, specific menu; N2 search visible and working | desktop menu labels; a live search for a word from the product name |
+| Order value | M1 bundles/quantity offers, M2 add-ons on product page and in cart, M3 free-shipping threshold vs average order value | text detectors; threshold parsed from the page, AOV from GA4 |
+| Repeat purchases | R1 signup with a reason, R2 loyalty/subscription/account | form fields, popups, text detectors |
+| Local market | L1 Arabic, right-to-left, natural; L2 local payments and delivery coverage | lang/dir/hreflang, text detectors |
+| Popups | U1 nothing blocking the first visit | overlays measured before and after Escape |
+
+All of these are opportunity rules (`autoFail: false`) except H2, P3 and N2. 31 rules in total; the
+judge runs them in two batches of about 16 so the bilingual answer stays short enough to be reliable.
+The report section is now titled "Conversion review" and the score "Conversion score".
+
+**Where the money is** (`fud/insights.ts`): built from the GA4 reports the OAuth callback already
+fetched (a `deviceCategory` report was added to `api/_lib/google-oauth.js` for conversion by device),
+falling back to the audit's GA4 summary. Revenue range = closing 25-50% of the gap to step benchmarks,
+capped at 30% of current revenue. A step far below its benchmark is reported as a probable tracking
+gap, not money. A healthy funnel gets a "no broken step" line instead of an invented figure.
+
+**Competitor benchmark**: optional form field, stored as `progress.competitorUrl` at intake (no schema
+change; kept on `requeue --fresh`). Same collector and rules, one short status-only judge call, shown
+as a "You vs them" table. Like the client's store, the competitor's store gets one item added to a
+throwaway cart, with analytics hits blocked.
+
+First full run (tharaa.shop with its own GA4 data, balqeshoney.com as competitor): 31/31 checks
+assessed, conversion score 79 vs 69, 364 analytics hits blocked and 0 not blocked. Run time added per
+audit: roughly 10-12 minutes with a competitor, 6-8 without.

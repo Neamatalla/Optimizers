@@ -189,7 +189,7 @@ function apiMiddlewarePlugin() {
           const VALID_TOOLS = new Set(['GA4', 'GTM']);
           try {
             const env = loadEnv('development', process.cwd(), '');
-            const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = JSON.parse(body || '{}');
+            const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, competitor } = JSON.parse(body || '{}');
 
             // Test-mode prefix comes off first, so every check below runs on
             // the real values — dev twin of api/audit-request.js, same
@@ -417,6 +417,7 @@ function apiMiddlewarePlugin() {
               findExistingAuditRequest,
               isUniqueViolation,
               duplicateMessage,
+              competitorProgress,
             } = await import('./api/_lib/audit-intake.js');
             const emailNormalized = normalizeEmail(email);
             const websiteHostname = normalizeHostname(website);
@@ -446,6 +447,7 @@ function apiMiddlewarePlugin() {
                 gtm_container_id: gtmContainerId ? String(gtmContainerId).trim().toUpperCase() : null,
                 ga4_oauth_data: ga4OAuthData ?? null,
                 gtm_oauth_data: gtmOAuthData ?? null,
+                progress: competitorProgress(competitor, website),
                 status: 'pending',
               })
               .select()

@@ -61,8 +61,49 @@ function pageBlock(p: PageEvidence): string {
     p.variants ? `variants: ${p.variants.hasSize ? `sold in sizes, chosen via ${p.variants.control}` : "no size options"}${p.variants.groups.length ? ` (groups: ${p.variants.groups.join(", ")})` : ""}` : "",
     p.listing ? `product cards counted on this page: ${p.listing.cards}; with a price: ${p.listing.withPrice}; with a rating: ${p.listing.withRating}; with a quick-add button: ${p.listing.quickAdd}${p.listing.quickAddLabels.length ? ` (labels: ${p.listing.quickAddLabels.map(l => `«${l}»`).join(", ")})` : ""}; filter control: ${p.listing.hasFilter ? "yes" : "no"}; sort control: ${p.listing.hasSort ? "yes" : "no"}; category links above the grid: ${p.listing.pills}` : "",
     p.cart ? `cart source: ${p.cart.source}${p.cart.empty ? " — EMPTY, the item could not be added" : " — holds the added item"}` : "",
+    ...factLines(p),
   ].filter(Boolean);
   return `### ${p.pageType.toUpperCase()}\n${meta.join("\n")}\nVisible text (in reading order; |fold = on the first phone screen, |img = image/icon label):\n${lines.join("\n")}\n`;
+}
+
+/** Layout facts measured in the browser (facts-js.ts), as plain sentences. */
+function factLines(p: PageEvidence): string[] {
+  const f = p.facts;
+  const out: string[] = [];
+  if (f) {
+    out.push(`page language: lang="${f.lang || "none"}", direction ${f.dir || "unknown"}${f.langSwitch ? ", has a language switcher" : ""}${f.hreflang.length ? `, alternate languages: ${f.hreflang.join(", ")}` : ""}`);
+    out.push(`H1 headings: ${f.h1Count}${f.h1.length ? ` (${f.h1.map(h => `«${h}»`).join(", ")})` : ""}`);
+    if (p.pageType === "home") {
+      out.push(`buttons on the first screen (outside the header): ${f.heroButtons.length ? f.heroButtons.map(b => `«${b}»`).join(", ") : "none"}`);
+      if (f.hero) out.push(`largest first-screen visual: ${f.hero.kind} covering ${f.hero.coverPct}% of the screen${f.hero.alt ? `, alt text «${f.hero.alt}»` : ", no alt text"}${/unsplash|pexels|shutterstock|istock|getty|freepik|adobestock/i.test(f.hero.src) ? " — file comes from a stock-photo site" : ""}`);
+      out.push(`search: ${f.search.present ? (f.search.visible ? "visible on the phone" : "present but not visible without opening the menu") : "none found"}`);
+      out.push(`signup: email field ${f.capture.email ? "yes" : "no"}, phone field ${f.capture.phone ? "yes" : "no"}, account/login link ${f.capture.account ? "yes" : "no"}`);
+    }
+    if (p.pageType === "product") {
+      out.push(`product media: ${f.media.images} distinct images near the top, video ${f.media.video ? "yes" : "no"}, zoom/lightbox ${f.media.zoom ? "yes" : "no"}`);
+      out.push(`organised info: ${f.infoSections.details} expandable sections, ${f.infoSections.expanders} tabs/toggles`);
+    }
+  }
+  if (p.sticky !== undefined) out.push(`sticky buy button after scrolling: ${p.sticky ? `yes («${p.sticky}»)` : "no"}`);
+  if (p.popups) {
+    out.push(
+      p.popups.onLoad.length
+        ? `overlays on arrival: ${p.popups.onLoad.map(o => `${o.kind} covering ${o.cover}% («${o.text.slice(0, 60)}»)`).join("; ")}; after pressing Escape ${p.popups.afterEscape} remained`
+        : "overlays on arrival: none",
+    );
+  }
+  return out;
+}
+
+/** Store-wide facts some rules need (menu, search test, order value). */
+function storeBlock(e: StoreEvidence): string {
+  const lines: string[] = [];
+  const dHome = e.desktop?.find(p => p.pageType === "home" && p.loaded);
+  const nav = dHome?.facts?.nav ?? e.pages.find(p => p.pageType === "home")?.facts?.nav ?? [];
+  lines.push(`top menu labels (desktop): ${nav.length ? nav.map(n => `«${n}»`).join(", ") : "none found"} (${nav.length} items)`);
+  if (e.searchTest) lines.push(`test search for «${e.searchTest.query}» (a word from the product's own name): ${e.searchTest.loaded ? `${e.searchTest.results} products in the results` : "results page did not load"}`);
+  if (e.context?.aov) lines.push(`average order value from GA4: ${e.context.aov}${e.context.currency ? ` ${e.context.currency}` : ""}`);
+  return lines.join("\n");
 }
 
 function funnelBlock(ga4: Ga4Metrics | null | undefined): string {
@@ -70,7 +111,7 @@ function funnelBlock(ga4: Ga4Metrics | null | undefined): string {
   return `GA4 funnel, last ${ga4.periodDays} days (event counts): ${ga4.funnel.map(s => `${s.event}=${s.count}`).join(", ")}${ga4.conversionRate !== null ? `; conversion rate ${ga4.conversionRate}%` : ""}. Mention a figure only when it relates to the rule.`;
 }
 
-export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined): string {
+export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined, brief = false): string {
   const ruleText = rules
     .map(({ rule, signal }) =>
       [
@@ -85,7 +126,32 @@ export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: F
     )
     .join("\n");
 
-  return `You are a senior CRO consultant reviewing an e-commerce store for purchase friction: the fears, uncertainties and doubts (FUDs) that stop a shopper from buying. The store sells in ${marketHint(evidence.website)}. Shoppers there commonly expect cash on delivery, local installment providers (Tabby, Tamara, valU, Sympl, Souhoola), WhatsApp support, and Arabic or bilingual copy — treat these as valid answers to the rules.
+  const writing = brief
+    ? `OUTPUT
+This is a competitor benchmark: only the status matters. Return ONLY a JSON object, no prose, no markdown fence:
+{"findings": [{"ruleId": "A1", "applicable": true, "status": "pass|warn|fail|unassessed", "confidence": 0.9, "blockIds": ["p12"], "note": "one short English sentence, under 15 words"}]}
+Exactly one entry per rule listed above (${rules.map(r => r.rule.id).join(", ")}), in that order.`
+    : "";
+  if (brief) {
+    return `You are a senior CRO consultant benchmarking an e-commerce store. Judge each rule from the evidence below (a real phone visit: homepage, one product page, the cart after adding one item, one collection page). Block ids are in brackets. Market: ${marketHint(evidence.website)}; cash on delivery, local installment providers and WhatsApp count as valid answers.
+
+RULES
+${ruleText}
+
+HOW TO DECIDE
+- PASS only with block ids that prove it; WARN when partly there, in the wrong place or unsure; FAIL only when clearly missing. "unassessed" when the needed page is NOT AVAILABLE or the cart is EMPTY. "applicable": false only when the rule doesn't apply to this product.
+- Arabic and English text both count.
+
+STORE FACTS
+${storeBlock(evidence)}
+
+EVIDENCE
+${evidence.pages.map(pageBlock).join("\n")}
+
+${writing}`;
+  }
+
+  return `You are a senior CRO consultant reviewing an e-commerce store for what stops shoppers buying: the fears, uncertainties and doubts (FUDs) at the moment of decision, and the layout, navigation and offer gaps that cost sales and order value. The store sells in ${marketHint(evidence.website)}. Shoppers there commonly expect cash on delivery, local installment providers (Tabby, Tamara, valU, Sympl, Souhoola), WhatsApp support, and Arabic or bilingual copy — treat these as valid answers to the rules.
 
 Below is everything a real phone visit (390px wide) captured from the store's homepage, one product page, the cart after adding one item, and one collection page. Each text block has an id in brackets. You cannot browse; judge only from this evidence.
 
@@ -110,6 +176,9 @@ WRITING
 
 ${funnelBlock(ga4)}
 
+STORE FACTS
+${storeBlock(evidence)}
+
 EVIDENCE
 ${evidence.pages.map(pageBlock).join("\n")}
 Add-to-cart attempt: ${evidence.addToCart.attempted ? (evidence.addToCart.ok ? "succeeded" : `failed (${evidence.addToCart.reason ?? "unknown"})`) : `not attempted (${evidence.addToCart.reason ?? "no product page"})`}.
@@ -122,13 +191,19 @@ Exactly one entry per rule listed above (${rules.map(r => r.rule.id).join(", ")}
 
 const isVoice = (v: any): v is FindingVoice => v && typeof v.summary === "string" && typeof v.detail === "string" && v.summary.trim().length > 0;
 
-export function parseVerdicts(raw: unknown): JudgeVerdict[] {
+export function parseVerdicts(raw: unknown, brief = false): JudgeVerdict[] {
   const list = Array.isArray(raw) ? raw : (raw as any)?.findings;
   if (!Array.isArray(list)) throw new Error("judge response had no findings array");
   const out: JudgeVerdict[] = [];
   for (const v of list) {
     if (!v || typeof v.ruleId !== "string") continue;
     const status = ["pass", "warn", "fail", "unassessed"].includes(v.status) ? v.status : "warn";
+    // Competitor benchmark answers carry one short note instead of the two voices.
+    if (brief && !isVoice(v.business)) {
+      const note = typeof v.note === "string" && v.note.trim() ? v.note.trim() : status;
+      v.technical = { summary: note, detail: "" };
+      v.business = { summary: note, detail: "" };
+    }
     if (!isVoice(v.technical) || !isVoice(v.business)) continue;
     const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
     out.push({
@@ -204,24 +279,58 @@ export function repairJsonQuotes(text: string): string {
   return out;
 }
 
-function tryRepair(raw: string): JudgeVerdict[] | null {
+function tryRepair(raw: string, brief = false): JudgeVerdict[] | null {
   try {
     const inner: unknown = JSON.parse(raw)?.result;
     if (typeof inner !== "string") return null;
     const start = inner.indexOf("{");
     const end = inner.lastIndexOf("}");
     if (start < 0 || end <= start) return null;
-    const verdicts = parseVerdicts(JSON.parse(repairJsonQuotes(inner.slice(start, end + 1))));
+    const verdicts = parseVerdicts(JSON.parse(repairJsonQuotes(inner.slice(start, end + 1))), brief);
     return verdicts.length > 0 ? verdicts : null;
   } catch {
     return null;
   }
 }
 
-export async function runJudge(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined, jobId: string): Promise<JudgeVerdict[]> {
+// Bilingual answers for 30+ rules in one call get long enough to time out
+// or break; split the full review into batches of this size. The brief
+// competitor benchmark (status only) always runs as one call.
+const BATCH_SIZE = 16;
+
+export interface JudgeOptions {
+  brief?: boolean;
+}
+
+export async function runJudge(
+  evidence: StoreEvidence,
+  rules: Array<{ rule: FudRule; signal: SignalState }>,
+  ga4: Ga4Metrics | null | undefined,
+  jobId: string,
+  opts: JudgeOptions = {},
+): Promise<JudgeVerdict[]> {
   if (rules.length === 0) return [];
+  if (opts.brief || rules.length <= BATCH_SIZE) return judgeOnce(evidence, rules, ga4, jobId, opts.brief ?? false, "");
+  // Even halves, so neither batch is a lonely leftover.
+  const batches = Math.ceil(rules.length / BATCH_SIZE);
+  const size = Math.ceil(rules.length / batches);
+  const out: JudgeVerdict[] = [];
+  for (let i = 0; i < batches; i++) {
+    out.push(...(await judgeOnce(evidence, rules.slice(i * size, (i + 1) * size), ga4, `${jobId}-b${i + 1}`, false, ` batch ${i + 1}/${batches}`)));
+  }
+  return out;
+}
+
+async function judgeOnce(
+  evidence: StoreEvidence,
+  rules: Array<{ rule: FudRule; signal: SignalState }>,
+  ga4: Ga4Metrics | null | undefined,
+  jobId: string,
+  brief: boolean,
+  labelSuffix: string,
+): Promise<JudgeVerdict[]> {
   const mcp = await buildMcpConfig(`${jobId}-fud`, { ga4Admin: false, gtm: false, browser: false });
-  const prompt = buildJudgePrompt(evidence, rules, ga4);
+  const prompt = buildJudgePrompt(evidence, rules, ga4, brief);
   try {
     // One retry, and only for a malformed answer: a long bilingual JSON
     // occasionally breaks on a stray quote. Timeouts and rate limits are not
@@ -232,15 +341,15 @@ export async function runJudge(evidence: StoreEvidence, rules: Array<{ rule: Fud
         mcpConfigPath: mcp.configPath,
         allowedTools: [],
         timeoutMs: JUDGE_TIMEOUT_MS,
-        effort: "medium",
-        label: `fud-judge (${rules.length} rules)${attempt > 1 ? " retry" : ""}`,
+        effort: brief ? "low" : "medium",
+        label: `fud-judge${brief ? " competitor" : ""} (${rules.length} rules)${labelSuffix}${attempt > 1 ? " retry" : ""}`,
       });
       try {
-        return parseVerdicts(extractJsonPayload(raw));
+        return parseVerdicts(extractJsonPayload(raw), brief);
       } catch (err) {
         // Before paying for a second call, try the cheap fix: the usual
         // breakage is a bare double quote inside a text value.
-        const repaired = tryRepair(raw);
+        const repaired = tryRepair(raw, brief);
         if (repaired) {
           console.warn("[audit-worker] FUD judge JSON needed a quote repair; no retry needed.");
           return repaired;

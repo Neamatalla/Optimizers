@@ -1,6 +1,7 @@
 import type { FudPageType, Ga4FunnelEvent } from "../types.js";
 import { pageOf, type PageEvidence, type StoreEvidence } from "./evidence.js";
 import { anyBlock, hasWidget, matches, nearCta, pageText, type PatternKey } from "./signals.js";
+import { CRO_RULES } from "./rules-cro.js";
 
 /**
  * The v1 rule set: storefront-detectable FUD checks (PRD categories A–D).
@@ -12,7 +13,7 @@ import { anyBlock, hasWidget, matches, nearCta, pageText, type PatternKey } from
  * Bump RULE_SET_VERSION whenever a rule's wording, signal or defaults change
  * — every finding carries it, so results stay comparable over time.
  */
-export const RULE_SET_VERSION = "fud-1.1.0";
+export const RULE_SET_VERSION = "fud-2.0.0";
 
 /**
  * Deterministic second opinion on one rule (score.ts's gate):
@@ -23,8 +24,13 @@ export const RULE_SET_VERSION = "fud-1.1.0";
  */
 export type SignalState = "present" | "elsewhere" | "absent" | "unknown";
 
+// Where a rule sits in the report and the judge's batches.
+export type FudGroup = "trust" | "homepage" | "product" | "navigation" | "collection" | "buy_more" | "buy_again" | "local" | "popups";
+
 export interface FudRule {
   id: string;
+  // Defaults to "trust" (the original purchase-friction rules).
+  group?: FudGroup;
   // The page whose URL and crop the finding is shown with.
   pageType: FudPageType;
   // Every page the rule needs; if none of them loaded, it's UNASSESSED.
@@ -72,7 +78,7 @@ function usableCart(e: StoreEvidence): PageEvidence | undefined {
   return cart && !cart.cart?.empty ? cart : undefined;
 }
 
-export const FUD_RULES: FudRule[] = [
+const TRUST_RULES: FudRule[] = [
   {
     id: "A1",
     pageType: "cart",
@@ -391,6 +397,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "C6",
+    group: "collection",
     pageType: "collection",
     needs: ["collection"],
     crop: "fold",
@@ -414,6 +421,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "D4",
+    group: "collection",
     pageType: "collection",
     needs: ["collection"],
     crop: "fold",
@@ -437,6 +445,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "D5",
+    group: "collection",
     pageType: "collection",
     needs: ["collection"],
     crop: "fold",
@@ -456,6 +465,12 @@ export const FUD_RULES: FudRule[] = [
     },
   },
 ];
+
+export const FUD_RULES: FudRule[] = [...TRUST_RULES, ...CRO_RULES];
+
+export function groupOf(rule: Pick<FudRule, "group">): FudGroup {
+  return rule.group ?? "trust";
+}
 
 export function ruleById(id: string): FudRule | undefined {
   return FUD_RULES.find(r => r.id === id);

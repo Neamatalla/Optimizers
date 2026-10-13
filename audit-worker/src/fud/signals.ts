@@ -62,6 +62,16 @@ export const PATTERNS = {
   discountField: /discount|coupon|promo code|voucher|gift card|كود الخصم|كوبون|رمز الخصم|قسيمة|خصم/,
   aboutWord: /about us|our story|who we are|founder|founded|meet the team|من نحن|قصتنا|عن المتجر|مؤسس|فريقنا|عنا/,
   trustSeal: /as seen (?:on|in)|featured in|certified|certificate|approved|award|iso \d|halal|حلال|معتمد|شهادة|حاصل علي|كما ظهر في/,
+  // Buy more / buy again / local market (rules M*, R*, L*). Normalized text:
+  // alef/hamza forms folded, so "اضف" also matches "أضف".
+  bundle: /\bbundle\b|\bkit\b|\bset of \d|pack of \d|\bbuy \d+\b|\d+ for \d|\bx ?2\b|\bsave \d+ ?%|quantity discount|volume discount|باقة|باقات|بكج|عرض \d|قطعتين|اشتر[ي]? \d|اشتري قطعتين|وفر \d|وفري \d|العرض الثنائي|عرض التوفير|مجموعة التوفير/,
+  crossSell: /frequently bought|you may also like|you might also like|complete the look|complete your|related products|customers also|pairs well|goes well with|recommended for you|قد يعجبك|منتجات مشابهة|منتجات ذات صلة|اشتري معه|يشترى معه|منتجات مقترحة|اكمل روتين|كمل روتين|كملي روتين|كمّلي روتين|اختيارات مكملة|ممكن يعجبك/,
+  loyalty: /\bpoints\b|\brewards?\b|loyalty|cash ?back|\bvip\b|refer a friend|referral|نقاط|مكافات|برنامج الولاء|كاش باك|استرداد نقدي|ادعو صديق|ادعي صديقة/,
+  subscription: /subscribe (?:&|and) save|subscription|deliver(?:ed)? every|auto.?ship|اشتراك شهري|اشترك ووفر|الاشتراك/,
+  signupOffer: /\d+ ?% off your first|first order|welcome (?:offer|discount|gift)|join (?:and|&) (?:get|save)|sign up (?:and|&) (?:get|save)|خصم (?:على )?اول طلب|اول طلب|اشترك واحصل|اشتركي واحصلي|هدية ترحيب/,
+  deliveryCoverage: /all (?:governorates|cities|emirates|regions)|all over (?:egypt|the uae|saudi|ksa)|nationwide|across (?:egypt|saudi|the uae|the gcc)|gcc wide|جميع المحافظات|كل المحافظات|لكل مصر|لكل محافظات|جميع انحاء|جميع مدن|كل مصر|جميع الامارات|كل الامارات|جميع مناطق المملكة|كل مدن المملكة/,
+  localPayment: /\bmada\b|meeza|fawry|instapay|vodafone cash|valu|tabby|tamara|sympl|souhoola|\bknet\b|benefit ?pay|stc ?pay|apple ?pay|cash on delivery|\bcod\b|مدى|ميزة|فوري|انستاباي|فودافون كاش|فاليو|تابي|تمارا|الدفع عند الاستلام/,
+  stockPhoto: /unsplash|pexels|shutterstock|istockphoto|gettyimages|depositphotos|freepik|stock-photo|adobestock/,
   priceJustification: /premium|handmade|hand.?made|made in|genuine|authentic|original|100% (?:cotton|natural|pure|silk|leather)|organic|natural|lab.?tested|dermatologist|clinically|certified|imported|quality|اصلي|أصلي|طبيعي|عضوي|صناعة|مصنوع|يدوي|جودة|مستورد|معتمد|خامة|خامات/,
 };
 
