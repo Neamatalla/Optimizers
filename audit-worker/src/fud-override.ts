@@ -9,6 +9,9 @@
  *   npm run fud-override -- <request-id> --list
  *   npm run fud-override -- <request-id> <RULE> <pass|warn|fail|unassessed|hidden> "<reason>"
  *   npm run fud-override -- <request-id> <RULE> hidden "store shows COD in the header" --dry-run
+ *   npm run fud-override -- <request-id> --republish
+ *     (no override: just rebuild the report from the saved data with the
+ *     current report code, e.g. after a design change)
  *
  * <request-id> is the full id, or the 6 characters at the end of the report
  * slug (e.g. "a1b2c3" from /audit-reports/nour-home-a1b2c3).
@@ -22,7 +25,7 @@ import { buildAuditHtmlReport } from "./html-report.js";
 import { applyOverride, isFudResult } from "./fud/index.js";
 import { computeOverallPoints } from "./scoring.js";
 import { getRequestById, publishAuditReport, saveProgressDirect } from "./supabase.js";
-import type { AuditResult, FudResult, FudStatus } from "./types.js";
+import type { AuditRequestRow, AuditResult, FudResult, FudStatus, JobProgress } from "./types.js";
 
 const STATUSES = ["pass", "warn", "fail", "unassessed", "hidden"] as const;
 
@@ -38,8 +41,9 @@ async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const wantList = args.includes("--list");
+  const republishOnly = args.includes("--republish");
   const [id, ruleId, to, ...reasonParts] = args.filter(a => !a.startsWith("--"));
-  if (!id || (!wantList && (!ruleId || !to))) {
+  if (!id || (!wantList && !republishOnly && (!ruleId || !to))) {
     console.error('Usage: npm run fud-override -- <request-id> --list\n       npm run fud-override -- <request-id> <RULE> <pass|warn|fail|unassessed|hidden> "<reason>" [--dry-run]');
     process.exit(1);
   }
@@ -47,6 +51,13 @@ async function main() {
   const row = await getRequestById(id);
   if (!row) throw new Error(`no audit request matches "${id}"`);
   const progress = row.progress ?? {};
+  if (republishOnly) {
+    if (row.status === "pending" || row.status === "processing") throw new Error(`request is still '${row.status}' — wait for the audit to finish`);
+    if (!progress.categories) throw new Error("request has no saved audit result to rebuild the report from");
+    const url = await rebuild(row, progress, isFudResult(progress.fud) ? progress.fud : null);
+    console.log(`Rebuilt and republished: ${url}\n(Hand edits made through /api/report/edit before this were overwritten.)`);
+    return;
+  }
   if (!isFudResult(progress.fud)) throw new Error(`request ${row.id} has no purchase-friction result${progress.fud ? ` (the pass failed: ${(progress.fud as { error: string }).error})` : " (FUD_PASS was off for this run)"}`);
   console.log(`${row.website} — request ${row.id}, status ${row.status}${row.is_test ? ", TEST" : ""}`);
 
@@ -67,9 +78,16 @@ async function main() {
   }
 
   progress.fud = updated;
-  const { earned, possible } = computeOverallPoints(progress.categories);
+  await saveProgressDirect(row.id, progress);
+  const publicUrl = await rebuild(row, progress, updated);
+  console.log(`\nSaved and republished: ${publicUrl}\n(Hand edits made through /api/report/edit before this were overwritten.)`);
+}
+
+async function rebuild(row: AuditRequestRow, progress: JobProgress, fud: FudResult | null): Promise<string> {
+  const categories = progress.categories!;
+  const { earned, possible } = computeOverallPoints(categories);
   const result: AuditResult = {
-    categories: progress.categories,
+    categories,
     overallScore: earned,
     possiblePoints: possible,
     websiteUrl: row.website,
@@ -78,12 +96,11 @@ async function main() {
     pageSpeed: progress.pageSpeed,
     screenshots: progress.screenshots,
     ga4Metrics: progress.ga4Metrics ?? null,
-    fud: updated,
+    fud,
   };
   const { html } = await buildAuditHtmlReport(result);
-  await saveProgressDirect(row.id, progress);
   const { publicUrl } = await publishAuditReport({ requestId: row.id, html, businessName: row.business_name, website: row.website, isTest: row.is_test });
-  console.log(`\nSaved and republished: ${publicUrl}\n(Hand edits made through /api/report/edit before this were overwritten.)`);
+  return publicUrl;
 }
 
 main().catch(err => {

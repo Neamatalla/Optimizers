@@ -482,12 +482,12 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
   const detail = (text: string, cls: string, ar: boolean) => (text ? `<p class="voice ${cls} ${ar ? "i18n-ar" : "i18n-en"}"${ar ? ' dir="rtl"' : ""}>${escapeHtml(text)}</p>` : "");
 
   return `
-          <article class="check check--${status}${failed ? "" : " is-collapsed"}" id="${rowId(cat, point)}" data-status="${status}">
+          <article class="check check--${status}" id="${rowId(cat, point)}" data-status="${status}">
             ${finding ? `<input type="checkbox" class="tech-toggle" id="${id}" />` : ""}
             <div class="check-main">
               <div class="check-side">${side}</div>
               <div class="check-body">
-                <button type="button" class="check-head" aria-expanded="${failed ? "true" : "false"}">
+                <button type="button" class="check-head" aria-expanded="true">
                   <span class="check-titles">
                     <h3 class="voice voice-business i18n-en">${escapeHtml(business.summary)}</h3>
                     <h3 class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(businessAr.summary)}</h3>
@@ -523,7 +523,8 @@ function checkGroupsHtml(cat: CategoryResult): string {
       const issues = points.filter(p => rank(p) < 3);
       const passed = points.filter(p => rank(p) === 3);
       const rows = (list: ChecklistPoint[]) => list.map(p => checkRowHtml(cat, p, findingsById.get(p.id))).join("");
-      // Passed checks start unfolded; the reader can fold each group away.
+      // Passed checks are shown open and highlighted, never folded away:
+      // what already works is part of the result, not a detail to dig for.
       return `
         <div class="check-group">
           <div class="group-head">
@@ -532,14 +533,10 @@ function checkGroupsHtml(cat: CategoryResult): string {
           </div>
           ${issues.length ? `<div class="check-list">${rows(issues)}</div>` : ""}
           ${passed.length ? `
-          <details class="passed-fold" open>
-            <summary>
-              <span class="when-closed">${bi(`Show ${passed.length} passed ${checksWord(passed.length)}`, `عرض ${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</span>
-              <span class="when-open">${bi(`${passed.length} passed ${checksWord(passed.length)}`, `${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</span>
-              ${CHEVRON}
-            </summary>
+          <div class="passed-block">
+            <h4 class="passed-head">${bi(`${passed.length} passed ${checksWord(passed.length)}`, `${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</h4>
             <div class="check-list check-list--passed">${rows(passed)}</div>
-          </details>` : ""}
+          </div>` : ""}
         </div>`;
     })
     .join("");
@@ -825,14 +822,10 @@ function frictionSectionHtml(result: AuditResult): string {
 
   const workingFold = working.length
     ? `
-        <details class="passed-fold">
-          <summary>
-            <span class="when-closed">${bi(`Show what's already working (${working.length})`, `عرض ما يعمل بالفعل (${working.length})`)}</span>
-            <span class="when-open">${bi(`Already working (${working.length})`, `يعمل بالفعل (${working.length})`)}</span>
-            ${CHEVRON}
-          </summary>
-          <div class="check-list check-list--passed">${working.map(f => fudRowHtml(f, false, periodDays)).join("")}</div>
-        </details>`
+        <div class="passed-block fud-group">
+          <h4 class="passed-head">${bi(`Already working (${working.length})`, `يعمل بالفعل (${working.length})`)}</h4>
+          <div class="check-list check-list--passed">${working.map(f => fudRowHtml(f, true, periodDays)).join("")}</div>
+        </div>`
     : "";
 
   const notChecked = unassessed.length
@@ -1487,7 +1480,11 @@ p{margin:0; text-wrap:pretty}
 .check--critical{--status:var(--red-ink); --status-tint:var(--red-tint)}
 .check--medium{--status:var(--amber-ink); --status-tint:var(--amber-tint)}
 .check--low{--status:var(--blue-ink); --status-tint:var(--blue-tint)}
-.check--pass{--status:var(--green-ink); --status-tint:var(--green-tint)}
+.check--pass{--status:var(--green-ink); --status-tint:rgba(106,228,153,.2); border-color:rgba(106,228,153,.38)}
+.check--pass .sev--pass{font-weight:700}
+.passed-block{margin-top:16px}
+.passed-head{display:flex; align-items:center; gap:8px; padding:14px 0 12px; font-family:var(--body); font-size:15px; font-weight:700; color:var(--green-ink)}
+.passed-head::before{content:""; width:11px; height:6px; border:solid currentColor; border-width:0 0 2.5px 2.5px; transform:rotate(-45deg) translate(1px,-2px)}
 .check.is-target{background:var(--card-hover); border-color:var(--card-border-hover)}
 .tech-toggle{position:absolute; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none}
 .check-main{display:grid; grid-template-columns:104px minmax(0,1fr); gap:20px; padding:20px 24px}
@@ -1515,8 +1512,7 @@ p{margin:0; text-wrap:pretty}
 .check-meta{display:none; align-items:center; gap:10px; font-size:13px; color:var(--ink-3)}
 .tech-toggle:checked ~ * .check-meta{display:inline-flex}
 .check-meta code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; color:var(--ink-2); background:var(--bg-soft); padding:2px 6px; border-radius:4px}
-.check--pass .check-main{padding:14px 24px}
-.check--pass h3{font-size:15px; font-weight:500; color:var(--ink)}
+
 
 .fud-group{margin-top:32px}
 .fud .check-titles .fud-band{display:inline-block; margin-top:6px; font-size:13px; font-weight:600; color:var(--ink-3)}
@@ -1535,15 +1531,6 @@ p{margin:0; text-wrap:pretty}
 .fud-note{margin-top:20px; font-size:14px; color:var(--ink-3); max-width:68ch}
 .fud .check-meta span + span{color:var(--ink-3)}
 
-.passed-fold{margin-top:4px}
-.passed-fold > summary{display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none; user-select:none; padding:18px 0 12px; font-size:14px; font-weight:600; color:var(--green-ink)}
-.passed-fold > summary::-webkit-details-marker{display:none}
-.passed-fold > summary svg{transition:transform .2s var(--ease)}
-.passed-fold[open] > summary svg{transform:rotate(180deg)}
-.passed-fold > summary:hover{color:var(--ink)}
-.passed-fold .when-open{display:none}
-.passed-fold[open] .when-open{display:inline}
-.passed-fold[open] .when-closed{display:none}
 
 /* speed table */
 .table-wrap{margin-top:24px; overflow-x:auto}
@@ -1679,7 +1666,7 @@ main{position:relative; z-index:2}
 .cta-inner{position:relative}
 
 /* hidden start states (motion only) */
-.js-motion :is(.crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-fold > summary, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls){opacity:0}
+.js-motion :is(.crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-head, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls){opacity:0}
 .js-motion :is(.summary h1, .doc-section h2, .cta-band h2){clip-path:inset(-20% 50% -30% 50%)}
 .js-motion .bar > span{transform:scaleX(0); transform-origin:left center}
 #i18n-ar:checked ~ main .bar > span{transform-origin:right center}
@@ -1858,7 +1845,6 @@ body{position:relative}
   .bar{width:100%; max-width:none; flex:1}
   .shot--mobile{flex:1 1 160px; max-width:200px}
   .check-main{grid-template-columns:1fr; gap:8px; padding:16px 18px}
-  .check--pass .check-main{padding:12px 18px}
   .fix-list a{padding:16px 18px; grid-template-columns:28px minmax(0,1fr); gap:4px 12px}
   .check-side{padding-top:0}
   .controls{align-items:stretch}
@@ -2017,7 +2003,7 @@ function scriptBlock(): string {
   gsap.registerPlugin(ST);
 
   var EASE = "expo.out";
-  var HIDDEN = ".crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-fold > summary, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls, .kpi, .chart, .checkmap, .speed-card, .cell";
+  var HIDDEN = ".crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-head, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls, .kpi, .chart, .checkmap, .speed-card, .cell";
   var WIPED = ".summary h1, .doc-section h2, .cta-band h2";
   var fine = window.matchMedia && matchMedia("(pointer:fine)").matches;
   function q(sel, ctx){ return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
@@ -2202,7 +2188,7 @@ function scriptBlock(): string {
     q(".cat-score").forEach(function(s){
       onEnter(s, function(){ rise([s], 12, { delay: .25 }); fill(s, .35); counts(s, .35); });
     });
-    q(".group-head, .passed-fold > summary").forEach(function(el){
+    q(".group-head, .passed-head").forEach(function(el){
       onEnter(el, function(){ rise([el], 16); }, "top 92%");
     });
     ST.batch(".check", { start: "top 94%", once: true, onEnter: function(batch){ rise(batch, 26, { stagger: .07, duration: .75 }); } });
@@ -2273,7 +2259,7 @@ function scriptBlock(): string {
         var rows = q(".check").filter(function(r){ return !r.hidden && r.offsetParent; });
         var vh = innerHeight;
         var inView = rows.filter(function(r){ var b = r.getBoundingClientRect(); return b.top < vh && b.bottom > 0; }).slice(0, 18);
-        gsap.set(rows.concat(q(".group-head, .passed-fold > summary")), { opacity: 1, clearProps: "transform" });
+        gsap.set(rows.concat(q(".group-head, .passed-head")), { opacity: 1, clearProps: "transform" });
         if (inView.length) gsap.fromTo(inView, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5, ease: EASE, stagger: .03, clearProps: "transform" });
         refreshSoon();
       }, 0);
