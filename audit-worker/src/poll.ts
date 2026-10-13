@@ -31,7 +31,7 @@ import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
 import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows, checkClaudeLogin } from "./claude.js";
+import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
 import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
 
 // Identifies this process in audit_requests.locked_by, so two workers (or a
@@ -49,19 +49,6 @@ const REVIEWER_EMAIL = process.env.AUDIT_REVIEWER_EMAIL || "omar@optimizers.agen
 // Roughly "end of day" for a Cairo-based reviewer (UTC+2/+3) without pulling
 // in a timezone library for one comparison — override via env if that drifts.
 const DAILY_DIGEST_HOUR_UTC = Number(process.env.DAILY_DIGEST_HOUR_UTC ?? 20);
-
-// Heuristic match against whatever `claude -p` printed (see claude.ts, which
-// reports BOTH its streams for exactly this reason) or a thrown Google API
-// error surfaces — there's no structured error type to inspect across both
-// sources, just message text. False negatives just mean a rate-limited run
-// gets marked failed instead of retained (safe); false positives would
-// wrongly retry a real failure, which is why this stays narrow to actual
-// rate/quota vocabulary rather than e.g. generic "error". "usage limit" is
-// the Claude CLI's own wording for a plan limit, distinct from an API 429.
-function isRateLimitError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return /rate.?limit|usage limit|429|quota|resource_exhausted|too many requests|overloaded/i.test(message);
-}
 
 /**
  * When the limit message says WHEN it resets, honour that instead of the
@@ -110,7 +97,8 @@ function parseLimitResetAt(err: unknown): Date | null {
  * lease or a failed attempt) skips everything that already finished:
  *
  *   1. audit      crawl + claude -p audit + PageSpeed + screenshots
- *   2. translate  Arabic text for every finding (best-effort)
+ *   2. translate  Arabic text for every finding (saved per category; English
+ *                 fallback only if still incomplete on the final attempt)
  *   3. publish    build the HTML report and upload it
  *   4. deliver    test run: email the requester. Real run: email the
  *                 reviewer, then park the row for approval.
@@ -197,14 +185,21 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   };
   const categoriesAudited = categories.map(c => c.category);
 
-  // 2. translate — best-effort, same contract as screenshots: never allowed
-  // to fail a run that otherwise produced 50 real findings (translate-ar.ts).
-  // It writes the Arabic straight onto result.categories, which is the same
-  // array saved in progress.
+  // 2. translate. It writes the Arabic straight onto result.categories, which
+  // is the same array saved in progress, and saves after each category, so a
+  // retry only translates the findings still missing it. A usage limit is
+  // rethrown into tick's rate-limit path (attempt given back, wait for the
+  // reset); any other gap takes a normal retry. Only on the final attempt
+  // does it ship with the English fallback for what's left — translation
+  // never fails an audit that otherwise produced 50 real findings.
   if (!progress.translated) {
-    const arabic = await translateFindingsToArabic(result, row.id);
-    if (arabic.error) {
-      console.warn(`[audit-worker] Arabic translation unavailable for ${row.id}: ${arabic.error}`);
+    const arabic = await translateFindingsToArabic(result, row.id, { onCategoryDone: save });
+    if (arabic.rateLimitError) throw new Error(`Arabic translation hit a limit: ${arabic.rateLimitError}`);
+    if (arabic.missing > 0) {
+      if (row.attempts < MAX_ATTEMPTS) {
+        throw new Error(`Arabic translation incomplete (${arabic.missing} findings still missing): ${arabic.error ?? "findings left out of the response"}`);
+      }
+      console.warn(`[audit-worker] Arabic translation still missing ${arabic.missing} findings for ${row.id} on the final attempt, shipping with the English fallback: ${arabic.error ?? "findings left out of the response"}`);
     } else {
       console.log(`[audit-worker] Translated ${arabic.translated}/${arabic.total} findings to Arabic`);
     }
