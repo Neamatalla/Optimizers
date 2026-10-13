@@ -285,7 +285,7 @@ const CHECK_GROUPS: Record<CategoryKey, Array<{ en: string; ar: string; ids: str
   GA4: [
     { en: "What your data is telling you", ar: "ما تخبرك به بياناتك", ids: GA4_DATA_IDS },
     { en: "Sales, leads & event tracking", ar: "تتبع المبيعات والعملاء المحتملين والأحداث", ids: ["GA4-3", "GA4-12", "GA4-13"] },
-    { en: "Account setup & attribution", ar: "إعداد الحساب ونسب التحويلات", ids: ["GA4-1", "GA4-4", "GA4-8"] },
+    { en: "Account setup & attribution", ar: "إعداد الحساب وإسناد التحويلات", ids: ["GA4-1", "GA4-4", "GA4-8"] },
     { en: "Privacy & data protection", ar: "الخصوصية وحماية البيانات", ids: ["GA4-2", "GA4-5", "GA4-6", "GA4-10"] },
   ],
   GTM: [
@@ -782,7 +782,7 @@ const FUNNEL_LABEL: Record<Ga4FunnelEvent, [string, string]> = {
   page_view: ["Page views", "مشاهدات الصفحات"],
   view_item: ["Product views", "مشاهدات المنتجات"],
   add_to_cart: ["Added to cart", "إضافات إلى السلة"],
-  begin_checkout: ["Checkouts started", "بدء الدفع"],
+  begin_checkout: ["Checkouts started", "بدء إتمام الشراء"],
   add_shipping_info: ["Shipping details entered", "إدخال بيانات الشحن"],
   add_payment_info: ["Payment details entered", "إدخال بيانات الدفع"],
   purchase: ["Purchases", "عمليات الشراء"],
@@ -898,7 +898,7 @@ function numbersSectionHtml(result: AuditResult): string {
     }
     funnel = `
         <div class="chart">
-          <h3>${bi("Your shopping funnel", "مسار الشراء في متجرك")}</h3>
+          <h3>${bi("Your conversion funnel", "مسار التحويل في متجرك")}</h3>
           <p class="chart-note">${bi(`How many times each step happened in the last ${days} days.`, `عدد مرات حدوث كل خطوة خلال آخر ${days} يومًا.`)}</p>
           <ol class="funnel">${rows}</ol>
           ${insight}
@@ -923,16 +923,16 @@ function numbersSectionHtml(result: AuditResult): string {
     const below = avg !== null ? sorted.filter(c => c.conversionRate < avg).length : 0;
     const insight = avg !== null && below > 0
       ? `<p class="chart-insight">${biHtml(
-          `<b>${below} of ${sorted.length}</b> traffic sources sell below your store average.`,
-          `<b>${below} من ${sorted.length}</b> مصادر تبيع بأقل من متوسط متجرك.`,
+          `<b>${below} of ${sorted.length}</b> traffic sources convert below your store's average conversion rate.`,
+          `<b>${below} من ${sorted.length}</b> مصادر معدل تحويلها أقل من متوسط معدل التحويل في متجرك.`,
         )}</p>`
       : "";
     channels = `
         <div class="chart">
-          <h3>${bi("Which traffic sources bring sales", "أي مصادر الزيارات تجلب المبيعات")}</h3>
+          <h3>${bi("Conversion rate by traffic source", "معدل التحويل حسب مصدر الزيارات")}</h3>
           <p class="chart-note">${avg !== null
-            ? bi(`Share of visits that ended in a sale. The white line is your store average, ${fmtPct(avg)}%.`, `نسبة الزيارات التي انتهت ببيع. الخط الأبيض هو متوسط متجرك: ${fmtPct(avg)}%.`)
-            : bi("Share of visits from each source that ended in a sale.", "نسبة الزيارات من كل مصدر التي انتهت ببيع.")}</p>
+            ? bi(`The white line is your store's average conversion rate, ${fmtPct(avg)}%.`, `الخط الأبيض هو متوسط معدل التحويل في متجرك: ${fmtPct(avg)}%.`)
+            : bi("Conversion rate of each traffic source.", "معدل التحويل (Conversion Rate) لكل مصدر زيارات.")}</p>
           <ul class="channels">${rows}</ul>
           ${insight}
         </div>`;
@@ -953,16 +953,16 @@ function numbersSectionHtml(result: AuditResult): string {
     let headline: string;
     if (nw.conversionRate > 0 && ret.conversionRate / nw.conversionRate >= 1.2) {
       const r = ratioText(ret.conversionRate, nw.conversionRate);
-      headline = biHtml(`Returning visitors buy <b>${r}×</b> as often as new ones.`, `الزوار العائدون يشترون أكثر بـ<b>${r}</b> مرة من الزوار الجدد.`);
+      headline = biHtml(`Returning visitors convert at <b>${r}×</b> the rate of new ones.`, `معدل تحويل الزوار العائدين أعلى بـ<b>${r}</b> مرة من الزوار الجدد.`);
     } else if (ret.conversionRate > 0 && nw.conversionRate / ret.conversionRate >= 1.2) {
       const r = ratioText(nw.conversionRate, ret.conversionRate);
-      headline = biHtml(`New visitors buy <b>${r}×</b> as often as returning ones.`, `الزوار الجدد يشترون أكثر بـ<b>${r}</b> مرة من الزوار العائدين.`);
+      headline = biHtml(`New visitors convert at <b>${r}×</b> the rate of returning ones.`, `معدل تحويل الزوار الجدد أعلى بـ<b>${r}</b> مرة من الزوار العائدين.`);
     } else {
-      headline = bi("New and returning visitors buy at about the same rate.", "يشتري الزوار الجدد والعائدون بمعدل متقارب.");
+      headline = bi("New and returning visitors convert at about the same rate.", "معدل التحويل متقارب بين الزوار الجدد والعائدين.");
     }
     segments = `
         <div class="chart">
-          <h3>${bi("New vs returning visitors", "الزوار الجدد مقابل العائدين")}</h3>
+          <h3>${bi("Conversion rate: new vs returning visitors", "معدل التحويل: الزوار الجدد مقابل العائدين")}</h3>
           <p class="chart-insight chart-insight--lead">${headline}</p>
           <ul class="segments">${row(nw, "New visitors", "زوار جدد")}${row(ret, "Returning visitors", "زوار عائدون")}</ul>
         </div>`;
@@ -1280,6 +1280,14 @@ p{margin:0; text-wrap:pretty}
 .check{position:relative; border-radius:14px; background:var(--bg-soft); border:1px solid var(--card-border); transition:border-color .2s var(--ease), background .2s var(--ease)}
 .check:hover{border-color:var(--card-border-hover)}
 .check[hidden]{display:none}
+/* status colour on every row, not just the small tag: a stripe on the
+   reading-start edge (flips for Arabic) plus a faint tint behind it */
+.check{--status:transparent; --status-tint:transparent; box-shadow:inset 4px 0 0 var(--status); background:linear-gradient(90deg, var(--status-tint), transparent 45%) var(--bg-soft)}
+#i18n-ar:checked ~ main .check{box-shadow:inset -4px 0 0 var(--status); background:linear-gradient(270deg, var(--status-tint), transparent 45%) var(--bg-soft)}
+.check--critical{--status:var(--red-ink); --status-tint:var(--red-tint)}
+.check--medium{--status:var(--amber-ink); --status-tint:var(--amber-tint)}
+.check--low{--status:var(--blue-ink); --status-tint:var(--blue-tint)}
+.check--pass{--status:var(--green-ink); --status-tint:var(--green-tint)}
 .check.is-target{background:var(--card-hover); border-color:var(--card-border-hover)}
 .tech-toggle{position:absolute; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none}
 .check-main{display:grid; grid-template-columns:104px minmax(0,1fr); gap:20px; padding:20px 24px}

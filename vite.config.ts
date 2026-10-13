@@ -193,13 +193,18 @@ function apiMiddlewarePlugin() {
 
             // Test-mode prefix comes off first, so every check below runs on
             // the real values — dev twin of api/audit-request.js, same
-            // shared parser.
-            const { parseTestPrefix, TEST_PREFIX_MISMATCH_MESSAGE, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
+            // shared parser, same "just another invalid field" answer for a
+            // prefix that doesn't qualify.
+            const { parseTestPrefix, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
             const parsedIntake = parseTestPrefix({ email: rawEmail, website: rawWebsite });
-            if (parsedIntake.mismatch) {
+            if (parsedIntake.invalidFields.length > 0) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: TEST_PREFIX_MISMATCH_MESSAGE }));
+              res.end(JSON.stringify({
+                error: parsedIntake.invalidFields.includes('email')
+                  ? 'Please enter a valid email address.'
+                  : 'Please enter a valid website URL.',
+              }));
               return;
             }
             const { isTest, email, website } = parsedIntake;
@@ -523,10 +528,7 @@ function apiMiddlewarePlugin() {
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
               success: true,
-              isTest,
-              message: isTest
-                ? `Test run queued for ${website}. The report will be emailed straight to ${email} — no review step.`
-                : 'Audit request received. Check your inbox shortly.',
+              message: 'Audit request received. Check your inbox shortly.',
             }));
           } catch (err: any) {
             console.error('Dev API error (audit-request):', err);
@@ -725,7 +727,7 @@ function apiMiddlewarePlugin() {
           return;
         }
         const redirectUri = dynamicRedirectUri(req);
-        const { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult } = await import('./api/_lib/google-oauth.js');
+        const { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult, oauthResultHtml } = await import('./api/_lib/google-oauth.js');
 
         const url = new URL(req.url, 'http://localhost');
         const code = url.searchParams.get('code');
@@ -733,16 +735,8 @@ function apiMiddlewarePlugin() {
         const oauthError = url.searchParams.get('error');
         console.log('[oauth-callback] hit, has code:', Boolean(code), 'has error:', Boolean(oauthError));
 
-        const popupHtml = (payload: any) => {
-          const origin = new URL(redirectUri).origin;
-          return `<!doctype html><html><body>
-<script>
-  window.opener && window.opener.postMessage(${JSON.stringify(payload)}, ${JSON.stringify(origin)});
-  window.close();
-</script>
-Connected — you can close this window.
-</body></html>`;
-        };
+        // Same-tab redirect back to the form — see oauthResultHtml.
+        const popupHtml = (payload: any) => oauthResultHtml(payload);
 
         res.setHeader('Content-Type', 'text/html');
 

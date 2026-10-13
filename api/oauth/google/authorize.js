@@ -1,9 +1,9 @@
 import crypto from "crypto";
 import { buildAuthorizeUrl } from "../../_lib/google-oauth.js";
 
-// Started as a popup navigation from the form (see GetFreeAudit.tsx), not a
-// full-page redirect — the multi-step form's state never has to survive a
-// page reload. State CSRF protection: a random nonce goes in an httpOnly
+// Started as a same-tab navigation from the form (see GetFreeAudit.tsx) —
+// the form snapshots its state to sessionStorage first and restores it when
+// the callback sends the visitor back (see oauthResultHtml). State CSRF protection: a random nonce goes in an httpOnly
 // cookie AND is echoed verbatim as the `state` param Google returns; the
 // callback checks they match. No candidate GA4/GTM IDs ride along in state
 // any more — the callback now returns every accessible property/container,

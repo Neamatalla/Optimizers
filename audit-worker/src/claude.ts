@@ -117,6 +117,21 @@ export async function checkClaudeLogin(): Promise<ClaudeLoginStatus> {
   });
 }
 
+// Heuristic match against whatever `claude -p` printed (runClaudeHeadless
+// reports BOTH its streams for exactly this reason) or a thrown Google API
+// error surfaces — there's no structured error type to inspect across both
+// sources, just message text. False negatives just mean a rate-limited run
+// gets marked failed instead of retained (safe); false positives would
+// wrongly retry a real failure, which is why this stays narrow to actual
+// rate/quota vocabulary rather than e.g. generic "error". "usage limit" is
+// the Claude CLI's own wording for a plan limit, distinct from an API 429.
+// Shared by poll.ts (whole-request retry) and translate-ar.ts (which stops
+// its per-category loop on one, since every later batch would fail too).
+export function isRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /rate.?limit|usage limit|429|quota|resource_exhausted|too many requests|overloaded/i.test(message);
+}
+
 /**
  * Runs `claude -p` (headless/non-interactive mode) with a scoped MCP config
  * and a pre-approved tool allowlist (required for headless runs — there's no

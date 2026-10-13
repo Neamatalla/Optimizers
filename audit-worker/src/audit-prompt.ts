@@ -236,6 +236,13 @@ never opened GA4 or GTM. Write it at about a grade 6-8 reading level:
   counted twice" not "duplicate transaction", "visits" not "sessions",
   "people who bought" not "converters". If a tool must be named, explain it
   once in a few words ("Hotjar, a screen-recording tool").
+- Exception: standard e-commerce/CRO metric names are NOT jargon — store
+  owners know them, and a long paraphrase reads worse. Name them directly:
+  "conversion rate" (never "share of visits that ended in a sale"),
+  "average order value", "cart abandonment", "bounce rate", "add to cart",
+  "checkout", "landing page", "funnel", "revenue". A few plain words after
+  the first mention are fine ("your conversion rate, the share of visits
+  that buy, is 1.2%"); replacing the term with a description is not.
 - Talk about the shop: sales, orders, ad money, customers, the team's
   decisions. Use "you" and "your store" where it reads naturally.
 - Active voice: "Google counts each order once", not "each order is

@@ -26,6 +26,35 @@ const SCOPES = [
   "https://www.googleapis.com/auth/analytics.readonly",
 ].join(" ");
 
+// sessionStorage key the callback page writes the result to, read back by
+// GetFreeAudit.tsx on its next mount. Must match OAUTH_RESULT_KEY there.
+export const OAUTH_RESULT_STORAGE_KEY = "gfa_oauth_result";
+// Fixed, same-origin return target — never taken from the request, so the
+// callback can't be turned into an open redirect.
+const OAUTH_RETURN_PATH = "/#free-audit";
+
+// The OAuth flow runs as a same-tab redirect, not a popup: Google's consent
+// page sends X-Frame-Options: DENY so it can't be embedded in the form, and a
+// popup lands wherever the browser puts it (or gets blocked outright). The
+// callback is on the site's own origin, so this page can hand the result to
+// the form through sessionStorage (per-tab, survives the navigation) and
+// send the visitor straight back to the audit section.
+export function oauthResultHtml(payload) {
+  // <-escape so a "</script>" inside any API-returned string (e.g. a
+  // property's display name) can't break out of the script block.
+  const json = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
+  const fallback = { type: "google-oauth-result", error: "We couldn't load your Google data in this browser. Please try again." };
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"></head><body style="background:#020601">
+<script>
+  (function () {
+    try { sessionStorage.setItem(${json(OAUTH_RESULT_STORAGE_KEY)}, ${json(JSON.stringify(payload))}); }
+    catch (e) { try { sessionStorage.setItem(${json(OAUTH_RESULT_STORAGE_KEY)}, ${json(JSON.stringify(fallback))}); } catch (e2) {} }
+    location.replace(${json(OAUTH_RETURN_PATH)});
+  })();
+</script>
+</body></html>`;
+}
+
 export function buildAuthorizeUrl({ clientId, redirectUri, state }) {
   const params = new URLSearchParams({
     client_id: clientId,

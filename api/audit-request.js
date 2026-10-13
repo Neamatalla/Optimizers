@@ -3,7 +3,6 @@ import {
   auditHeadsUpEmail,
   buildHeadsUpEmail,
   parseTestPrefix,
-  TEST_PREFIX_MISMATCH_MESSAGE,
   normalizeEmail,
   normalizeHostname,
   findExistingAuditRequest,
@@ -42,11 +41,15 @@ export default async function handler(req, res) {
 
     // Strip the test-mode prefix (if any) FIRST, so everything below —
     // validation, normalization, dedupe, the stored row — works on the real
-    // values. See api/_lib/audit-intake.js's parseTestPrefix for what test
-    // mode actually changes.
+    // values. See api/_lib/test-mode.js for what test mode actually changes.
+    // A prefix that doesn't qualify is answered exactly like any other
+    // malformed field, so the response never reveals that test mode exists.
     const parsed = parseTestPrefix({ email: rawEmail, website: rawWebsite });
-    if (parsed.mismatch) {
-      return res.status(400).json({ error: TEST_PREFIX_MISMATCH_MESSAGE });
+    if (parsed.invalidFields.includes("email")) {
+      return res.status(400).json({ error: "Please enter a valid email address." });
+    }
+    if (parsed.invalidFields.includes("website")) {
+      return res.status(400).json({ error: "Please enter a valid website URL." });
     }
     const { isTest, email, website } = parsed;
 
@@ -219,12 +222,11 @@ export default async function handler(req, res) {
       }
     }
 
+    // Identical for test and real runs — the response shouldn't reveal
+    // test mode either.
     return res.status(200).json({
       success: true,
-      isTest,
-      message: isTest
-        ? `Test run queued for ${website}. The report will be emailed straight to ${email} — no review step.`
-        : "Audit request received. Check your inbox shortly.",
+      message: "Audit request received. Check your inbox shortly.",
     });
   } catch (err) {
     console.error("audit-request serverless function error:", err);

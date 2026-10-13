@@ -1,4 +1,4 @@
-import { extractJsonPayload, runClaudeHeadless } from "./claude.js";
+import { extractJsonPayload, isRateLimitError, runClaudeHeadless } from "./claude.js";
 import { buildMcpConfig } from "./mcp-config.js";
 import type { AuditResult, CategoryResult, FindingVoice } from "./types.js";
 
@@ -31,6 +31,13 @@ import type { AuditResult, CategoryResult, FindingVoice } from "./types.js";
  * no tools and nothing to decide, so extended thinking is pure overhead here
  * — the params below are otherwise the correctness-sensitive kind (accurate,
  * complete translation), not the kind that benefits from more thinking.
+ *
+ * Still never throws for ad-hoc callers (test-run, preview, the _regen
+ * scripts), but the worker (poll.ts) uses the result to retry: only
+ * findings without `ar` are sent, so a rerun on a saved result picks up
+ * exactly what an earlier pass missed; `onCategoryDone` lets it save after
+ * each category; and a usage/rate limit stops the loop and comes back as
+ * `rateLimitError` for poll.ts to rethrow into its rate-limit path.
  */
 
 const TRANSLATE_TIMEOUT_MS = 8 * 60 * 1000;
@@ -42,9 +49,22 @@ interface FlatFinding {
 }
 
 interface TranslateResult {
+  // Findings translated by THIS pass, out of the ones it attempted.
   translated: number;
   total: number;
+  // Findings across the whole result still without `ar` after this pass,
+  // including any an early stop on a rate limit never got to.
+  missing: number;
   error?: string;
+  // The full limit message (reset epoch included, for poll.ts's
+  // parseLimitResetAt) when a batch hit a usage/rate limit.
+  rateLimitError?: string;
+}
+
+interface TranslateOptions {
+  // Called after each category's Arabic is written onto its findings. Not
+  // caught: a LostLeaseError from the worker's save must stop the pass.
+  onCategoryDone?: () => Promise<void>;
 }
 
 function flatten(findings: CategoryResult["findings"], category: string): FlatFinding[] {
@@ -70,6 +90,8 @@ Translate every "summary" and "detail" string into natural, professional Arabic.
 - Preserve emphasis and meaning exactly — this is a translation, not a rewrite or a summary. Every sentence in the English source should have a corresponding sentence in the Arabic output.
 - Natural Arabic sentence structure, not a word-for-word calque of the English syntax.
 - Reading level for the business text: the reader is a busy store owner in Egypt or the Gulf, not an analyst. Use plain, everyday Modern Standard Arabic, the kind used in business news, not formal or literary Arabic: short sentences with one idea each (split a long English sentence into two Arabic ones rather than chaining it with و/ف/حيث/إذ), common words over formal ones ("يُظهر" not "يتجلّى"، "لذلك" not "ومن ثَمّ"، "حتى الآن" not "حتى تاريخه"), and no long chains of nouns in إضافة. Speak to the owner directly ("متجرك"، "مبيعاتك") where it reads naturally. Keep the meaning and every fact; only the wording gets simpler.
+- Use the standard Arabic CRO/e-commerce term for every metric or concept below — the exact term, every time, in both registers. Never replace one with a descriptive phrase (write "معدل التحويل", never "نسبة الزيارات التي انتهت بعملية شراء"). On a term's first use in an entry, add the English name in parentheses once, e.g. "معدل التحويل (Conversion Rate)".
+  conversion rate = معدل التحويل · conversion(s) = التحويلات · conversion funnel / funnel = مسار التحويل · average order value (AOV) = متوسط قيمة الطلب · revenue = الإيرادات · cart abandonment = التخلي عن سلة التسوق · checkout = إتمام الشراء · add to cart = الإضافة إلى السلة · bounce rate = معدل الارتداد · engagement rate = معدل التفاعل · landing page = صفحة الهبوط · call to action (CTA) = دعوة لاتخاذ إجراء (CTA) · traffic source / channel = مصدر الزيارات · sessions / visits = الزيارات · new / returning visitors = الزوار الجدد / الزوار العائدون · attribution = إسناد التحويلات · key event = حدث رئيسي · tracking = التتبع · page speed = سرعة الصفحة · return on ad spend (ROAS) = العائد على الإنفاق الإعلاني (ROAS) · A/B test = اختبار A/B · user experience (UX) = تجربة المستخدم (UX)
 - The technical text keeps the exact identifiers and values, but also in short sentences.
 - Every entry in the input must produce exactly one entry in the output, in the same order, with the same "key" — never skip, merge, or drop one, even a short/simple one.
 
@@ -135,33 +157,44 @@ async function translateBatch(items: FlatFinding[], jobId: string): Promise<{ by
  * they're pure text-in/text-out, so an empty server set is intentional, not
  * a placeholder for "wire this up later".
  */
-export async function translateFindingsToArabic(result: AuditResult, jobId: string): Promise<TranslateResult> {
-  const nonEmptyCategories = result.categories.filter(cat => cat.findings.length > 0);
-  const total = nonEmptyCategories.reduce((sum, cat) => sum + cat.findings.length, 0);
-  if (total === 0) return { translated: 0, total: 0 };
+export async function translateFindingsToArabic(result: AuditResult, jobId: string, opts: TranslateOptions = {}): Promise<TranslateResult> {
+  const countMissing = () => result.categories.reduce((sum, cat) => sum + cat.findings.filter(f => !f.ar).length, 0);
+  const pendingCategories = result.categories.filter(cat => cat.findings.some(f => !f.ar));
+  const total = countMissing();
+  if (total === 0) return { translated: 0, total: 0, missing: 0 };
 
   let translated = 0;
   const errors: string[] = [];
+  let rateLimitError: string | undefined;
 
   // Sequential, not parallel: each batch is a separate `claude -p` process
   // hitting the same account, and this codebase has already been burned once
   // by a burst of concurrent/heavy calls tripping the account's own rate
   // limit (see audit-prompt.ts's GA4 property-enumeration fix). One category
   // at a time keeps this pass's load predictable.
-  for (const cat of nonEmptyCategories) {
-    const items = flatten(cat.findings, cat.category);
+  for (const cat of pendingCategories) {
+    const items = flatten(cat.findings.filter(f => !f.ar), cat.category);
     const { byKey, error } = await translateBatch(items, `${jobId}-ar-${cat.category.toLowerCase()}`);
 
     for (const finding of cat.findings) {
+      if (finding.ar) continue;
       const ar = byKey.get(`${cat.category}:${finding.checklistId}`);
       if (ar) {
         finding.ar = ar;
         translated++;
       }
     }
+    if (byKey.size > 0) await opts.onCategoryDone?.();
 
-    if (error) errors.push(`${cat.category}: ${error}`);
+    if (error) {
+      errors.push(`${cat.category}: ${error}`);
+      // Every later batch would hit the same limit within seconds.
+      if (isRateLimitError(error)) {
+        rateLimitError = error;
+        break;
+      }
+    }
   }
 
-  return { translated, total, error: errors.length > 0 ? errors.join(" | ") : undefined };
+  return { translated, total, missing: countMissing(), error: errors.length > 0 ? errors.join(" | ") : undefined, rateLimitError };
 }

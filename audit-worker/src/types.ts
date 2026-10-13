@@ -83,7 +83,9 @@ export interface JobProgress {
   pageSpeed?: AuditResult["pageSpeed"];
   screenshots?: AuditResult["screenshots"];
   ga4Metrics?: Ga4Metrics | null;
-  // Stage 2: categories above already carry their Arabic text.
+  // Stage 2: every finding above carries its Arabic text, or the final
+  // attempt shipped with the English fallback for the rest. Until then each
+  // finding's `ar` is saved as its category finishes, so a retry resumes.
   translated?: boolean;
   // Stage 3: report built and uploaded.
   reportUrl?: string;

@@ -327,7 +327,6 @@ export const arTranslations: Record<string, string> = {
   "Get My Audit": "احصل على تدقيقي",
   "Your audit is ready": "تدقيقك جاهز",
   "Thank you! Your audit is on its way": "شكرًا لك! تدقيقك في الطريق إليك",
-  "Test run: this one skips the review and arrives as soon as it's ready.": "تشغيل تجريبي: يتخطى هذا الطلب المراجعة ويصل فور جاهزيته.",
   "Every audit is reviewed by an expert on our team before it's sent. Expect yours in your inbox within 2 to 3 business days, and keep an eye on your spam folder too, just in case.": "تتم مراجعة كل تدقيق من قِبل خبير في فريقنا قبل إرساله. توقّع وصوله إلى بريدك الإلكتروني خلال يومين إلى ثلاثة أيام عمل، وننصحك بمراجعة مجلد الرسائل غير المرغوب فيها أيضًا، احتياطًا.",
   "Request received!": "تم استلام طلبك!",
   "Your request wasn't sent": "لم يتم إرسال طلبك",
@@ -337,12 +336,10 @@ export const arTranslations: Record<string, string> = {
   "Expect your audit within 2 to 3 business days.": "توقّع وصول تدقيقك خلال يومين إلى ثلاثة أيام عمل.",
   "Generated locally for this dev session — production delivers this by email instead.": "تم إنشاؤه محليًا لهذه الجلسة التجريبية — في الإصدار الفعلي يُرسَل عبر البريد الإلكتروني بدلاً من ذلك.",
   "View your audit report →": "عرض تقرير التدقيق →",
-  "Test mode": "وضع الاختبار",
-  "Test mode needs the \"-\" prefix on both the website and the email, or on neither.": "وضع الاختبار يتطلب إضافة البادئة \"-\" لكل من الموقع والبريد الإلكتروني معًا، أو عدم إضافتها لأي منهما.",
-  "Runs the real audit, then emails the report straight to the address above — no internal review, no delay, and it won't use up this site's one free audit. The report is stored separately from real client reports.": "يُشغّل التدقيق الفعلي، ثم يرسل التقرير مباشرة إلى البريد الإلكتروني أعلاه — دون مراجعة داخلية أو تأخير، ودون استهلاك التدقيق المجاني الوحيد لهذا الموقع. يُخزَّن هذا التقرير بمعزل عن تقارير العملاء الفعليين.",
   "Already audited": "تم تدقيقه مسبقًا",
   "Contact us to get a GTM audit": "تواصل معنا للحصول على تدقيق GTM",
   "Contact us": "تواصل معنا",
+  "Your browser is blocking site storage, so we can't connect Google here. Use the option below to run the audit without access.": "متصفحك يمنع تخزين بيانات الموقع، لذلك لا يمكننا ربط Google هنا. استخدم الخيار أدناه لتشغيل التدقيق دون منح صلاحية الوصول.",
   "Talk to us instead →": "تحدث إلينا بدلاً من ذلك →",
 
   // ═══════════════════════════════════════════════
