@@ -18,7 +18,7 @@
 alter table audit_requests
   add column if not exists attempts integer not null default 0,
   add column if not exists locked_by text,
-  add column if not exists heartbeat_at timestampt
+  add column if not exists heartbeat_at timestamptz,
   add column if not exists progress jsonb not null default '{}'::jsonb;
 
 create index if not exists audit_requests_processing_heartbeat_idx

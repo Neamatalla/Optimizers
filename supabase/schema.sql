@@ -1,7 +1,13 @@
--- Run this once against a new Supabase project (SQL Editor -> New query -> paste -> Run).
--- This is the queue table the Vercel capture endpoint (api/audit-request.js) writes to
--- and the audit-worker polls from.
+-- Baseline schema: the complete current state, for a NEW Supabase project
+-- only (SQL Editor -> New query -> paste -> Run). An existing project is
+-- brought up to date with the files in supabase/migrations/ instead — see
+-- supabase/README.md. Includes every migration up to and including
+-- 2026-10-13.
 
+-- ---------------------------------------------------------------------------
+-- audit_requests: the queue the Vercel capture endpoint (api/audit-request.js)
+-- writes to and the audit-worker polls from. One row per audit request.
+-- ---------------------------------------------------------------------------
 create table if not exists audit_requests (
   id uuid primary key default gen_random_uuid(),
   tools text[] not null default '{}',
@@ -25,77 +31,82 @@ create table if not exists audit_requests (
   gtm_oauth_data jsonb,
   -- Public URL to the generated live HTML audit report page.
   report_url text,
-  status text not null default 'pending' check (status in ('pending', 'processing', 'done', 'failed')),
+  -- Lifecycle (see audit-worker/src/poll.ts). A request that hits a rate
+  -- limit mid-run goes back to 'pending' with retry_after set instead of
+  -- 'failed', keeping its created_at queue position. A completed audit goes
+  -- to 'awaiting_approval' (internal review email to the reviewer);
+  -- approving it (via the one-time approval_token link, see
+  -- api/_lib/audit-approve.js) moves it to 'scheduled' with
+  -- scheduled_send_at = approval time + 2 days, and the worker sends the
+  -- client email once that's due, landing on 'done' only then. Test rows go
+  -- straight from 'processing' to 'done'.
+  status text not null default 'pending'
+    constraint audit_requests_status_check
+    check (status in ('pending', 'processing', 'awaiting_approval', 'scheduled', 'done', 'failed')),
   result_error text,
+  retry_after timestamptz,
+  retry_count integer not null default 0,
+  approval_token text,
+  approved_at timestamptz,
+  scheduled_send_at timestamptz,
+  sent_to_client_at timestamptz,
+  -- Snapshot of AuditResult.categories at completion time — the row itself
+  -- carries no other trace of which categories actually ran once
+  -- processing finishes, but the client email's coverage sentence
+  -- (audit-worker/src/email.ts's coverageSentence) needs it again at send
+  -- time, out of processDueSends.
+  categories_audited text[],
+  -- Normalized forms behind the one-free-audit-per-site/email limit (see the
+  -- unique indexes below). Written by api/_lib/audit-intake.js's
+  -- normalizeEmail/normalizeHostname.
+  email_normalized text,
+  website_hostname text,
+  -- A submission whose email AND website were both typed with a leading "-"
+  -- (see api/_lib/audit-intake.js's parseTestPrefix) is a test run: the
+  -- report is published to a separate Storage bucket and emailed straight to
+  -- whoever was in the form, with no internal review step and no 2-day
+  -- delay. The worker reads the flag long after intake to pick the bucket
+  -- and delivery path (audit-worker/src/poll.ts).
+  is_test boolean not null default false,
+  -- Job queue resilience (see migrations/2026-09-28-job-queue.sql for what
+  -- each column does): attempt counting, the worker's lease, and per-stage
+  -- saved progress so a retry resumes where the last attempt stopped.
+  attempts integer not null default 0,
+  locked_by text,
+  heartbeat_at timestamptz,
+  progress jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists audit_requests_status_created_at_idx
   on audit_requests (status, created_at);
-
-alter table audit_requests
-  add column if not exists report_url text;
-
--- Clarity/SessionRecording removed entirely as an audit category — no live-data
--- path exists for it any more. Drops the column for any project whose table was
--- created before this change; a no-op (IF EXISTS) on a fresh one.
-alter table audit_requests
-  drop column if exists clarity_token;
-
--- Sequential-queue rate-limit retention + internal-review/delayed-send flow
--- (see audit-worker/src/poll.ts). A request that hits a rate limit mid-run
--- goes back to status='pending' with retry_after set instead of 'failed' —
--- claimNextPendingRequest() skips it until that time, so it keeps its
--- original created_at queue position and no work/progress is lost. A
--- completed audit goes to 'awaiting_approval' (internal review email to
--- the reviewer) rather than straight to 'done'; approving it (via the
--- one-time approval_token link, see api/_lib/audit-approve.js) moves it to
--- 'scheduled' with scheduled_send_at = approval time + 2 days, and the
--- worker's own loop sends the client email once that's due, landing on
--- 'done' only then.
-alter table audit_requests
-  drop constraint if exists audit_requests_status_check;
-alter table audit_requests
-  add constraint audit_requests_status_check
-  check (status in ('pending', 'processing', 'awaiting_approval', 'scheduled', 'done', 'failed'));
-
-alter table audit_requests
-  add column if not exists retry_after timestamptz,
-  add column if not exists retry_count integer not null default 0,
-  add column if not exists approval_token text,
-  add column if not exists approved_at timestamptz,
-  add column if not exists scheduled_send_at timestamptz,
-  add column if not exists sent_to_client_at timestamptz,
-  -- Snapshot of AuditResult.categories at completion time — the row itself
-  -- carries no other trace of which categories actually ran once
-  -- processing finishes, but the client email's coverage sentence
-  -- (audit-worker/src/email.ts's coverageSentence) needs it again at
-  -- send time, which now happens later out of processDueSends, not
-  -- processRequest.
-  add column if not exists categories_audited text[];
-
 create index if not exists audit_requests_scheduled_send_at_idx
   on audit_requests (scheduled_send_at) where status = 'scheduled';
+create index if not exists audit_requests_is_test_created_at_idx
+  on audit_requests (is_test, created_at);
+create index if not exists audit_requests_processing_heartbeat_idx
+  on audit_requests (heartbeat_at) where status = 'processing';
 
--- Singleton-ish log of daily-digest sends (audit-worker/src/poll.ts checks
--- the latest row's date before sending another) — a real table instead of
--- in-memory state so a worker restart never causes a duplicate or a missed
--- digest for the day.
-create table if not exists audit_digest_log (
-  id bigint generated always as identity primary key,
-  sent_at timestamptz not null default now()
-);
-
-alter table audit_digest_log enable row level security;
+-- One free audit per website and per email address, ever (2026-09-09).
+-- The audit is expensive — a `claude -p` run with live browser access, then
+-- a human review pass before it's sent — so it's offered exactly once per
+-- site and once per address, regardless of how the first one turned out.
+-- api/_lib/audit-intake.js checks for an existing row before inserting so
+-- the visitor gets a real explanation, but these indexes are what make the
+-- limit hold when two submissions race each other. Partial on purpose: test
+-- rows never consume a site's or address's one audit.
+create unique index if not exists audit_requests_email_normalized_key
+  on audit_requests (email_normalized) where is_test = false;
+create unique index if not exists audit_requests_website_hostname_key
+  on audit_requests (website_hostname) where is_test = false;
 
 alter table audit_requests enable row level security;
-
--- No public policies are created on purpose: the Vercel function and the worker
--- both use the Supabase *service role* key (server-side only, never exposed to
--- the browser), which bypasses RLS entirely. ga4_oauth_data/gtm_oauth_data carry
--- OAuth-scoped payloads at rest, so this table should never be reachable with
--- the anon/public key.
+-- No public policies are created on purpose: the Vercel functions and the
+-- worker all use the Supabase secret key (server-side only, never exposed to
+-- the browser), which bypasses RLS entirely. ga4_oauth_data/gtm_oauth_data
+-- carry OAuth-scoped payloads at rest, so this table must never be reachable
+-- with the anon/public key. The same holds for every table below.
 
 create or replace function set_audit_requests_updated_at()
 returns trigger as $$
@@ -111,111 +122,122 @@ create trigger audit_requests_set_updated_at
   for each row
   execute function set_audit_requests_updated_at();
 
--- One free audit per website and per email address, ever (2026-09-09).
--- The audit is expensive — a `claude -p` run with live browser access, then
--- a human review pass before it's sent — so it's offered exactly once per
--- site and once per address, regardless of how the first one turned out.
---
--- api/_lib/audit-intake.js checks for an existing row before inserting so
--- the visitor gets a real explanation, but THESE INDEXES are what actually
--- make the limit hold: two submissions racing each other both pass that
--- check, and the loser's insert is rejected here. The normalization below
--- must stay in step with that file's normalizeEmail/normalizeHostname —
--- the indexes are on the stored values, so a row written with different
--- normalization won't collide with an existing one.
-alter table audit_requests
-  add column if not exists email_normalized text,
-  add column if not exists website_hostname text;
+-- ---------------------------------------------------------------------------
+-- audit_digest_log: singleton-ish log of daily-digest sends
+-- (audit-worker/src/poll.ts checks the latest row's date before sending
+-- another) — a real table instead of in-memory state so a worker restart
+-- never causes a duplicate or a missed digest for the day.
+-- ---------------------------------------------------------------------------
+create table if not exists audit_digest_log (
+  id bigint generated always as identity primary key,
+  sent_at timestamptz not null default now()
+);
 
--- Backfill any pre-existing rows. lower(btrim(...)) for email; for the
--- website: drop the scheme, cut at the first / ? or #, drop any :port, then
--- strip a leading "www." — i.e. https://www.Example.com/collections/all
--- and http://example.com both become "example.com".
-update audit_requests
-set email_normalized = lower(btrim(email))
-where email_normalized is null;
+alter table audit_digest_log enable row level security;
 
-update audit_requests
-set website_hostname = nullif(
-  regexp_replace(
-    split_part(
-      split_part(
-        split_part(
-          split_part(regexp_replace(lower(btrim(website)), '^[a-z][a-z0-9+.-]*://', ''), '/', 1),
-          '?', 1),
-        '#', 1),
-      ':', 1),
-    '^www\.', ''),
-  '')
-where website_hostname is null;
+-- ---------------------------------------------------------------------------
+-- checklist_points: reference/display copy of audit-worker/src/checklist.ts's
+-- checklist points — NOT the live source the audit pipeline reads from.
+-- audit-prompt.ts and scoring.ts import checklist.ts directly at runtime; this
+-- table exists so the points + their descriptions are queryable (and
+-- editable) from Supabase. Kept in sync by running `npm run seed-checklist`
+-- in audit-worker/ after any checklist.ts edit — not on every audit run. The
+-- seed upserts and never deletes, so a point removed from checklist.ts has to
+-- be deleted here by hand.
+-- ---------------------------------------------------------------------------
+create table if not exists checklist_points (
+  id text primary key,
+  category text not null check (category in ('GA4', 'GTM', 'Website')),
+  title text not null,
+  expected_state text not null,
+  common_failure text not null,
+  validate text not null,
+  severity text not null check (severity in ('critical', 'medium', 'low')),
+  -- Preserves checklist.ts's own array order within a category — the order
+  -- points are actually evaluated/displayed in, not alphabetical by id.
+  sort_order integer not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
--- Test-mode rows (2026-09-09). A submission whose email AND website were
--- both typed with a leading "-" (see api/_lib/audit-intake.js's
--- parseTestPrefix) is a test run: the report is published to a separate
--- Storage bucket and emailed straight to whoever was in the form, with no
--- internal review step and no 2-day delay. The flag lives on the row
--- because the worker needs it long after intake — it decides which bucket
--- to publish to and which delivery path to take (audit-worker/src/poll.ts).
-alter table audit_requests
-  add column if not exists is_test boolean not null default false;
+create index if not exists checklist_points_category_sort_idx
+  on checklist_points (category, sort_order);
 
-create index if not exists audit_requests_is_test_created_at_idx
-  on audit_requests (is_test, created_at);
+alter table checklist_points enable row level security;
 
--- The one-audit-per-site/email limit deliberately does NOT apply to test
--- rows — a test mode you can only run once per site is useless. Both
--- indexes are therefore partial: they only constrain real submissions, so
--- the same site/address can be test-run any number of times, and an earlier
--- test run never blocks that site's real audit later. Any project that ran
--- an earlier version of this file has the non-partial versions, hence the
--- explicit drops.
-drop index if exists audit_requests_email_normalized_key;
-drop index if exists audit_requests_website_hostname_key;
+create or replace function set_checklist_points_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
 
--- If either CREATE below fails with "could not create unique index", the
--- table already holds duplicates from before this rule existed. Find them:
---
---   select email_normalized, count(*) from audit_requests
---     where is_test = false group by email_normalized having count(*) > 1;
---   select website_hostname, count(*) from audit_requests
---     where is_test = false group by website_hostname having count(*) > 1;
---
--- then decide per group which row to keep (usually the newest completed
--- one) and delete the rest — a judgment call about real client requests,
--- so it is deliberately NOT automated here.
-create unique index if not exists audit_requests_email_normalized_key
-  on audit_requests (email_normalized) where is_test = false;
-create unique index if not exists audit_requests_website_hostname_key
-  on audit_requests (website_hostname) where is_test = false;
+drop trigger if exists checklist_points_set_updated_at on checklist_points;
+create trigger checklist_points_set_updated_at
+  before update on checklist_points
+  for each row
+  execute function set_checklist_points_updated_at();
 
--- Job queue resilience (2026-09-28): leases, attempt counting and per-stage
--- saved progress. See supabase/migrations/2026-09-28-job-queue.sql for what
--- each column does.
-alter table audit_requests
-  add column if not exists attempts integer not null default 0,
-  add column if not exists locked_by text,
-  add column if not exists heartbeat_at timestamptz,
-  add column if not exists progress jsonb not null default '{}'::jsonb;
+-- ---------------------------------------------------------------------------
+-- report_pages: one row per published live audit-report page.
+-- audit_requests.report_url holds the full link for email delivery; this is
+-- the dedicated, queryable record of "the links of the pages" — the row
+-- api/audit-report.js serves from (and checks the linked request's status
+-- against, see api/_lib/report-access.js) and api/report/edit.js reads/writes
+-- when a report's content needs to change after publishing.
+-- ---------------------------------------------------------------------------
+create table if not exists report_pages (
+  id uuid primary key default gen_random_uuid(),
+  audit_request_id uuid not null references audit_requests(id) on delete cascade,
+  -- The site's domain, e.g. "tharaa-shop"; "test_tharaa-shop" for a test
+  -- run (see audit-worker/src/supabase.ts's reportSlug()).
+  slug text not null unique,
+  -- e.g. "reports/tharaa-shop/index.html" — the path
+  -- audit-worker/src/supabase.ts's publishAuditReport() uploads to.
+  storage_path text not null,
+  -- Which Storage bucket that path is in: 'audit-reports' normally,
+  -- 'audit-reports-test' for a test-mode run (see audit_requests.is_test).
+  -- api/audit-report.js and api/report/edit.js read this rather than
+  -- assuming the default bucket, which is what lets one slug space cover
+  -- both.
+  bucket text not null default 'audit-reports',
+  public_url text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
-create index if not exists audit_requests_processing_heartbeat_idx
-  on audit_requests (heartbeat_at) where status = 'processing';
+create index if not exists report_pages_audit_request_id_idx
+  on report_pages (audit_request_id);
 
--- Private bucket for live audit report pages generated by audit-worker.
--- The worker uploads reports/<client-slug>/index.html (e.g.
--- "nour-home-goods-a1b2c3" — see audit-worker/src/supabase.ts's reportSlug())
--- with the service role key, and api/audit-report.js serves it through
--- /audit-reports/<client-slug>.
+alter table report_pages enable row level security;
+
+create or replace function set_report_pages_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists report_pages_set_updated_at on report_pages;
+create trigger report_pages_set_updated_at
+  before update on report_pages
+  for each row
+  execute function set_report_pages_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Storage buckets. Both private: the worker uploads with the secret key, and
+-- api/audit-report.js serves reports through /audit-reports/<slug>.
+-- ---------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('audit-reports', 'audit-reports', false)
 on conflict (id) do update set public = false;
 
--- Same thing for test-mode runs, kept in its own bucket so throwaway
--- reports never sit alongside real client ones and the whole lot can be
--- emptied without touching production reports. audit-worker picks between
--- the two by the row's is_test flag (AUDIT_REPORTS_BUCKET vs
--- AUDIT_REPORTS_TEST_BUCKET), and report_pages.bucket records which one a
--- given slug actually lives in so the serving/editing endpoints don't have
--- to guess.
+-- Test-mode runs get their own bucket so throwaway reports never sit
+-- alongside real client ones and the whole lot can be emptied without
+-- touching client reports. audit-worker picks between the two by the row's
+-- is_test flag (AUDIT_REPORTS_BUCKET vs AUDIT_REPORTS_TEST_BUCKET).
 insert into storage.buckets (id, name, public)
 values ('audit-reports-test', 'audit-reports-test', false)
 on conflict (id) do update set public = false;

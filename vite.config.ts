@@ -586,11 +586,6 @@ function apiMiddlewarePlugin() {
         }
         const url = new URL(req.url, 'http://localhost');
         const slug = path.basename(decodeURIComponent(url.pathname));
-        if (!/^[a-zA-Z0-9_-]+$/.test(slug)) {
-          res.statusCode = 400;
-          res.end('Invalid audit report link.');
-          return;
-        }
 
         const env = loadEnv('development', process.cwd(), '');
         const supabaseUrl = env.SUPABASE_URL;
@@ -605,25 +600,19 @@ function apiMiddlewarePlugin() {
         try {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(supabaseUrl, supabaseSecretKey);
-          // Same reasoning as api/audit-report.js: report_pages says which
-          // bucket a slug lives in (a test-mode run publishes to its own),
-          // with the conventional path as the fallback for legacy rows.
-          const { data: page } = await supabase
-            .from('report_pages')
-            .select('bucket, storage_path')
-            .eq('slug', slug)
-            .maybeSingle();
-          const objectPath = page?.storage_path || `reports/${slug}/index.html`;
-          const { data, error } = await supabase.storage.from(page?.bucket || bucket).download(objectPath);
-          if (error || !data) {
-            res.statusCode = 404;
-            res.end('Audit report not found.');
-            return;
-          }
-          const html = await data.text();
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.end(html);
+          // Same shared logic as api/audit-report.js: client visibility by
+          // the request's status, or any stage with a signed ?preview= link.
+          const { getServableReport } = await import('./api/_lib/report-access.js');
+          const { status, body } = await getServableReport({
+            supabase,
+            slug,
+            preview: url.searchParams.get('preview') ?? undefined,
+            defaultBucket: bucket,
+            previewSecret: env.REPORT_PREVIEW_SECRET,
+          });
+          res.statusCode = status;
+          if (status === 200) res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.end(body);
         } catch (err: any) {
           console.error('Dev /audit-reports error:', err);
           res.statusCode = 500;

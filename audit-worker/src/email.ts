@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Resend } from "resend";
 import type { CategoryKey } from "./types.js";
 
@@ -129,6 +130,15 @@ export interface SendInternalReviewEmailOptions {
   slug: string;
 }
 
+// The plain report URL 404s until the report is due to the client
+// (api/_lib/report-access.js), so the reviewer's link carries a signature
+// that opens it at any stage. Must stay in step with that file's
+// previewSignature, which verifies it.
+function reportPreviewUrl(reportUrl: string, slug: string, secret: string): string {
+  const sig = crypto.createHmac("sha256", secret).update(slug).digest("base64url");
+  return `${reportUrl}?preview=${sig}`;
+}
+
 // Sent the moment an audit finishes — the requester does NOT get their copy
 // yet (see sendAuditEmail, now only called from poll.ts's due-send check).
 // This goes to the reviewer instead, with a one-click approve link that
@@ -139,6 +149,13 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
   if (!apiKey) {
     throw new Error("RESEND_API_KEY is not set - see audit-worker/.env.example");
   }
+  // Without it the Review button would be a link that 404s until the send
+  // date; failing here retries the job instead of mailing a dead link.
+  const previewSecret = process.env.REPORT_PREVIEW_SECRET;
+  if (!previewSecret) {
+    throw new Error("REPORT_PREVIEW_SECRET is not set - see audit-worker/.env.example");
+  }
+  const previewUrl = reportPreviewUrl(opts.reportUrl, opts.slug, previewSecret);
 
   // Attached so the reviewer can hand both straight to Claude ("here's the
   // key and slug, fetch the report, here's what to change") without having
@@ -180,7 +197,7 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
           Report slug (for the <code>/api/report/edit</code> path): <code>${opts.slug}</code>
         </p>
         <p style="font-size: 14px; line-height: 1.6;">
-          <a href="${opts.reportUrl}" style="display: inline-block; background: #263328; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px; margin-right: 8px;">
+          <a href="${previewUrl}" style="display: inline-block; background: #263328; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px; margin-right: 8px;">
             Review
           </a>
           <a href="${opts.approveUrl}" style="display: inline-block; background: #6ae499; color: #263328; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px;">
@@ -190,6 +207,8 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
         <p style="color: #666; font-size: 12px; line-height: 1.6; margin-top: 16px;">
           Approving schedules the client email for 2 days from now. Edit the live
           report any time before then via the report-edit API using the slug above.
+          The Review link works at every stage; the plain report link (without
+          <code>?preview=</code>) only opens once the report has gone to the client.
         </p>${editSection}
       </div>
     `.trim(),

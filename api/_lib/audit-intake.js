@@ -19,7 +19,8 @@
 //      that rejection into the same 409 (see isUniqueViolation below).
 //
 // Both normalizers below MUST stay in step with the backfill expressions in
-// supabase/schema.sql — the indexes are on the stored columns, so a row
+// supabase/migrations/2026-09-09-2-schema-upgrades.sql — the indexes are on
+// the stored columns, so a row
 // written with different normalization than an existing one simply won't
 // collide with it.
 

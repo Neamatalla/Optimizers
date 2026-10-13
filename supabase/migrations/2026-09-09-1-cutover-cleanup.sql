@@ -1,11 +1,11 @@
 -- One-off data cleanup for the 2026-09-09 cutover (PageSpeed removal +
 -- one-audit-per-site/email limit + test mode). Run this FIRST, before
--- schema.sql — see the order note below for why it can't be second.
+-- 2026-09-09-2-schema-upgrades.sql — see the order note below for why.
 --
 -- SQL Editor -> New query -> paste -> Run.
 --
 -- WHY THIS EXISTS
--- schema.sql creates two UNIQUE indexes (email_normalized, website_hostname)
+-- The schema upgrades create two UNIQUE indexes (email_normalized, website_hostname)
 -- that enforce "one free audit per email, one per website". The table
 -- already holds 14 rows of internal testing, and among them:
 --
@@ -14,23 +14,22 @@
 --   regal-honey.com          x2
 --
 -- Postgres cannot build a unique index over existing duplicates, so
--- schema.sql would abort at that step. Nothing here deletes an audit: the
+-- the upgrades would abort at that step. Nothing here deletes an audit: the
 -- two indexes are PARTIAL (`where is_test = false`), so marking historical
 -- rows as test runs resolves every collision while keeping the full history
 -- queryable.
 --
 -- ORDER MATTERS
 -- Marking rows requires the is_test column, and the column is added by
--- schema.sql — which then immediately tries to build the indexes and fails.
+-- the schema upgrades — which then immediately try to build the indexes and fail.
 -- So this script adds the column itself (same idempotent DDL, harmless to
--- run twice), marks the rows, and leaves schema.sql to do the rest.
+-- run twice), marks the rows, and leaves the upgrades to do the rest.
 --
 --   1. this file
---   2. supabase/schema.sql
---   3. supabase/schema-content-backend.sql
+--   2. 2026-09-09-2-schema-upgrades.sql (both in supabase/migrations/)
 
 -- ---------------------------------------------------------------------------
--- 1. is_test column, ahead of schema.sql (identical statement, idempotent)
+-- 1. is_test column, ahead of the upgrades (identical statement, idempotent)
 -- ---------------------------------------------------------------------------
 alter table audit_requests
   add column if not exists is_test boolean not null default false;
@@ -142,7 +141,7 @@ select
   count(*) filter (where status = 'scheduled')            as awaiting_send
 from audit_requests;
 
--- Must both return zero rows, or schema.sql's index creation will still fail.
+-- Must both return zero rows, or the upgrades' index creation will still fail.
 select lower(btrim(email)) as email, count(*)
 from audit_requests where not is_test
 group by 1 having count(*) > 1;

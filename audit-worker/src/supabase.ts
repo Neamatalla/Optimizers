@@ -3,7 +3,7 @@ import type { AuditRequestRow, JobProgress } from "./types.js";
 
 let client: SupabaseClient | null = null;
 
-function getClient(): SupabaseClient {
+export function getClient(): SupabaseClient {
   if (client) return client;
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
@@ -149,11 +149,8 @@ export async function scheduleRetry(id: string, message: string, retryAfter: Dat
   if (error) throw new Error(`Supabase scheduleRetry error: ${error.message}`);
 }
 
-// ASCII-only on purpose: business names here are frequently Arabic-script
-// (GCC/MENA client base), which strips to nothing under a plain a-z0-9
-// slugify — reportSlug() below always has a Latin-safe fallback (the
-// website's hostname) ready for exactly that case, rather than silently
-// producing an empty/near-empty slug.
+// Only ever outputs [a-z0-9-] — reportSlug() relies on that to keep test
+// slugs (which contain "_") from ever colliding with a real one.
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -173,35 +170,37 @@ function hostnameOf(website: string): string {
 }
 
 /**
- * The audit link's client-facing slug — e.g. "nour-home-goods-a1b2c3", not
- * a bare UUID. Prefers the business name (optional in the intake form);
- * falls back to the site's hostname when there's no business name, or when
- * the business name is non-Latin script and slugify() strips it to nothing.
- * Always suffixed with 6 hex chars from the request id: this is what
- * actually guarantees uniqueness (two audits can share a business name or
- * hostname), computed deterministically so publishing never needs an
- * existence-check round trip before upload.
+ * The audit link's client-facing slug: the site's domain, e.g.
+ * "https://www.tharaa.shop/" -> "tharaa-shop". Unique because a real audit
+ * is one per domain (api/_lib/audit-intake.js). Test runs skip that rule,
+ * so they get "test_" in front: slugify() never outputs "_", so a test slug
+ * can never take a client's. Repeated test runs of one site share a slug
+ * and overwrite each other, which is fine for throwaway runs.
  */
-function reportSlug(opts: { requestId: string; businessName: string | null; website: string }): string {
-  const fromName = opts.businessName ? slugify(opts.businessName) : "";
-  const base = fromName || slugify(hostnameOf(opts.website)) || "audit";
-  const shortId = opts.requestId.replace(/-/g, "").slice(0, 6);
-  return `${base}-${shortId}`;
+export function reportSlug(opts: { website: string; isTest?: boolean }): string {
+  const base = slugify(hostnameOf(opts.website)) || "site";
+  return opts.isTest ? `test_${base}` : base;
+}
+
+// PUBLIC_SITE_URL set without a scheme (as it once was on staging) made
+// every stored report link scheme-less, which email clients won't open.
+export function publicSiteUrl(): string {
+  const siteUrl = (process.env.PUBLIC_SITE_URL || "https://optimizers.agency").replace(/\/$/, "");
+  return /^https?:\/\//i.test(siteUrl) ? siteUrl : `https://${siteUrl}`;
 }
 
 export async function publishAuditReport(opts: { requestId: string; html: string; businessName: string | null; website: string; isTest?: boolean }): Promise<{ publicUrl: string; slug: string }> {
   const supabase = getClient();
   // Test-mode reports go to their own bucket so throwaway runs never sit
   // alongside real client reports and the whole lot can be emptied without
-  // touching production. The slug space is shared, which is fine —
-  // report_pages.bucket (written below) is what tells the serving and
-  // editing endpoints where a given slug actually lives.
+  // touching production. The slug space is shared (test slugs are kept
+  // apart by their "test_" prefix), and report_pages.bucket (written below)
+  // is what tells the serving and editing endpoints where a slug lives.
   const bucket = opts.isTest
     ? process.env.AUDIT_REPORTS_TEST_BUCKET || "audit-reports-test"
     : process.env.AUDIT_REPORTS_BUCKET || "audit-reports";
   const slug = reportSlug(opts);
   const objectPath = `reports/${slug}/index.html`;
-  const siteUrl = process.env.PUBLIC_SITE_URL || "https://optimizers.agency";
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)
@@ -215,10 +214,10 @@ export async function publishAuditReport(opts: { requestId: string; html: string
     throw new Error(`Supabase report upload error: ${uploadError.message}`);
   }
 
-  const publicUrl = `${siteUrl.replace(/\/$/, "")}/audit-reports/${encodeURIComponent(slug)}`;
+  const publicUrl = `${publicSiteUrl()}/audit-reports/${encodeURIComponent(slug)}`;
 
   // Dedicated record of "the links of the pages" (report_pages — see
-  // supabase/schema-content-backend.sql), separate from audit_requests'
+  // supabase/schema.sql), separate from audit_requests'
   // own report_url column — this is also the row api/report/edit.js reads/
   // writes against when a published report's content needs to change
   // later. Upserted on slug so a retried/re-run publish for the same
