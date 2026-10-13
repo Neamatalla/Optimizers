@@ -96,6 +96,40 @@ real items there is the riskiest automated action.
 Safety: the collector only clicks the primary Add-to-Cart button on the one PDP. No form fills, no
 checkout, no login, no CAPTCHA handling. A blocked page is UNASSESSED.
 
+### 3.2.1 Add-to-Cart (decided 2026-10-13: yes)
+
+The collector **does** add one product to the cart, so the cart drawer / cart page can be audited
+the way a real shopper sees it. Rules for that click:
+
+- **One item, quantity 1.** If the product has variants, pick the first in-stock option (the
+  first enabled size/colour pill or `<option>`). Never change quantity, never apply a coupon.
+- **Fresh, throwaway browser context** (incognito-style) per audit: no cookies carried over, the
+  cart session dies with the context. Nothing is ever submitted past the cart.
+- **Don't pollute the client's analytics.** While the collector runs, intercept and abort
+  analytics/ad *collection* requests so our bot's `view_item` / `add_to_cart` never land in the
+  store's GA4, Meta, TikTok or Snap data:
+  `*/g/collect*`, `*/j/collect*`, `*google-analytics.com/*collect*`, `*facebook.com/tr*`,
+  `*analytics.tiktok.com/*`, `*tr.snapchat.com/*`, `*ct.pinterest.com/*`, `*clarity.ms/collect*`.
+  The tag scripts themselves (gtm.js, gtag.js, fbevents.js) still load, so the page renders
+  normally; only the hits are dropped. This also keeps the bot out of the client's retargeting
+  audiences.
+- **Identify ourselves** with a user-agent suffix (`OptimizersAudit/1.0`) so a store owner who
+  sees the session in their platform can tell what it was.
+- **How the cart is captured:** after the click, wait up to 8 s for either a drawer
+  (`[role=dialog]`, `.cart-drawer`, `#CartDrawer`, `.mini-cart`, `.side-cart`, Woo's
+  `.widget_shopping_cart`) or a navigation to a cart URL. Drawer → evidence from the drawer,
+  plus a second capture of the full `/cart` page if one exists. Neither → open the `cart` URL from
+  `discoveredPages` directly.
+- **Failure modes are UNASSESSED, never FAIL:** ATC disabled/out of stock, variant can't be chosen,
+  click opens a quick-view modal instead of adding, bot challenge, nothing appears in 8 s. The
+  reason is stored (`atc_out_of_stock`, `atc_no_drawer`, …) and shown in Sources.
+- An Add-to-Cart that visibly does nothing (no drawer, no navigation, no cart count change, console
+  error on click) is *evidence* for the existing WEB-56 territory. The FUD pass only records it in
+  `pagesSampled`; it does not raise its own finding, to avoid double-counting with the 50 checks.
+
+Abandoned-cart flows (Klaviyo, Shopify abandoned checkout) are not triggered: they need an email or
+a started checkout, and the collector never enters either.
+
 ### 3.3 Evidence pack (what `collect.ts` returns per page)
 
 ```ts
@@ -359,14 +393,15 @@ holding up the others.
 - `signals.ts`: fixture strings in EN + AR (Arabic-Indic digits, each currency) for every regex.
 - `collect.ts` + `judge.ts`: run against saved HTML fixtures of 5–6 known stores (follow the
   `_regen-*.ts` / `test-run.ts` pattern).
+- Add-to-Cart: against a test store with GA4 DebugView open, confirm zero `add_to_cart` /
+  `view_item` hits arrive from the collector, and that the cart drawer is still captured.
 - Regression: an existing audit with `FUD_PASS=off` must produce a byte-identical report to today's.
   An old saved result with no `fud` field must still render.
 
 ## 15. Open decisions
 
-1. Allow the Add-to-Cart click on client stores? It creates a cart session on their store. Harmless,
-   but it should be a conscious yes. Without it, A1/A3/D2 fall back to the `/cart` URL, which on
-   drawer-only themes is often empty.
+1. ~~Allow the Add-to-Cart click on client stores?~~ **Decided 2026-10-13: yes**, with the
+   guardrails in §3.2.1.
 2. Should FUD quick wins appear in the client email's summary sentence, or only inside the report?
 3. Does the friction score go in the internal daily digest?
 4. Who hand-labels the phase-1 stores, and where do those labels live (a sheet is fine for v1)?
