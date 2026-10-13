@@ -171,8 +171,8 @@ run differs from a real one in exactly four ways:
   finishes — no internal review email, no approval link, no 2-day delay. The
   subject is tagged `[TEST]` and the body carries a banner, so a test that
   lands in a real inbox can't be mistaken for a client-ready audit.
-- Neither internal notification is sent — not the reviewer's and not the
-  heads-up to AUDIT_HEADSUP_EMAIL. Test mode pings nobody.
+- The internal "new audit request" notification to the reviewer isn't
+  sent. Test mode pings nobody.
 - It's exempt from the one-audit-per-website/email limit, and doesn't consume
   that site's real audit — the unique indexes are partial
   (`where is_test = false`), so the same site can be re-tested indefinitely.

@@ -1,7 +1,5 @@
 import {
   auditNotifyEmail,
-  auditHeadsUpEmail,
-  buildHeadsUpEmail,
   parseTestPrefix,
   normalizeEmail,
   normalizeHostname,
@@ -200,25 +198,6 @@ export default async function handler(req, res) {
         });
       } catch (notifyErr) {
         console.error("Internal notification email failed:", notifyErr);
-      }
-
-      // Separate heads-up to a second internal address — just who asked and
-      // for which site, none of the reviewer's operational detail. Its own
-      // try/catch and its own send so a failure on either one can't take
-      // out the other, and both stay best-effort: the request is already
-      // queued either way.
-      try {
-        const { Resend } = await import("resend");
-        const resend = new Resend(resendApiKey);
-        const headsUp = buildHeadsUpEmail({ email, website });
-        await resend.emails.send({
-          from: "Optimizers <hello@optimizers.agency>",
-          to: [auditHeadsUpEmail()],
-          subject: headsUp.subject,
-          html: headsUp.html,
-        });
-      } catch (headsUpErr) {
-        console.error("Heads-up notification email failed:", headsUpErr);
       }
     }
 

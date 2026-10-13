@@ -195,7 +195,7 @@ function apiMiddlewarePlugin() {
             // the real values — dev twin of api/audit-request.js, same
             // shared parser, same "just another invalid field" answer for a
             // prefix that doesn't qualify.
-            const { parseTestPrefix, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
+            const { parseTestPrefix, auditNotifyEmail } = await import('./api/_lib/audit-intake.js');
             const parsedIntake = parseTestPrefix({ email: rawEmail, website: rawWebsite });
             if (parsedIntake.invalidFields.length > 0) {
               res.statusCode = 400;
@@ -504,23 +504,6 @@ function apiMiddlewarePlugin() {
                 });
               } catch (notifyErr) {
                 console.error('Internal notification email failed (dev):', notifyErr);
-              }
-
-              // Dev twin of the heads-up send in api/audit-request.js — a
-              // second internal address gets just who asked and for which
-              // site, nothing operational. Real runs only, same as above.
-              try {
-                const { Resend } = await import('resend');
-                const resend = new Resend(resendApiKey);
-                const headsUp = buildHeadsUpEmail({ email, website });
-                await resend.emails.send({
-                  from: 'Optimizers <hello@optimizers.agency>',
-                  to: [auditHeadsUpEmail(env)],
-                  subject: headsUp.subject,
-                  html: headsUp.html,
-                });
-              } catch (headsUpErr) {
-                console.error('Heads-up notification email failed (dev):', headsUpErr);
               }
             }
 

@@ -37,54 +37,6 @@ export function auditNotifyEmail(env) {
   return (env && env.AUDIT_REVIEWER_EMAIL) || process.env.AUDIT_REVIEWER_EMAIL || "omar@optimizers.agency";
 }
 
-// Second internal recipient, deliberately NOT the reviewer. This is a
-// heads-up only — "an audit is happening, here's who and what" — with none
-// of the reviewer's operational detail (no tools, no GA4/GTM ids, no row id,
-// no approve link). Kept as its own address and its own email rather than a
-// second `to:` on the reviewer's, because the two serve different purposes
-// and shouldn't grow into each other's shape over time.
-//
-// Real runs only. A test-mode submission notifies nobody internally, same as
-// the reviewer notification.
-export function auditHeadsUpEmail(env) {
-  return (env && env.AUDIT_HEADSUP_EMAIL) || process.env.AUDIT_HEADSUP_EMAIL || "mohamed@neamatalla.com";
-}
-
-function escapeHtmlValue(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/**
- * The heads-up email's subject + body. Two lines of substance on purpose:
- * who asked and for which site. One implementation so the Vercel function
- * and the dev middleware can't drift in wording (they each own their own
- * Resend call, as the rest of this repo already does).
- *
- * Both values are escaped: they're raw visitor input, and an unescaped
- * angle bracket in an address or URL would otherwise break the surrounding
- * markup in the recipient's client.
- */
-export function buildHeadsUpEmail({ email, website }) {
-  return {
-    subject: `New Free Audit request — ${website}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; color: #263328;">
-        <p style="font-size: 15px; line-height: 1.6; margin: 0 0 18px;">
-          Heads up — a free audit just came in and is being processed.
-        </p>
-        <p style="font-size: 14px; line-height: 1.9; margin: 0;">
-          <b>Email:</b> ${escapeHtmlValue(email)}<br />
-          <b>Website:</b> ${escapeHtmlValue(website)}
-        </p>
-      </div>
-    `.trim(),
-  };
-}
-
 // Test mode (dash prefix on both fields + an @optimizers.agency email)
 // lives in its own dependency-free module so the form can run the exact
 // same rule client-side; re-exported here for the server callers.
