@@ -68,6 +68,11 @@ export const BLOCKED_HITS: RegExp[] = [
   // Found by the leak audit on tharaa.shop (2026-10-13): Google Ads audience
   // pings fired by GA4, and Clarity's cookie-sync pixels.
   /\/ads\/ga-audiences/,
+  // Found on balqeshoney.com: Google Merchant Center's own analytics, and
+  // any other GA-protocol endpoint (…/collect?v=2&tid=…) on a host not
+  // listed above.
+  /merchant-center-analytics\.goog/,
+  /\/collect\?v=\d+&tid=/,
   /clarity\.ms\/c\.gif/,
   /c\.bing\.com\/c\.gif/,
   /twitter\.com\/i\/adsct|t\.co\/i\/adsct|analytics\.twitter\.com/,
@@ -410,6 +415,40 @@ const FIND_DRAWER_JS = String.raw`
   return best ? take(best) : false;
 })()`;
 
+// For stores whose URLs discover-pages.ts doesn't recognise (it knows the
+// Shopify shapes /products/ and /collections/; WooCommerce uses /product/,
+// custom builds use anything): find a listing page and a product page from
+// the links on the current page. A product link is one whose card shows an
+// image and a price; a listing link has a shop/category-shaped path.
+const FIND_LINKS_JS = String.raw`
+(function () {
+  var here = location.origin + location.pathname.replace(/\/$/, "");
+  var LISTING = /(^|\/)(shop|store|collections?|categor(y|ies)|product-category|products|all-products|catalog|best-selling|newest|offers)(\/[^\/]*)?\/?$/i;
+  var PRODUCTISH = /\/(products?|p|item|items)\/[^\/]+\/?$/i;
+  var PRICE = /\d[\d,.]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|qar|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|usd|\$|€|£)\s?\d/i;
+  var product = null, productByPath = null, collection = null;
+  var links = document.querySelectorAll("a[href]");
+  for (var i = 0; i < links.length; i++) {
+    var a = links[i], u;
+    try { u = new URL(a.getAttribute("href"), location.href); } catch (e) { continue; }
+    if (u.origin !== location.origin) continue;
+    var full = u.origin + u.pathname.replace(/\/$/, "");
+    if (full === here || u.pathname === "/" || /\.(png|jpe?g|webp|svg|pdf|css|js)$/i.test(u.pathname)) continue;
+    var inChrome = a.closest("header, nav, footer");
+    if (!collection && LISTING.test(u.pathname) && !PRODUCTISH.test(u.pathname)) collection = u.href;
+    if (inChrome) continue;
+    if (!productByPath && PRODUCTISH.test(u.pathname)) productByPath = u.href;
+    if (!product && !LISTING.test(u.pathname)) {
+      var r = a.getBoundingClientRect();
+      if (r.width < 60 || r.height < 60) continue;
+      var card = a, up = a.parentElement, d = 0, priced = false;
+      while (up && up !== document.body && d < 4) { card = up; if (PRICE.test(card.innerText || "")) { priced = true; break; } up = up.parentElement; d++; }
+      if (priced && (a.querySelector("img, picture") || card.querySelector("img, picture")) && (card.innerText || "").length < 400) product = u.href;
+    }
+  }
+  return { product: productByPath || product, collection: collection };
+})()`;
+
 const EMPTY_CART = /your (?:cart|bag|basket) is (?:currently )?empty|cart is empty|no items in (?:your )?cart|السلة فارغة|سلة التسوق فارغة|سلتك فارغة|لا توجد منتجات|عربة التسوق فارغة/i;
 const BOT_WALL = /just a moment|attention required|access denied|are you a robot|captcha|verify you are human|request blocked/i;
 
@@ -590,10 +629,12 @@ async function addToCartAndCapture(
   // Cart page: with the item in it if the click worked, empty otherwise.
   const ev = await visit(page, "cart", cartUrl, "c");
   if (ev.loaded) {
-    ev.cart = { source: "page", empty: isEmptyCart(ev) };
+    // Nothing was added, so whatever this page shows (an empty-cart message
+    // we don't recognise, recommendations, a 404) is not a cart to judge.
+    ev.cart = { source: "page", empty: !atc.attempted || isEmptyCart(ev) };
     ev.crops.cart = ev.crops.fold;
-    if (!ev.cart.empty) atc = { attempted: atc.attempted, ok: true };
-    else ev.note = "cart page was empty";
+    if (!ev.cart.empty) atc = { attempted: true, ok: true };
+    else ev.note = atc.attempted ? "cart page was empty" : "nothing could be added to the cart";
   }
   return { cart: ev, atc };
 }
@@ -607,8 +648,8 @@ export interface CollectOptions {
 export async function collectStoreEvidence(website: string, discoveredPages: string[], opts: CollectOptions = {}): Promise<StoreEvidence> {
   const startedAt = Date.now();
   const homepage = discoveredPages[0] ?? website;
-  const productUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "product");
-  const collectionUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "collection");
+  let productUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "product");
+  let collectionUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "collection");
   let cartUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "cart");
   if (!cartUrl) {
     try {
@@ -630,13 +671,30 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     const page = await preparePage(context, counter, MOBILE_PROFILE);
     const pages: PageEvidence[] = [];
 
+    const findLinks = async (): Promise<{ product: string | null; collection: string | null }> =>
+      ((await page.evaluate(FIND_LINKS_JS).catch(() => null)) as { product: string | null; collection: string | null } | null) ?? { product: null, collection: null };
+
     pages.push(await visit(page, "home", homepage, "h"));
+    // Discovery found no product or listing URL (non-Shopify URL shapes):
+    // look for them in the store's own links, home first, then the listing.
+    let collection: PageEvidence | undefined;
+    if (!productUrl || !collectionUrl) {
+      const fromHome = await findLinks();
+      collectionUrl = collectionUrl ?? fromHome.collection ?? undefined;
+      productUrl = productUrl ?? fromHome.product ?? undefined;
+      if (!productUrl && collectionUrl) {
+        collection = await visit(page, "collection", collectionUrl, "l");
+        if (collection.loaded) productUrl = (await findLinks()).product ?? undefined;
+      }
+    }
     const product = productUrl ? await visit(page, "product", productUrl, "p") : failed("product", homepage, "no product page found on the site");
+    if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
     const { cart, atc } = await addToCartAndCapture(page, product, cartUrl!);
     pages.push(cart);
-    // After the cart, so a slow listing page can never cost the cart rules.
-    pages.push(collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site"));
+    // After the cart, so a slow listing page can never cost the cart rules
+    // (unless it was already needed above to find a product).
+    pages.push(collection ?? (collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site")));
     await context.close().catch(() => {});
 
     // Desktop: text and positions only, in its own throwaway context.
