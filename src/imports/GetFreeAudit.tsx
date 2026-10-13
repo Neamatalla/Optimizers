@@ -388,7 +388,7 @@ export default function GetFreeAudit() {
   // (see that file's /api/audit-request handler) — the real production path
   // delivers the report by email only, no reportUrl in the response body.
   const [reportUrl, setReportUrl] = useState<string | null>(null);
-  // Set from a 409 on submit: this website or email address already used up
+  // Set from a 409 on submit: this website already used up
   // its one free audit (api/_lib/audit-intake.js). Rendered as a persistent
   // panel rather than only a toast — it's a final answer, not a transient
   // error, and the visitor shouldn't be left re-pressing the button.
@@ -428,10 +428,10 @@ export default function GetFreeAudit() {
       }
     },
     onError: (error: any) => {
-      // 409 = the one-audit-per-website/email limit, not a failure: there's
+      // 409 = the one-audit-per-website limit, not a failure: there's
       // nothing to retry, so it gets its own panel.
       if (error?.status === 409) {
-        setAlreadyAuditedMessage(error.message || "A free audit has already been requested for this website or email address.");
+        setAlreadyAuditedMessage(error.message || "A free audit has already been requested for this website.");
         return;
       }
       // Shown inside the card, next to the button, not only as a corner toast

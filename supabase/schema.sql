@@ -55,9 +55,10 @@ create table if not exists audit_requests (
   -- (audit-worker/src/email.ts's coverageSentence) needs it again at send
   -- time, out of processDueSends.
   categories_audited text[],
-  -- Normalized forms behind the one-free-audit-per-site/email limit (see the
-  -- unique indexes below). Written by api/_lib/audit-intake.js's
-  -- normalizeEmail/normalizeHostname.
+  -- Normalized forms written by api/_lib/audit-intake.js's
+  -- normalizeEmail/normalizeHostname. website_hostname is behind the
+  -- one-free-audit-per-site limit (see the unique index below);
+  -- email_normalized is for lookups only and is not unique.
   email_normalized text,
   website_hostname text,
   -- A submission whose email AND website were both typed with a leading "-"
@@ -97,16 +98,14 @@ create index if not exists audit_requests_is_test_created_at_idx
 create index if not exists audit_requests_processing_heartbeat_idx
   on audit_requests (heartbeat_at) where status = 'processing';
 
--- One free audit per website and per email address, ever (2026-09-09).
--- The audit is expensive — a `claude -p` run with live browser access, then
--- a human review pass before it's sent — so it's offered exactly once per
--- site and once per address, regardless of how the first one turned out.
--- api/_lib/audit-intake.js checks for an existing row before inserting so
--- the visitor gets a real explanation, but these indexes are what make the
+-- One free audit per website, ever (2026-09-09; the per-email limit was
+-- dropped 2026-10-13). The audit is expensive — a `claude -p` run with live
+-- browser access, then a human review pass before it's sent — so it's
+-- offered exactly once per site, regardless of how the first one turned
+-- out. api/_lib/audit-intake.js checks for an existing row before inserting
+-- so the visitor gets a real explanation, but this index is what makes the
 -- limit hold when two submissions race each other. Partial on purpose: test
--- rows never consume a site's or address's one audit.
-create unique index if not exists audit_requests_email_normalized_key
-  on audit_requests (email_normalized) where is_test = false;
+-- rows never consume a site's one audit.
 create unique index if not exists audit_requests_website_hostname_key
   on audit_requests (website_hostname) where is_test = false;
 

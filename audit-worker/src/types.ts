@@ -34,7 +34,7 @@ export interface AuditRequestRow {
   // to AUDIT_REPORTS_TEST_BUCKET instead of the live bucket, and it's
   // emailed straight to the address in the form — no internal review, no
   // approval token, no 2-day delay (see poll.ts's processRequest). Also
-  // exempt from the one-audit-per-site/email limit, so the same site can be
+  // exempt from the one-audit-per-site limit, so the same site can be
   // re-tested any number of times.
   is_test: boolean;
   status: RequestStatus;

@@ -173,8 +173,8 @@ run differs from a real one in exactly four ways:
   lands in a real inbox can't be mistaken for a client-ready audit.
 - The internal "new audit request" notification to the reviewer isn't
   sent. Test mode pings nobody.
-- It's exempt from the one-audit-per-website/email limit, and doesn't consume
-  that site's real audit — the unique indexes are partial
+- It's exempt from the one-audit-per-website limit, and doesn't consume
+  that site's real audit — the unique index is partial
   (`where is_test = false`), so the same site can be re-tested indefinitely.
 
 Prefixing only one of the two fields is a hard 400, deliberately: if one were
@@ -330,6 +330,7 @@ also isn't shared, that category just degrades to detection-only.
   check that used to cite a Lighthouse audit id now names a browser/DOM or
   static-crawl check instead. `discover-pages.ts` still runs (cheaply, off
   sitemap.xml) because the browser needs real cart/product URLs to visit.
-- **One audit per website and per email, ever.** The intake endpoint rejects
-  a repeat submission from either the same email or the same hostname (409),
-  backed by unique indexes in Postgres — see `supabase/schema.sql`.
+- **One audit per website, ever.** The intake endpoint rejects a repeat
+  submission for the same hostname (409), backed by a unique index in
+  Postgres — see `supabase/schema.sql`. The same email can request audits
+  for different sites.

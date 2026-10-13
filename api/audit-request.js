@@ -93,18 +93,18 @@ export default async function handler(req, res) {
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // One free audit per website and per email address, ever. Checked here
-    // for a real explanation, enforced for real by the unique indexes on
-    // these two columns (see supabase/schema.sql) — the insert below turns
-    // a lost race into the same 409.
+    // One free audit per website, ever (the same email can request audits
+    // for other sites). Checked here for a real explanation, enforced for
+    // real by the unique index on website_hostname (see supabase/schema.sql)
+    // — the insert below turns a lost race into the same 409.
     //
-    // Test runs are exempt, in both places: skipped here, and the indexes
-    // themselves are partial (a "where is_test = false" clause), so re-testing the
+    // Test runs are exempt, in both places: skipped here, and the index
+    // itself is partial (a "where is_test = false" clause), so re-testing the
     // same site never collides and never consumes that site's real audit.
     const emailNormalized = normalizeEmail(email);
     const websiteHostname = normalizeHostname(website);
     if (!isTest) {
-      const existing = await findExistingAuditRequest(supabase, { emailNormalized, websiteHostname });
+      const existing = await findExistingAuditRequest(supabase, { websiteHostname });
       if (existing) {
         return res.status(409).json({ error: duplicateMessage(existing.reason), duplicate: existing.reason });
       }

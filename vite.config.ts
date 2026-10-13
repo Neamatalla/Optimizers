@@ -407,8 +407,8 @@ function apiMiddlewarePlugin() {
             const { createClient } = await import('@supabase/supabase-js');
             const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-            // Dev twin of api/audit-request.js's one-audit-per-website/email
-            // limit — same shared implementation, so testing locally against
+            // Dev twin of api/audit-request.js's one-audit-per-website limit
+            // — same shared implementation, so testing locally against
             // the real Supabase project behaves exactly like production
             // (including consuming a real site's one free audit).
             const {
@@ -420,10 +420,10 @@ function apiMiddlewarePlugin() {
             } = await import('./api/_lib/audit-intake.js');
             const emailNormalized = normalizeEmail(email);
             const websiteHostname = normalizeHostname(website);
-            // Test runs are exempt from the one-per-site/email limit, same as
-            // production (and the unique indexes themselves are partial).
+            // Test runs are exempt from the one-per-site limit, same as
+            // production (and the unique index itself is partial).
             if (!isTest) {
-              const existing = await findExistingAuditRequest(supabase, { emailNormalized, websiteHostname });
+              const existing = await findExistingAuditRequest(supabase, { websiteHostname });
               if (existing) {
                 res.statusCode = 409;
                 res.setHeader('Content-Type', 'application/json');

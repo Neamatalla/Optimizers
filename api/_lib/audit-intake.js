@@ -4,24 +4,25 @@
 // report-edit.js: none of this touches req/res, so one implementation
 // serves both platforms.
 //
-// The whole point of this file is the hard one-audit-per-website and
-// one-audit-per-email limit. The audit is expensive (a `claude -p` run with
-// live browser access, then a human review pass before it's sent), so it's
-// offered exactly once per site and once per email address — not once per
-// week, not once per outcome. Enforcement is in TWO places on purpose:
+// The whole point of this file is the hard one-audit-per-website limit. The
+// audit is expensive (a `claude -p` run with live browser access, then a
+// human review pass before it's sent), so it's offered exactly once per
+// site — not once per week, not once per outcome. The email address is NOT
+// limited: one person can request audits for several different sites.
+// Enforcement is in TWO places on purpose:
 //
 //   1. A lookup here, before the insert, so the visitor gets a real
 //      explanation instead of a database error.
-//   2. Unique indexes on audit_requests.email_normalized and
-//      .website_hostname (supabase/schema.sql), which is what actually
-//      makes it airtight — two submissions racing each other both pass the
-//      lookup, and the loser's insert is rejected by Postgres. Callers turn
-//      that rejection into the same 409 (see isUniqueViolation below).
+//   2. A unique index on audit_requests.website_hostname
+//      (supabase/schema.sql), which is what actually makes it airtight —
+//      two submissions racing each other both pass the lookup, and the
+//      loser's insert is rejected by Postgres. Callers turn that rejection
+//      into the same 409 (see isUniqueViolation below).
 //
-// Changing either normalizer below means re-normalizing the stored
-// email_normalized/website_hostname values too — the indexes are on the
-// stored columns, so a row written with different normalization than an
-// existing one simply won't collide with it.
+// Changing normalizeHostname below means re-normalizing the stored
+// website_hostname values too — the index is on the stored column, so a row
+// written with different normalization than an existing one simply won't
+// collide with it.
 
 // Who gets told about a new audit request. This is the audit REVIEWER —
 // the person who later reviews the finished report and clicks the approve
@@ -42,7 +43,10 @@ export function auditNotifyEmail(env) {
 // same rule client-side; re-exported here for the server callers.
 export { TEST_PREFIX, TEST_EMAIL_DOMAIN, parseTestPrefix } from "./test-mode.js";
 
-/** lower + trim. What gets stored in audit_requests.email_normalized. */
+/**
+ * lower + trim. What gets stored in audit_requests.email_normalized — kept
+ * for lookups only, it's not part of the one-audit limit.
+ */
 export function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
@@ -73,75 +77,56 @@ export function normalizeHostname(website) {
 export { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
 
 /**
- * Looks for an existing request from the same email or the same website.
- * Returns null when there's none, otherwise which key matched (email wins
- * when both do — it's the more personal, less ambiguous thing to tell
- * someone) plus the row, so callers can mention when the first one was
- * submitted.
+ * Looks for an existing request for the same website. Returns null when
+ * there's none, otherwise `{ reason: "website", row }`, so callers can
+ * mention when the first one was submitted.
  *
  * Deliberately matches on ANY prior row regardless of status: a failed or
  * still-processing request has already consumed the one free audit for that
- * site/address. A genuine technical failure the operator wants to re-run is
+ * site. A genuine technical failure the operator wants to re-run is
  * handled operator-side (clear the row, or re-queue it — see
  * audit-worker's own scripts), not by letting the visitor submit again.
  */
-export async function findExistingAuditRequest(supabase, { emailNormalized, websiteHostname }) {
-  // Two separate .eq() lookups rather than one .or("a.eq.X,b.eq.Y") — that
-  // filter string is built by string concatenation, and these values come
-  // straight from the visitor. An email like "a,status.eq.pending@x.com"
-  // passes the format regex upstream (no spaces, no second @) and would
-  // then be parsed as extra filter clauses. .eq() values are encoded by
-  // supabase-js instead, so they can't change the query's shape.
-  async function findBy(column, value) {
-    if (!value) return null;
-    const { data, error } = await supabase
-      .from("audit_requests")
-      .select("id, status, created_at")
-      .eq(column, value)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      // Surfaced to the caller rather than swallowed: failing open here
-      // would let a duplicate through on a transient Supabase error. The
-      // unique indexes would still catch it, but the visitor would get a
-      // generic 500 instead of the real explanation.
-      throw new Error(`Duplicate check failed on ${column}: ${error.message}`);
-    }
-    return data ?? null;
+export async function findExistingAuditRequest(supabase, { websiteHostname }) {
+  if (!websiteHostname) return null;
+  // .eq() rather than a hand-built .or()/filter string: the value comes
+  // straight from the visitor, and .eq() values are encoded by supabase-js,
+  // so they can't change the query's shape.
+  const { data, error } = await supabase
+    .from("audit_requests")
+    .select("id, status, created_at")
+    .eq("website_hostname", websiteHostname)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    // Surfaced to the caller rather than swallowed: failing open here
+    // would let a duplicate through on a transient Supabase error. The
+    // unique index would still catch it, but the visitor would get a
+    // generic 500 instead of the real explanation.
+    throw new Error(`Duplicate check failed on website_hostname: ${error.message}`);
   }
-
-  const byEmail = await findBy("email_normalized", emailNormalized);
-  if (byEmail) return { reason: "email", row: byEmail };
-
-  const bySite = await findBy("website_hostname", websiteHostname);
-  if (bySite) return { reason: "website", row: bySite };
-
-  return null;
+  return data ? { reason: "website", row: data } : null;
 }
 
 /**
  * Postgres unique-violation check for the race the pre-insert lookup can't
  * close. 23505 is the SQLSTATE for unique_violation; the constraint name in
- * the error message says which of the two indexes rejected it, so the
- * message the visitor gets is the same either way as the lookup path's.
+ * the error message says it was the website_hostname index, so the message
+ * the visitor gets is the same as the lookup path's.
  */
 export function isUniqueViolation(error) {
   if (!error) return null;
   if (error.code !== "23505") return null;
   const detail = `${error.message || ""} ${error.details || ""}`;
-  if (detail.includes("email_normalized")) return "email";
   if (detail.includes("website_hostname")) return "website";
   return "unknown";
 }
 
 /** What the visitor actually reads. Same copy from both enforcement paths. */
 export function duplicateMessage(reason) {
-  if (reason === "email") {
-    return "This email address has already been used for a free audit. Each address gets one — reply to that audit's email if you need anything else, or reach out and we'll take it from there.";
-  }
   if (reason === "website") {
     return "This website has already had its free audit. Each site gets one — get in touch if you'd like us to take another look.";
   }
-  return "A free audit has already been requested for this website or email address. Each one gets a single audit — get in touch and we'll help from there.";
+  return "A free audit has already been requested for this website. Each site gets a single audit — get in touch and we'll help from there.";
 }

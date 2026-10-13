@@ -8,7 +8,7 @@
 // e.g. `-omar@optimizers.agency` + `-https://example.com`. It runs the real
 // pipeline end to end, but publishes to a separate Storage bucket, emails the
 // report straight to whoever was in the form (no internal review, no 2-day
-// delay), and is exempt from the one-audit-per-site/email limit so the same
+// delay), and is exempt from the one-audit-per-site limit so the same
 // site can be re-tested freely.
 //
 // Test mode is deliberately invisible from outside: any other use of the
