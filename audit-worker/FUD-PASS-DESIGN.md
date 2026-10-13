@@ -1,6 +1,6 @@
 # FUD Pass — Design
 
-Status: **implemented 2026-10-13** in `src/fud/`, switched off by default (`FUD_PASS=off`). Source:
+Status: **implemented 2026-10-13** in `src/fud/` (rule set `fud-1.1.0`), switched off by default (`FUD_PASS=off`). Source:
 `FUDs_Audit_Engine_PRD_Improved.md` (v2.0), cut down to what a free, URL-only audit can do reliably
 without touching the existing 50-check engine. Where the build differs from the original draft it
 is marked **As built**; §18 lists what is still open.
@@ -432,28 +432,47 @@ existing 50-check audit.
 ## 17. Side note found while drafting
 
 `BACKLOG.md` says `pagespeed.ts` was removed on 2026-09-09, but `poll.ts:141` still calls
-`runPageSpeed` and the file is still in the branch. One of the two is stale.
+`runPageSpeed` and the file is still in the branch. One## 18. Build notes and what is still open
 
-## 18. Build notes and what is still open
+### What was added after the first build (same day)
 
-First real run (tharaa.shop, 2026-10-13): 3/3 pages loaded, Add-to-Cart worked, 79 analytics hits
-blocked, collection 27 s, one judge call of roughly 2–3 minutes. Result: Buyer confidence 77/100,
-13 of 13 checks assessed, 0 FAIL, 6 WARN, and the findings matched the page crops when checked by
-hand.
+- **Cart drawer.** The first build missed tharaa.shop's drawer (`#t4s-mini_cart`) and silently used
+  the cart page instead. Drawers are now found two ways: by known names, and generically as any large
+  fixed panel that appears after the click and reads like a cart. Verified on tharaa.shop.
+- **Analytics leak audit.** Every request that looks like analytics and was *not* blocked is recorded
+  (`StoreEvidence.leakedHits`) and logged. On tharaa.shop it found two trackers the first blocklist
+  missed (Google Ads audience pings, Clarity's sync pixel); both are now blocked, along with Shopify's
+  own analytics (monorail), server-side GA4 endpoints and other common pixels. Current run: ~200–300
+  hits blocked, 0 not blocked.
+- **Collection page** (was v1.5): rules C6 (cards show price and rating), D4 (filter/sort/pills,
+  only for 12+ products) and D5 (quick-add labels consistent), from card counts taken in the browser.
+- **Desktop.** Home and product are also visited at 1440px. The judge still reads the phone visit;
+  for layout-dependent rules the detectors compare the two and the report adds one line ("On desktop:
+  the same gap" / "mainly a phone problem"). Detector-based, labelled as such in the types.
+- **Reviewer overrides:** `npm run fud-override` (status change or hide, original status kept,
+  score recomputed, report republished).
+- **Client email:** up to two quick wins, taken from the saved result so overrides are respected.
+- **Calibration tooling:** `npm run fud-calibrate` writes a labelling sheet and `--score` reports
+  precision per rule.
+- **Judge JSON:** a quote-repair step runs before the single retry.
+- **Gate change:** a judge PASS the gate will not accept is no longer turned into a WARN. That put
+  good-news text under a "needs work" label. It now stays a PASS only when the detectors agree,
+  otherwise it is "not confirmed" and left out of the score and the issue list.
+- **Queue stage** is `runFrictionStage()` in `fud/index.ts`, unit-tested for gating, run-once,
+  error storage and the live/test FAIL policy. `poll.ts` only calls it.
 
-Built: collector with Add-to-Cart and analytics blocking, 14 rules, bilingual detectors, judge,
-gates, PEXTI, GA4 funnel tie-in, report section, review-email FAIL flag, `FUD_PASS` /
-`FUD_ALLOW_FAIL`, `npm run fud-run`, `npm test` (17 unit tests), preview fixture.
+### Still open
 
-Not built yet:
-
-- Phase-1 calibration: only one store has been run. The 15–20 hand-checked stores are still to do
-  before `FUD_PASS=all`.
-- Cart-drawer capture is written but unproven: tharaa.shop has no drawer, so the run fell back to
-  the cart page. Needs a drawer-theme store.
-- The judge returned malformed JSON once in two runs (a stray quote in Arabic text). A prompt
-  rule and a single retry were added; watch the rate during calibration.
-- Collection page (v1.5), desktop viewport, per-finding reviewer overrides, friction items in the
-  client email or daily digest (§15 questions 2–5 are still open).
-- GA4 DebugView confirmation that zero bot hits arrive (§14). The blocker is unit-tested and
-  counted per run, but not yet confirmed from the GA4 side.
+- **Calibration is not done.** The tooling exists; the hand-labelling of 15–20 stores is human work
+  and has not happened. Until `--score` shows 90%+ FAIL precision, keep `FUD_ALLOW_FAIL=false`.
+- **Judge variance.** The same evidence judged twice gave D1 as WARN once and PASS once (B1 and D1
+  overlap on "reassurance by the button"). Watch for this while labelling; merging the two rules is
+  an option.
+- **A real queued audit** through `poll.ts` with `FUD_PASS=test` has not been run end to end
+  (it costs a full 20-minute audit and sends an email). Steps are in the README; the stage itself is
+  unit-tested.
+- **GA4 side.** The leak audit proves nothing analytics-shaped left the browser un-blocked. Nobody
+  has yet opened GA4 Realtime/DebugView during a run to confirm it from Google's side.
+- **Desktop findings are detector-only.** No desktop crops and no separate desktop verdicts.
+- **Checkout steps** remain out of scope, as do review-platform and replay connectors (category E).
+- §15 questions 3 and 5 (daily digest, health/claims rules) are still undecided.

@@ -15,8 +15,10 @@
     "seed-checklist": "tsx src/seed-checklist.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/poll.js",
-    "test": "tsx --test src/fud/fud.test.ts",
-    "fud-run": "tsx src/fud-run.ts"
+    "test": "tsx --test src/fud/fud.test.ts src/fud/fud2.test.ts",
+    "fud-run": "tsx src/fud-run.ts",
+    "fud-override": "tsx src/fud-override.ts",
+    "fud-calibrate": "tsx src/fud-calibrate.ts"
   },
   "engines": {
     "node": ">=22"

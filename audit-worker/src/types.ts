@@ -251,7 +251,7 @@ export interface AuditResult {
 // rule couldn't be reached — never turned into a pass or a fail).
 export type FudStatus = "pass" | "warn" | "fail" | "unassessed";
 export type FudBand = "quick_win" | "dev_task" | "test_first";
-export type FudPageType = "home" | "product" | "cart";
+export type FudPageType = "home" | "product" | "cart" | "collection";
 
 export interface FudPexti {
   // 0-100, from the five 1-5 factors below (src/fud/score.ts).
@@ -288,11 +288,23 @@ export interface FudFinding {
   // Arabic, written by the judge in the same call (not translate-ar.ts), so
   // this pass never touches the main translation stage or its retries.
   ar?: { technical: FindingVoice; business: FindingVoice; recommendation?: string };
+  // How the same rule looks at 1440px, from the keyword detectors only (the
+  // judge reads the phone visit). "better" = the detectors found it in place
+  // on desktop, so the gap is mainly a phone problem; "worse" = fine on the
+  // phone but not found in place on desktop. Absent when desktop wasn't
+  // visited or the rule doesn't depend on layout.
+  desktop?: "same" | "better" | "worse";
+  // A reviewer's correction (npm run fud-override). The machine's own status
+  // is kept in `from` so overrides can be counted when calibrating rules;
+  // `hidden` drops the finding from the report and the score entirely.
+  override?: { from: FudStatus; to: FudStatus | "hidden"; reason: string; at: string };
 }
 
 export interface FudResult {
   ruleSetVersion: string;
   viewport: "mobile";
+  // Whether home/product were also visited at desktop width.
+  desktopChecked?: boolean;
   pagesSampled: Array<{ url: string; pageType: FudPageType; loaded: boolean; note?: string }>;
   // null when coverage is too low for a meaningful score (score.ts).
   score: number | null;

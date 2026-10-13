@@ -42,10 +42,17 @@ export function gate(input: GateInput): FudStatus {
   }
 
   if (proposed === "pass") {
-    if (validBlockIds === 0) return "warn";
-    if (confidence < PASS_CONFIDENCE) return "warn";
+    // The detectors found it in place: that corroborates the pass even when
+    // the judge was hesitant or cited a widget rather than a text block.
+    if (signal === "present") return "pass";
+    // A pass we can't stand behind is "not confirmed", never a WARN: the
+    // judge wrote it as good news, and showing good news under a "needs
+    // work" label would contradict itself. Unassessed keeps it out of both
+    // the score and the issue list.
+    if (validBlockIds === 0) return "unassessed";
+    if (confidence < PASS_CONFIDENCE) return "unassessed";
     // Detectors found nothing at all where the judge claims a pass.
-    if (signal === "absent" && confidence < FAIL_CONFIDENCE) return "warn";
+    if (signal === "absent" && confidence < FAIL_CONFIDENCE) return "unassessed";
     return "pass";
   }
 

@@ -57,7 +57,8 @@ async function main() {
   const evidencePath = path.join(outDir, `fud-${host}-evidence.json`);
   if (!evidenceFile) await writeFile(evidencePath, JSON.stringify(evidence, null, 2), "utf8");
 
-  console.log(`[fud-run] add-to-cart: ${JSON.stringify(evidence.addToCart)}; analytics hits blocked: ${evidence.blockedHits}; ${Math.round(evidence.durationMs / 1000)}s`);
+  console.log(`[fud-run] add-to-cart: ${JSON.stringify(evidence.addToCart)}; analytics hits blocked: ${evidence.blockedHits}, NOT blocked: ${evidence.leakedHits?.length ?? 0}; desktop pages: ${evidence.desktop?.filter(p => p.loaded).length ?? 0}; ${Math.round(evidence.durationMs / 1000)}s`);
+  for (const leak of evidence.leakedHits ?? []) console.warn(`[fud-run] NOT blocked (add to BLOCKED_HITS in fud/collect.ts): ${leak}`);
   for (const p of evidence.pages) {
     console.log(`  ${p.pageType.padEnd(8)} ${p.loaded ? "ok " : "-- "} ${p.blocks.length} blocks, cta: ${p.cta ? `"${p.cta.text}" (${p.cta.nearbyBlockIds.length} near)` : "none"}, widgets: ${p.widgets.join(",") || "none"}, crops: ${Object.keys(p.crops).filter(k => (p.crops as any)[k]).join(",") || "none"}${p.note ? `, note: ${p.note}` : ""}`);
   }

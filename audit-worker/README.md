@@ -195,22 +195,45 @@ Two things worth knowing before using it on a live site:
 
 ## Purchase-friction (FUD) pass
 
-An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that checks the store for the doubts that stop shoppers buying — shipping cost shown before checkout, returns near the button, cash on delivery/installments, size help, real reviews, reachable support — and adds a **Purchase friction** section to the report with a *Buyer confidence* score, the top fixes, ready-to-paste copy (EN + AR) and a crop of the store's own page.
+An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that checks the store for the doubts that stop shoppers buying — shipping cost shown before checkout, returns near the button, cash on delivery/installments, size help, real reviews, reachable support, product cards and filters on the collection page — and adds a **Purchase friction** section to the report with a *Buyer confidence* score, the top fixes, ready-to-paste copy (EN + AR) and a crop of the store's own page.
 
 - Runs **after** the 50-check audit is saved. It never changes the 50-check score, and if it fails the report ships without the section.
 - `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
-- It adds **one product to the store's cart** in a throwaway browser session. Analytics and ad hits are blocked during the visit, so it doesn't show up in the client's GA4/Meta data, and it never goes past the cart.
+- Visits home, one product, the cart and one collection page on a phone viewport, then home and product again at desktop width (for the "on desktop" notes).
+- It adds **one product to the store's cart** in a throwaway browser session and reads the cart drawer (or the cart page when the theme has no drawer). It never goes past the cart.
+- Analytics and ad hits are blocked during the visit, so the bot stays out of the client's GA4/Meta/Shopify data. Anything analytics-shaped that slips past the blocklist is logged as `NOT blocked` — add it to `BLOCKED_HITS` in `src/fud/collect.ts`.
 - Live runs show a FAIL as a warning until `FUD_ALLOW_FAIL=true`; any FAIL is also flagged in the internal review email.
-- Adds roughly 3–4 minutes and one extra `claude -p` call per audit.
+- The client email lists up to two quick wins from this section.
+- Adds roughly 4–5 minutes and one extra `claude -p` call per audit.
 
-Try it on one store without the queue:
+Commands:
 
 ```bash
-npm run fud-run -- https://store.com                 # collect + judge, writes output/fud-<host>-result.json
+npm run fud-run -- https://store.com                 # one store: collect + judge, writes output/fud-<host>-result.json
 npm run fud-run -- https://store.com --collect-only  # browser only, no Claude call
 npm run preview-report -- --no-ar --fud=output/fud-<host>-result.json   # see it in a report
-npm test                                              # rule, gate and scoring unit tests
+npm test                                             # rule, gate, scoring, override and queue-stage tests
 ```
+
+**Calibrating the rules** (do this on 15–20 stores before `FUD_PASS=all`):
+
+```bash
+npm run fud-calibrate -- https://store-a.com https://store-b.com   # or --file=stores.txt
+# open output/fud-calibration.csv, mark each row y/n in "correct"
+npm run fud-calibrate -- --score                                   # precision per rule
+```
+
+A rule whose FAILs are right less than 90% of the time should get `autoFail: false` in `src/fud/rules.ts`.
+
+**Correcting a finding before approving a report:**
+
+```bash
+npm run fud-override -- <request-id> --list
+npm run fud-override -- <request-id> B1 pass "returns line is in the sticky bar"
+npm run fud-override -- <request-id> A1 hidden "digital product, no shipping"
+```
+
+`<request-id>` is the full id or the 6 characters at the end of the report slug. It saves the correction (keeping the machine's original status), recomputes the score and republishes the report at the same URL. It rebuilds the report from the saved audit data, so do overrides **before** any hand edits through `/api/report/edit`.
 
 ## Testing over a tunnel (ngrok or tunnelmole)
 

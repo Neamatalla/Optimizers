@@ -39,7 +39,7 @@ export const PATTERNS = {
   shippingThreshold: new RegExp(
     String.raw`(?:free (?:shipping|delivery)|شحن مجاني|توصيل مجاني|الشحن مجاني|التوصيل مجاني)[^.]{0,40}?(?:over|above|from|on orders|orders over|عند|للطلبات|فوق|اكثر من|اعلي من|بقيمة)?[^.]{0,20}?${MONEY}` +
       String.raw`|${MONEY}[^.]{0,30}?(?:free (?:shipping|delivery)|شحن مجاني|توصيل مجاني)` +
-      String.raw`|(?:add|spend|اضف|أضف)[^.]{0,20}?${MONEY}[^.]{0,30}?(?:free|مجاني)`,
+      String.raw`|(?:add|spend|only|away|اضف|فاضل|فاضلك|باقي|متبقي|تبقي)[^.]{0,20}?${MONEY}[^.]{0,40}?(?:free|مجاني)`,
   ),
   shippingFee: new RegExp(String.raw`(?:shipping|delivery|شحن|توصيل)[^.]{0,25}?${MONEY}|${MONEY}[^.]{0,15}?(?:shipping|delivery|شحن|توصيل)`),
   returns: /return|refund|exchange|money.?back|guarantee|warranty|استرجاع|ارجاع|استرداد|استبدال|ضمان|الاسترجاع|الاستبدال/,

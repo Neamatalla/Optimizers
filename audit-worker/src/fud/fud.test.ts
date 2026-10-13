@@ -72,9 +72,16 @@ test("gate: FAIL needs confidence, detector agreement, autoFail and allowFail", 
 test("gate: PASS needs a cited block and confidence", () => {
   const base = { proposed: "pass" as const, confidence: 0.9, signal: "present" as const, validBlockIds: 2, rule: autoFail, allowFail: true };
   assert.equal(gate(base), "pass");
-  assert.equal(gate({ ...base, validBlockIds: 0 }), "warn");
-  assert.equal(gate({ ...base, confidence: 0.6 }), "warn");
-  assert.equal(gate({ ...base, signal: "absent", confidence: 0.8 }), "warn");
+  // Detectors agree it's in place: a hesitant or citation-less pass stands.
+  assert.equal(gate({ ...base, validBlockIds: 0 }), "pass");
+  assert.equal(gate({ ...base, confidence: 0.6 }), "pass");
+  // Without that backing, a shaky pass is "not confirmed" — never a WARN.
+  const weak = { ...base, signal: "elsewhere" as const };
+  assert.equal(gate(weak), "pass");
+  assert.equal(gate({ ...weak, validBlockIds: 0 }), "unassessed");
+  assert.equal(gate({ ...weak, confidence: 0.6 }), "unassessed");
+  assert.equal(gate({ ...base, signal: "absent", confidence: 0.8 }), "unassessed");
+  assert.equal(gate({ ...base, signal: "absent", confidence: 0.9 }), "pass");
   assert.equal(gate({ ...base, proposed: "unassessed" }), "unassessed");
 });
 

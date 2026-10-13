@@ -1,6 +1,6 @@
-import type { FudFinding, FudResult, Ga4Metrics } from "../types.js";
+import type { FudFinding, FudResult, FudStatus, Ga4Metrics, JobProgress } from "../types.js";
 import { collectStoreEvidence } from "./collect.js";
-import { pageOf, type StoreEvidence } from "./evidence.js";
+import { desktopView, pageOf, type StoreEvidence } from "./evidence.js";
 import { runJudge, type JudgeVerdict } from "./judge.js";
 import { FUD_RULES, RULE_SET_VERSION, type FudRule, type SignalState } from "./rules.js";
 import { band, computePexti, frictionScore, funnelLeak, gate, sortFindings } from "./score.js";
@@ -66,11 +66,22 @@ export function buildFinding(rule: FudRule, verdict: JudgeVerdict | undefined, s
       : "unassessed";
   if (rule.id === "C4" && status === "fail") status = "warn";
 
+  // Desktop comparison, detectors only: the judge reads the phone visit, so
+  // this is a pointer for the reader, never a second verdict.
+  let desktop: FudFinding["desktop"];
+  const dv = rule.layout && status !== "unassessed" ? desktopView(e) : null;
+  if (dv && rule.needs.some(t => dv.pages.some(p => p.pageType === t && p.loaded && e.desktop?.includes(p)))) {
+    const rank: Record<SignalState, number | null> = { present: 2, elsewhere: 1, absent: 0, unknown: null };
+    const m = rank[signal];
+    const d = rank[rule.signal(dv)];
+    if (m !== null && d !== null) desktop = d > m ? "better" : d < m ? "worse" : "same";
+  }
+
   const leak = funnelLeak(ga4, rule.funnel);
   const pexti = computePexti({ status, signal, rule, judge: verdict, leak: Boolean(leak) });
   const fallback = {
     summary: `${rule.title.en}: not checked this run.`,
-    detail: preUnassessed ? `We couldn't check this: ${preUnassessed}.` : "The review step returned no verdict for this check.",
+    detail: preUnassessed ? `We couldn't check this: ${preUnassessed}.` : "We couldn't confirm this from the page with enough certainty.",
   };
   const fallbackAr = {
     summary: `${rule.title.ar}: لم يتم فحصه في هذا التشغيل.`,
@@ -84,17 +95,18 @@ export function buildFinding(rule: FudRule, verdict: JudgeVerdict | undefined, s
     pageType: rule.pageType,
     pageUrl: page?.url ?? null,
     status,
-    unassessedReason: status === "unassessed" ? preUnassessed ?? "no verdict" : undefined,
+    unassessedReason: status === "unassessed" ? preUnassessed ?? (verdict ? "not certain enough to confirm" : "no verdict") : undefined,
     confidence: verdict?.confidence ?? 0,
-    technical: useVerdictText ? verdict.technical : fallback,
-    business: useVerdictText ? verdict.business : fallback,
+    technical: useVerdictText && status !== "unassessed" ? verdict.technical : fallback,
+    business: useVerdictText && status !== "unassessed" ? verdict.business : fallback,
     recommendation: status === "warn" || status === "fail" ? verdict?.recommendation : undefined,
     exampleCopy: status === "warn" || status === "fail" ? verdict?.exampleCopy : undefined,
     evidence: { blockIds, crop: status === "unassessed" ? null : page?.crops[rule.crop] ?? page?.crops.fold ?? null },
     pexti,
     band: pexti ? band(pexti.score) : undefined,
     funnel: pexti ? leak : null,
-    ar: useVerdictText ? verdict.ar : { technical: fallbackAr, business: fallbackAr },
+    ar: useVerdictText && status !== "unassessed" ? verdict.ar : { technical: fallbackAr, business: fallbackAr },
+    desktop,
   };
 }
 
@@ -126,6 +138,7 @@ export function assemble(e: StoreEvidence, verdicts: JudgeVerdict[], ga4: Ga4Met
   return {
     ruleSetVersion: RULE_SET_VERSION,
     viewport: "mobile",
+    desktopChecked: Boolean(e.desktop?.some(p => p.loaded)),
     pagesSampled: e.pages.map(p => ({ url: p.url, pageType: p.pageType, loaded: p.loaded, note: p.note })),
     score,
     assessed,
@@ -138,8 +151,11 @@ export async function runFudPass(opts: RunFudPassOptions): Promise<FudResult | {
   try {
     const evidence = opts.evidence ?? (await collectStoreEvidence(opts.website, opts.discoveredPages));
     console.log(
-      `[audit-worker] FUD collect: ${evidence.pages.filter(p => p.loaded).length}/${evidence.pages.length} pages, add-to-cart ${evidence.addToCart.ok ? "ok" : evidence.addToCart.reason ?? "skipped"}, ${evidence.blockedHits} analytics hits blocked, ${Math.round(evidence.durationMs / 1000)}s`,
+      `[audit-worker] FUD collect: ${evidence.pages.filter(p => p.loaded).length}/${evidence.pages.length} pages, add-to-cart ${evidence.addToCart.ok ? "ok" : evidence.addToCart.reason ?? "skipped"}, cart from ${pageOf(evidence, "cart")?.cart?.source ?? "nothing"}, desktop ${evidence.desktop?.filter(p => p.loaded).length ?? 0} pages, ${evidence.blockedHits} analytics hits blocked, ${Math.round(evidence.durationMs / 1000)}s`,
     );
+    if (evidence.leakedHits?.length) {
+      console.warn(`[audit-worker] FUD collect: ${evidence.leakedHits.length} analytics-looking request(s) were NOT blocked — add them to BLOCKED_HITS in fud/collect.ts: ${evidence.leakedHits.slice(0, 10).join(" | ")}`);
+    }
     if (!evidence.pages.some(p => p.loaded)) return { error: "no page could be loaded for the friction pass" };
 
     // Only ask the judge about rules that apply and have their page.
@@ -155,4 +171,74 @@ export async function runFudPass(opts: RunFudPassOptions): Promise<FudResult | {
 
 export function isFudResult(v: unknown): v is FudResult {
   return Boolean(v && typeof v === "object" && Array.isArray((v as FudResult).findings));
+}
+
+/**
+ * poll.ts stage 1b, kept here so it can be tested without Supabase: runs the
+ * pass once per request, stores the result (or `{ error }`) on the saved
+ * progress, and never throws. Returns true when it ran.
+ */
+export async function runFrictionStage(
+  row: { id: string; website: string; is_test: boolean },
+  progress: JobProgress,
+  save: () => Promise<void>,
+  run: (opts: RunFudPassOptions) => Promise<FudResult | { error: string }> = runFudPass,
+): Promise<boolean> {
+  if (progress.fud !== undefined || !fudPassEnabled(row)) return false;
+  try {
+    progress.fud = await run({
+      website: row.website,
+      discoveredPages: progress.discoveredPages ?? [],
+      ga4Metrics: progress.ga4Metrics ?? null,
+      jobId: row.id,
+      allowFail: row.is_test || process.env.FUD_ALLOW_FAIL === "true",
+    });
+  } catch (err) {
+    progress.fud = { error: err instanceof Error ? err.message.slice(0, 500) : String(err) };
+  }
+  if (!isFudResult(progress.fud)) console.warn(`[audit-worker] Friction pass unavailable for ${row.id}: ${progress.fud.error}`);
+  await save();
+  return true;
+}
+
+/**
+ * A reviewer's correction to one finding: change its status, or hide it.
+ * The machine's original status is kept on the finding (first override
+ * wins as `from`), the score is recomputed, and nothing else changes.
+ */
+export function applyOverride(result: FudResult, ruleId: string, to: FudStatus | "hidden", reason: string): FudResult {
+  const id = ruleId.trim().toUpperCase();
+  const target = result.findings.find(f => f.ruleId === id);
+  if (!target) throw new Error(`no finding ${id} in this report (have: ${result.findings.map(f => f.ruleId).join(", ")})`);
+  if (!reason.trim()) throw new Error("an override needs a reason");
+  const from = target.override?.from ?? target.status;
+  const findings = result.findings.map(f => {
+    if (f !== target) return f;
+    const next: FudFinding = { ...f, override: { from, to, reason: reason.trim(), at: new Date().toISOString() } };
+    if (to === "hidden") return next;
+    next.status = to;
+    if (to === "pass" || to === "unassessed") {
+      next.pexti = null;
+      next.band = undefined;
+      next.recommendation = undefined;
+      next.exampleCopy = undefined;
+      next.evidence = { ...f.evidence, crop: null };
+    } else if (!next.pexti) {
+      // Promoted to an issue by a human: that is corroboration (P 3).
+      const rule = FUD_RULES.find(r => r.id === id);
+      if (rule) {
+        next.pexti = computePexti({ status: to, signal: to === "fail" ? "absent" : "elsewhere", rule, leak: false });
+        next.band = next.pexti ? band(next.pexti.score) : undefined;
+      }
+    }
+    return next;
+  });
+  const sorted = sortFindings(findings);
+  const { score, assessed, applicable } = frictionScore(visibleFindings({ ...result, findings: sorted }).map(f => f.status));
+  return { ...result, findings: sorted, score, assessed, applicable };
+}
+
+/** Findings the report shows: everything a reviewer hasn't hidden. */
+export function visibleFindings(result: FudResult): FudFinding[] {
+  return result.findings.filter(f => f.override?.to !== "hidden");
 }

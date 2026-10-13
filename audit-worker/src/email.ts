@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import type { CategoryKey } from "./types.js";
+import type { CategoryKey, FudResult } from "./types.js";
 
 // Human phrase per category, in a fixed display order — GA4/GTM first when
 // present since they're the higher-intent "we connected your tools" story,
@@ -52,6 +52,20 @@ export interface SendAuditEmailOptions {
   // that lands in a real inbox can never be mistaken for a reviewed,
   // client-ready audit.
   isTest?: boolean;
+  // Up to two purchase-friction quick wins (the owner-facing one-liners from
+  // the FUD pass), shown as a short "two things your shoppers notice" list
+  // so the email itself gives a reason to open the report. Omitted, or
+  // empty, when the pass didn't run or found no quick wins.
+  frictionWins?: string[];
+}
+
+/** The quick wins worth a line in the client email, from a saved result. */
+export function frictionWinsOf(fud: FudResult | { error: string } | null | undefined): string[] {
+  if (!fud || !("findings" in fud)) return [];
+  return fud.findings
+    .filter(f => f.override?.to !== "hidden" && (f.status === "fail" || f.status === "warn") && f.band === "quick_win")
+    .slice(0, 2)
+    .map(f => f.business.summary);
 }
 
 export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void> {
@@ -68,6 +82,7 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
   const name = opts.businessName ? escapeHtml(opts.businessName) : null;
   const website = escapeHtml(opts.website.replace(/^https?:\/\//, "").replace(/\/$/, ""));
   const coverage = coverageSentence(opts.categoriesAudited) || "website";
+  const wins = (opts.frictionWins ?? []).slice(0, 2);
   const p = "color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px;";
   const button = (href: string, label: string, primary: boolean) =>
     `<a href="${href}" style="display: inline-block; background: ${primary ? "#263328" : "#6ae499"}; color: ${primary ? "#ffffff" : "#0e1a10"}; font-weight: bold; font-size: 15px; text-decoration: none; padding: 14px 24px; border-radius: 999px;">${label}</a>`;
@@ -91,6 +106,11 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
         <p style="${p}">
           ${opts.reportUrl ? "Grab a coffee and have a look. It is written in plain language, so you do not need to be technical to follow it." : "Your full report is attached to this email. It is written in plain language, so you do not need to be technical to follow it."}
         </p>
+        ${wins.length ? `<p style="${p}">${wins.length === 1 ? "One thing your shoppers notice before they buy:" : "Two things your shoppers notice before they buy:"}</p>
+        <ul style="color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px; padding-left: 20px;">
+          ${wins.map(w => `<li>${escapeHtml(w)}</li>`).join("")}
+        </ul>
+        <p style="${p}">${wins.length === 1 ? "It is" : "Both are"} quick to fix, and the report shows exactly where and what to write.</p>` : ""}
         ${opts.reportUrl ? `<p style="margin: 24px 0 32px;">${button(opts.reportUrl, "See my audit", true)}</p>` : ""}
         <h2 style="color: #263328; font-size: 18px; margin: 8px 0 12px;">So, what's next?</h2>
         <p style="${p}">

@@ -29,8 +29,8 @@ import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
-import { fudPassEnabled, isFudResult, runFudPass } from "./fud/index.js";
-import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
+import { isFudResult, runFrictionStage } from "./fud/index.js";
+import { frictionWinsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
 import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
 import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
@@ -178,17 +178,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   // FUD_PASS=off|test|all. Real FAILs only on test runs or with
   // FUD_ALLOW_FAIL=true; live runs ship them as WARN until the rules are
   // calibrated (rollout phase 2).
-  if (progress.fud === undefined && fudPassEnabled(row)) {
-    progress.fud = await runFudPass({
-      website: row.website,
-      discoveredPages: progress.discoveredPages ?? [],
-      ga4Metrics: progress.ga4Metrics ?? null,
-      jobId: row.id,
-      allowFail: row.is_test || process.env.FUD_ALLOW_FAIL === "true",
-    });
-    if (!isFudResult(progress.fud)) console.warn(`[audit-worker] Friction pass unavailable for ${row.id}: ${progress.fud.error}`);
-    await save();
-  }
+  await runFrictionStage(row, progress, save);
 
   const categories = progress.categories!;
   const { earned, possible } = computeOverallPoints(categories);
@@ -243,7 +233,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   if (row.is_test) {
     if (!progress.testEmailSent) {
       await ensureLease();
-      await sendAuditEmail({ to: row.email, website: row.website, businessName: row.business_name, reportUrl, categoriesAudited, isTest: true });
+      await sendAuditEmail({ to: row.email, website: row.website, businessName: row.business_name, reportUrl, categoriesAudited, isTest: true, frictionWins: frictionWinsOf(result.fud) });
       progress.testEmailSent = true;
       await save();
     }
@@ -272,7 +262,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
       reportUrl,
       approveUrl,
       slug: progress.slug ?? "",
-      frictionFails: result.fud?.findings.filter(f => f.status === "fail").map(f => `${f.ruleId} — ${f.business.summary}`),
+      frictionFails: result.fud?.findings.filter(f => f.status === "fail" && f.override?.to !== "hidden").map(f => `${f.ruleId} — ${f.business.summary}`),
     });
     progress.reviewEmailSent = true;
     await save();
@@ -412,6 +402,9 @@ async function processDueSends(): Promise<void> {
         businessName: row.business_name,
         reportUrl: row.report_url ?? undefined,
         categoriesAudited: row.categories_audited ?? [],
+        // From the saved progress, so a reviewer's overrides (fud-override)
+        // made before the send are respected.
+        frictionWins: frictionWinsOf(row.progress?.fud),
       });
       await markSentToClient(row.id);
       console.log(`[audit-worker] Sent to client ${row.id} (${row.email}), scheduled for ${row.scheduled_send_at}`);

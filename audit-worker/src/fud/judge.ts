@@ -59,6 +59,7 @@ function pageBlock(p: PageEvidence): string {
     p.jsonLd.types.length ? `schema.org: ${p.jsonLd.types.join(", ")}${p.jsonLd.ratingValue ? `; rating ${p.jsonLd.ratingValue} (${p.jsonLd.reviewCount ?? "?"} reviews)` : ""}${p.jsonLd.availability ? `; availability ${p.jsonLd.availability}` : ""}` : "",
     p.policyLinks.length ? `links: ${p.policyLinks.map(l => `${l.kind}="${l.text}"`).join(", ")}` : "links: none of shipping/returns/contact/about/faq found",
     p.variants ? `variants: ${p.variants.hasSize ? `sold in sizes, chosen via ${p.variants.control}` : "no size options"}${p.variants.groups.length ? ` (groups: ${p.variants.groups.join(", ")})` : ""}` : "",
+    p.listing ? `product cards counted on this page: ${p.listing.cards}; with a price: ${p.listing.withPrice}; with a rating: ${p.listing.withRating}; with a quick-add button: ${p.listing.quickAdd}${p.listing.quickAddLabels.length ? ` (labels: ${p.listing.quickAddLabels.map(l => `«${l}»`).join(", ")})` : ""}; filter control: ${p.listing.hasFilter ? "yes" : "no"}; sort control: ${p.listing.hasSort ? "yes" : "no"}; category links above the grid: ${p.listing.pills}` : "",
     p.cart ? `cart source: ${p.cart.source}${p.cart.empty ? " — EMPTY, the item could not be added" : " — holds the added item"}` : "",
   ].filter(Boolean);
   return `### ${p.pageType.toUpperCase()}\n${meta.join("\n")}\nVisible text (in reading order; |fold = on the first phone screen, |img = image/icon label):\n${lines.join("\n")}\n`;
@@ -86,7 +87,7 @@ export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: F
 
   return `You are a senior CRO consultant reviewing an e-commerce store for purchase friction: the fears, uncertainties and doubts (FUDs) that stop a shopper from buying. The store sells in ${marketHint(evidence.website)}. Shoppers there commonly expect cash on delivery, local installment providers (Tabby, Tamara, valU, Sympl, Souhoola), WhatsApp support, and Arabic or bilingual copy — treat these as valid answers to the rules.
 
-Below is everything a real phone visit (390px wide) captured from the store's homepage, one product page, and the cart after adding one item. Each text block has an id in brackets. You cannot browse; judge only from this evidence.
+Below is everything a real phone visit (390px wide) captured from the store's homepage, one product page, the cart after adding one item, and one collection page. Each text block has an id in brackets. You cannot browse; judge only from this evidence.
 
 RULES TO JUDGE
 ${rules.length ? ruleText : "(none)"}
@@ -159,6 +160,64 @@ export function parseVerdicts(raw: unknown): JudgeVerdict[] {
   return out;
 }
 
+/**
+ * Escapes double quotes (and raw line breaks) that sit inside a JSON string
+ * value. A quote is taken as the real end of a string only when what follows
+ * it is JSON structure (, : } ] or the end); any other quote is content.
+ * A heuristic, so the result still has to pass JSON.parse.
+ */
+export function repairJsonQuotes(text: string): string {
+  const BACKSLASH = String.fromCharCode(92);
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const code = text.charCodeAt(i);
+    if (!inString) {
+      out += ch;
+      if (ch === '"') inString = true;
+      continue;
+    }
+    if (ch === BACKSLASH) {
+      out += ch + (text[i + 1] ?? "");
+      i++;
+    } else if (code === 10) {
+      out += BACKSLASH + "n";
+    } else if (code === 13) {
+      // dropped
+    } else if (code === 9) {
+      out += BACKSLASH + "t";
+    } else if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j].trim() === "") j++;
+      const next = text[j];
+      if (next === undefined || next === "," || next === ":" || next === "}" || next === "]") {
+        out += ch;
+        inString = false;
+      } else {
+        out += BACKSLASH + '"';
+      }
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+function tryRepair(raw: string): JudgeVerdict[] | null {
+  try {
+    const inner: unknown = JSON.parse(raw)?.result;
+    if (typeof inner !== "string") return null;
+    const start = inner.indexOf("{");
+    const end = inner.lastIndexOf("}");
+    if (start < 0 || end <= start) return null;
+    const verdicts = parseVerdicts(JSON.parse(repairJsonQuotes(inner.slice(start, end + 1))));
+    return verdicts.length > 0 ? verdicts : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function runJudge(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined, jobId: string): Promise<JudgeVerdict[]> {
   if (rules.length === 0) return [];
   const mcp = await buildMcpConfig(`${jobId}-fud`, { ga4Admin: false, gtm: false, browser: false });
@@ -179,6 +238,13 @@ export async function runJudge(evidence: StoreEvidence, rules: Array<{ rule: Fud
       try {
         return parseVerdicts(extractJsonPayload(raw));
       } catch (err) {
+        // Before paying for a second call, try the cheap fix: the usual
+        // breakage is a bare double quote inside a text value.
+        const repaired = tryRepair(raw);
+        if (repaired) {
+          console.warn("[audit-worker] FUD judge JSON needed a quote repair; no retry needed.");
+          return repaired;
+        }
         if (process.env.FUD_DEBUG_DIR) {
           await writeFile(path.join(process.env.FUD_DEBUG_DIR, `fud-judge-raw-${jobId}-${attempt}.json`), raw, "utf8").catch(() => {});
         }

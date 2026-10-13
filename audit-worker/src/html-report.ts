@@ -696,6 +696,19 @@ const FUD_PAGE_LABEL: Record<FudPageType, [string, string]> = {
   home: ["homepage", "الصفحة الرئيسية"],
   product: ["product page", "صفحة المنتج"],
   cart: ["cart", "سلة التسوق"],
+  collection: ["collection page", "صفحة المجموعة"],
+};
+// Detector-based note on how the same check looks on a desktop screen (the
+// findings themselves are judged on the phone visit — see FudFinding.desktop).
+const FUD_DESKTOP_NOTE: Record<"issue" | "pass", Partial<Record<NonNullable<FudFinding["desktop"]>, [string, string]>>> = {
+  issue: {
+    same: ["On desktop: the same gap.", "على سطح المكتب: الفجوة نفسها."],
+    better: ["On desktop this looks in place, so it is mainly a phone problem.", "على سطح المكتب يبدو هذا في مكانه، فالمشكلة في الهاتف أساسًا."],
+    worse: ["On desktop it is further from where shoppers need it than on the phone.", "على سطح المكتب يبتعد هذا عن المكان الذي يحتاجه المتسوق أكثر من الهاتف."],
+  },
+  pass: {
+    worse: ["On desktop we did not find this in the same place. Worth a look on a large screen.", "على سطح المكتب لم نجد هذا في المكان نفسه. يستحق المراجعة على شاشة كبيرة."],
+  },
 };
 const FUNNEL_STEP_TEXT: Partial<Record<string, [string, string]>> = {
   "view_item>add_to_cart": ["of product views led to an add to cart", "من مشاهدات المنتجات انتهت بالإضافة إلى السلة"],
@@ -721,6 +734,8 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null): st
   const funnel = f.funnel && step
     ? `<p class="fud-funnel">${bi(`Your GA4: only ${pct}% ${step[0]} in the last ${days} days.`, `بيانات GA4 لديك: ${pct}% فقط ${step[1]} خلال آخر ${days} يومًا.`)}</p>`
     : "";
+  const desktopText = f.desktop ? FUD_DESKTOP_NOTE[issue ? "issue" : "pass"][f.desktop] : undefined;
+  const desktopNote = desktopText ? `<p class="fud-desktop">${bi(desktopText[0], desktopText[1])}</p>` : "";
   const rec = issue && f.recommendation
     ? `<p class="fud-rec">${biHtml(`<b>What to change:</b> ${escapeHtml(f.recommendation)}`, `<b>ما الذي يجب تغييره:</b> ${escapeHtml(ar.recommendation ?? f.recommendation)}`)}</p>`
     : "";
@@ -764,6 +779,7 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null): st
                   ${voice(f.technical.detail, "voice-technical", false)}
                   ${voice(ar.technical.detail, "voice-technical", true)}
                   ${funnel}
+                  ${desktopNote}
                   ${rec}
                   ${copy}
                   ${crop}
@@ -777,12 +793,15 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null): st
 function frictionSectionHtml(result: AuditResult): string {
   const fud = result.fud;
   if (!fud || fud.assessed === 0) return "";
-  const issues = fud.findings.filter(f => f.status === "fail" || f.status === "warn");
+  // A reviewer can hide a finding (npm run fud-override); it then leaves the
+  // report and the score, but stays in the saved result for calibration.
+  const shown = fud.findings.filter(f => f.override?.to !== "hidden");
+  const issues = shown.filter(f => f.status === "fail" || f.status === "warn");
   const quick = issues.filter(f => f.band === "quick_win").slice(0, 3);
   const quickIds = new Set(quick.map(f => f.ruleId));
   const rest = issues.filter(f => !quickIds.has(f.ruleId));
-  const working = fud.findings.filter(f => f.status === "pass");
-  const unassessed = fud.findings.filter(f => f.status === "unassessed");
+  const working = shown.filter(f => f.status === "pass");
+  const unassessed = shown.filter(f => f.status === "unassessed");
   const periodDays = result.ga4Metrics?.periodDays ?? null;
 
   const scanned = fud.pagesSampled.filter(p => p.loaded).map(p => FUD_PAGE_LABEL[p.pageType]);
@@ -818,8 +837,8 @@ function frictionSectionHtml(result: AuditResult): string {
 
   const notChecked = unassessed.length
     ? `<p class="fud-note">${bi(
-        `Not checked this time: ${unassessed.map(f => f.ruleId).join(", ")} — the page or cart we needed couldn't be reached.`,
-        `لم يتم فحصها هذه المرة: ${unassessed.map(f => f.ruleId).join("، ")} — تعذّر الوصول إلى الصفحة أو السلة المطلوبة.`,
+        `Not confirmed this time: ${unassessed.map(f => f.ruleId).join(", ")} — we couldn't reach the page, or couldn't tell with enough certainty.`,
+        `لم يتم تأكيدها هذه المرة: ${unassessed.map(f => f.ruleId).join("، ")} — تعذّر الوصول إلى الصفحة أو لم نتمكن من التأكد بدرجة كافية.`,
       )}</p>`
     : "";
 
@@ -1225,7 +1244,7 @@ function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>,
       : ["numbers", "Your numbers", "أرقامك", "ok"]);
   }
   if (has.friction && result.fud) {
-    const issues = result.fud.findings.filter(f => f.status === "fail" || f.status === "warn").length;
+    const issues = result.fud.findings.filter(f => f.override?.to !== "hidden" && (f.status === "fail" || f.status === "warn")).length;
     stops.push(["friction", `${issues} purchase doubts`, `${issues} من عوائق الشراء`, issues > 0 ? "bad" : "ok"]);
   }
   stops.push(["checks", `${counts.failed} need work`, `${counts.failed} تحتاج إصلاحًا`, counts.failed > 0 ? "bad" : "ok"]);
@@ -1503,6 +1522,7 @@ p{margin:0; text-wrap:pretty}
 .fud .check-titles .fud-band{display:inline-block; margin-top:6px; font-size:13px; font-weight:600; color:var(--ink-3)}
 .fud-band--quick_win{color:var(--green-ink) !important}
 .fud-funnel{font-weight:600; color:var(--amber-ink) !important}
+.fud-desktop{font-size:14px !important; color:var(--ink-3) !important}
 .fud-rec{color:var(--ink) !important}
 .fud-rec b{font-weight:600}
 .fud-copy{margin-top:14px; padding:14px 16px; border-radius:10px; background:var(--bg); border:1px solid var(--line-strong); max-width:68ch}

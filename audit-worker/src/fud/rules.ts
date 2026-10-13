@@ -12,7 +12,7 @@ import { anyBlock, hasWidget, matches, nearCta, pageText, type PatternKey } from
  * Bump RULE_SET_VERSION whenever a rule's wording, signal or defaults change
  * — every finding carries it, so results stay comparable over time.
  */
-export const RULE_SET_VERSION = "fud-1.0.0";
+export const RULE_SET_VERSION = "fud-1.1.0";
 
 /**
  * Deterministic second opinion on one rule (score.ts's gate):
@@ -45,6 +45,9 @@ export interface FudRule {
   funnel: { from: Ga4FunnelEvent; to: Ga4FunnelEvent } | null;
   // false = never shown as FAIL, at most WARN (can't be verified well enough).
   autoFail: boolean;
+  // The answer depends on where things sit on the page, so it can differ
+  // between a phone and a desktop screen (index.ts's desktop comparison).
+  layout?: boolean;
   // Only evaluated when this returns true (e.g. size guide only for products
   // that come in sizes). Absent = always applicable.
   applies?: (e: StoreEvidence) => boolean;
@@ -97,6 +100,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "A2",
+    layout: true,
     pageType: "product",
     needs: ["product"],
     crop: "cta",
@@ -140,6 +144,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "A4",
+    layout: true,
     pageType: "product",
     needs: ["product"],
     crop: "cta",
@@ -163,6 +168,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "B1",
+    layout: true,
     pageType: "product",
     needs: ["product"],
     crop: "cta",
@@ -185,6 +191,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "B4",
+    layout: true,
     pageType: "product",
     needs: ["product"],
     crop: "cta",
@@ -206,6 +213,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "B5",
+    layout: true,
     pageType: "product",
     needs: ["product"],
     crop: "cta",
@@ -229,6 +237,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "C1",
+    layout: true,
     pageType: "product",
     needs: ["home", "product"],
     crop: "fold",
@@ -313,6 +322,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "D1",
+    layout: true,
     pageType: "product",
     needs: ["product"],
     crop: "cta",
@@ -357,6 +367,7 @@ export const FUD_RULES: FudRule[] = [
   },
   {
     id: "D3",
+    layout: true,
     pageType: "product",
     needs: ["home", "product"],
     crop: "fold",
@@ -376,6 +387,72 @@ export const FUD_RULES: FudRule[] = [
       if (reachable(product)) return "present";
       if (reachable(home) || [home, product].some(p => has(p, "support") || p?.policyLinks.some(l => l.kind === "contact"))) return "elsewhere";
       return "absent";
+    },
+  },
+  {
+    id: "C6",
+    pageType: "collection",
+    needs: ["collection"],
+    crop: "fold",
+    title: { en: "Product cards show price and proof", ar: "بطاقات المنتجات تعرض السعر والتقييم" },
+    question: "On the collection page, does each product card give a shopper enough to choose — a clear price, a star rating with a review count, and useful tags (bestseller, sale, key benefit)?",
+    pass: "Cards show a clear price and most show a rating with a count; tags help where relevant.",
+    warn: "Price is there but no ratings on the cards (even though the store has reviews), or cards are inconsistent.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 3, C: 4, T: 3, I: 3,
+    funnel: null,
+    autoFail: false,
+    applies: e => (pageOf(e, "collection")?.listing?.cards ?? 0) >= 4,
+    signal: e => {
+      const l = pageOf(e, "collection")?.listing;
+      if (!l) return "unknown";
+      const price = l.withPrice / l.cards >= 0.8;
+      const rating = l.withRating / l.cards >= 0.5;
+      if (price && rating) return "present";
+      return price ? "elsewhere" : "absent";
+    },
+  },
+  {
+    id: "D4",
+    pageType: "collection",
+    needs: ["collection"],
+    crop: "fold",
+    title: { en: "Easy to narrow down the products", ar: "سهولة تضييق اختيار المنتجات" },
+    question: "With this many products, can a phone shopper narrow them down quickly — filter, sort, or one-tap category pills above the grid — without opening the main menu?",
+    pass: "Filter and/or sort controls, or category pills, are visible above the product grid.",
+    warn: "Only one weak control (e.g. sort hidden in a dropdown), or controls exist but sit below the fold.",
+    fail: "A long product list with no filter, sort or category shortcuts at all.",
+    E: 3, C: 4, T: 3, I: 3,
+    funnel: null,
+    autoFail: true,
+    // A short catalogue doesn't need filters.
+    applies: e => (pageOf(e, "collection")?.listing?.cards ?? 0) >= 12,
+    signal: e => {
+      const l = pageOf(e, "collection")?.listing;
+      if (!l) return "unknown";
+      const controls = Number(l.hasFilter) + Number(l.hasSort) + Number(l.pills >= 3);
+      if (controls >= 2) return "present";
+      return controls === 1 ? "elsewhere" : "absent";
+    },
+  },
+  {
+    id: "D5",
+    pageType: "collection",
+    needs: ["collection"],
+    crop: "fold",
+    title: { en: "Quick-add buttons say the same thing", ar: "أزرار الإضافة السريعة موحّدة" },
+    question: "Do the quick-add buttons on the product cards use one consistent label and behave predictably (e.g. always 'Add to cart', or always 'Choose options' for products with variants)?",
+    pass: "One label (or a clear two-label split between simple and variant products).",
+    warn: "Three or more different labels across cards, or labels that don't say what will happen.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 5, T: 5, I: 2,
+    funnel: null,
+    autoFail: false,
+    applies: e => (pageOf(e, "collection")?.listing?.quickAdd ?? 0) >= 3,
+    signal: e => {
+      const l = pageOf(e, "collection")?.listing;
+      if (!l || l.quickAdd === 0) return "unknown";
+      return l.quickAddLabels.length <= 2 ? "present" : "elsewhere";
     },
   },
 ];
