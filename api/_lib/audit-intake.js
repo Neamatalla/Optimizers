@@ -18,11 +18,10 @@
 //      lookup, and the loser's insert is rejected by Postgres. Callers turn
 //      that rejection into the same 409 (see isUniqueViolation below).
 //
-// Both normalizers below MUST stay in step with the backfill expressions in
-// supabase/migrations/2026-09-09-2-schema-upgrades.sql — the indexes are on
-// the stored columns, so a row
-// written with different normalization than an existing one simply won't
-// collide with it.
+// Changing either normalizer below means re-normalizing the stored
+// email_normalized/website_hostname values too — the indexes are on the
+// stored columns, so a row written with different normalization than an
+// existing one simply won't collide with it.
 
 // Who gets told about a new audit request. This is the audit REVIEWER —
 // the person who later reviews the finished report and clicks the approve

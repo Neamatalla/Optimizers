@@ -1,32 +1,25 @@
 # Supabase
 
-Two kinds of files live here:
-
-- **`schema.sql`**: the baseline. The complete current schema in one script, for a **new** project only.
-- **`migrations/`**: every change since, one dated file each, for bringing an **existing** project up to date.
+- **`schema.sql`**: the baseline. The complete current schema in one script. Staging and production are both at exactly this state, as of 2026-10-13.
+- **`migrations/`**: changes made after that baseline, one dated file each. Empty until the next schema or data change.
 
 ## New project
-Run `schema.sql` once in the SQL Editor (New query → paste → Run). Its header says which migration it includes up to; apply only the migrations dated after that.
+Run `schema.sql` once in the SQL Editor (New query → paste → Run), then apply anything in `migrations/`.
 
-## Existing project
-Apply each migration not yet applied there, in filename order. Each file's header says how.
-- **`.sql` files:** paste into the SQL Editor.
-- **`.md` files:** data changes made by a script; the file names the command.
-
-All SQL migrations are idempotent, so re-running one is harmless.
-
-## Adding a change
-1. Add `migrations/YYYY-MM-DD-short-name.sql` (or `.md` for a scripted data change). If two land on the same day, number them: `YYYY-MM-DD-1-…`, `YYYY-MM-DD-2-…`.
-2. Fold any schema change into `schema.sql` as well, and update the "includes every migration up to" line in its header.
+## Making a change
+1. Add `migrations/YYYY-MM-DD-short-name.sql`. Use `.md` instead for a data change made by a script, naming the command. Number same-day files: `YYYY-MM-DD-1-…`, `YYYY-MM-DD-2-…`.
+2. Fold any schema change into `schema.sql` as well, so it stays the full current state.
 3. Add a row to the log below, and tick each project once it's applied there.
+
+Once every project has a migration and it's folded into `schema.sql`, the file can be deleted, leaving a one-line summary under History. Git keeps the original.
 
 ## Migration log
 | Migration | What | Staging | Production |
 |---|---|---|---|
-| `2026-09-09-1-cutover-cleanup.sql` | One-off data cleanup before the one-audit limit (marks pre-cutover rows as tests) | ✅ | n/a, created after |
-| `2026-09-09-2-schema-upgrades.sql` | Review/delayed-send columns, one-audit-per-site/email indexes, test mode, `report_pages.bucket` | ✅ | n/a, in baseline |
-| `2026-09-28-job-queue.sql` | Leases, attempt counting, per-stage `progress` | ✅ | n/a, in baseline |
-| `2026-10-13-1-clean-report-slugs.md` | Report slugs → domain only (`test_` for test runs), Storage files moved | ✅ 2026-10-13 | ✅ 2026-10-13 (all test reports dropped) |
-| `2026-10-13-2-production-prelaunch-wipe.md` | Every row deleted from production before launch (all test data) | n/a | ✅ 2026-10-13 |
+| — | | | |
 
-The production column assumes production was created from the baseline. If it was built from the older files instead, the first three are applied there the same way.
+## History (squashed into the baseline)
+Full files are in git history before the 2026-10-13 squash.
+- **2026-09-09:** one free audit per site/email (partial unique indexes), test mode, internal review and delayed send, `report_pages.bucket`. Pre-cutover internal rows were marked as tests.
+- **2026-09-28:** job queue: `attempts`, `locked_by`, `heartbeat_at`, `progress`.
+- **2026-10-13:** report slugs became the domain only (`test_` prefix for test runs), and existing reports were renamed on staging. Production was wiped before launch: all rows, and both report buckets emptied.

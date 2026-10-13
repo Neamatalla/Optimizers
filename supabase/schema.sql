@@ -1,8 +1,7 @@
--- Baseline schema: the complete current state, for a NEW Supabase project
--- only (SQL Editor -> New query -> paste -> Run). An existing project is
--- brought up to date with the files in supabase/migrations/ instead — see
--- supabase/README.md. Includes every migration up to and including
--- 2026-10-13.
+-- Baseline schema as of 2026-10-13: the complete current state, for a NEW
+-- Supabase project (SQL Editor -> New query -> paste -> Run). Staging and
+-- production are both at exactly this state. Later changes go in
+-- supabase/migrations/ — see supabase/README.md.
 
 -- ---------------------------------------------------------------------------
 -- audit_requests: the queue the Vercel capture endpoint (api/audit-request.js)
@@ -68,9 +67,19 @@ create table if not exists audit_requests (
   -- delay. The worker reads the flag long after intake to pick the bucket
   -- and delivery path (audit-worker/src/poll.ts).
   is_test boolean not null default false,
-  -- Job queue resilience (see migrations/2026-09-28-job-queue.sql for what
-  -- each column does): attempt counting, the worker's lease, and per-stage
-  -- saved progress so a retry resumes where the last attempt stopped.
+  -- Job queue resilience (see audit-worker/src/poll.ts):
+  --   attempts      Real attempts used, incremented when a worker claims the
+  --                 row. Rate-limit bounces give theirs back. The worker gives
+  --                 up (status 'failed', reviewer emailed) at MAX_ATTEMPTS.
+  --   locked_by     Which worker holds the row while it is 'processing'.
+  --   heartbeat_at  Refreshed every minute by that worker. A 'processing' row
+  --                 whose heartbeat is older than the lease (10 min) belongs to
+  --                 a worker that died, and any worker may reclaim it.
+  --   progress      Saved output of each finished stage (audit result,
+  --                 translation, published report, emails sent), so a retry
+  --                 resumes where the last attempt stopped instead of
+  --                 re-running the expensive claude -p audit or sending an
+  --                 email twice.
   attempts integer not null default 0,
   locked_by text,
   heartbeat_at timestamptz,

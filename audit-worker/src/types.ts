@@ -62,7 +62,7 @@ export interface AuditRequestRow {
   // longer has the AuditResult in scope), for the client email's coverage
   // sentence. Null until the audit completes.
   categories_audited: CategoryKey[] | null;
-  // Job-queue bookkeeping (supabase/migrations/2026-09-28-job-queue.sql).
+  // Job-queue bookkeeping (supabase/schema.sql).
   // attempts counts real attempts (incremented at claim); locked_by and
   // heartbeat_at form the lease a live worker keeps refreshing.
   attempts: number;

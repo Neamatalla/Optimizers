@@ -97,9 +97,7 @@ container starts polling.
   It refuses rows already awaiting approval, scheduled or done unless you add
   `--force`.
 
-Upgrading an existing project: run
-`supabase/migrations/2026-09-28-job-queue.sql` once in the Supabase SQL editor
-before starting a worker built from this version.
+Database setup and schema changes: see `supabase/README.md`.
 
 ## Running in Docker
 
