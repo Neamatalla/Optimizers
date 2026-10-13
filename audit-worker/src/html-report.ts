@@ -843,56 +843,6 @@ function insightsHtml(fud: NonNullable<AuditResult["fud"]>): string {
         </div>`;
 }
 
-const STATUS_WORD: Record<string, [string, string]> = {
-  pass: ["Working", "يعمل"],
-  warn: ["Needs work", "يحتاج تحسينًا"],
-  fail: ["Missing", "غير موجود"],
-  unassessed: ["Not checked", "لم يُفحص"],
-};
-
-// "You vs them": the same rules on the competitor the visitor named.
-function competitorHtml(fud: NonNullable<AuditResult["fud"]>): string {
-  const c = fud.competitor;
-  if (!c || "error" in c) return "";
-  const host = escapeHtml(hostOf(c.website));
-  const rank = (st?: string) => (st === "pass" ? 2 : st === "warn" ? 1 : st === "fail" ? 0 : -1);
-  const rows = fud.findings
-    .filter(f => f.override?.to !== "hidden")
-    .filter(f => f.status !== "unassessed" || (c.statuses[f.ruleId] && c.statuses[f.ruleId] !== "unassessed"))
-    .map(f => {
-      const theirs = c.statuses[f.ruleId];
-      const rule = ruleById(f.ruleId);
-      const title = rule ? rule.title : { en: f.ruleId, ar: f.ruleId };
-      const behind = rank(theirs) > rank(f.status) && rank(f.status) >= 0;
-      const ahead = rank(f.status) > rank(theirs) && rank(theirs) >= 0;
-      const cell = (st?: string) => (st ? `<span class="fud-cmp fud-cmp--${st}">${bi(STATUS_WORD[st][0], STATUS_WORD[st][1])}</span>` : "—");
-      return `
-              <tr class="${behind ? "is-behind" : ahead ? "is-ahead" : ""}">
-                <th scope="row">${bi(title.en, title.ar)}</th>
-                <td>${cell(f.status)}</td>
-                <td>${cell(theirs)}</td>
-              </tr>`;
-    })
-    .join("");
-  if (!rows) return "";
-  const ahead = fud.findings.filter(f => rank(f.status) > rank(c.statuses[f.ruleId]) && rank(c.statuses[f.ruleId]) >= 0).length;
-  const behind = fud.findings.filter(f => rank(c.statuses[f.ruleId]) > rank(f.status) && rank(f.status) >= 0).length;
-  return `
-        <div class="fud-compare">
-          <h3>${bi(`You vs ${hostOf(c.website)}`, `متجرك مقابل ${hostOf(c.website)}`)}</h3>
-          <p class="section-lead">${bi(
-            `We ran the same checks on ${hostOf(c.website)}. You are ahead on ${ahead} and behind on ${behind}${fud.score !== null && c.score !== null ? ` (score ${fud.score} vs ${c.score})` : ""}. Rows where they do better are highlighted.`,
-            `طبقنا الفحوصات نفسها على ${hostOf(c.website)}. أنت متقدم في ${ahead} ومتأخر في ${behind}${fud.score !== null && c.score !== null ? ` (المؤشر ${fud.score} مقابل ${c.score})` : ""}. الصفوف التي يتفوق فيها المنافس مميزة.`,
-          )}</p>
-          <div class="fud-compare-wrap">
-            <table class="fud-compare-table">
-              <thead><tr><th scope="col">${bi("Check", "البند")}</th><th scope="col">${bi("Your store", "متجرك")}</th><th scope="col" dir="ltr">${host}</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-        </div>`;
-}
-
 function frictionSectionHtml(result: AuditResult): string {
   const fud = result.fud;
   if (!fud || fud.assessed === 0) return "";
@@ -950,7 +900,6 @@ function frictionSectionHtml(result: AuditResult): string {
         ${group(quick.length ? "Also worth improving" : "Worth improving", quick.length ? "تستحق التحسين أيضًا" : "تستحق التحسين", rest, false)}
         ${!issues.length ? `<p class="fud-note">${bi("Nothing stood out on the pages we checked.", "لم يظهر ما يستدعي التحسين في الصفحات التي فحصناها.")}</p>` : ""}
         ${workingFold}
-        ${competitorHtml(fud)}
         ${notChecked}
       </section>`;
 }
@@ -1638,22 +1587,7 @@ p{margin:0; text-wrap:pretty}
 .fud-insight--good .fud-insight-tag{color:var(--green-ink)}
 .fud-insight--bad .fud-insight-tag{color:var(--amber-ink)}
 .fud-insight--neutral .fud-insight-tag{color:var(--ink-3)}
-.fud-compare{margin-top:40px}
-.fud-compare h3{font-family:var(--display); font-size:18px; font-weight:600}
-.fud-compare-wrap{margin-top:16px; overflow-x:auto; border:1px solid var(--line-strong); border-radius:12px}
-.fud-compare-table{width:100%; border-collapse:collapse; font-size:15px}
-.fud-compare-table th, .fud-compare-table td{padding:12px 16px; text-align:start; border-bottom:1px solid var(--line); vertical-align:top}
-.fud-compare-table thead th{font-size:13px; font-weight:600; color:var(--ink-3)}
-.fud-compare-table tbody th{font-weight:500; color:var(--ink)}
-.fud-compare-table tr:last-child th, .fud-compare-table tr:last-child td{border-bottom:0}
-.fud-compare-table tr.is-behind{background:var(--amber-tint)}
-.fud-compare-table tr.is-ahead{background:var(--green-tint)}
-.fud-cmp{font-weight:600; white-space:nowrap}
-.fud-cmp--pass{color:var(--green-ink)}
-.fud-cmp--warn{color:var(--amber-ink)}
-.fud-cmp--fail{color:var(--red-ink)}
-.fud-cmp--unassessed{color:var(--ink-3); font-weight:500}
-@media (max-width:767px){ .fud-insight{grid-template-columns:1fr} .fud-money{padding:18px} .fud-compare-table th, .fud-compare-table td{padding:10px 12px} }
+@media (max-width:767px){ .fud-insight{grid-template-columns:1fr} .fud-money{padding:18px} }
 .fud .check-titles .fud-band{display:inline-block; margin-top:6px; font-size:13px; font-weight:600; color:var(--ink-3)}
 .fud-band--quick_win{color:var(--green-ink) !important}
 .fud-funnel{font-weight:600; color:var(--amber-ink) !important}

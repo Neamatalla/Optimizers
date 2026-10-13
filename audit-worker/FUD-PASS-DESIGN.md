@@ -501,11 +501,8 @@ falling back to the audit's GA4 summary. Revenue range = closing 25-50% of the g
 capped at 30% of current revenue. A step far below its benchmark is reported as a probable tracking
 gap, not money. A healthy funnel gets a "no broken step" line instead of an invented figure.
 
-**Competitor benchmark**: optional form field, stored as `progress.competitorUrl` at intake (no schema
-change; kept on `requeue --fresh`). Same collector and rules, one short status-only judge call, shown
-as a "You vs them" table. Like the client's store, the competitor's store gets one item added to a
-throwaway cart, with analytics hits blocked.
+First full run (tharaa.shop with its own GA4 data): 31/31 checks assessed, conversion score 79, 364
+analytics hits blocked and 0 not blocked. Run time added per audit: roughly 6-8 minutes.
 
-First full run (tharaa.shop with its own GA4 data, balqeshoney.com as competitor): 31/31 checks
-assessed, conversion score 79 vs 69, 364 analytics hits blocked and 0 not blocked. Run time added per
-audit: roughly 10-12 minutes with a competitor, 6-8 without.
+A competitor benchmark (same checks on a store the visitor names, shown as "You vs them") was built
+and then removed on 2026-10-13 at the owner's request.

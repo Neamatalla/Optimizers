@@ -1,7 +1,5 @@
 import type { FudFinding, FudResult, FudStatus, Ga4Metrics, JobProgress } from "../types.js";
 import { collectStoreEvidence } from "./collect.js";
-import { crawlWebsite } from "../crawl.js";
-import { discoverPages } from "../discover-pages.js";
 import { buildInsights } from "./insights.js";
 import { desktopView, pageOf, type StoreEvidence } from "./evidence.js";
 import { runJudge, type JudgeVerdict } from "./judge.js";
@@ -41,8 +39,6 @@ export interface RunFudPassOptions {
   // The raw GA4 reports the OAuth callback fetched (row.ga4_oauth_data), the
   // richest source for the money/segment insights. Optional.
   ga4OAuthData?: unknown;
-  // Optional competitor to benchmark with the same rules (status only).
-  competitorUrl?: string | null;
 }
 
 function unassessedReason(rule: FudRule, e: StoreEvidence): string | null {
@@ -174,7 +170,6 @@ export async function runFudPass(opts: RunFudPassOptions): Promise<FudResult | {
     const verdicts = await runJudge(evidence, toJudge, opts.ga4Metrics, opts.jobId);
     const result = assemble(evidence, verdicts, opts.ga4Metrics, opts.allowFail);
     result.insights = insights;
-    if (opts.competitorUrl) result.competitor = await benchmarkCompetitor(opts.competitorUrl, opts.jobId, opts.allowFail);
     console.log(`[audit-worker] FUD result: score ${result.score ?? "n/a"}, ${result.assessed}/${result.applicable} assessed, ${result.findings.filter(f => f.status === "fail").length} fail, ${result.findings.filter(f => f.status === "warn").length} warn`);
     return result;
   } catch (err) {
@@ -197,34 +192,6 @@ export function isFudResult(v: unknown): v is FudResult {
  * pass once per request, stores the result (or `{ error }`) on the saved
  * progress, and never throws. Returns true when it ran.
  */
-/**
- * The same rules on a competitor the visitor named: its own collector run
- * (one throwaway session, analytics blocked, one item in its cart) and one
- * short status-only judge call. Never throws — the comparison just goes
- * missing from the report.
- */
-export async function benchmarkCompetitor(url: string, jobId: string, allowFail: boolean): Promise<FudResult["competitor"]> {
-  try {
-    const site = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-    const crawl = await crawlWebsite(site);
-    const pages = await discoverPages(site, crawl.html);
-    const evidence = await collectStoreEvidence(site, pages, { desktop: true });
-    if (!evidence.pages.some(p => p.loaded)) return { website: site, error: "the competitor's site could not be loaded" };
-    const toJudge = FUD_RULES.filter(r => (!r.applies || r.applies(evidence)) && !unassessedReason(r, evidence)).map(rule => ({ rule, signal: rule.signal(evidence) }));
-    const verdicts = await runJudge(evidence, toJudge, null, `${jobId}-competitor`, { brief: true });
-    const res = assemble(evidence, verdicts, null, allowFail);
-    console.log(`[audit-worker] FUD competitor ${site}: score ${res.score ?? "n/a"}, ${res.assessed}/${res.applicable} assessed`);
-    return {
-      website: site,
-      score: res.score,
-      statuses: Object.fromEntries(res.findings.map(f => [f.ruleId, f.status])),
-      notes: Object.fromEntries(res.findings.filter(f => f.status !== "unassessed").map(f => [f.ruleId, f.business.summary])),
-    };
-  } catch (err) {
-    return { website: url, error: err instanceof Error ? err.message.slice(0, 300) : String(err) };
-  }
-}
-
 export async function runFrictionStage(
   row: { id: string; website: string; is_test: boolean; ga4_oauth_data?: unknown },
   progress: JobProgress,
@@ -240,7 +207,6 @@ export async function runFrictionStage(
       jobId: row.id,
       allowFail: row.is_test || process.env.FUD_ALLOW_FAIL === "true",
       ga4OAuthData: row.ga4_oauth_data ?? null,
-      competitorUrl: progress.competitorUrl ?? null,
     });
   } catch (err) {
     progress.fud = { error: err instanceof Error ? err.message.slice(0, 500) : String(err) };

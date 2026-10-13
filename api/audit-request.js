@@ -10,7 +10,6 @@ import {
   duplicateMessage,
   isBlockedAuditDomain,
   BLOCKED_DOMAIN_MESSAGE,
-  competitorProgress,
 } from "./_lib/audit-intake.js";
 
 const VALID_TOOLS = new Set(["GA4", "GTM"]);
@@ -38,7 +37,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, competitor } = req.body || {};
+    const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = req.body || {};
 
     // Strip the test-mode prefix (if any) FIRST, so everything below —
     // validation, normalization, dedupe, the stored row — works on the real
@@ -134,10 +133,6 @@ export default async function handler(req, res) {
         // needed for these fields. null if the visitor used the manual flow.
         ga4_oauth_data: ga4OAuthData ?? null,
         gtm_oauth_data: gtmOAuthData ?? null,
-        // Optional competitor for the purchase-friction benchmark. Kept in
-        // the worker's progress JSON so no schema change is needed
-        // (audit-worker/src/types.ts JobProgress.competitorUrl).
-        progress: competitorProgress(competitor, website),
         status: "pending",
       })
       .select()

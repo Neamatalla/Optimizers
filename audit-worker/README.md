@@ -195,7 +195,7 @@ Two things worth knowing before using it on a live site:
 
 ## Purchase-friction (FUD) pass
 
-An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that runs a CRO review of the store and adds a **Conversion review** section to the report: 31 checks across trust and cost (shipping, returns, cash on delivery, reviews, support), homepage clarity, product page layout (photos, option buttons, sticky buy button, organised details), navigation and search (including a live test search), order value (bundles, add-ons, free-shipping threshold vs average order), repeat purchases (signup, loyalty), local-market fit (Arabic, local payments and delivery) and popups. It also shows **Where the money is** (from the store's own GA4 data: a revenue range when a funnel step is below benchmark, device split, new vs returning, channels, weak landing pages) and, when the visitor names one in the form, **You vs competitor**: the same checks run on the competitor's store. Each finding has a PEXTI priority, ready-to-paste copy (EN + AR) and a crop of the store's own page.
+An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that runs a CRO review of the store and adds a **Conversion review** section to the report: 31 checks across trust and cost (shipping, returns, cash on delivery, reviews, support), homepage clarity, product page layout (photos, option buttons, sticky buy button, organised details), navigation and search (including a live test search), order value (bundles, add-ons, free-shipping threshold vs average order), repeat purchases (signup, loyalty), local-market fit (Arabic, local payments and delivery) and popups. It also shows **Where the money is** (from the store's own GA4 data: a revenue range when a funnel step is below benchmark, device split, new vs returning, channels, weak landing pages). Each finding has a PEXTI priority, ready-to-paste copy (EN + AR) and a crop of the store's own page.
 
 - Runs **after** the 50-check audit is saved. It never changes the 50-check score, and if it fails the report ships without the section.
 - `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
@@ -210,7 +210,7 @@ Commands:
 
 ```bash
 npm run fud-run -- https://store.com                 # one store: collect + judge, writes output/fud-<host>-result.json
-npm run fud-run -- https://store.com --request=<id> --competitor=https://rival.com   # with that request's GA4 data and a competitor
+npm run fud-run -- https://store.com --request=<id>   # with that audit request's GA4 data
 npm run fud-run -- https://store.com --collect-only  # browser only, no Claude call
 npm run preview-report -- --no-ar --fud=output/fud-<host>-result.json   # see it in a report
 npm test                                             # rule, gate, scoring, override and queue-stage tests

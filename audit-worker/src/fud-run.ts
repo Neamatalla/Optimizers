@@ -6,8 +6,8 @@
  *   npm run fud-run -- https://store.com                 collect + judge
  *   npm run fud-run -- https://store.com --collect-only  browser only, no Claude call
  *   npm run fud-run -- --evidence=output/fud-<host>-evidence.json   re-judge saved evidence
- *   add --competitor=<url> to benchmark a competitor, --request=<id> to use
- *   that audit request's GA4 data for the money/segment insights
+ *   add --request=<id> to use that audit request's GA4 data for the
+ *   money/segment insights
  *
  * Writes output/fud-<host>-evidence.json and output/fud-<host>-result.json
  * (gitignored). Render the result in a report with:
@@ -37,8 +37,6 @@ async function main() {
   const args = process.argv.slice(2);
   const evidenceFile = args.find(a => a.startsWith("--evidence="))?.split("=").slice(1).join("=");
   const collectOnly = args.includes("--collect-only");
-  // --competitor=<url> also benchmarks a competitor (status only).
-  const competitorUrl = args.find(a => a.startsWith("--competitor="))?.split("=").slice(1).join("=") || null;
   // --request=<id> reads that audit request's GA4 OAuth data from Supabase,
   // for the money/segment insights.
   const requestId = args.find(a => a.startsWith("--request="))?.split("=")[1];
@@ -84,7 +82,7 @@ async function main() {
     ga4Metrics = row?.progress?.ga4Metrics ?? null;
     console.log(`[fud-run] GA4 data from request ${row?.id ?? "(not found)"}`);
   }
-  const result = await runFudPass({ website: url!, discoveredPages: [], ga4Metrics, ga4OAuthData, jobId: `fud-run-${host}`, allowFail: true, evidence, competitorUrl });
+  const result = await runFudPass({ website: url!, discoveredPages: [], ga4Metrics, ga4OAuthData, jobId: `fud-run-${host}`, allowFail: true, evidence });
   const resultPath = path.join(outDir, `fud-${host}-result.json`);
   await writeFile(resultPath, JSON.stringify(result, null, 2), "utf8");
   if ("error" in result) {

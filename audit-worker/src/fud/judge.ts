@@ -111,7 +111,7 @@ function funnelBlock(ga4: Ga4Metrics | null | undefined): string {
   return `GA4 funnel, last ${ga4.periodDays} days (event counts): ${ga4.funnel.map(s => `${s.event}=${s.count}`).join(", ")}${ga4.conversionRate !== null ? `; conversion rate ${ga4.conversionRate}%` : ""}. Mention a figure only when it relates to the rule.`;
 }
 
-export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined, brief = false): string {
+export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined): string {
   const ruleText = rules
     .map(({ rule, signal }) =>
       [
@@ -125,31 +125,6 @@ export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: F
       ].join("\n"),
     )
     .join("\n");
-
-  const writing = brief
-    ? `OUTPUT
-This is a competitor benchmark: only the status matters. Return ONLY a JSON object, no prose, no markdown fence:
-{"findings": [{"ruleId": "A1", "applicable": true, "status": "pass|warn|fail|unassessed", "confidence": 0.9, "blockIds": ["p12"], "note": "one short English sentence, under 15 words"}]}
-Exactly one entry per rule listed above (${rules.map(r => r.rule.id).join(", ")}), in that order.`
-    : "";
-  if (brief) {
-    return `You are a senior CRO consultant benchmarking an e-commerce store. Judge each rule from the evidence below (a real phone visit: homepage, one product page, the cart after adding one item, one collection page). Block ids are in brackets. Market: ${marketHint(evidence.website)}; cash on delivery, local installment providers and WhatsApp count as valid answers.
-
-RULES
-${ruleText}
-
-HOW TO DECIDE
-- PASS only with block ids that prove it; WARN when partly there, in the wrong place or unsure; FAIL only when clearly missing. "unassessed" when the needed page is NOT AVAILABLE or the cart is EMPTY. "applicable": false only when the rule doesn't apply to this product.
-- Arabic and English text both count.
-
-STORE FACTS
-${storeBlock(evidence)}
-
-EVIDENCE
-${evidence.pages.map(pageBlock).join("\n")}
-
-${writing}`;
-  }
 
   return `You are a senior CRO consultant reviewing an e-commerce store for what stops shoppers buying: the fears, uncertainties and doubts (FUDs) at the moment of decision, and the layout, navigation and offer gaps that cost sales and order value. The store sells in ${marketHint(evidence.website)}. Shoppers there commonly expect cash on delivery, local installment providers (Tabby, Tamara, valU, Sympl, Souhoola), WhatsApp support, and Arabic or bilingual copy — treat these as valid answers to the rules.
 
@@ -191,19 +166,13 @@ Exactly one entry per rule listed above (${rules.map(r => r.rule.id).join(", ")}
 
 const isVoice = (v: any): v is FindingVoice => v && typeof v.summary === "string" && typeof v.detail === "string" && v.summary.trim().length > 0;
 
-export function parseVerdicts(raw: unknown, brief = false): JudgeVerdict[] {
+export function parseVerdicts(raw: unknown): JudgeVerdict[] {
   const list = Array.isArray(raw) ? raw : (raw as any)?.findings;
   if (!Array.isArray(list)) throw new Error("judge response had no findings array");
   const out: JudgeVerdict[] = [];
   for (const v of list) {
     if (!v || typeof v.ruleId !== "string") continue;
     const status = ["pass", "warn", "fail", "unassessed"].includes(v.status) ? v.status : "warn";
-    // Competitor benchmark answers carry one short note instead of the two voices.
-    if (brief && !isVoice(v.business)) {
-      const note = typeof v.note === "string" && v.note.trim() ? v.note.trim() : status;
-      v.technical = { summary: note, detail: "" };
-      v.business = { summary: note, detail: "" };
-    }
     if (!isVoice(v.technical) || !isVoice(v.business)) continue;
     const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
     out.push({
@@ -279,14 +248,14 @@ export function repairJsonQuotes(text: string): string {
   return out;
 }
 
-function tryRepair(raw: string, brief = false): JudgeVerdict[] | null {
+function tryRepair(raw: string): JudgeVerdict[] | null {
   try {
     const inner: unknown = JSON.parse(raw)?.result;
     if (typeof inner !== "string") return null;
     const start = inner.indexOf("{");
     const end = inner.lastIndexOf("}");
     if (start < 0 || end <= start) return null;
-    const verdicts = parseVerdicts(JSON.parse(repairJsonQuotes(inner.slice(start, end + 1))), brief);
+    const verdicts = parseVerdicts(JSON.parse(repairJsonQuotes(inner.slice(start, end + 1))));
     return verdicts.length > 0 ? verdicts : null;
   } catch {
     return null;
@@ -294,29 +263,23 @@ function tryRepair(raw: string, brief = false): JudgeVerdict[] | null {
 }
 
 // Bilingual answers for 30+ rules in one call get long enough to time out
-// or break; split the full review into batches of this size. The brief
-// competitor benchmark (status only) always runs as one call.
+// or break; split the full review into batches of this size.
 const BATCH_SIZE = 16;
-
-export interface JudgeOptions {
-  brief?: boolean;
-}
 
 export async function runJudge(
   evidence: StoreEvidence,
   rules: Array<{ rule: FudRule; signal: SignalState }>,
   ga4: Ga4Metrics | null | undefined,
   jobId: string,
-  opts: JudgeOptions = {},
 ): Promise<JudgeVerdict[]> {
   if (rules.length === 0) return [];
-  if (opts.brief || rules.length <= BATCH_SIZE) return judgeOnce(evidence, rules, ga4, jobId, opts.brief ?? false, "");
+  if (rules.length <= BATCH_SIZE) return judgeOnce(evidence, rules, ga4, jobId, "");
   // Even halves, so neither batch is a lonely leftover.
   const batches = Math.ceil(rules.length / BATCH_SIZE);
   const size = Math.ceil(rules.length / batches);
   const out: JudgeVerdict[] = [];
   for (let i = 0; i < batches; i++) {
-    out.push(...(await judgeOnce(evidence, rules.slice(i * size, (i + 1) * size), ga4, `${jobId}-b${i + 1}`, false, ` batch ${i + 1}/${batches}`)));
+    out.push(...(await judgeOnce(evidence, rules.slice(i * size, (i + 1) * size), ga4, `${jobId}-b${i + 1}`, ` batch ${i + 1}/${batches}`)));
   }
   return out;
 }
@@ -326,11 +289,10 @@ async function judgeOnce(
   rules: Array<{ rule: FudRule; signal: SignalState }>,
   ga4: Ga4Metrics | null | undefined,
   jobId: string,
-  brief: boolean,
   labelSuffix: string,
 ): Promise<JudgeVerdict[]> {
   const mcp = await buildMcpConfig(`${jobId}-fud`, { ga4Admin: false, gtm: false, browser: false });
-  const prompt = buildJudgePrompt(evidence, rules, ga4, brief);
+  const prompt = buildJudgePrompt(evidence, rules, ga4);
   try {
     // One retry, and only for a malformed answer: a long bilingual JSON
     // occasionally breaks on a stray quote. Timeouts and rate limits are not
@@ -341,15 +303,15 @@ async function judgeOnce(
         mcpConfigPath: mcp.configPath,
         allowedTools: [],
         timeoutMs: JUDGE_TIMEOUT_MS,
-        effort: brief ? "low" : "medium",
-        label: `fud-judge${brief ? " competitor" : ""} (${rules.length} rules)${labelSuffix}${attempt > 1 ? " retry" : ""}`,
+        effort: "medium",
+        label: `fud-judge (${rules.length} rules)${labelSuffix}${attempt > 1 ? " retry" : ""}`,
       });
       try {
-        return parseVerdicts(extractJsonPayload(raw), brief);
+        return parseVerdicts(extractJsonPayload(raw));
       } catch (err) {
         // Before paying for a second call, try the cheap fix: the usual
         // breakage is a bare double quote inside a text value.
-        const repaired = tryRepair(raw, brief);
+        const repaired = tryRepair(raw);
         if (repaired) {
           console.warn("[audit-worker] FUD judge JSON needed a quote repair; no retry needed.");
           return repaired;

@@ -3,12 +3,9 @@ import { test } from "node:test";
 import type { Ga4Metrics } from "../types.js";
 import type { PageEvidence, PageFacts, StoreEvidence, TextBlock } from "./evidence.js";
 import { buildInsights } from "./insights.js";
-import { parseVerdicts } from "./judge.js";
 import { freeShippingThreshold } from "./rules-cro.js";
 import { FUD_RULES, groupOf, ruleById } from "./rules.js";
 import { matches } from "./signals.js";
-// @ts-expect-error — plain JS module shared with the Vercel functions
-import { competitorProgress } from "../../../api/_lib/audit-intake.js";
 
 let n = 0;
 const block = (text: string, extra: Partial<TextBlock> = {}): TextBlock => ({ id: `b${++n}`, text, tag: "p", box: { x: 0, y: 900, w: 300, h: 20 }, aboveFold: false, ...extra });
@@ -159,21 +156,4 @@ test("insights read the raw GA4 OAuth reports when present", () => {
   assert.equal(dev.tone, "bad"); // mobile 1.5% vs desktop 5%
   assert.ok(ins.lines.some(l => l.kind === "landing" && l.en.includes("/products/a")));
   assert.ok(ins.lines.find(l => l.kind === "new_returning")!.tone === "good"); // 4% vs 1.3%
-});
-
-test("competitor intake: normalized, and dropped when invalid, blocked or the same site", () => {
-  assert.deepEqual(competitorProgress("rival.eg", "https://store.eg"), { competitorUrl: "https://rival.eg/" });
-  assert.deepEqual(competitorProgress("https://www.store.eg/ar", "https://store.eg"), {});
-  assert.deepEqual(competitorProgress("amazon.eg", "https://store.eg"), {});
-  assert.deepEqual(competitorProgress("not a url", "https://store.eg"), {});
-  assert.deepEqual(competitorProgress(undefined, "https://store.eg"), {});
-});
-
-test("brief (competitor) verdicts parse without the two voices", () => {
-  const v = parseVerdicts({ findings: [{ ruleId: "A1", status: "pass", confidence: 0.9, blockIds: ["p1"], note: "Free shipping bar in cart" }, { ruleId: "B1", status: "warn" }] }, true);
-  assert.equal(v.length, 2);
-  assert.equal(v[0].business.summary, "Free shipping bar in cart");
-  assert.equal(v[1].business.summary, "warn");
-  // Full mode still requires them.
-  assert.equal(parseVerdicts({ findings: [{ ruleId: "A1", status: "pass", note: "x" }] }).length, 0);
 });

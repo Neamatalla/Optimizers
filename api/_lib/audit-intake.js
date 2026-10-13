@@ -119,27 +119,6 @@ export function normalizeHostname(website) {
 }
 
 export { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
-import { isBlockedAuditDomain as isBlockedDomainForCompetitor } from "./blocked-domains.js";
-
-/**
- * The optional competitor from the form, as the worker's initial progress
- * JSON (audit_requests.progress.competitorUrl — no schema change). Anything
- * invalid, blocked, or the same site as the store is silently dropped: the
- * competitor is a nice-to-have and must never fail a submission.
- */
-export function competitorProgress(competitor, website) {
-  const raw = String(competitor || "").trim();
-  if (!raw || raw.length > 300) return {};
-  try {
-    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
-    if (!host.includes(".") || isBlockedDomainForCompetitor(host)) return {};
-    if (host === normalizeHostname(website)) return {};
-    return { competitorUrl: `${url.protocol}//${url.host}${url.pathname === "/" ? "/" : url.pathname}` };
-  } catch {
-    return {};
-  }
-}
 
 /**
  * Looks for an existing request from the same email or the same website.

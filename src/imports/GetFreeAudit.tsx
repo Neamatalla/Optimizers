@@ -121,7 +121,6 @@ interface FormSnapshot {
   tools: ToolId[];
   website: string;
   email: string;
-  competitor?: string;
   stepIndex: number;
   maxStepIndexReached: number;
   detectionResult: { ga4MeasurementIds: string[]; gtmContainerIds: string[] } | null;
@@ -346,9 +345,6 @@ export default function GetFreeAudit() {
     googleAccessConfirmed: false,
     website: "",
     email: "",
-    // Optional: a competitor to benchmark the store against (purchase-
-    // friction rules only — audit-worker/src/fud/).
-    competitor: "",
     // The one selected property/container's full detail — opaque to this
     // component, passed through as-is to the backend. Looked up from
     // ga4Properties/gtmContainers below whenever the visitor picks a
@@ -384,7 +380,6 @@ export default function GetFreeAudit() {
   const [validationErrors, setValidationErrors] = useState({
     website: "",
     email: "",
-    competitor: "",
   });
   const [stepIndex, setStepIndex] = useState(0);
   const [maxStepIndexReached, setMaxStepIndexReached] = useState(0);
@@ -541,7 +536,7 @@ export default function GetFreeAudit() {
     if (!result || result.type !== "google-oauth-result") return;
 
     if (snapshot) {
-      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email, competitor: snapshot!.competitor ?? "" }));
+      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email }));
       if (snapshot.detectionResult) {
         setDetectionResult(snapshot.detectionResult);
         detectedForUrlRef.current = normalizeWebsiteUrl(snapshot.website);
@@ -662,7 +657,6 @@ export default function GetFreeAudit() {
       tools: formData.tools,
       website: formData.website,
       email: formData.email,
-      competitor: formData.competitor,
       stepIndex: clampedIndex,
       maxStepIndexReached,
       detectionResult,
@@ -679,7 +673,7 @@ export default function GetFreeAudit() {
     // accessible property, and the crawl-match star is computed client-side
     // once they come back (see the effect above).
     window.location.assign("/api/oauth/google/authorize");
-  }, [formData.tools, formData.website, formData.email, formData.competitor, clampedIndex, maxStepIndexReached, detectionResult, t]);
+  }, [formData.tools, formData.website, formData.email, clampedIndex, maxStepIndexReached, detectionResult, t]);
 
   const isNextDisabled = () => {
     if (submitAuditMutation.isPending || checkingSite) return true;
@@ -694,7 +688,7 @@ export default function GetFreeAudit() {
         return !formData.googleAccessConfirmed || !ga4Ready || !gtmReady;
       }
       case "website":
-        return !formData.website.trim() || !!websiteError || !formData.email.trim() || !!emailError || !!validationErrors.competitor;
+        return !formData.website.trim() || !!websiteError || !formData.email.trim() || !!emailError;
       default:
         return false;
     }
@@ -723,7 +717,6 @@ export default function GetFreeAudit() {
       // the client never gets to assert it with a flag of its own.
       website: `${isTestSubmission ? TEST_PREFIX : ""}${normalizeWebsiteUrl(formData.website)}`,
       email: `${isTestSubmission ? TEST_PREFIX : ""}${stripTestPrefix(formData.email)}`,
-      competitor: formData.competitor.trim() ? normalizeWebsiteUrl(formData.competitor.trim()) : undefined,
     });
   };
 
@@ -962,28 +955,6 @@ export default function GetFreeAudit() {
                   className={`bg-white/10 border-2 ${emailError ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
                 />
                 {emailError && <p className="text-red-500 text-sm">{emailError}</p>}
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="audit-competitor" className="text-[13px] text-white/80 font-['Sora:Regular',sans-serif] text-start">
-                  {t("Your main competitor's website (optional)")}
-                </label>
-                <Input
-                  id="audit-competitor"
-                  name="competitor"
-                  type="url"
-                  inputMode="url"
-                  value={formData.competitor}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setFormData(prev => ({ ...prev, competitor: value }));
-                    const err = value.trim() ? validateWebsite(value) : "";
-                    const same = value.trim() && formData.website.trim() && normalizeWebsiteUrl(value).replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") === normalizeWebsiteUrl(formData.website).replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
-                    setValidationErrors(prev => ({ ...prev, competitor: err || (same ? "Please enter a different website than your own" : "") }));
-                  }}
-                  placeholder={t("e.g. competitor.com — we compare your store with it")}
-                  className={`bg-white/10 border-2 ${validationErrors.competitor ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
-                />
-                {validationErrors.competitor && <p className="text-red-500 text-sm">{t(validationErrors.competitor)}</p>}
               </div>
             </div>
           </div>
