@@ -10,6 +10,9 @@
  *   npm run preview-report -- --path=single     (one tool only: 25 GA4 + 25 website-code)
  *   npm run preview-report -- --path=website    (neither tool: 50 Website)
  *
+ * Add --fud to include the purchase-friction section from a built-in sample,
+ * or --fud=<file.json> to render a real result saved by `npm run fud-run`.
+ *
  * Every finding below is written in BOTH registers (types.ts's FindingVoice)
  * because the report's language toggle is a first-class feature — a fixture
  * with only one voice filled in would render an empty pane on the other side
@@ -17,7 +20,8 @@
  *
  * Output: audit-worker/output/preview-<path>.html (gitignored).
  */
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { sampleFudResult } from "./fud/sample.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildAuditHtmlReport } from "./html-report.js";
@@ -365,6 +369,19 @@ async function main() {
       : mode === "single"
         ? { ...base, categories: [ga4Category(), websiteCodeCategory()], overallScore: 33, possiblePoints: 50 }
         : { ...base, categories: [websiteCategory()], overallScore: 31, possiblePoints: 50 };
+
+  // --fud renders the purchase-friction section from a built-in sample;
+  // --fud=<file.json> from a real FudResult saved by `npm run fud-run`.
+  const fudArg = process.argv.find(a => a === "--fud" || a.startsWith("--fud="));
+  if (fudArg) {
+    const file = fudArg.includes("=") ? fudArg.split("=").slice(1).join("=") : null;
+    if (file) {
+      const saved = JSON.parse(await readFile(file, "utf8"));
+      result.fud = saved.result ?? saved;
+    } else {
+      result.fud = sampleFudResult(result.websiteUrl);
+    }
+  }
 
   // Best-effort, same as the real pipeline (poll.ts/test-run.ts) — exercises
   // the Arabic toggle in the preview using the real translation pass instead

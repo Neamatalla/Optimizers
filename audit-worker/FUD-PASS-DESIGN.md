@@ -1,7 +1,12 @@
-# FUD Pass — Design Draft
+# FUD Pass — Design
 
-Status: draft, not implemented. Source: `FUDs_Audit_Engine_PRD_Improved.md` (v2.0), cut down to what
-a free, URL-only audit can do reliably without touching the existing 50-check engine.
+Status: **implemented 2026-10-13** in `src/fud/`, switched off by default (`FUD_PASS=off`). Source:
+`FUDs_Audit_Engine_PRD_Improved.md` (v2.0), cut down to what a free, URL-only audit can do reliably
+without touching the existing 50-check engine. Where the build differs from the original draft it
+is marked **As built**; §18 lists what is still open.
+
+Try it: `npm run fud-run -- https://store.com`, then
+`npm run preview-report -- --no-ar --fud=output/fud-<host>-result.json`.
 
 FUD = Fears, Uncertainties and Doubts: the unanswered questions that stop a shopper from buying
 ("Will there be surprise shipping fees?", "What if it doesn't fit?", "Is this store real?").
@@ -206,11 +211,17 @@ voices (`technical` / `business`, same as `CategoryFinding`), a `recommendation`
 3. **FAIL** is kept only if `confidence ≥ 0.85` **and** `signals.ts` agrees the thing is absent
    (no regex hit, no widget). Otherwise it is downgraded to **WARN**. This is the main protection
    against "you have no guarantee" claims on stores that do have one.
-4. **PASS** needs at least one cited `blockId` that exists in the evidence pack. A PASS citing
-   nothing is downgraded to WARN.
+4. **PASS** needs at least one cited `blockId` that exists in the evidence pack and confidence
+   ≥ 0.7. A PASS citing nothing, or a shaky one, is downgraded to WARN.
+   **As built:** on live runs every FAIL also ships as WARN until `FUD_ALLOW_FAIL=true` (test runs
+   always show real FAILs).
 5. C4 can never be worse than WARN; B2/C2 (if enabled later) are always marked `needsReview`.
 
-Every WARN/FAIL must cite evidence. When a crop exists for a cited block, the report shows it.
+**As built — crops are per region, not per block:** the collector takes three fixed crops per
+page while the browser is open (first screen, the area around the button, the cart) and each
+rule names the region it is about. Cropping the exact cited block would need the browser kept
+open through the multi-minute judge call. The same crop is shown once per report, on the
+highest-priority finding that uses it, capped at 6.
 
 ## 6. Scoring
 
@@ -222,7 +233,10 @@ coverage       = assessed / applicable
 ```
 
 - Shown as a sentence, not a gauge (`PRODUCT.md`: no hero score dials):
-  *"Purchase friction: 64/100 — 11 of 13 applicable checks assessed."*
+  *"Buyer confidence 64/100 — 11 of 13 checks assessed…"*
+- **As built:** the score is called **Buyer confidence** (higher is better). A number under the
+  heading "Purchase friction" read backwards — 80/100 friction sounds bad. The section keeps the
+  title "Purchase friction".
 - If coverage < 60% or fewer than 5 rules were assessed, **no score is shown**, only the findings.
 
 ## 7. PEXTI
@@ -290,10 +304,11 @@ fud?: FudResult | null;
 
 ## 9. Translation
 
-Extend `translate-ar.ts` rather than duplicating it: export `translateBatch`/`flatten` and run one
-extra batch keyed `FUD:<ruleId>` after the existing categories. Same best-effort contract: a missing
-translation falls back to English per row. `exampleCopy.ar` comes straight from the judge, since
-copy written in Arabic reads better than copy translated into it.
+**As built:** the judge writes English and Arabic in the same call (`ar` on each finding, plus
+`exampleCopy.en` / `.ar`). The FUD pass does **not** go through `translate-ar.ts`. That stage now
+retries the whole request when findings are missing their Arabic (commit `0dfdd25`), and the
+friction pass must never be able to trigger a retry or a failure of the main audit. A finding
+that comes back without Arabic falls back to its English text, per row, like the 50 checks do.
 
 ## 10. Report (`html-report.ts`)
 
@@ -418,3 +433,27 @@ existing 50-check audit.
 
 `BACKLOG.md` says `pagespeed.ts` was removed on 2026-09-09, but `poll.ts:141` still calls
 `runPageSpeed` and the file is still in the branch. One of the two is stale.
+
+## 18. Build notes and what is still open
+
+First real run (tharaa.shop, 2026-10-13): 3/3 pages loaded, Add-to-Cart worked, 79 analytics hits
+blocked, collection 27 s, one judge call of roughly 2–3 minutes. Result: Buyer confidence 77/100,
+13 of 13 checks assessed, 0 FAIL, 6 WARN, and the findings matched the page crops when checked by
+hand.
+
+Built: collector with Add-to-Cart and analytics blocking, 14 rules, bilingual detectors, judge,
+gates, PEXTI, GA4 funnel tie-in, report section, review-email FAIL flag, `FUD_PASS` /
+`FUD_ALLOW_FAIL`, `npm run fud-run`, `npm test` (17 unit tests), preview fixture.
+
+Not built yet:
+
+- Phase-1 calibration: only one store has been run. The 15–20 hand-checked stores are still to do
+  before `FUD_PASS=all`.
+- Cart-drawer capture is written but unproven: tharaa.shop has no drawer, so the run fell back to
+  the cart page. Needs a drawer-theme store.
+- The judge returned malformed JSON once in two runs (a stray quote in Arabic text). A prompt
+  rule and a single retry were added; watch the rate during calibration.
+- Collection page (v1.5), desktop viewport, per-finding reviewer overrides, friction items in the
+  client email or daily digest (§15 questions 2–5 are still open).
+- GA4 DebugView confirmation that zero bot hits arrive (§14). The blocker is unit-tested and
+  counted per run, but not yet confirmed from the GA4 side.

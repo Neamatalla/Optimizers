@@ -29,6 +29,7 @@ import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
+import { fudPassEnabled, isFudResult, runFudPass } from "./fud/index.js";
 import { sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
 import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
@@ -170,6 +171,25 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     console.log(`[audit-worker] Saved audit result for ${row.id}`);
   }
 
+  // 1b. purchase friction (FUD) pass — src/fud/, FUD-PASS-DESIGN.md. Runs
+  // after the 50-check result is saved and is never allowed to fail the run:
+  // runFudPass never throws, a failure is saved as { error } (so a retry
+  // doesn't run it again) and the report just omits the section. Gated by
+  // FUD_PASS=off|test|all. Real FAILs only on test runs or with
+  // FUD_ALLOW_FAIL=true; live runs ship them as WARN until the rules are
+  // calibrated (rollout phase 2).
+  if (progress.fud === undefined && fudPassEnabled(row)) {
+    progress.fud = await runFudPass({
+      website: row.website,
+      discoveredPages: progress.discoveredPages ?? [],
+      ga4Metrics: progress.ga4Metrics ?? null,
+      jobId: row.id,
+      allowFail: row.is_test || process.env.FUD_ALLOW_FAIL === "true",
+    });
+    if (!isFudResult(progress.fud)) console.warn(`[audit-worker] Friction pass unavailable for ${row.id}: ${progress.fud.error}`);
+    await save();
+  }
+
   const categories = progress.categories!;
   const { earned, possible } = computeOverallPoints(categories);
   const result: AuditResult = {
@@ -182,6 +202,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     pageSpeed: progress.pageSpeed,
     screenshots: progress.screenshots,
     ga4Metrics: progress.ga4Metrics ?? null,
+    fud: isFudResult(progress.fud) ? progress.fud : null,
   };
   const categoriesAudited = categories.map(c => c.category);
 
@@ -251,6 +272,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
       reportUrl,
       approveUrl,
       slug: progress.slug ?? "",
+      frictionFails: result.fud?.findings.filter(f => f.status === "fail").map(f => `${f.ruleId} — ${f.business.summary}`),
     });
     progress.reviewEmailSent = true;
     await save();

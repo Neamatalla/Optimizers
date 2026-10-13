@@ -2,7 +2,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
-import type { AuditResult, CategoryKey, CategoryResult, FindingSeverity, Ga4FunnelEvent } from "./types.js";
+import type { AuditResult, CategoryKey, CategoryResult, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4FunnelEvent } from "./types.js";
 import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type ChecklistPoint } from "./checklist.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -353,6 +353,16 @@ function summaryHtml(result: AuditResult, counts: ReturnType<typeof resultCounts
             <dd><a href="#sec-${SECTION_SLUG[cat.category]}"><b class="count" data-to="${passed}" style="color:${scoreColor(p)}">${passed}</b> / ${total} ${bi("passed", "ناجح")}</a><span class="bar"><span style="width:${p.toFixed(1)}%;background:${scoreColor(p)}"></span></span></dd>
           </div>`;
   });
+  // Purchase friction is its own score, never part of the passed-checks
+  // headline above it; shown only when there was enough coverage for one.
+  const friction = result.fud?.score;
+  if (friction !== null && friction !== undefined) {
+    facts.push(`
+          <div class="fact">
+            <dt>${bi("Buyer confidence", "ثقة المشتري")}</dt>
+            <dd><a href="#friction"><b class="count" data-to="${friction}" style="color:${scoreColor(friction)}">${friction}</b> / 100</a><span class="bar"><span style="width:${friction}%;background:${scoreColor(friction)}"></span></span></dd>
+          </div>`);
+  }
   const mobile = result.pageSpeed?.average.mobile;
   if (mobile !== null && mobile !== undefined) {
     facts.push(`
@@ -648,6 +658,13 @@ function sourcesHtml(result: AuditResult): string {
   if (speedPages > 0) {
     sources.push(bi(`Google's speed test (PageSpeed Insights), run on ${speedPages} of your pages`, `اختبار السرعة من Google (PageSpeed Insights) على ${speedPages} من صفحاتك`));
   }
+  if (result.fud) {
+    const loaded = result.fud.pagesSampled.filter(p => p.loaded).length;
+    sources.push(bi(
+      `A phone visit to ${loaded} of your pages, adding one product to the cart (our visit was kept out of your analytics). Purchase-friction rules ${result.fud.ruleSetVersion}.`,
+      `زيارة من هاتف لعدد ${loaded} من صفحاتك مع إضافة منتج واحد إلى السلة (استبعدنا زيارتنا من بيانات التحليلات لديك). قواعد عوائق الشراء ${result.fud.ruleSetVersion}.`,
+    ));
+  }
   const pages = result.discoveredPages.map(u => `<li dir="ltr">${escapeHtml(u)}</li>`).join("");
   return `
       <section class="doc-section" id="sources">
@@ -660,6 +677,161 @@ function sourcesHtml(result: AuditResult): string {
             <ul class="page-list">${pages}</ul>
           </div>` : ""}
         </div>
+      </section>`;
+}
+
+// ---- purchase friction (FUD pass, src/fud/) ----
+// Its own section with its own score, never part of the 50-check tally.
+// Reuses the check-row markup (summary/detail toggle, business/technical
+// switch, EN/AR), with three additions per issue: the fix, ready-to-paste
+// copy, and a crop of the store's own page. Rendered only when the pass ran
+// and assessed something — otherwise the report is exactly as before.
+
+const FUD_BAND_LABEL: Record<FudBand, [string, string]> = {
+  quick_win: ["Quick win", "مكسب سريع"],
+  dev_task: ["Needs a developer", "يحتاج إلى مطوّر"],
+  test_first: ["Test first", "اختبره أولًا"],
+};
+const FUD_PAGE_LABEL: Record<FudPageType, [string, string]> = {
+  home: ["homepage", "الصفحة الرئيسية"],
+  product: ["product page", "صفحة المنتج"],
+  cart: ["cart", "سلة التسوق"],
+};
+const FUNNEL_STEP_TEXT: Partial<Record<string, [string, string]>> = {
+  "view_item>add_to_cart": ["of product views led to an add to cart", "من مشاهدات المنتجات انتهت بالإضافة إلى السلة"],
+  "add_to_cart>begin_checkout": ["of add-to-carts went on to start checkout", "من الإضافات إلى السلة انتقلت إلى بدء إتمام الشراء"],
+  "begin_checkout>purchase": ["of started checkouts ended in a purchase", "من عمليات بدء إتمام الشراء انتهت بعملية شراء"],
+};
+
+function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null): string {
+  const id = `tech-FUD-${f.ruleId}`.replace(/[^A-Za-z0-9_-]/g, "-");
+  const issue = f.status === "fail" || f.status === "warn";
+  const tone = f.status === "fail" ? "critical" : f.status === "warn" ? "medium" : "pass";
+  const side =
+    f.status === "fail" ? `<span class="sev sev--critical">${bi("Missing", "غير موجود")}</span>`
+    : f.status === "warn" ? `<span class="sev sev--medium">${bi("Needs work", "يحتاج تحسينًا")}</span>`
+    : `<span class="sev sev--pass">${bi("Working", "يعمل")}</span>`;
+  const ar = f.ar ?? { technical: f.technical, business: f.business, recommendation: f.recommendation };
+  const voice = (text: string, cls: string, isAr: boolean) => (text ? `<p class="voice ${cls} ${isAr ? "i18n-ar" : "i18n-en"}"${isAr ? ' dir="rtl"' : ""}>${escapeHtml(text)}</p>` : "");
+  const [pageEn, pageAr] = FUD_PAGE_LABEL[f.pageType];
+
+  const step = f.funnel ? FUNNEL_STEP_TEXT[`${f.funnel.from}>${f.funnel.to}`] : undefined;
+  const pct = f.funnel ? Math.round(f.funnel.rate * 100) : 0;
+  const days = periodDays ?? 28;
+  const funnel = f.funnel && step
+    ? `<p class="fud-funnel">${bi(`Your GA4: only ${pct}% ${step[0]} in the last ${days} days.`, `بيانات GA4 لديك: ${pct}% فقط ${step[1]} خلال آخر ${days} يومًا.`)}</p>`
+    : "";
+  const rec = issue && f.recommendation
+    ? `<p class="fud-rec">${biHtml(`<b>What to change:</b> ${escapeHtml(f.recommendation)}`, `<b>ما الذي يجب تغييره:</b> ${escapeHtml(ar.recommendation ?? f.recommendation)}`)}</p>`
+    : "";
+  const copy = issue && f.exampleCopy
+    ? `
+                  <div class="fud-copy">
+                    <span class="fud-copy-label">${bi("Copy you can use", "نص يمكنك استخدامه")}</span>
+                    <p dir="ltr" lang="en">${escapeHtml(f.exampleCopy.en)}</p>
+                    <p dir="rtl" lang="ar">${escapeHtml(f.exampleCopy.ar)}</p>
+                  </div>`
+    : "";
+  const crop = issue && f.evidence.crop
+    ? `
+                  <figure class="fud-crop">
+                    <img src="${f.evidence.crop}" alt="${escapeHtml(`Your ${pageEn} on a phone, where this check looks`)}" loading="lazy" />
+                    <figcaption>${bi(`Your ${pageEn}, on a phone, the day we ran the audit`, `${pageAr} لديك على الهاتف، يوم إجراء التدقيق`)}</figcaption>
+                  </figure>`
+    : "";
+  const meta = `<span class="check-meta"><code>${escapeHtml(f.ruleId)}</code>${f.band && f.pexti ? `${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}<span>PEXTI ${f.pexti.score}</span>` : ""}${bi(pageEn, pageAr)}</span>`;
+  const bandTag = issue && f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}</span>` : "";
+
+  return `
+          <article class="check check--${tone} fud-row${open ? "" : " is-collapsed"}" id="row-${id}" data-fud-status="${f.status}">
+            <input type="checkbox" class="tech-toggle" id="${id}" />
+            <div class="check-main">
+              <div class="check-side">${side}</div>
+              <div class="check-body">
+                <button type="button" class="check-head" aria-expanded="${open ? "true" : "false"}">
+                  <span class="check-titles">
+                    <h3 class="voice voice-business i18n-en">${escapeHtml(f.business.summary)}</h3>
+                    <h3 class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(ar.business.summary)}</h3>
+                    <h3 class="voice voice-technical i18n-en">${escapeHtml(f.technical.summary)}</h3>
+                    <h3 class="voice voice-technical i18n-ar" dir="rtl">${escapeHtml(ar.technical.summary)}</h3>
+                    ${bandTag}
+                  </span>
+                  <span class="chevron">${CHEVRON}</span>
+                </button>
+                <div class="check-detail">
+                  ${voice(f.business.detail, "voice-business", false)}
+                  ${voice(ar.business.detail, "voice-business", true)}
+                  ${voice(f.technical.detail, "voice-technical", false)}
+                  ${voice(ar.technical.detail, "voice-technical", true)}
+                  ${funnel}
+                  ${rec}
+                  ${copy}
+                  ${crop}
+                  <div class="check-foot">${techSwitchHtml(id)}${meta}</div>
+                </div>
+              </div>
+            </div>
+          </article>`;
+}
+
+function frictionSectionHtml(result: AuditResult): string {
+  const fud = result.fud;
+  if (!fud || fud.assessed === 0) return "";
+  const issues = fud.findings.filter(f => f.status === "fail" || f.status === "warn");
+  const quick = issues.filter(f => f.band === "quick_win").slice(0, 3);
+  const quickIds = new Set(quick.map(f => f.ruleId));
+  const rest = issues.filter(f => !quickIds.has(f.ruleId));
+  const working = fud.findings.filter(f => f.status === "pass");
+  const unassessed = fud.findings.filter(f => f.status === "unassessed");
+  const periodDays = result.ga4Metrics?.periodDays ?? null;
+
+  const scanned = fud.pagesSampled.filter(p => p.loaded).map(p => FUD_PAGE_LABEL[p.pageType]);
+  const scannedEn = scanned.map(s => s[0]).join(", ");
+  const scannedAr = scanned.map(s => s[1]).join("، ");
+  const leadEn = fud.score !== null
+    ? `Buyer confidence ${fud.score}/100 — ${fud.assessed} of ${fud.applicable} checks assessed on your ${scannedEn}, on a phone. These are the doubts that make shoppers hesitate or leave before paying.`
+    : `We checked your ${scannedEn} on a phone for the doubts that make shoppers hesitate or leave before paying. Too few checks could be completed for a score, so only the findings are shown.`;
+  const leadAr = fud.score !== null
+    ? `ثقة المشتري ${fud.score}/100 — تم فحص ${fud.assessed} من ${fud.applicable} بندًا على ${scannedAr} لديك من الهاتف. هذه هي الشكوك التي تجعل المتسوق يتردد أو يغادر قبل الدفع.`
+    : `فحصنا ${scannedAr} لديك من الهاتف بحثًا عن الشكوك التي تجعل المتسوق يتردد أو يغادر قبل الدفع. لم نتمكن من فحص عدد كافٍ من البنود لحساب مؤشر، لذلك نعرض النتائج فقط.`;
+
+  const group = (titleEn: string, titleAr: string, list: FudFinding[], open: boolean) =>
+    list.length
+      ? `
+        <div class="fud-group">
+          <div class="group-head"><h3>${bi(titleEn, titleAr)}</h3><span>${list.length}</span></div>
+          <div class="check-list">${list.map(f => fudRowHtml(f, open, periodDays)).join("")}</div>
+        </div>`
+      : "";
+
+  const workingFold = working.length
+    ? `
+        <details class="passed-fold">
+          <summary>
+            <span class="when-closed">${bi(`Show what's already working (${working.length})`, `عرض ما يعمل بالفعل (${working.length})`)}</span>
+            <span class="when-open">${bi(`Already working (${working.length})`, `يعمل بالفعل (${working.length})`)}</span>
+            ${CHEVRON}
+          </summary>
+          <div class="check-list check-list--passed">${working.map(f => fudRowHtml(f, false, periodDays)).join("")}</div>
+        </details>`
+    : "";
+
+  const notChecked = unassessed.length
+    ? `<p class="fud-note">${bi(
+        `Not checked this time: ${unassessed.map(f => f.ruleId).join(", ")} — the page or cart we needed couldn't be reached.`,
+        `لم يتم فحصها هذه المرة: ${unassessed.map(f => f.ruleId).join("، ")} — تعذّر الوصول إلى الصفحة أو السلة المطلوبة.`,
+      )}</p>`
+    : "";
+
+  return `
+      <section class="doc-section fud" id="friction">
+        <h2>${bi("Purchase friction", "عوائق الشراء")}</h2>
+        <p class="section-lead">${bi(leadEn, leadAr)}</p>
+        ${group("Fix these first", "أصلح هذه أولًا", quick, true)}
+        ${group(quick.length ? "Also worth improving" : "Worth improving", quick.length ? "تستحق التحسين أيضًا" : "تستحق التحسين", rest, false)}
+        ${!issues.length ? `<p class="fud-note">${bi("No purchase doubts stood out on the pages we checked.", "لم تظهر عوائق شراء واضحة في الصفحات التي فحصناها.")}</p>` : ""}
+        ${workingFold}
+        ${notChecked}
       </section>`;
 }
 
@@ -736,10 +908,11 @@ function footerHtml(assets: BrandAssets, attributedTo: string, generatedAt: stri
 
 // Phone-width section bar: the contents list is hidden below 1024px, so a
 // sticky row of section links takes its place on a long single-column page.
-function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolean, hasNumbers = false): string {
+function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolean, hasNumbers = false, hasFriction = false): string {
   const links: Array<[string, string, string]> = [["overview", "Summary", "الملخص"]];
   if (hasFixFirst) links.push(["fix-first", "Fix first", "أصلح أولًا"]);
   if (hasNumbers) links.push(["numbers", "Numbers", "الأرقام"]);
+  if (hasFriction) links.push(["friction", "Friction", "عوائق الشراء"]);
   for (const cat of result.categories) {
     const [en, ar] = CATEGORY_SHORT[cat.category];
     links.push([`sec-${SECTION_SLUG[cat.category]}`, en, ar]);
@@ -751,13 +924,17 @@ function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolea
 
 // Stripe-docs style table of contents: sticky beside the reading column on
 // wide screens, one line per section, groups listed under each tool.
-function tocHtml(result: AuditResult, hasFixFirst: boolean, hasScreens: boolean, hasSpeed: boolean, hasNumbers = false): string {
+function tocHtml(result: AuditResult, hasFixFirst: boolean, hasScreens: boolean, hasSpeed: boolean, hasNumbers = false, hasFriction = false): string {
   const link = (id: string, en: string, ar: string, sub = false) =>
     `<li${sub ? ' class="toc-sub"' : ""}><a href="#${id}" data-spy="${id}">${bi(en, ar)}</a></li>`;
   const items: string[] = [link("overview", "Summary", "الملخص")];
   if (hasFixFirst) items.push(link("fix-first", "Fix these first", "أصلح هذه أولًا"));
   if (hasScreens) items.push(link("screens", "Your store", "متجرك"));
   if (hasNumbers) items.push(link("numbers", "Your numbers", "أرقامك"));
+  if (hasFriction) {
+    const score = result.fud?.score;
+    items.push(`<li><a href="#friction" data-spy="friction">${bi("Purchase friction", "عوائق الشراء")}${score !== null && score !== undefined ? `<span class="toc-n">${score}/100</span>` : ""}</a></li>`);
+  }
   for (const cat of result.categories) {
     const { passed, total } = cat.checklistTally;
     items.push(`<li><a href="#sec-${SECTION_SLUG[cat.category]}" data-spy="sec-${SECTION_SLUG[cat.category]}">${biHtml(escapeHtml(categoryLabel(cat.category, result, false)), escapeHtml(categoryLabel(cat.category, result, true)))}<span class="toc-n">${passed}/${total}</span></a></li>`);
@@ -1033,7 +1210,7 @@ function gaugeHtml(score: number | null, en: string, ar: string): string {
 // waits beside each section heading with a short label, and lands on the
 // closing call to action. Labels ship here; the script block positions everything and keeps
 // the whole thing hidden when motion is off.
-function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, has: { fixFirst: boolean; screens: boolean; numbers: boolean; speed: boolean }): string {
+function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, has: { fixFirst: boolean; screens: boolean; numbers: boolean; speed: boolean; friction?: boolean }): string {
   const stops: Array<[string, string, string, "ok" | "bad"]> = [];
   stops.push(["overview", `${counts.passed}/${counts.total} passed`, `${counts.passed}/${counts.total} ناجح`, counts.critical > 0 ? "bad" : "ok"]);
   if (has.fixFirst) {
@@ -1046,6 +1223,10 @@ function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>,
     stops.push(cr !== null && cr !== undefined
       ? ["numbers", `${fmtPct(cr)}% conversion`, `تحويل ${fmtPct(cr)}%`, "ok"]
       : ["numbers", "Your numbers", "أرقامك", "ok"]);
+  }
+  if (has.friction && result.fud) {
+    const issues = result.fud.findings.filter(f => f.status === "fail" || f.status === "warn").length;
+    stops.push(["friction", `${issues} purchase doubts`, `${issues} من عوائق الشراء`, issues > 0 ? "bad" : "ok"]);
   }
   stops.push(["checks", `${counts.failed} need work`, `${counts.failed} تحتاج إصلاحًا`, counts.failed > 0 ? "bad" : "ok"]);
   for (const cat of result.categories) {
@@ -1317,6 +1498,22 @@ p{margin:0; text-wrap:pretty}
 .check-meta code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; color:var(--ink-2); background:var(--bg-soft); padding:2px 6px; border-radius:4px}
 .check--pass .check-main{padding:14px 24px}
 .check--pass h3{font-size:15px; font-weight:500; color:var(--ink)}
+
+.fud-group{margin-top:32px}
+.fud .check-titles .fud-band{display:inline-block; margin-top:6px; font-size:13px; font-weight:600; color:var(--ink-3)}
+.fud-band--quick_win{color:var(--green-ink) !important}
+.fud-funnel{font-weight:600; color:var(--amber-ink) !important}
+.fud-rec{color:var(--ink) !important}
+.fud-rec b{font-weight:600}
+.fud-copy{margin-top:14px; padding:14px 16px; border-radius:10px; background:var(--bg); border:1px solid var(--line-strong); max-width:68ch}
+.fud-copy-label{display:block; font-size:13px; font-weight:600; color:var(--ink-3); margin-bottom:6px}
+.fud-copy p{margin:0; color:var(--ink) !important; font-size:16px}
+.fud-copy p + p{margin-top:6px; font-family:var(--arabic)}
+.fud-crop{margin:16px 0 4px; max-width:300px}
+.fud-crop img{display:block; width:100%; height:auto; max-height:380px; object-fit:cover; object-position:top; border-radius:12px; border:1px solid var(--line-strong)}
+.fud-crop figcaption{margin-top:8px; font-size:13px; color:var(--ink-3)}
+.fud-note{margin-top:20px; font-size:14px; color:var(--ink-3); max-width:68ch}
+.fud .check-meta span + span{color:var(--ink-3)}
 
 .passed-fold{margin-top:4px}
 .passed-fold > summary{display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none; user-select:none; padding:18px 0 12px; font-size:14px; font-weight:600; color:var(--green-ink)}
@@ -2559,6 +2756,7 @@ async function renderReport(result: AuditResult): Promise<string> {
   const fixFirst = fixFirstHtml(result);
   const screens = screenshotsHtml(result);
   const numbers = numbersSectionHtml(result);
+  const friction = frictionSectionHtml(result);
   const title = `${result.businessName || hostOf(result.websiteUrl)} · Optimizers Audit`;
 
   return `<!doctype html>
@@ -2588,14 +2786,15 @@ async function renderReport(result: AuditResult): Promise<string> {
     </div>
   </header>
   <main>
-    ${jumpBarHtml(result, Boolean(fixFirst), Boolean(speed), Boolean(numbers))}
+    ${jumpBarHtml(result, Boolean(fixFirst), Boolean(speed), Boolean(numbers), Boolean(friction))}
     <div class="wrap layout">
-      ${tocHtml(result, Boolean(fixFirst), Boolean(screens), Boolean(speed), Boolean(numbers))}
+      ${tocHtml(result, Boolean(fixFirst), Boolean(screens), Boolean(speed), Boolean(numbers), Boolean(friction))}
       <div class="content">
         ${summaryHtml(result, counts, generatedAt, generatedAtAr, contactUrl)}
         ${fixFirst}
         ${screens}
         ${numbers}
+        ${friction}
         ${checksIntroHtml(counts, result)}
         ${result.categories.map(cat => categorySectionHtml(cat, result, assets)).join("")}
         ${speed ? speedSectionHtml(speed) : ""}
@@ -2605,7 +2804,7 @@ async function renderReport(result: AuditResult): Promise<string> {
     ${ctaHtml(counts, contactUrl)}
     ${footerHtml(assets, attributedTo, generatedAt, generatedAtAr, contactUrl)}
   </main>
-  ${guideHtml(result, counts, { fixFirst: Boolean(fixFirst), screens: Boolean(screens), numbers: Boolean(numbers), speed: Boolean(speed) })}
+  ${guideHtml(result, counts, { fixFirst: Boolean(fixFirst), screens: Boolean(screens), numbers: Boolean(numbers), speed: Boolean(speed), friction: Boolean(friction) })}
 <script>${libs}</script>
 <script>${scriptBlock()}</script>
 </body>

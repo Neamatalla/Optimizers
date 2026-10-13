@@ -193,6 +193,25 @@ Two things worth knowing before using it on a live site:
 - `npm run test-run` and `npm run test-run-oauth` publish to the test bucket
   too, since they're test runs by definition.
 
+## Purchase-friction (FUD) pass
+
+An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that checks the store for the doubts that stop shoppers buying — shipping cost shown before checkout, returns near the button, cash on delivery/installments, size help, real reviews, reachable support — and adds a **Purchase friction** section to the report with a *Buyer confidence* score, the top fixes, ready-to-paste copy (EN + AR) and a crop of the store's own page.
+
+- Runs **after** the 50-check audit is saved. It never changes the 50-check score, and if it fails the report ships without the section.
+- `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
+- It adds **one product to the store's cart** in a throwaway browser session. Analytics and ad hits are blocked during the visit, so it doesn't show up in the client's GA4/Meta data, and it never goes past the cart.
+- Live runs show a FAIL as a warning until `FUD_ALLOW_FAIL=true`; any FAIL is also flagged in the internal review email.
+- Adds roughly 3–4 minutes and one extra `claude -p` call per audit.
+
+Try it on one store without the queue:
+
+```bash
+npm run fud-run -- https://store.com                 # collect + judge, writes output/fud-<host>-result.json
+npm run fud-run -- https://store.com --collect-only  # browser only, no Claude call
+npm run preview-report -- --no-ar --fud=output/fud-<host>-result.json   # see it in a report
+npm test                                              # rule, gate and scoring unit tests
+```
+
 ## Testing over a tunnel (ngrok or tunnelmole)
 
 The report pages are served by the dev server itself (a dev twin of

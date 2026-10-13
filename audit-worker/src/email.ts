@@ -127,6 +127,11 @@ export interface SendInternalReviewEmailOptions {
   reportUrl: string;
   approveUrl: string;
   slug: string;
+  // Purchase-friction FAILs ("A1 — Shipping cost shown before checkout"),
+  // flagged so the reviewer checks them before approving. FUD rules are new
+  // and still being calibrated; a false FAIL in front of a prospect costs
+  // more than a missed one.
+  frictionFails?: string[];
 }
 
 // Sent the moment an audit finishes — the requester does NOT get their copy
@@ -178,7 +183,13 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
           Site: <b>${opts.website}</b><br/>
           Requested by: <b>${opts.requesterEmail}</b><br/>
           Report slug (for the <code>/api/report/edit</code> path): <code>${opts.slug}</code>
-        </p>
+        </p>${opts.frictionFails?.length ? `
+        <div style="background: #fff4e5; border: 1px solid #f5c26b; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+          <p style="color: #7a4b00; font-size: 13px; font-weight: bold; margin: 0 0 6px;">Check these purchase-friction FAILs before approving</p>
+          <ul style="color: #5c3a00; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 18px;">
+            ${opts.frictionFails.map(f => `<li>${f.replace(/</g, "&lt;")}</li>`).join("")}
+          </ul>
+        </div>` : ""}
         <p style="font-size: 14px; line-height: 1.6;">
           <a href="${opts.reportUrl}" style="display: inline-block; background: #263328; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 18px; border-radius: 999px; margin-right: 8px;">
             Review

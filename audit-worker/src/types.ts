@@ -87,6 +87,11 @@ export interface JobProgress {
   // attempt shipped with the English fallback for the rest. Until then each
   // finding's `ar` is saved as its category finishes, so a retry resumes.
   translated?: boolean;
+  // Stage 1b: the purchase-friction (FUD) pass (src/fud/). Best-effort and
+  // separate from the 50 checks: `{ error }` means it ran and failed, so a
+  // retry doesn't run it again and the report just omits the section.
+  // Undefined means it hasn't run (or FUD_PASS kept it off).
+  fud?: FudResult | { error: string };
   // Stage 3: report built and uploaded.
   reportUrl?: string;
   slug?: string;
@@ -232,6 +237,70 @@ export interface AuditResult {
   // was a live exact match (see audit-prompt.ts's sanitizeGa4Metrics).
   // Absent or null when there was no live GA4 data or on older results.
   ga4Metrics?: Ga4Metrics | null;
+  // Purchase-friction (FUD) pass result, rendered as its own report section.
+  // Never part of overallScore/possiblePoints. Absent or null when the pass
+  // was off, failed, or on older results — the report then renders exactly
+  // as it did before the pass existed.
+  fud?: FudResult | null;
+}
+
+// ---- purchase friction (FUD) pass — see FUD-PASS-DESIGN.md and src/fud/ ----
+
+// pass/fail as in the 50 checks, plus "warn" (partly there, or not certain
+// enough for a FAIL) and "unassessed" (the page or element needed for the
+// rule couldn't be reached — never turned into a pass or a fail).
+export type FudStatus = "pass" | "warn" | "fail" | "unassessed";
+export type FudBand = "quick_win" | "dev_task" | "test_first";
+export type FudPageType = "home" | "product" | "cart";
+
+export interface FudPexti {
+  // 0-100, from the five 1-5 factors below (src/fud/score.ts).
+  score: number;
+  P: number;
+  E: number;
+  C: number;
+  T: number;
+  I: number;
+}
+
+export interface FudFinding {
+  ruleId: string;
+  ruleVersion: string;
+  pageType: FudPageType;
+  pageUrl: string | null;
+  status: FudStatus;
+  unassessedReason?: string;
+  // The judge's own confidence, 0-1, before score.ts's gates.
+  confidence: number;
+  technical: FindingVoice;
+  business: FindingVoice;
+  recommendation?: string;
+  // Ready-to-paste copy for the store, written in both languages.
+  exampleCopy?: { en: string; ar: string };
+  // blockIds = the page text the judge relied on; crop = JPEG data URI of
+  // the page area the rule is about (CTA region, cart drawer, first screen).
+  evidence: { blockIds: string[]; crop?: string | null };
+  pexti: FudPexti | null;
+  band?: FudBand;
+  // When the store's own GA4 funnel shows a drop at the step this rule
+  // affects, e.g. { from: "add_to_cart", to: "begin_checkout", rate: 0.32 }.
+  funnel?: { from: Ga4FunnelEvent; to: Ga4FunnelEvent; rate: number } | null;
+  // Arabic, written by the judge in the same call (not translate-ar.ts), so
+  // this pass never touches the main translation stage or its retries.
+  ar?: { technical: FindingVoice; business: FindingVoice; recommendation?: string };
+}
+
+export interface FudResult {
+  ruleSetVersion: string;
+  viewport: "mobile";
+  pagesSampled: Array<{ url: string; pageType: FudPageType; loaded: boolean; note?: string }>;
+  // null when coverage is too low for a meaningful score (score.ts).
+  score: number | null;
+  assessed: number;
+  applicable: number;
+  // Ordered for display: fail/warn by PEXTI (highest first), then pass,
+  // then unassessed.
+  findings: FudFinding[];
 }
 
 export type Ga4FunnelEvent = "page_view" | "view_item" | "add_to_cart" | "begin_checkout" | "add_shipping_info" | "add_payment_info" | "purchase";
