@@ -22,6 +22,9 @@ const GTM_BASE = "https://www.googleapis.com/tagmanager/v2";
 // GA4 only — the GTM audit is a paid service now (booked via a call), so the
 // free audit no longer asks for tagmanager.readonly. fetchAllGTMContainers
 // below is kept for when/if that scope comes back, but nothing calls it.
+// Reopening GTM = add the scope back here and return fetchAllGTMContainers'
+// result from the callback; ownership verification's gtm_* methods
+// (api/_lib/ownership-verification.js) already read that container shape.
 const SCOPES = [
   "https://www.googleapis.com/auth/analytics.readonly",
 ].join(" ");

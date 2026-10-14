@@ -37,6 +37,11 @@ export interface AuditRequestRow {
   // exempt from the one-audit-per-site limit, so the same site can be
   // re-tested any number of times.
   is_test: boolean;
+  // Which ownership checks passed at intake, and whether any did (derived
+  // by Postgres). See api/_lib/ownership-verification.js. Not read by the
+  // worker.
+  verification_methods: string[];
+  is_verified: boolean;
   status: RequestStatus;
   result_error: string | null;
   report_url: string | null;

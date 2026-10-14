@@ -420,6 +420,10 @@ function apiMiddlewarePlugin() {
             } = await import('./api/_lib/audit-intake.js');
             const emailNormalized = normalizeEmail(email);
             const websiteHostname = normalizeHostname(website);
+            // Same ownership checks as production, overlapping the duplicate
+            // lookup the same way (api/_lib/ownership-verification.js).
+            const { verifyOwnership } = await import('./api/_lib/ownership-verification.js');
+            const verificationPromise = verifyOwnership({ email, website, websiteHostname, ga4OAuthData, gtmOAuthData });
             // Test runs are exempt from the one-per-site limit, same as
             // production (and the unique index itself is partial).
             if (!isTest) {
@@ -431,6 +435,8 @@ function apiMiddlewarePlugin() {
                 return;
               }
             }
+
+            const verificationMethods = await verificationPromise;
 
             const { data: row, error: insertError } = await supabase
               .from('audit_requests')
@@ -446,6 +452,7 @@ function apiMiddlewarePlugin() {
                 gtm_container_id: gtmContainerId ? String(gtmContainerId).trim().toUpperCase() : null,
                 ga4_oauth_data: ga4OAuthData ?? null,
                 gtm_oauth_data: gtmOAuthData ?? null,
+                verification_methods: verificationMethods,
                 status: 'pending',
               })
               .select()

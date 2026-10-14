@@ -9,6 +9,7 @@ import {
   isBlockedAuditDomain,
   BLOCKED_DOMAIN_MESSAGE,
 } from "./_lib/audit-intake.js";
+import { verifyOwnership } from "./_lib/ownership-verification.js";
 
 const VALID_TOOLS = new Set(["GA4", "GTM"]);
 
@@ -103,12 +104,18 @@ export default async function handler(req, res) {
     // same site never collides and never consumes that site's real audit.
     const emailNormalized = normalizeEmail(email);
     const websiteHostname = normalizeHostname(website);
+    // Started before the duplicate check so its site scan (only run when
+    // Google data was submitted) overlaps that lookup instead of adding to
+    // it. Never rejects. See api/_lib/ownership-verification.js.
+    const verificationPromise = verifyOwnership({ email, website, websiteHostname, ga4OAuthData, gtmOAuthData });
     if (!isTest) {
       const existing = await findExistingAuditRequest(supabase, { websiteHostname });
       if (existing) {
         return res.status(409).json({ error: duplicateMessage(existing.reason), duplicate: existing.reason });
       }
     }
+
+    const verificationMethods = await verificationPromise;
 
     const { data: row, error: insertError } = await supabase
       .from("audit_requests")
@@ -131,6 +138,10 @@ export default async function handler(req, res) {
         // needed for these fields. null if the visitor used the manual flow.
         ga4_oauth_data: ga4OAuthData ?? null,
         gtm_oauth_data: gtmOAuthData ?? null,
+        // Which ownership checks passed; is_verified is derived from this by
+        // Postgres and can't be written directly. Recorded only, nothing
+        // acts on it yet.
+        verification_methods: verificationMethods,
         status: "pending",
       })
       .select()

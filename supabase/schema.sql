@@ -68,6 +68,16 @@ create table if not exists audit_requests (
   -- delay. The worker reads the flag long after intake to pick the bucket
   -- and delivery path (audit-worker/src/poll.ts).
   is_test boolean not null default false,
+  -- Ownership verification (2026-10-14): which checks showed the visitor
+  -- owns the website, written once at intake by
+  -- api/_lib/ownership-verification.js (the file documents each method).
+  -- is_verified is true when any passed; it's derived, so it can't drift
+  -- from the list and can't be written directly. Recorded only, nothing
+  -- acts on either yet.
+  verification_methods text[] not null default '{}'
+    constraint audit_requests_verification_methods_check
+    check (verification_methods <@ array['email_domain', 'ga4_stream_url', 'ga4_site_tag', 'gtm_container_domain', 'gtm_site_tag']::text[]),
+  is_verified boolean generated always as (cardinality(verification_methods) > 0) stored,
   -- Job queue resilience (see audit-worker/src/poll.ts):
   --   attempts      Real attempts used, incremented when a worker claims the
   --                 row. Rate-limit bounces give theirs back. The worker gives
