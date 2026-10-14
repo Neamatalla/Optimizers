@@ -67,3 +67,67 @@ export async function detectTracking(url) {
     gtmContainerIds: Array.from(new Set(gtmContainerIds)),
   };
 }
+
+// Intellia's e-store check: is this website an online store at all? Runs
+// alongside detectTracking above, in the same /api/detect-tracking call the
+// form makes on its website step. Only the form acts on it (intake doesn't
+// re-check), so it's a front-door filter, not an enforcement boundary.
+//
+// Contract with Intellia's endpoint (POST { url }, key in the header below):
+//   200 { status: "ecommerce" | "not_ecommerce" | "fetch_failed",
+//         platform: string | null,           non-null whenever "ecommerce"
+//         fetch_error: null | "blocked" | "timeout" | "unreachable" | "http_error" }
+// A 200 is always a verdict about the site. Anything else (non-200, timeout,
+// network error, unexpected body) means Intellia itself is unavailable.
+const INTELLIA_API_KEY_HEADER = "X-API-Key";
+const STORE_CHECK_TIMEOUT_MS = 12000;
+
+const skipped = why => {
+  console.warn(`[store-check] skipped: ${why}`);
+  return { verdict: "skipped", reason: null, platform: null };
+};
+
+/**
+ * Returns { verdict, reason, platform }:
+ *   "store"      platform is Intellia's platform name (e.g. "Shopify")
+ *   "not_store"  reason is "not_ecommerce", "blocked" (bot protection), or
+ *                "unreachable" (any other failure to load the site); each
+ *                has its own message in the form
+ *   "skipped"    Intellia unavailable or not configured: the site is let
+ *                through, falling back to detectTracking's `reachable`
+ * Never throws.
+ *
+ * Takes an optional env bag because Vite's dev middleware reads .env through
+ * loadEnv() rather than process.env.
+ */
+export async function checkStore(url, env) {
+  const endpoint = (env && env.INTELLIA_STORE_CHECK_URL) || process.env.INTELLIA_STORE_CHECK_URL;
+  const apiKey = (env && env.INTELLIA_API_KEY) || process.env.INTELLIA_API_KEY;
+  if (!endpoint) return skipped("INTELLIA_STORE_CHECK_URL is not set");
+
+  let body;
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(apiKey ? { [INTELLIA_API_KEY_HEADER]: apiKey } : {}) },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(STORE_CHECK_TIMEOUT_MS),
+    });
+    if (res.status !== 200) return skipped(`Intellia answered HTTP ${res.status}`);
+    body = await res.json();
+  } catch (err) {
+    return skipped(`Intellia request failed: ${err?.message || err}`);
+  }
+
+  if (body?.status === "ecommerce") {
+    const platform = typeof body.platform === "string" && body.platform.trim() ? body.platform.trim() : null;
+    return { verdict: "store", reason: null, platform };
+  }
+  if (body?.status === "not_ecommerce") {
+    return { verdict: "not_store", reason: "not_ecommerce", platform: null };
+  }
+  if (body?.status === "fetch_failed") {
+    return { verdict: "not_store", reason: body.fetch_error === "blocked" ? "blocked" : "unreachable", platform: null };
+  }
+  return skipped(`unexpected Intellia response status: ${JSON.stringify(body?.status)}`);
+}

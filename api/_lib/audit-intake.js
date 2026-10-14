@@ -77,6 +77,18 @@ export function normalizeHostname(website) {
 export { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
 
 /**
+ * What gets stored in audit_requests.store_platform: the platform name the
+ * form got from Intellia's e-store check. It arrives from the browser, so
+ * anything that isn't a short plain string becomes null rather than failing
+ * the submission.
+ */
+export function cleanStorePlatform(value) {
+  if (typeof value !== "string") return null;
+  const platform = value.trim();
+  return platform && platform.length <= 50 ? platform : null;
+}
+
+/**
  * Looks for an existing request for the same website. Returns null when
  * there's none, otherwise `{ reason: "website", row }`, so callers can
  * mention when the first one was submitted.

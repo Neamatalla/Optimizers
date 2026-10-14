@@ -189,7 +189,7 @@ function apiMiddlewarePlugin() {
           const VALID_TOOLS = new Set(['GA4', 'GTM']);
           try {
             const env = loadEnv('development', process.cwd(), '');
-            const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = JSON.parse(body || '{}');
+            const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = JSON.parse(body || '{}');
 
             // Test-mode prefix comes off first, so every check below runs on
             // the real values — dev twin of api/audit-request.js, same
@@ -414,6 +414,7 @@ function apiMiddlewarePlugin() {
             const {
               normalizeEmail,
               normalizeHostname,
+              cleanStorePlatform,
               findExistingAuditRequest,
               isUniqueViolation,
               duplicateMessage,
@@ -453,6 +454,7 @@ function apiMiddlewarePlugin() {
                 ga4_oauth_data: ga4OAuthData ?? null,
                 gtm_oauth_data: gtmOAuthData ?? null,
                 verification_methods: verificationMethods,
+                store_platform: cleanStorePlatform(storePlatform),
                 status: 'pending',
               })
               .select()
@@ -633,16 +635,17 @@ function apiMiddlewarePlugin() {
           return;
         }
         try {
-          const { detectTracking } = await import('./api/_lib/detect-tracking.js');
-          const ids = await detectTracking(websiteUrl.toString());
+          const { detectTracking, checkStore } = await import('./api/_lib/detect-tracking.js');
+          const env = loadEnv('development', process.cwd(), '');
+          const [ids, store] = await Promise.all([detectTracking(websiteUrl.toString()), checkStore(websiteUrl.toString(), env)]);
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ success: true, ...ids }));
+          res.end(JSON.stringify({ success: true, ...ids, store }));
         } catch (err: any) {
           console.error('detect-tracking error (dev):', err?.message || err);
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ success: false, ga4MeasurementIds: [], gtmContainerIds: [] }));
+          res.end(JSON.stringify({ success: false, ga4MeasurementIds: [], gtmContainerIds: [], store: { verdict: 'skipped', reason: null, platform: null } }));
         }
       });
 

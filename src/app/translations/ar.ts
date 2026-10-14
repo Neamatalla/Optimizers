@@ -332,6 +332,8 @@ export const arTranslations: Record<string, string> = {
   "Your request wasn't sent": "لم يتم إرسال طلبك",
   "Checking your website...": "جارٍ التحقق من موقعك...",
   "We couldn't reach this website. Please check the address and try again.": "تعذّر الوصول إلى هذا الموقع. يرجى التحقق من العنوان والمحاولة مرة أخرى.",
+  "This doesn't look like an online store. Our free audit is built for e-commerce sites. Get in touch if you think we got it wrong.": "لا يبدو أن هذا الموقع متجر إلكتروني. الفحص المجاني مخصّص لمواقع التجارة الإلكترونية. تواصل معنا إذا كنت ترى أننا أخطأنا.",
+  "Your website blocked our automated check, so we can't audit it. Get in touch and we'll take a look.": "منع موقعك فحصنا الآلي، لذا لا يمكننا فحصه. تواصل معنا وسنلقي نظرة.",
   "We couldn't submit your request. Please try again.": "تعذّر إرسال طلبك. يرجى المحاولة مرة أخرى.",
   "Expect your audit within 2 to 3 business days.": "توقّع وصول تدقيقك خلال يومين إلى ثلاثة أيام عمل.",
   "Generated locally for this dev session — production delivers this by email instead.": "تم إنشاؤه محليًا لهذه الجلسة التجريبية — في الإصدار الفعلي يُرسَل عبر البريد الإلكتروني بدلاً من ذلك.",

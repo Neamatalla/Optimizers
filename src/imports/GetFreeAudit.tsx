@@ -112,6 +112,23 @@ interface GtmContainer {
   [key: string]: unknown;
 }
 
+// Intellia's e-store verdict, as /api/detect-tracking returns it (see
+// api/_lib/detect-tracking.js's checkStore). "skipped" = Intellia was
+// unavailable, so the crawl's own reachability decides instead.
+interface StoreCheck {
+  verdict: "store" | "not_store" | "skipped";
+  reason: "not_ecommerce" | "blocked" | "unreachable" | null;
+  platform: string | null;
+}
+
+// What the website field says when Intellia turns a site away. "unreachable"
+// reuses the crawl's own unreachable-site message.
+const STORE_CHECK_MESSAGES: Record<NonNullable<StoreCheck["reason"]>, string> = {
+  not_ecommerce: "This doesn't look like an online store. Our free audit is built for e-commerce sites. Get in touch if you think we got it wrong.",
+  blocked: "Your website blocked our automated check, so we can't audit it. Get in touch and we'll take a look.",
+  unreachable: "We couldn't reach this website. Please check the address and try again.",
+};
+
 // Connect Google is a same-tab redirect, so the form's progress is parked in
 // sessionStorage while the visitor is on Google's consent page.
 // OAUTH_RESULT_KEY must match OAUTH_RESULT_STORAGE_KEY in api/_lib/google-oauth.js.
@@ -125,6 +142,7 @@ interface FormSnapshot {
   maxStepIndexReached: number;
   detectionResult: { ga4MeasurementIds: string[]; gtmContainerIds: string[] } | null;
   reachable: boolean | null;
+  store: StoreCheck | null;
 }
 
 // Unions every connected GTM container's own discovered GA4 IDs — used
@@ -486,22 +504,26 @@ export default function GetFreeAudit() {
   // back, and renderStepContent uses it to star that same match in the
   // dropdown. detectedForUrlRef guards against re-firing for the same URL if
   // the visitor goes back to the website step and forward again unchanged.
-  // Resolves to whether the site answered: true/false from the crawl, or null
-  // when the check itself failed on our side (never blocks the visitor then).
+  // Resolves to whether the site answered (true/false from the crawl, or null
+  // when the check itself failed on our side, which never blocks the visitor)
+  // and Intellia's e-store verdict (null when the call itself failed).
   const reachableRef = useRef<boolean | null>(null);
-  const runDetection = useCallback(async (rawWebsite: string): Promise<boolean | null> => {
+  const storeRef = useRef<StoreCheck | null>(null);
+  const runDetection = useCallback(async (rawWebsite: string): Promise<{ reachable: boolean | null; store: StoreCheck | null }> => {
     const normalized = normalizeWebsiteUrl(rawWebsite);
-    if (detectedForUrlRef.current === normalized) return reachableRef.current;
+    if (detectedForUrlRef.current === normalized) return { reachable: reachableRef.current, store: storeRef.current };
     try {
       const data = await (await fetch(`/api/detect-tracking?website=${encodeURIComponent(normalized)}`)).json();
       setDetectionResult({ ga4MeasurementIds: data.ga4MeasurementIds || [], gtmContainerIds: data.gtmContainerIds || [] });
       reachableRef.current = typeof data.reachable === "boolean" ? data.reachable : null;
+      storeRef.current = data.store && typeof data.store.verdict === "string" ? data.store : null;
     } catch {
       setDetectionResult({ ga4MeasurementIds: [], gtmContainerIds: [] });
       reachableRef.current = null;
+      storeRef.current = null;
     }
     detectedForUrlRef.current = normalized;
-    return reachableRef.current;
+    return { reachable: reachableRef.current, store: storeRef.current };
   }, []);
 
   // Same-tab OAuth flow (Google's consent page refuses to be framed, and a
@@ -541,6 +563,7 @@ export default function GetFreeAudit() {
         setDetectionResult(snapshot.detectionResult);
         detectedForUrlRef.current = normalizeWebsiteUrl(snapshot.website);
         reachableRef.current = snapshot.reachable;
+        storeRef.current = snapshot.store ?? null;
       }
       setStepIndex(snapshot.stepIndex);
       setMaxStepIndexReached(snapshot.maxStepIndexReached);
@@ -661,6 +684,7 @@ export default function GetFreeAudit() {
       maxStepIndexReached,
       detectionResult,
       reachable: reachableRef.current,
+      store: storeRef.current,
     };
     try {
       sessionStorage.setItem(FORM_SNAPSHOT_KEY, JSON.stringify(snapshot));
@@ -717,6 +741,8 @@ export default function GetFreeAudit() {
       // the client never gets to assert it with a flag of its own.
       website: `${isTestSubmission ? TEST_PREFIX : ""}${normalizeWebsiteUrl(formData.website)}`,
       email: `${isTestSubmission ? TEST_PREFIX : ""}${stripTestPrefix(formData.email)}`,
+      // Saved as audit_requests.store_platform; not re-checked server-side.
+      storePlatform: storeRef.current?.verdict === "store" ? storeRef.current.platform ?? undefined : undefined,
     });
   };
 
@@ -744,10 +770,17 @@ export default function GetFreeAudit() {
       setValidationErrors(prev => ({ ...prev, website: websiteErr, email: emailErr }));
       if (websiteErr || emailErr || testPrefixInvalid) return;
       setCheckingSite(true);
-      const reachable = await runDetection(formData.website);
+      const { reachable, store } = await runDetection(formData.website);
       setCheckingSite(false);
-      if (reachable === false) {
-        setValidationErrors(prev => ({ ...prev, website: t("We couldn't reach this website. Please check the address and try again.") }));
+      // Intellia's verdict decides when it answered: only an e-store gets
+      // through. When it didn't (down or not configured), the crawl's own
+      // reachability decides, as before.
+      if (store?.verdict === "not_store") {
+        setValidationErrors(prev => ({ ...prev, website: t(STORE_CHECK_MESSAGES[store.reason ?? "unreachable"]) }));
+        return;
+      }
+      if (store?.verdict !== "store" && reachable === false) {
+        setValidationErrors(prev => ({ ...prev, website: t(STORE_CHECK_MESSAGES.unreachable) }));
         return;
       }
     }

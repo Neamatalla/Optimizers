@@ -17,7 +17,8 @@ Once every project has a migration and it's folded into `schema.sql`, the file c
 | Migration | What | Staging | Production |
 |---|---|---|---|
 | `2026-10-13-drop-email-unique-index.sql` | Drop the one-audit-per-email limit (website limit stays) | ☐ | ☐ |
-| `2026-10-14-add-ownership-verification.sql` | Add `verification_methods` and derived `is_verified` | ☐ | ☐ |
+| `2026-10-14-1-add-ownership-verification.sql` | Add `verification_methods` and derived `is_verified` | ☐ | ☐ |
+| `2026-10-14-2-add-store-platform.sql` | Add `store_platform` (Intellia's e-store check) | ☐ | ☐ |
 
 ## History (squashed into the baseline)
 Full files are in git history before the 2026-10-13 squash.

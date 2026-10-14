@@ -3,6 +3,7 @@ import {
   parseTestPrefix,
   normalizeEmail,
   normalizeHostname,
+  cleanStorePlatform,
   findExistingAuditRequest,
   isUniqueViolation,
   duplicateMessage,
@@ -36,7 +37,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = req.body || {};
+    const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = req.body || {};
 
     // Strip the test-mode prefix (if any) FIRST, so everything below —
     // validation, normalization, dedupe, the stored row — works on the real
@@ -142,6 +143,11 @@ export default async function handler(req, res) {
         // Postgres and can't be written directly. Recorded only, nothing
         // acts on it yet.
         verification_methods: verificationMethods,
+        // The platform Intellia's e-store check found on the form's website
+        // step (api/_lib/detect-tracking.js's checkStore), as the browser
+        // reports it: not re-checked here. null when Intellia was
+        // unavailable or not configured at the time.
+        store_platform: cleanStorePlatform(storePlatform),
         status: "pending",
       })
       .select()

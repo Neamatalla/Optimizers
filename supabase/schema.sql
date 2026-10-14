@@ -78,6 +78,12 @@ create table if not exists audit_requests (
     constraint audit_requests_verification_methods_check
     check (verification_methods <@ array['email_domain', 'ga4_stream_url', 'ga4_site_tag', 'gtm_container_domain', 'gtm_site_tag']::text[]),
   is_verified boolean generated always as (cardinality(verification_methods) > 0) stored,
+  -- The e-commerce platform (e.g. 'Shopify') Intellia's e-store check found
+  -- on the form's website step (api/_lib/detect-tracking.js's checkStore),
+  -- as the browser reported it at submit. Sites Intellia says aren't stores
+  -- never get past that step, so null means Intellia was unavailable or not
+  -- configured at the time (2026-10-14).
+  store_platform text,
   -- Job queue resilience (see audit-worker/src/poll.ts):
   --   attempts      Real attempts used, incremented when a worker claims the
   --                 row. Rate-limit bounces give theirs back. The worker gives

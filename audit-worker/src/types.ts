@@ -42,6 +42,9 @@ export interface AuditRequestRow {
   // worker.
   verification_methods: string[];
   is_verified: boolean;
+  // Intellia's e-store platform (e.g. "Shopify") from the form's website
+  // step, null when Intellia was unavailable. Not read by the worker.
+  store_platform: string | null;
   status: RequestStatus;
   result_error: string | null;
   report_url: string | null;

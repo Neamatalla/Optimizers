@@ -1,6 +1,12 @@
 {
   "trailingSlash": false,
 
+  "functions": {
+    "api/detect-tracking.js": {
+      "maxDuration": 20
+    }
+  },
+
   "redirects": [
   {
     "source": "/blog/wp-admin",
