@@ -89,7 +89,7 @@ export const ROLE_LABELS = { store_owner: "E-commerce store owner", media_buyer:
  */
 /**
  * Inserts the request row, and if the table has no audience_role column yet
- * (the migration supabase/migrations/2026-10-14-audience-role.sql not run),
+ * (the migration supabase/migrations/2026-10-14-3-add-audience-role.sql not run),
  * retries without it, so a missing migration costs the role, never the
  * visitor's submission. Same { data, error } shape as supabase-js.
  */

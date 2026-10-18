@@ -1,7 +1,7 @@
--- Baseline schema as of 2026-10-13: the complete current state, for a NEW
--- Supabase project (SQL Editor -> New query -> paste -> Run). Staging and
--- production are both at exactly this state. Later changes go in
--- supabase/migrations/ — see supabase/README.md.
+-- The complete current schema, for a NEW Supabase project (SQL Editor -> New
+-- query -> paste -> Run): the 2026-10-13 baseline with every later migration
+-- in supabase/migrations/ folded in. Each change goes in both places — see
+-- supabase/README.md.
 
 -- ---------------------------------------------------------------------------
 -- audit_requests: the queue the Vercel capture endpoint (api/audit-request.js)
@@ -84,6 +84,14 @@ create table if not exists audit_requests (
   -- never get past that step, so null means Intellia was unavailable or not
   -- configured at the time (2026-10-14).
   store_platform text,
+  -- Who the report is written for: the form's "Your role" (2026-10-14,
+  -- 'agency' added 2026-10-15). Same checks for every role; the worker
+  -- changes the voice and what the report surfaces first
+  -- (audit-worker/src/audience.ts). Null on rows from before the field: the
+  -- default store-owner report.
+  audience_role text
+    constraint audit_requests_audience_role_check
+    check (audience_role is null or audience_role in ('store_owner', 'media_buyer', 'marketing_manager', 'agency')),
   -- Job queue resilience (see audit-worker/src/poll.ts):
   --   attempts      Real attempts used, incremented when a worker claims the
   --                 row. Rate-limit bounces give theirs back. The worker gives
@@ -265,12 +273,3 @@ on conflict (id) do update set public = false;
 insert into storage.buckets (id, name, public)
 values ('audit-reports-test', 'audit-reports-test', false)
 on conflict (id) do update set public = false;
-
--- "Your role" on the free-audit form (migrations/2026-10-14-audience-role.sql).
-alter table audit_requests
-  add column if not exists audience_role text;
-alter table audit_requests
-  drop constraint if exists audit_requests_audience_role_check;
-alter table audit_requests
-  add constraint audit_requests_audience_role_check
-  check (audience_role is null or audience_role in ('store_owner', 'media_buyer', 'marketing_manager', 'agency'));

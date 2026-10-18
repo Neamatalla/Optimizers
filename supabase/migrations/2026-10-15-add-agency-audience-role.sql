@@ -1,5 +1,5 @@
 -- Fourth form role, "Agency / consultant" (2026-10-15). Run once in the
--- Supabase SQL editor after 2026-10-14-audience-role.sql and BEFORE
+-- Supabase SQL editor after after 2026-10-14-3-add-audience-role.sql and BEFORE
 -- deploying the form from this version. Until it runs, an "agency"
 -- submission is still saved, just without its role (api/_lib/audit-intake.js
 -- insertAuditRequest). Safe to re-run. Also folded into supabase/schema.sql.
