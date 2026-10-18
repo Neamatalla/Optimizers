@@ -265,3 +265,12 @@ on conflict (id) do update set public = false;
 insert into storage.buckets (id, name, public)
 values ('audit-reports-test', 'audit-reports-test', false)
 on conflict (id) do update set public = false;
+
+-- "Your role" on the free-audit form (migrations/2026-10-14-audience-role.sql).
+alter table audit_requests
+  add column if not exists audience_role text;
+alter table audit_requests
+  drop constraint if exists audit_requests_audience_role_check;
+alter table audit_requests
+  add constraint audit_requests_audience_role_check
+  check (audience_role is null or audience_role in ('store_owner', 'media_buyer', 'marketing_manager', 'agency'));

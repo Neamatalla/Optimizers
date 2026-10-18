@@ -191,6 +191,49 @@ Two things worth knowing before using it on a live site:
 - `npm run test-run` and `npm run test-run-oauth` publish to the test bucket
   too, since they're test runs by definition.
 
+## Purchase-friction (FUD) pass
+
+An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that runs a CRO review of the store and adds a **Conversion review** section to the report: 31 checks across trust and cost (shipping, returns, cash on delivery, reviews, support), homepage clarity, product page layout (photos, option buttons, sticky buy button, organised details), navigation and search (including a live test search), order value (bundles, add-ons, free-shipping threshold vs average order), repeat purchases (signup, loyalty), local-market fit (Arabic, local payments and delivery) and popups. It also shows **Where the money is** (from the store's own GA4 data: a revenue range when a funnel step is below benchmark, device split, new vs returning, channels, weak landing pages). Each finding has a PEXTI priority, ready-to-paste copy (EN + AR) and a crop of the store's own page.
+
+- Runs **after** the 50-check audit is saved. It never changes the 50-check score, and if it fails the report ships without the section.
+- `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
+- Visits home, one product, the cart and one collection page on a phone viewport, then home and product again at desktop width (for the "on desktop" notes).
+- It adds **one product to the store's cart** in a throwaway browser session and reads the cart drawer (or the cart page when the theme has no drawer). It never goes past the cart.
+- Analytics and ad hits are blocked during the visit, so the bot stays out of the client's GA4/Meta/Shopify data. Anything analytics-shaped that slips past the blocklist is logged as `NOT blocked` — add it to `BLOCKED_HITS` in `src/fud/collect.ts`.
+- Live runs show a FAIL as a warning until `FUD_ALLOW_FAIL=true`; any FAIL is also flagged in the internal review email.
+- The client email lists up to two quick wins from this section.
+- Adds roughly 4–5 minutes and one extra `claude -p` call per audit.
+
+Commands:
+
+```bash
+npm run fud-run -- https://store.com                 # one store: collect + judge, writes output/fud-<host>-result.json
+npm run fud-run -- https://store.com --request=<id>   # with that audit request's GA4 data
+npm run fud-run -- https://store.com --collect-only  # browser only, no Claude call
+npm run preview-report -- --no-ar --fud=output/fud-<host>-result.json   # see it in a report
+npm test                                             # rule, gate, scoring, override and queue-stage tests
+```
+
+**Calibrating the rules** (do this on 15–20 stores before `FUD_PASS=all`):
+
+```bash
+npm run fud-calibrate -- https://store-a.com https://store-b.com   # or --file=stores.txt
+# open output/fud-calibration.csv, mark each row y/n in "correct"
+npm run fud-calibrate -- --score                                   # precision per rule
+```
+
+A rule whose FAILs are right less than 90% of the time should get `autoFail: false` in `src/fud/rules.ts`.
+
+**Correcting a finding before approving a report:**
+
+```bash
+npm run fud-override -- <request-id> --list
+npm run fud-override -- <request-id> B1 pass "returns line is in the sticky bar"
+npm run fud-override -- <request-id> A1 hidden "digital product, no shipping"
+```
+
+`<request-id>` is the full id or the 6 characters at the end of the report slug. It saves the correction (keeping the machine's original status), recomputes the score and republishes the report at the same URL. It rebuilds the report from the saved audit data, so do overrides **before** any hand edits through `/api/report/edit`.
+
 ## Testing over a tunnel (ngrok or tunnelmole)
 
 The report pages are served by the dev server itself (a dev twin of

@@ -2,8 +2,19 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
-import type { AuditResult, CategoryKey, CategoryResult, FindingSeverity, Ga4FunnelEvent } from "./types.js";
-import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type ChecklistPoint } from "./checklist.js";
+import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingAction, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4FunnelEvent, Handoff, Opportunity } from "./types.js";
+import { CHECK_GROUP_LABELS, GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type BaseChecklistPoint, type ChecklistPoint as ActionChecklistPoint } from "./checklist.js";
+import { LEGACY_GA4_CHECKLIST, LEGACY_GTM_CHECKLIST, LEGACY_WEBSITE_CHECKLIST, LEGACY_WEBSITE_CODE_CHECKLIST } from "./checklist-legacy.js";
+import { OPPORTUNITY_LABEL, OWNER_LABEL } from "./actions.js";
+
+// Display code works on either checklist generation: the action-point lists
+// (checklist.ts) or the ones older saved results were scored against.
+type ChecklistPoint = BaseChecklistPoint & Partial<Pick<ActionChecklistPoint, "group" | "opportunity">>;
+import { groupOf, ruleById, type FudGroup } from "./fud/rules.js";
+import { formatMoney, STEP_BENCHMARKS } from "./fud/insights.js";
+import { READER_QUESTIONS } from "./reader-questions.js";
+import { mediaBuyerLane, mediaBuyerRank, roleSeverity, type AudienceRole } from "./audience.js";
+import { AD_EFFECT_CHIP, AD_EFFECT_ROLES, AD_EFFECT_SIZE_LABEL, adEffectOf, adEffectSize } from "./ad-impact.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS = path.join(__dirname, "..", "assets");
@@ -119,6 +130,12 @@ const DATA_SOURCE_LABEL_AR: Record<string, string> = {
 
 export interface AuditHtmlReport {
   html: string;
+}
+
+// Percent-encoded paths in finding text ("/ar-sa/products/%D8%B9…") shown
+// readable; anything that is not valid UTF-8 stays as it was.
+function decodePaths(value: string): string {
+  return value.replace(/(?:%[0-9A-Fa-f]{2})+/g, m => { try { return decodeURIComponent(m); } catch { return m; } });
 }
 
 function escapeHtml(value: string): string {
@@ -253,10 +270,15 @@ function fontFace(family: string, weight: number, uri: string): string {
 // full 50-item WEBSITE_CHECKLIST when the visitor has neither GA4 nor GTM, or
 // the curated 25-item WEBSITE_CODE_CHECKLIST alongside one tracking tool.
 // checklistTally.total already reflects which one ran.
-function checklistForDisplay(category: CategoryKey, total: number): ChecklistPoint[] {
-  if (category === "GA4") return GA4_CHECKLIST;
-  if (category === "GTM") return GTM_CHECKLIST;
-  return total === WEBSITE_CODE_CHECKLIST.length ? WEBSITE_CODE_CHECKLIST : WEBSITE_CHECKLIST;
+function checklistForDisplay(category: CategoryKey, total: number, findingIds: string[] = []): ChecklistPoint[] {
+  const current = category === "GA4" ? GA4_CHECKLIST : category === "GTM" ? GTM_CHECKLIST : total === WEBSITE_CODE_CHECKLIST.length ? WEBSITE_CODE_CHECKLIST : WEBSITE_CHECKLIST;
+  // A result scored before the action-point rewrite cites the old ids.
+  if (findingIds.length && !findingIds.some(id => current.some(p => p.id === id))) {
+    if (category === "GA4") return LEGACY_GA4_CHECKLIST;
+    if (category === "GTM") return LEGACY_GTM_CHECKLIST;
+    return total === LEGACY_WEBSITE_CODE_CHECKLIST.length ? LEGACY_WEBSITE_CODE_CHECKLIST : LEGACY_WEBSITE_CHECKLIST;
+  }
+  return current;
 }
 
 function techToggleId(cat: Pick<CategoryResult, "category">, point: Pick<ChecklistPoint, "id">): string {
@@ -305,6 +327,15 @@ const CHECK_GROUPS: Record<CategoryKey, Array<{ en: string; ar: string; ids: str
 };
 
 function groupChecklist(key: CategoryKey, checklist: ChecklistPoint[]) {
+  // Action-point checklists carry their own section per point.
+  if (checklist.some(p => p.group)) {
+    const order = [...new Set(checklist.map(p => p.group ?? "other"))];
+    return order.map(g => ({
+      en: CHECK_GROUP_LABELS[g]?.en ?? "Other checks",
+      ar: CHECK_GROUP_LABELS[g]?.ar ?? "بنود أخرى",
+      points: checklist.filter(p => (p.group ?? "other") === g),
+    }));
+  }
   const byId = new Map(checklist.map(p => [p.id, p]));
   const used = new Set<string>();
   const groups = CHECK_GROUPS[key].map(g => {
@@ -337,12 +368,8 @@ function summaryHtml(result: AuditResult, counts: ReturnType<typeof resultCounts
 
   const headlineEn = `<span class="client-name">${name}</span> passed <span class="hl" style="--c:${color}"><span class="count" data-to="${counts.passed}">${counts.passed}</span> of ${counts.total}</span> checks`;
   const headlineAr = `اجتاز <span class="client-name">${name}</span> <span class="hl" style="--c:${color}"><span class="count" data-to="${counts.passed}">${counts.passed}</span> من ${counts.total}</span> ${arChecksNoun(counts.total)}`;
-  const leadEn = counts.failed > 0
-    ? `${counts.failed} ${checksWord(counts.failed)} need work: ${counts.critical} critical, ${counts.medium} medium and ${counts.low} low. Each one below says what it means for your store and what to change.`
-    : `Every check in this audit passed. The details below show what each check confirmed about your store.`;
-  const leadAr = counts.failed > 0
-    ? `${counts.failed} ${arChecksNoun(counts.failed)} تحتاج إلى إصلاح: ${counts.critical} حرجة، و${counts.medium} متوسطة، و${counts.low} منخفضة. يوضح كل بند أدناه ماذا يعني لمتجرك وما الذي يجب تغييره.`
-    : `اجتاز موقعك جميع بنود هذا التدقيق. توضح التفاصيل أدناه ما أكده كل بند عن متجرك.`;
+  const copy = copyFor(result);
+  const [leadEn, leadAr] = counts.failed > 0 ? copy.lead(counts, result) : copy.leadPass;
 
   const facts = result.categories.map(cat => {
     const { passed, total } = cat.checklistTally;
@@ -353,6 +380,16 @@ function summaryHtml(result: AuditResult, counts: ReturnType<typeof resultCounts
             <dd><a href="#sec-${SECTION_SLUG[cat.category]}"><b class="count" data-to="${passed}" style="color:${scoreColor(p)}">${passed}</b> / ${total} ${bi("passed", "ناجح")}</a><span class="bar"><span style="width:${p.toFixed(1)}%;background:${scoreColor(p)}"></span></span></dd>
           </div>`;
   });
+  // Purchase friction is its own score, never part of the passed-checks
+  // headline above it; shown only when there was enough coverage for one.
+  const friction = result.fud?.score;
+  if (friction !== null && friction !== undefined) {
+    facts.push(`
+          <div class="fact">
+            <dt>${bi("Conversion score", "مؤشر التحويل")}</dt>
+            <dd><a href="#friction"><b class="count" data-to="${friction}" style="color:${scoreColor(friction)}">${friction}</b> / 100</a><span class="bar"><span style="width:${friction}%;background:${scoreColor(friction)}"></span></span></dd>
+          </div>`);
+  }
   const mobile = result.pageSpeed?.average.mobile;
   if (mobile !== null && mobile !== undefined) {
     facts.push(`
@@ -383,7 +420,7 @@ function summaryHtml(result: AuditResult, counts: ReturnType<typeof resultCounts
         <dl class="facts">${facts.join("")}</dl>
         <div class="actions">
           <a class="btn btn--primary magnetic" href="${contactUrl}">${bi("Book a free call", "احجز مكالمة مجانية")}</a>
-          ${counts.failed > 0 ? `<a class="btn btn--link" href="#fix-first">${bi("See what to fix first", "ما الذي يجب إصلاحه أولًا")}${ARROW}</a>` : ""}
+          ${counts.failed > 0 ? `<a class="btn btn--link" href="#fix-first">${bi(...copy.fixLink)}${ARROW}</a>` : ""}
         </div>
       </section>`;
 }
@@ -417,32 +454,754 @@ function screenshotsHtml(result: AuditResult): string {
       </section>`;
 }
 
-// ---- fix these first ----
-// A real sequence (the order to work in), so it's a numbered list: the three
-// most serious failed checks, worst first.
-function fixFirstHtml(result: AuditResult): string {
-  const failed = result.categories.flatMap(cat => cat.findings.filter(f => f.status === "fail").map(f => ({ cat, f })));
-  const top = failed.sort((a, b) => SEVERITY_RANK[a.f.severity] - SEVERITY_RANK[b.f.severity]).slice(0, 3);
-  if (top.length === 0) return "";
-  const items = top
-    .map(({ cat, f }, i) => {
+// ---- the first section after the summary: one per reader ----
+// audience.ts: every reader gets the same 50 checks. This section, the copy
+// around the checks and the call to action are where each reader's report
+// differs (icp/*.md, from the ICP cards). No role (rows from before the
+// field) keeps the original "Fix these first" list.
+
+type FailedRow = { cat: CategoryResult; f: CategoryResult["findings"][number] };
+type Money = NonNullable<FindingAction["money"]>;
+
+function failedRows(result: AuditResult): FailedRow[] {
+  return result.categories.flatMap(cat => cat.findings.filter(f => f.status === "fail").map(f => ({ cat, f })));
+}
+
+function bySeverity(rows: FailedRow[]): FailedRow[] {
+  return [...rows].sort((a, b) => SEVERITY_RANK[a.f.severity] - SEVERITY_RANK[b.f.severity]);
+}
+
+// Points with a GA4 money range first (biggest first), then by severity.
+function byMoney(rows: FailedRow[]): FailedRow[] {
+  return [...rows].sort((a, b) => (b.f.action?.money?.high ?? 0) - (a.f.action?.money?.high ?? 0) || SEVERITY_RANK[a.f.severity] - SEVERITY_RANK[b.f.severity]);
+}
+
+function laneCounts(result: AuditResult): { signal: number; postClick: number } {
+  const rows = failedRows(result);
+  return {
+    signal: rows.filter(r => mediaBuyerLane(r.f.checklistId) === "signal").length,
+    postClick: rows.filter(r => mediaBuyerLane(r.f.checklistId) === "post_click").length,
+  };
+}
+
+// Fixes that need no developer: the store owner, content or marketing can
+// make them in the store admin.
+function isDiy(f: FailedRow["f"]): boolean {
+  return Boolean(f.action?.owners?.length) && !f.action!.owners.includes("dev");
+}
+
+function moneyRange(m: Money): string {
+  return `${formatMoney(m.low, m.currency)}–${formatMoney(m.high, m.currency)}`;
+}
+
+// Tile-sized: "SAR 723K–1.45M". Same numbers, rounded for a narrow box.
+function moneyRangeShort(m: Money): string {
+  const short = (n: number) => { const c = compactMoney(n); return `${c.dec ? c.value.toFixed(c.dec).replace(/.?0+$/, "") : c.value.toLocaleString("en-US")}${c.en}`; };
+  return `${m.currency ? `${m.currency} ` : ""}${short(m.low)}–${short(m.high)}`;
+}
+
+// The single biggest money range among failed points. One number, never a
+// sum: overlapping GA4 points would count the same sales twice.
+function biggestMoney(result: AuditResult): { row: FailedRow; money: Money } | null {
+  const top = byMoney(failedRows(result)).find(r => r.f.action?.money);
+  return top ? { row: top, money: top.f.action!.money! } : null;
+}
+
+function periodOf(result: AuditResult): number {
+  return result.ga4Facts?.periodDays ?? result.ga4Metrics?.periodDays ?? 28;
+}
+
+function fixItemsHtml(rows: FailedRow[], extra?: (r: FailedRow) => string): string {
+  return rows
+    .map((r, i) => {
+      const { cat, f } = r;
       const ar = f.ar?.business ?? f.business;
       const [shortEn, shortAr] = CATEGORY_SHORT[cat.category];
       return `
           <li class="beam" style="--bd:-${i * 4}s">
             <a href="#${rowId(cat, { id: f.checklistId })}">
-              <span class="fix-meta">${severityTag(f.severity)}<span>${bi(shortEn, shortAr)}</span></span>
+              <span class="fix-meta">${severityTag(f.severity)}<span>${bi(shortEn, shortAr)}</span>${extra ? extra(r) : ""}</span>
               <span class="fix-title">${biHtml(escapeHtml(f.business.summary), escapeHtml(ar.summary))}</span>
             </a>
           </li>`;
     })
     .join("");
+}
+
+const effortTag = ({ f }: FailedRow): string =>
+  !f.action ? "" : isDiy(f)
+    ? `<span class="fix-tag fix-tag--diy">${bi("You can do this", "تقدر تسويه بنفسك")}</span>`
+    : `<span class="fix-tag">${bi("Needs a developer", "يحتاج مطوّر")}</span>`;
+
+// Which way the point moves ROAS/CAC (ad-impact.ts), for the readers judged
+// on them. A direction and, when GA4 gave a money range, a size band.
+function adEffectChip(result: AuditResult | undefined, f: FailedRow["f"]): string {
+  if (!result?.audienceRole || !AD_EFFECT_ROLES.has(result.audienceRole) || f.status !== "fail") return "";
+  const effect = adEffectOf(f.checklistId);
+  if (!effect) return "";
+  const chip = AD_EFFECT_CHIP[effect];
+  const size = effect === "performance" || effect === "aov" ? adEffectSize(f.action?.money ?? null, result) : null;
+  const sizeEn = size ? ` (est. ${AD_EFFECT_SIZE_LABEL[size].en})` : " (est.)";
+  const sizeAr = size ? ` (تقدير: ${AD_EFFECT_SIZE_LABEL[size].ar})` : " (تقدير)";
+  const m = `<bdi dir="ltr">${escapeHtml(chip.metrics)}</bdi>`;
+  const arMetrics = effect === "inflated" ? `<bdi dir="ltr">ROAS</bdi> المُبلَّغ أعلى من الحقيقي` : effect === "deflated" ? `<bdi dir="ltr">ROAS</bdi> المُبلَّغ أقل من الحقيقي` : m;
+  return `<span class="adfx adfx--${effect}">${biHtml(`${escapeHtml(chip.en)} ${m}${escapeHtml(sizeEn)}`, `${escapeHtml(chip.ar)} ${arMetrics}${escapeHtml(sizeAr)}`)}</span>`;
+}
+
+const ownerTag = ({ f }: FailedRow): string => (f.action?.owners?.length ? `<span class="fix-tag">${ownersBi(f.action.owners)}</span>` : "");
+
+const moneyTag = ({ f }: FailedRow): string => (f.action?.money ? `<span class="fix-tag fix-tag--money">${bi(`${moneyRange(f.action.money)} / month`, `${moneyRange(f.action.money)} شهريًا`)}</span>` : "");
+
+type Kpi = { value: string; en: string; ar: string };
+
+function kpisHtml(tiles: Kpi[]): string {
+  if (!tiles.length) return "";
+  return `
+        <dl class="rkpis">${tiles.map(t => `
+          <div class="rkpi"><dt>${bi(t.en, t.ar)}</dt><dd dir="ltr">${escapeHtml(t.value)}</dd></div>`).join("")}
+        </dl>`;
+}
+
+// The store's own GA4 numbers, as tiles. Conversion rate is purchases over
+// visits (never key events), already sanitised in ga4Metrics.
+function storeKpis(result: AuditResult, want: Array<"cr" | "aov" | "revenue" | "step">): Kpi[] {
+  const m = result.ga4Metrics;
+  const facts = result.ga4Facts;
+  const currency = facts?.currency ?? m?.currency ?? null;
+  const days = periodOf(result);
+  const out: Kpi[] = [];
+  for (const k of want) {
+    if (k === "cr" && typeof m?.conversionRate === "number" && m.conversionRate > 0 && m.conversionRate <= 100) {
+      out.push({ value: `${fmtPct(m.conversionRate)}%`, en: "Conversion rate", ar: "معدل التحويل" });
+    }
+    if (k === "aov" && facts?.aov) out.push({ value: formatMoney(facts.aov, currency), en: "Average order value", ar: "متوسط قيمة الطلب" });
+    if (k === "revenue" && (facts?.revenue ?? m?.revenue)) {
+      out.push({ value: formatMoney((facts?.revenue ?? m?.revenue)!, currency), en: `Revenue, last ${days} days`, ar: `الإيرادات، آخر ${days} يومًا` });
+    }
+    if (k === "step" && facts?.focus.step) {
+      const s = facts.focus.step;
+      out.push({ value: `${fmtPct(s.rate * 100)}% vs ${fmtPct(s.benchmark * 100)}%`, en: `Weakest step: ${s.from} → ${s.to} (vs benchmark)`, ar: `أضعف خطوة: ${s.from} ← ${s.to} (مقابل المعيار)` });
+    }
+  }
+  return out;
+}
+
+function storeOwnerFirstHtml(result: AuditResult): string {
+  const rows = byMoney(failedRows(result));
+  if (!rows.length) return "";
+  const big = biggestMoney(result);
+  const diy = rows.filter(r => isDiy(r.f)).length;
+  const hero = big
+    ? `
+        <p class="money-hero">${bi(`Your biggest leak: about ${moneyRange(big.money)} a month`, `أكبر تسريب في متجرك: نحو ${moneyRange(big.money)} شهريًا`)}</p>
+        <p class="money-src">${biHtml(
+          `${escapeHtml(big.row.f.business.summary)} <span class="src">Source: your own GA4 data, last ${periodOf(result)} days. An estimate, not a promise.</span>`,
+          `${escapeHtml((big.row.f.ar?.business ?? big.row.f.business).summary)} <span class="src">المصدر: بيانات GA4 الخاصة بمتجرك، آخر ${periodOf(result)} يومًا. تقدير وليس وعدًا.</span>`,
+        )}</p>`
+    : "";
+  return `
+      <section class="doc-section" id="fix-first">
+        <h2>${bi("What's costing you sales", "وش اللي يكلّفك مبيعات")}</h2>
+        ${hero}
+        ${kpisHtml(storeKpis(result, ["cr", "aov"]))}
+        <p class="section-lead">${bi(
+          `Start with number 1. ${diy} of the ${rows.length} fixes don't need a developer: you can make them yourself in your store admin.`,
+          `ابدأ بالرقم 1. ${diy} من ${rows.length} إصلاحات ما تحتاج مطوّر، تقدر تسويها بنفسك من لوحة تحكم متجرك.`,
+        )}</p>
+        <ol class="fix-list">${fixItemsHtml(dedupeFunnel(rows, result).slice(0, 3), r => `${moneyTag(r)}${effortTag(r)}`)}</ol>
+      </section>`;
+}
+
+// The ROAS line under the heading: the store's own conversion rate when GA4
+// gave one (purchases / visits, never key events), else the plain formula.
+function roasMathHtml(result: AuditResult): string {
+  const cr = result.ga4Metrics?.conversionRate;
+  if (typeof cr === "number" && cr > 0 && cr <= 100) {
+    const up = cr * 1.2;
+    return bi(
+      `ROAS = conversion rate × AOV ÷ CPC. The store converts ${fmtPct(cr)}% of visits today. Lifting that to ${fmtPct(up)}% lifts ROAS by about 20% and cuts CPA by about 17% on the same spend and the same ads.`,
+      `ROAS = معدل التحويل × AOV ÷ CPC. يحوّل المتجر اليوم ${fmtPct(cr)}% من الزيارات. رفعه إلى ${fmtPct(up)}% يرفع ROAS بنحو 20% ويخفض CPA بنحو 17% بنفس الإنفاق ونفس الإعلانات.`,
+    );
+  }
+  return bi(
+    "ROAS = conversion rate × AOV ÷ CPC. Two of the three live on the site, so every leak fixed after the click raises ROAS on the same spend.",
+    "ROAS = معدل التحويل × AOV ÷ CPC. اثنان من الثلاثة على الموقع، لذلك كل تسريب يُصلَح بعد الضغط على الإعلان يرفع ROAS بنفس الإنفاق.",
+  );
+}
+
+function laneHtml(en: string, ar: string, leadEn: string, leadAr: string, list: FailedRow[], emptyEn: string, emptyAr: string, extra?: (r: FailedRow) => string): string {
+  return `
+        <div class="lane">
+          <h3 class="lane-head">${bi(en, ar)}</h3>
+          <p class="lane-lead">${bi(leadEn, leadAr)}</p>
+          ${list.length ? `<ol class="fix-list">${fixItemsHtml(list, extra)}</ol>` : `<p class="lane-empty">${bi(emptyEn, emptyAr)}</p>`}
+        </div>`;
+}
+
+// "Is the number real?" in one line: which way the failing tracking points
+// bias reported ROAS (ad-impact.ts). Counted, not estimated.
+function roasVerdictHtml(result: AuditResult): string {
+  const rows = failedRows(result);
+  const up = rows.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
+  const down = rows.filter(r => adEffectOf(r.f.checklistId) === "deflated").length;
+  if (!up && !down) {
+    return `<p class="verdict verdict--ok">${bi(
+      "Reported ROAS: no tracking problem found that would push it up or down. Judge campaigns on it as it is.",
+      "ROAS المُبلَّغ: لم نجد مشكلة تتبع ترفعه أو تخفضه. قيّم الحملات عليه كما هو.",
+    )}</p>`;
+  }
+  const [en, ar] = up && down
+    ? [`Reported ROAS is off in both directions: ${up} ${up === 1 ? "issue over-counts" : "issues over-count"} sales and ${down} ${down === 1 ? "under-counts" : "under-count"} or mis-credit them. Fix tracking before judging, scaling or cutting campaigns.`,
+       `ROAS المُبلَّغ منحرف في الاتجاهين: ${up} مشكلة تحسب المبيعات أكثر من الحقيقي و${down} تحسبها أقل أو تنسبها لمصدر خاطئ. أصلح التتبع قبل تقييم الحملات أو زيادة ميزانيتها أو إيقافها.`]
+    : up
+      ? [`Reported ROAS likely reads higher than real: ${up} ${up === 1 ? "issue over-counts" : "issues over-count"} sales. Losing campaigns can look like winners until it's fixed.`,
+         `ROAS المُبلَّغ غالبًا أعلى من الحقيقي: ${up} مشكلة تحسب المبيعات أكثر من الحقيقي. الحملات الخاسرة ممكن تبان رابحة لحد ما تتصلح.`]
+      : [`Reported ROAS likely reads lower than real: ${down} ${down === 1 ? "issue misses or mis-credits" : "issues miss or mis-credit"} sales. Winning campaigns can get cut, and the algorithm learns from fewer sales.`,
+         `ROAS المُبلَّغ غالبًا أقل من الحقيقي: ${down} مشكلة تفوّت مبيعات أو تنسبها لمصدر خاطئ. الحملات الرابحة ممكن تتوقف، والخوارزمية بتتعلم من مبيعات أقل.`];
+  return `<p class="verdict">${bi(en, ar)}</p>`;
+}
+
+function mediaBuyerFirstHtml(result: AuditResult): string {
+  const rows = failedRows(result).sort((a, b) => mediaBuyerRank(a.f.checklistId, SEVERITY_RANK[a.f.severity]) - mediaBuyerRank(b.f.checklistId, SEVERITY_RANK[b.f.severity]));
+  const signal = rows.filter(r => mediaBuyerLane(r.f.checklistId) === "signal").slice(0, 3);
+  const postClick = dedupeFunnel(rows.filter(r => mediaBuyerLane(r.f.checklistId) === "post_click"), result).slice(0, 3);
+  if (signal.length === 0 && postClick.length === 0) return "";
+  return `
+      <section class="doc-section" id="fix-first">
+        <h2>${bi("What's holding your ROAS back", "ما الذي يحدّ من ROAS")}</h2>
+        <p class="section-lead">${roasMathHtml(result)}</p>
+        ${kpisHtml(storeKpis(result, ["cr", "aov", "step"]))}
+        ${funnelStripHtml(result)}
+        ${roasVerdictHtml(result)}
+        ${laneHtml(
+          "1. Is the number real?",
+          "1. هل الرقم حقيقي؟",
+          "What the ad platforms and GA4 see. A sale missed or counted twice makes the algorithm learn from the wrong data, and ROAS in Ads Manager stops matching real orders.",
+          "ما تراه منصات الإعلانات وGA4. أي عملية شراء لا تُسجَّل أو تُسجَّل مرتين تجعل الخوارزمية تتعلم من بيانات خاطئة، فلا يطابق ROAS في Ads Manager الطلبات الحقيقية.",
+          signal,
+          "No tracking problems found. The ad platforms and GA4 get each sale as it happens.",
+          "لم نجد مشكلات في التتبع. تستقبل منصات الإعلانات وGA4 كل عملية شراء كما تحدث.",
+          r => `${adEffectChip(result, r.f)}${ownerTag(r)}`,
+        )}
+        ${laneHtml(
+          "2. Does paid traffic convert?",
+          "2. هل تتحوّل الزيارات المدفوعة؟",
+          "What happens after the click: the steps, pages and speed that lose shoppers you already paid for.",
+          "ما يحدث بعد الضغط على الإعلان: الخطوات والصفحات والسرعة التي تُضيّع متسوقين دفعت ثمن وصولهم.",
+          postClick,
+          "No post-click leaks found in the steps we could measure.",
+          "لم نجد تسريبات بعد الضغط على الإعلان في الخطوات التي أمكن قياسها.",
+          r => `${adEffectChip(result, r.f)}${ownerTag(r)}`,
+        )}
+        ${ownerHandoverHtml(result)}
+        <p class="lane-note">${bi(
+          "Every point names who has to fix it, so you can forward it to the store owner or developer as proof.",
+          "كل بند يحدد مين لازم يصلحه، فتقدر تبعته لصاحب المتجر أو المطوّر كدليل.",
+        )}</p>
+      </section>`;
+}
+
+const TEAMS: ActionOwner[] = ["dev", "content", "marketing", "owner"];
+
+function marketingManagerFirstHtml(result: AuditResult): string {
+  const rows = byMoney(failedRows(result));
+  if (!rows.length) return "";
+  const big = biggestMoney(result);
+  const tiles = storeKpis(result, ["cr", "revenue", "aov"]);
+  if (big) tiles.push({ value: moneyRangeShort(big.money), en: "Biggest leak, a month", ar: "أكبر تسريب، شهريًا" });
+  const teams = TEAMS.map(team => {
+    const owned = rows.filter(r => r.f.action?.owners?.includes(team));
+    if (!owned.length) return "";
+    const top = owned[0].f;
+    const topAr = (top.ar?.business ?? top.business).summary;
+    return `
+          <li><b>${bi(OWNER_LABEL[team].en, OWNER_LABEL[team].ar)}</b> <span class="team-n">${bi(`${owned.length} ${owned.length === 1 ? "fix" : "fixes"}`, `${owned.length} ${owned.length === 1 ? "إصلاح" : "إصلاحات"}`)}</span>
+            <span class="team-top">${biHtml(`First: ${escapeHtml(top.business.summary)}`, `الأول: ${escapeHtml(topAr)}`)}</span></li>`;
+  }).join("");
+  return `
+      <section class="doc-section" id="fix-first">
+        <h2>${bi("Executive summary", "الملخص التنفيذي")}</h2>
+        <p class="section-lead">${bi(
+          "The short version for leadership: the store's numbers, the three fixes worth most, and which team owns each fix.",
+          "النسخة المختصرة للإدارة: أرقام المتجر، وأهم ثلاثة إصلاحات من حيث القيمة، والفريق المسؤول عن كل إصلاح.",
+        )}</p>
+        ${kpisHtml(tiles)}
+        ${funnelStripHtml(result)}
+        <div class="lane">
+          <h3 class="lane-head">${bi("Top 3 priorities", "أهم ثلاث أولويات")}</h3>
+          <ol class="fix-list">${fixItemsHtml(dedupeFunnel(rows, result).slice(0, 3), r => `${moneyTag(r)}${adEffectChip(result, r.f)}${ownerTag(r)}`)}</ol>
+        </div>
+        ${teams ? `
+        <div class="lane">
+          <h3 class="lane-head">${bi("Who owns what", "من المسؤول عن ماذا")}</h3>
+          <p class="lane-lead">${bi("Hand each team its list. Every point has the step, the owner and how to confirm it's done.", "سلّم كل فريق قائمته. كل بند فيه الخطوة والمسؤول وطريقة التأكد من الإنجاز.")}</p>
+          <ul class="team-list">${teams}</ul>
+        </div>` : ""}
+      </section>`;
+}
+
+function agencyFirstHtml(result: AuditResult): string {
+  const rows = bySeverity(failedRows(result));
+  if (!rows.length) return "";
+  const counts = resultCounts(result);
+  const all = result.categories.flatMap(c => c.findings);
+  const live = all.filter(f => f.dataSource === "live").length;
+  const big = biggestMoney(result);
+  const tiles: Kpi[] = [
+    { value: `${counts.passed} / ${counts.total}`, en: "Checks passed", ar: "البنود الناجحة" },
+    { value: String(counts.critical), en: "Critical issues", ar: "مشكلات حرجة" },
+    { value: `${live} / ${all.length}`, en: "Findings from live account data", ar: "نتائج من بيانات الحساب المباشرة" },
+  ];
+  if (big) tiles.push({ value: moneyRangeShort(big.money), en: "Biggest leak, a month (GA4 estimate)", ar: "أكبر تسريب شهريًا (تقدير من GA4)" });
+  const stream = (lane: ReturnType<typeof mediaBuyerLane>) => rows.filter(r => mediaBuyerLane(r.f.checklistId) === lane);
+  const ws = (en: string, ar: string, leadEn: string, leadAr: string, list: FailedRow[]) =>
+    list.length ? laneHtml(`${en} · ${list.length}`, `${ar} · ${list.length}`, leadEn, leadAr, list.slice(0, 3), "", "", r => `${adEffectChip(result, r.f)}${ownerTag(r)}`) : "";
+  return `
+      <section class="doc-section" id="fix-first">
+        <h2>${bi("Client audit summary", "ملخص التدقيق للعميل")}</h2>
+        <p class="section-lead">${bi(
+          "Every number in this report comes from the store's own GA4, its tag setup or our visit to the store, and each finding says which. The workstreams below group the work for scoping.",
+          "كل رقم في هذا التقرير مصدره بيانات GA4 الخاصة بالمتجر أو إعداد الوسوم أو زيارتنا للمتجر، وكل نتيجة توضح مصدرها. مسارات العمل أدناه تجمع المهام لتحديد نطاق العمل.",
+        )}</p>
+        ${kpisHtml(tiles)}
+        ${ws("Tracking and data", "التتبع والبيانات", "What GA4 and the ad platforms record versus what really happened.", "ما يسجله GA4 ومنصات الإعلانات مقارنة بما حدث فعلًا.", stream("signal"))}
+        ${ws("Conversion", "التحويل", "Funnel steps, landing pages, speed, cart and checkout.", "خطوات مسار التحويل وصفحات الهبوط والسرعة والسلة وإتمام الشراء.", stream("post_click"))}
+        ${ws("Tech, trust and compliance", "التقنية والثقة والامتثال", "Security, privacy, search visibility and accessibility.", "الأمان والخصوصية والظهور في البحث وسهولة الوصول.", stream("other"))}
+        <div class="method">
+          <h3 class="lane-head">${bi("How this audit was made", "كيف أُعدّ هذا التدقيق")}</h3>
+          <ul class="method-list">
+            <li>${bi("50 fixed checks, each passed or failed against a stated standard (\u201cWhat good looks like\u201d on every finding).", "50 بندًا ثابتًا، كل بند ناجح أو غير ناجح مقابل معيار مذكور («شكل النتيجة السليمة» في كل نتيجة).")}</li>
+            <li>${bi("Evidence: the store's GA4 and GTM through the account owner's Google sign-in, a phone-sized visit with one real add to cart (analytics blocked), and the public pages. Each finding says which.", "الأدلة: بيانات GA4 وGTM للمتجر عبر تسجيل دخول صاحب الحساب في Google، وزيارة بحجم الجوال مع إضافة حقيقية واحدة للسلة (مع حجب التحليلات)، والصفحات العامة. كل نتيجة توضح مصدرها.")}</li>
+            <li>${bi("Money: closing 10% to 25% of the gap to the benchmark, never more than 10% of monthly revenue for one point, never summed across points.", "المبالغ: سد 10% إلى 25% من الفجوة عن المعيار، ولا تتجاوز 10% من الإيرادات الشهرية لبند واحد، ولا تُجمع بين البنود.")}</li>
+            <li>${bi("Order: severity first, then money at stake, then fixes with no developer.", "الترتيب: الخطورة أولًا، ثم المبلغ المعرّض، ثم الإصلاحات التي لا تحتاج مطوّرًا.")}</li>
+          </ul>
+        </div>
+      </section>`;
+}
+
+// ---- fix these first ----
+// A real sequence (the order to work in), so it's a numbered list: the three
+// most serious failed checks, worst first. The reader's own version replaces
+// it when the form named one.
+function fixFirstHtml(result: AuditResult): string {
+  switch (result.audienceRole) {
+    case "store_owner": return storeOwnerFirstHtml(result);
+    case "media_buyer": return mediaBuyerFirstHtml(result);
+    case "marketing_manager": return marketingManagerFirstHtml(result);
+    case "agency": return agencyFirstHtml(result);
+  }
+  const top = bySeverity(failedRows(result)).slice(0, 3);
+  if (top.length === 0) return "";
   return `
       <section class="doc-section" id="fix-first">
         <h2>${bi("Fix these first", "أصلح هذه أولًا")}</h2>
         <p class="section-lead">${bi("The problems costing your store the most. Start with number 1.", "المشكلات التي تكلّف متجرك أكثر من غيرها. ابدأ بالرقم 1.")}</p>
-        <ol class="fix-list">${items}</ol>
+        <ol class="fix-list">${fixItemsHtml(top)}</ol>
       </section>`;
+}
+
+// ---- "What you asked, answered" (reader-questions.ts) ----
+// The reader came with problems; this section answers each one, in their
+// words, from this store's results: the findings behind it, or what was
+// checked and came back clean.
+
+function fudIssues(result: AuditResult, ids: string[] | undefined): FudFinding[] {
+  const fud = result.fud;
+  if (!fud || !ids?.length) return [];
+  return fud.findings.filter(f => ids.includes(f.ruleId) && f.override?.to !== "hidden" && (f.status === "fail" || f.status === "warn"));
+}
+
+function questionsHtml(result: AuditResult): string {
+  const role = result.audienceRole;
+  if (!role) return "";
+  const failed = failedRows(result);
+  const cards = READER_QUESTIONS[role].map(q => {
+    let rows: FailedRow[];
+    if (q.kind === "diy") rows = byMoney(failed.filter(r => isDiy(r.f)));
+    else rows = byMoney(failed.filter(r => q.points.includes(r.f.checklistId)));
+    rows = dedupeFunnel(rows, result);
+    const fud = q.kind === "diy" ? [] : fudIssues(result, q.fud);
+    const checked = q.kind === "diy" ? failed.length : q.points.length + (q.fud?.length ?? 0);
+    const found = rows.length + fud.length;
+    const big = q.kind === "money" ? rows.find(r => r.f.action?.money) : undefined;
+
+    const verdict = found === 0
+      ? `<p class="qa-verdict qa-verdict--ok">${bi(`No problem found. ${q.cleanEn}`, `لا توجد مشكلة. ${q.cleanAr}`)} <span class="qa-n">${bi(`${checked} checks behind this answer`, `${checked} فحصًا وراء هذه الإجابة`)}</span></p>`
+      : q.kind === "diy"
+        ? `<p class="qa-verdict">${bi(`${found} ${found === 1 ? "fix needs" : "fixes need"} no developer. Start with these:`, `${found} إصلاحات ما تحتاج مطوّر. ابدأ بهذي:`)}</p>`
+        : `<p class="qa-verdict">${bi(`Yes: ${found} ${found === 1 ? "problem" : "problems"} found.`, `نعم: وجدنا ${found} ${found === 1 ? "مشكلة" : "مشكلات"}.`)}${big ? ` <b class="qa-money">${bi(`Biggest: about ${moneyRange(big.f.action!.money!)} a month (GA4 estimate).`, `الأكبر: نحو ${moneyRange(big.f.action!.money!)} شهريًا (تقدير من GA4).`)}</b>` : ""}</p>`;
+
+    const items = [
+      ...rows.slice(0, 3).map(({ cat, f }) => `<li><a href="#${rowId(cat, { id: f.checklistId })}">${biHtml(escapeHtml(f.business.summary), escapeHtml((f.ar?.business ?? f.business).summary))}</a></li>`),
+      ...fud.slice(0, Math.max(0, 3 - Math.min(3, rows.length))).map(f => `<li><a href="#row-${`tech-FUD-${f.ruleId}`.replace(/[^A-Za-z0-9_-]/g, "-")}">${biHtml(escapeHtml(f.business.summary), escapeHtml((f.ar?.business ?? f.business).summary))}</a></li>`),
+    ];
+    const more = found > items.length ? `<p class="qa-more">${bi(`And ${found - items.length} more in the checks below.`, `و${found - items.length} أخرى في البنود أدناه.`)}</p>` : "";
+    return `
+        <article class="qa${found ? "" : " qa--ok"}">
+          <h3 class="qa-q">${bi(q.en, q.ar)}</h3>
+          ${verdict}
+          ${items.length ? `<ul class="qa-list">${items.join("")}</ul>` : ""}
+          ${more}
+        </article>`;
+  }).join("");
+  return `
+      <section class="doc-section" id="answers">
+        <h2>${bi("What you asked, answered", "أسئلتك، وإجاباتها")}</h2>
+        <p class="section-lead">${bi(
+          "The questions people in your role bring us, answered from this store's own data. Each answer links to the checks behind it.",
+          "الأسئلة اللي يجيبها لنا أصحاب دورك، وإجاباتها من بيانات هذا المتجر نفسه. كل إجابة مربوطة بالبنود اللي وراها.",
+        )}</p>
+        <div class="qa-grid">${cards}</div>
+      </section>`;
+}
+
+// When the biggest funnel leak (GA4-01) is a step that has its own point,
+// that point says the same thing again: keep GA4-01, drop the repeat.
+const STEP_POINT: Record<string, string> = {
+  "view_item>add_to_cart": "GA4-02",
+  "add_to_cart>begin_checkout": "GA4-03",
+  "begin_checkout>purchase": "GA4-04",
+};
+
+function dedupeFunnel(rows: FailedRow[], result: AuditResult): FailedRow[] {
+  const step = result.ga4Facts?.focus.step;
+  const repeat = step ? STEP_POINT[`${step.from}>${step.to}`] : undefined;
+  if (!repeat || !rows.some(r => r.f.checklistId === "GA4-01")) return rows;
+  return rows.filter(r => r.f.checklistId !== repeat);
+}
+
+// The funnel as a strip: each step's rate against its benchmark, from the
+// store's own GA4 event counts.
+const STRIP_LABEL: Record<string, [string, string]> = {
+  view_item: ["Product views", "مشاهدات المنتج"],
+  add_to_cart: ["Add to cart", "الإضافة للسلة"],
+  begin_checkout: ["Checkout", "إتمام الشراء"],
+  purchase: ["Purchase", "الشراء"],
+};
+
+function funnelStripHtml(result: AuditResult): string {
+  const funnel = result.ga4Metrics?.funnel ?? [];
+  const order = ["view_item", "add_to_cart", "begin_checkout", "purchase"];
+  const steps = order.map(e => funnel.find(s => s.event === e)).filter((s): s is NonNullable<typeof s> => Boolean(s && s.count > 0));
+  if (steps.length < 3) return "";
+  const cells = steps.map((s, i) => {
+    const [en, ar] = STRIP_LABEL[s.event] ?? [s.event, s.event];
+    if (i === 0) return `<li class="fs-step"><span class="fs-name">${bi(en, ar)}</span><b dir="ltr">${fmtInt(s.count)}</b></li>`;
+    const prev = steps[i - 1];
+    const rate = s.count / prev.count;
+    const bench = STEP_BENCHMARKS[`${prev.event}>${s.event}`];
+    const low = bench !== undefined && rate < bench;
+    return `<li class="fs-step${low ? " fs-step--low" : ""}"><span class="fs-name">${bi(en, ar)}</span><b dir="ltr">${fmtInt(s.count)}</b><span class="fs-rate" dir="ltr">${fmtPct(rate * 100)}%${bench !== undefined ? ` <i>vs ${fmtPct(bench * 100)}%</i>` : ""}</span></li>`;
+  }).join("");
+  return `
+        <div class="fstrip">
+          <p class="fstrip-head">${bi(`Your funnel, last ${periodOf(result)} days (each step vs benchmark)`, `مسار الشراء، آخر ${periodOf(result)} يومًا (كل خطوة مقابل المعيار)`)}</p>
+          <ol class="fs">${cells}</ol>
+        </div>`;
+}
+
+// Inside the buyer's report: the three fixes in plain words, to forward to
+// the store owner as they are (ICP2: proof the owner will accept).
+function ownerHandoverHtml(result: AuditResult): string {
+  const rows = dedupeFunnel(byMoney(failedRows(result)).filter(r => r.f.action), result).slice(0, 3);
+  if (!rows.length) return "";
+  const items = rows.map(({ f }) => {
+    const noStop = (t: string) => t.trim().replace(/[.。]+$/, "");
+    const step = decodePaths(f.action!.step);
+    const stepAr = decodePaths(f.ar?.action?.step ?? f.action!.step);
+    const done = noStop(f.action!.doneWhen);
+    const doneAr = noStop(f.ar?.action?.doneWhen ?? f.action!.doneWhen);
+    return `<li>${biHtml(
+      `${escapeHtml(step)} <span class="ho-meta">Who: ${escapeHtml(f.action!.owners.map(o => OWNER_LABEL[o].en).join(" + "))}. Done when: ${escapeHtml(done)}${f.action!.money ? `. Worth about ${escapeHtml(moneyRange(f.action!.money))} a month (GA4 estimate)` : ""}.</span>`,
+      `${escapeHtml(stepAr)} <span class="ho-meta">المسؤول: ${escapeHtml(f.action!.owners.map(o => OWNER_LABEL[o].ar).join(" + "))}. يكتمل عندما: ${escapeHtml(doneAr)}${f.action!.money ? `. قيمته نحو ${escapeHtml(moneyRange(f.action!.money))} شهريًا (تقدير من GA4)` : ""}.</span>`,
+    )}</li>`;
+  }).join("");
+  return `
+        <div class="handover">
+          <h3 class="lane-head">${bi("Send this to the store owner", "ابعت ده لصاحب المتجر")}</h3>
+          <p class="lane-lead">${bi("The three fixes worth most, in plain words, with who does each one. Copy it as it is.", "أهم تلات إصلاحات بكلام بسيط، ومين بيعمل كل واحد. انسخه زي ما هو.")}</p>
+          <ol class="ho-list">${items}</ol>
+        </div>`;
+}
+
+// ---- per-reader copy around the report ----
+type Bi2 = [string, string];
+
+interface RoleCopy {
+  lead(counts: ReturnType<typeof resultCounts>, result: AuditResult): Bi2;
+  leadPass: Bi2;
+  fixLink: Bi2;
+  toc: Bi2;
+  jump: Bi2;
+  guide: Bi2;
+  checksIntro: Bi2;
+  cta: { title: Bi2; titlePass: Bi2; body: Bi2; button: Bi2 };
+}
+
+const DEFAULT_COPY: RoleCopy = {
+  lead: c => [
+    `${c.failed} ${checksWord(c.failed)} need work: ${c.critical} critical, ${c.medium} medium and ${c.low} low. Each one below says what it means for your store and what to change.`,
+    `${c.failed} ${arChecksNoun(c.failed)} تحتاج إلى إصلاح: ${c.critical} حرجة، و${c.medium} متوسطة، و${c.low} منخفضة. يوضح كل بند أدناه ماذا يعني لمتجرك وما الذي يجب تغييره.`,
+  ],
+  leadPass: [
+    "Every check in this audit passed. The details below show what each check confirmed about your store.",
+    "اجتاز موقعك جميع بنود هذا التدقيق. توضح التفاصيل أدناه ما أكده كل بند عن متجرك.",
+  ],
+  fixLink: ["See what to fix first", "ما الذي يجب إصلاحه أولًا"],
+  toc: ["Fix these first", "أصلح هذه أولًا"],
+  jump: ["Fix first", "أصلح أولًا"],
+  guide: ["to fix first", "للإصلاح أولًا"],
+  checksIntro: [
+    "Each check tells you what it means for your store. Turn on Technical details to see the exact setup your developer will need.",
+    "يشرح كل بند ماذا يعني لمتجرك. فعِّل «التفاصيل التقنية» لترى الإعداد الدقيق الذي سيحتاجه المطوّر.",
+  ],
+  cta: {
+    title: ["Want these fixed?", "هل تريد إصلاح هذه المشكلات؟"],
+    titlePass: ["Want a second opinion on what's next?", "هل تريد رأيًا في خطوتك التالية؟"],
+    body: [
+      "Book a free call with our team. We'll walk through your results, show you which fixes bring in the most sales, and plan the next steps for your store. You don't have to work with us afterwards.",
+      "احجز مكالمة مجانية مع فريقنا. سنراجع نتائجك معك، ونوضح أي الإصلاحات تجلب أكثر مبيعات، ونخطط للخطوات التالية لمتجرك. لن تكون ملزمًا بالعمل معنا بعدها.",
+    ],
+    button: ["Book my free call", "احجز مكالمتي المجانية"],
+  },
+};
+
+const ROLE_COPY: Record<AudienceRole, RoleCopy> = {
+  store_owner: {
+    ...DEFAULT_COPY,
+    lead: (c, result) => {
+      const diy = failedRows(result).filter(r => isDiy(r.f)).length;
+      return [
+        `${c.failed} ${checksWord(c.failed)} cost your store sales or put it at risk. You can fix ${diy} of them yourself in your store admin. Each one says what it costs, what to change and where.`,
+        `${c.failed} ${arChecksNoun(c.failed)} تكلّف متجرك مبيعات أو تعرّضه للخطر، و${diy} منها تقدر تصلحها بنفسك من لوحة تحكم المتجر. كل بند يوضح كم يكلّفك، وش تغيّر، ووين.`,
+      ];
+    },
+    fixLink: ["See what's costing you sales", "وش اللي يكلّفك مبيعات"],
+    toc: ["What costs you sales", "وش يكلّفك مبيعات"],
+    jump: ["Sales leaks", "التسريبات"],
+    guide: ["biggest leaks", "أكبر التسريبات"],
+    checksIntro: [
+      "Each check says what it costs or protects for your sales, and what to change. Turn on Technical details for the exact setup your developer will need.",
+      "كل بند يوضح كم يكلّف مبيعاتك أو يحميها، ووش تغيّر. فعِّل «التفاصيل التقنية» لترى الإعداد الدقيق اللي يحتاجه المطوّر.",
+    ],
+    cta: {
+      ...DEFAULT_COPY.cta,
+      title: ["Short on time to fix these?", "ما عندك وقت تصلحها؟"],
+      body: [
+        "Optimizers, the team behind this audit, can make these fixes for you. Book a free call and we'll go through your results and the quickest wins together. You don't have to work with us afterwards.",
+        "فريق Optimizers، اللي سوّى هذا التدقيق، يقدر ينفّذ هذه الإصلاحات عنك. احجز مكالمة مجانية ونراجع نتائجك وأسرع المكاسب مع بعض، وما تكون ملزم تشتغل معنا بعدها.",
+      ],
+    },
+  },
+  media_buyer: {
+    ...DEFAULT_COPY,
+    lead: (c, result) => {
+      const lanes = laneCounts(result);
+      return [
+        `${c.failed} ${checksWord(c.failed)} need work. ${lanes.signal} change what the ad platforms and GA4 see, ${lanes.postClick} lose paid traffic after the click. Each point says what it does to ROAS or CAC, who has to fix it and how to check it's done.`,
+        `${c.failed} ${arChecksNoun(c.failed)} تحتاج إلى إصلاح. ${lanes.signal} منها تغيّر ما تراه منصات الإعلانات وGA4، و${lanes.postClick} تُضيّع الزيارات المدفوعة بعد الضغط على الإعلان. يوضح كل بند أثره على ROAS أو CAC، ومن يجب أن يصلحه، وكيف تتأكد من إصلاحه.`,
+      ];
+    },
+    leadPass: [
+      "Every check passed. The ad platforms and GA4 get clean data, and nothing we tested loses paid traffic after the click.",
+      "اجتاز المتجر جميع البنود. منصات الإعلانات وGA4 تستقبل بيانات سليمة، ولم نجد ما يُضيّع الزيارات المدفوعة بعد الضغط على الإعلان.",
+    ],
+    fixLink: ["See what's holding ROAS back", "ما الذي يحدّ من ROAS"],
+    toc: ["What holds ROAS back", "ما يحدّ من ROAS"],
+    jump: ["ROAS", "ROAS"],
+    guide: ["ROAS blockers", "ما يحدّ من ROAS"],
+    checksIntro: [
+      "Each check says what it does to ROAS, CAC or the data your campaigns learn from. Turn on Technical details for the exact events, tags and values to forward to the developer.",
+      "يوضح كل بند أثره على ROAS أو CAC أو على البيانات التي تتعلم منها حملاتك. فعِّل «التفاصيل التقنية» لترى الأحداث والوسوم والقيم الدقيقة لإرسالها إلى المطوّر.",
+    ],
+    cta: {
+      ...DEFAULT_COPY.cta,
+      title: ["Want the site side fixed?", "عايز جانب الموقع يتصلح؟"],
+      body: [
+        "Book a free call. We'll go through the tracking and funnel findings with you and show which fixes move ROAS fastest. You keep the account; we handle the store side.",
+        "احجز مكالمة مجانية. هنراجع معاك نتائج التتبع ومسار التحويل ونوضح أي إصلاحات بترفع ROAS أسرع. الحساب يفضل معاك، واحنا نشتغل على جانب المتجر.",
+      ],
+    },
+  },
+  marketing_manager: {
+    ...DEFAULT_COPY,
+    lead: c => [
+      `${c.failed} ${checksWord(c.failed)} need work, ${c.critical} of them critical. The executive summary ranks the fixes worth most to the business and shows which team owns each one.`,
+      `${c.failed} ${arChecksNoun(c.failed)} تحتاج إلى إصلاح، منها ${c.critical} حرجة. يرتّب الملخص التنفيذي الإصلاحات الأعلى قيمة للأعمال ويوضح الفريق المسؤول عن كل منها.`,
+    ],
+    leadPass: [
+      "Every check in this audit passed. The details below show what each check confirmed, ready to share with your team and leadership.",
+      "اجتاز المتجر جميع بنود هذا التدقيق. توضح التفاصيل أدناه ما أكده كل بند، جاهزة للمشاركة مع فريقك والإدارة.",
+    ],
+    fixLink: ["Read the executive summary", "اقرأ الملخص التنفيذي"],
+    toc: ["Executive summary", "الملخص التنفيذي"],
+    jump: ["Exec summary", "الملخص التنفيذي"],
+    guide: ["top priorities", "أهم الأولويات"],
+    checksIntro: [
+      "Each check is written as a brief: the business effect, who owns the fix and how to confirm it's done. Turn on Technical details for the specifics your developers will need.",
+      "كل بند مكتوب كموجز عمل: الأثر على الأعمال، والمسؤول عن الإصلاح، وطريقة التأكد من إنجازه. فعِّل «التفاصيل التقنية» لترى التفاصيل التي يحتاجها المطوّرون.",
+    ],
+    cta: {
+      ...DEFAULT_COPY.cta,
+      title: ["Want help turning this into a roadmap?", "هل تريد مساعدة في تحويل هذا إلى خطة عمل؟"],
+      body: [
+        "Book a free call. We'll go through the priorities with you and your team, and plan the fixes worth most to the business.",
+        "احجز مكالمة مجانية. سنراجع الأولويات معك ومع فريقك، ونخطط للإصلاحات الأعلى قيمة للأعمال.",
+      ],
+    },
+  },
+  agency: {
+    ...DEFAULT_COPY,
+    lead: c => [
+      `${c.failed} of ${c.total} checks need work, ${c.critical} of them critical. Every finding states its evidence, the work needed, who does it and how both sides will know it's done.`,
+      `${c.failed} من ${c.total} ${arChecksNoun(c.total)} تحتاج إلى إصلاح، منها ${c.critical} حرجة. كل نتيجة توضح دليلها، والعمل المطلوب، ومن ينفذه، وكيف يتأكد الطرفان من إنجازه.`,
+    ],
+    leadPass: [
+      "Every check in this audit passed. Each finding below states what was checked and the evidence, ready to share with the client.",
+      "اجتاز المتجر جميع بنود هذا التدقيق. توضح كل نتيجة أدناه ما تم فحصه ودليله، جاهزة للمشاركة مع العميل.",
+    ],
+    fixLink: ["See the client summary", "ملخص التدقيق للعميل"],
+    toc: ["Client summary", "ملخص العميل"],
+    jump: ["Client summary", "ملخص العميل"],
+    guide: ["scope", "نطاق العمل"],
+    checksIntro: [
+      "Each check shows its evidence and the work it needs, ready to share with the client. Turn on Technical details for the exact setup.",
+      "يعرض كل بند دليله والعمل الذي يحتاجه، جاهزًا للمشاركة مع العميل. فعِّل «التفاصيل التقنية» لترى الإعداد الدقيق.",
+    ],
+    cta: {
+      ...DEFAULT_COPY.cta,
+      title: ["Questions about this audit?", "لديك أسئلة عن هذا التدقيق؟"],
+      titlePass: ["Questions about this audit?", "لديك أسئلة عن هذا التدقيق؟"],
+      body: [
+        "Book a call with the Optimizers team to go through the method and the findings.",
+        "احجز مكالمة مع فريق Optimizers لمراجعة المنهجية والنتائج.",
+      ],
+      button: ["Book a call", "احجز مكالمة"],
+    },
+  },
+};
+
+function copyFor(result: AuditResult): RoleCopy {
+  return result.audienceRole ? ROLE_COPY[result.audienceRole] : DEFAULT_COPY;
+}
+
+// ---- action layer (ACTION-POINTS-PROPOSAL.md) ----
+// Every failed point carries an action (step, owner, done when, impact, and a
+// hand-off to the section that continues it); every passed point says what to
+// protect. Results from before the action layer render without these.
+
+function oppChip(o: Opportunity | undefined): string {
+  if (!o) return "";
+  const l = OPPORTUNITY_LABEL[o];
+  return `<span class="opp opp--${o}">${bi(l.en, l.ar)}</span>`;
+}
+
+function ownersBi(owners: ActionOwner[]): string {
+  return bi(owners.map(o => OWNER_LABEL[o].en).join(" + "), owners.map(o => OWNER_LABEL[o].ar).join(" + "));
+}
+
+function categoryOfId(id: string): CategoryKey | null {
+  return id.startsWith("GA4-") ? "GA4" : id.startsWith("GTM-") ? "GTM" : id.startsWith("W-") ? "Website" : null;
+}
+
+function handoffLink(h: Handoff | undefined, result: AuditResult): string {
+  if (!h) return "";
+  if (h.kind === "cro") {
+    if (!result.fud || result.fud.assessed === 0) return "";
+    const [pageEn, pageAr] = FUD_PAGE_LABEL[h.page];
+    const href = result.ga4Facts?.focus.page === h.page ? "#ga4-followup" : "#friction";
+    return `<a class="act-handoff" href="${href}">${bi(`Next: see what we found on your ${pageEn}`, `الخطوة التالية: ما وجدناه في ${pageAr}`)}</a>`;
+  }
+  const cat = categoryOfId(h.id);
+  const target = cat && result.categories.find(c => c.category === cat && c.findings.some(f => f.checklistId === h.id));
+  if (!target) return "";
+  return `<a class="act-handoff" href="#${rowId(target, { id: h.id })}">${bi(`Next: ${h.id}`, `الخطوة التالية: ${h.id}`)}</a>`;
+}
+
+function actionBlockHtml(
+  action: FindingAction,
+  ar: { step?: string; doneWhen?: string; impact?: string } | undefined,
+  result: AuditResult,
+): string {
+  const impactEn = action.impact;
+  const impactAr = ar?.impact ?? action.impact;
+  // A store owner hands developer work on as it is (ICP1: fix it myself,
+  // or know exactly what to send).
+  const toDev = result.audienceRole === "store_owner" && action.owners.includes("dev");
+  const [labelEn, labelAr] = toDev ? ["Send this to your developer:", "أرسل هذا لمطوّرك:"] : ["Action:", "الإجراء:"];
+  return `
+                  <div class="act">
+                    <p class="act-step">${biHtml(`<b>${labelEn}</b> ${escapeHtml(decodePaths(action.step))}`, `<b>${labelAr}</b> ${escapeHtml(decodePaths(ar?.step ?? action.step))}`)}</p>
+                    <dl class="act-meta">
+                      <div><dt>${bi("Owner", "المسؤول")}</dt><dd>${ownersBi(action.owners)}</dd></div>
+                      <div><dt>${bi("Done when", "يكتمل عندما")}</dt><dd>${bi(action.doneWhen, ar?.doneWhen ?? action.doneWhen)}</dd></div>
+                      ${impactEn ? `<div><dt>${bi("Impact", "الأثر")}</dt><dd>${bi(impactEn, impactAr ?? impactEn)}</dd></div>` : ""}
+                    </dl>
+                    ${handoffLink(action.handoff, result)}
+                  </div>`;
+}
+
+function protectHtml(en: string | undefined, ar: string | undefined): string {
+  if (!en) return "";
+  return `<p class="act-protect">${biHtml(`<b>Keep:</b> ${escapeHtml(en)}`, `<b>حافظ على:</b> ${escapeHtml(ar ?? en)}`)}</p>`;
+}
+
+const STEP_AR: Record<string, string> = {
+  "view_item>add_to_cart": "من صفحة المنتج إلى الإضافة للسلة",
+  "add_to_cart>begin_checkout": "من السلة إلى إتمام الشراء",
+  "add_to_cart>add_shipping_info": "من السلة إلى إتمام الشراء",
+  "begin_checkout>purchase": "من إتمام الشراء إلى الشراء",
+  "add_shipping_info>purchase": "من إتمام الشراء إلى الشراء",
+};
+
+// The GA4 → Conversion review hand-off: the worst funnel step, then what we
+// found on the page behind it.
+function ga4FollowUpHtml(result: AuditResult): string {
+  const focus = result.ga4Facts?.focus;
+  const fud = result.fud;
+  if (!focus?.page || !focus.step || !fud) return "";
+  const list = fud.findings.filter(f => f.focus && f.override?.to !== "hidden" && f.status !== "unassessed");
+  // Checks on the focus page that couldn't run (an empty cart, a page that
+  // didn't load): named, so the block never looks like a full answer when it isn't.
+  const notChecked = fud.findings.filter(f => f.pageType === focus.page && f.status === "unassessed" && f.override?.to !== "hidden");
+  // The GA4 step point's own action is the audit's answer to "why do they
+  // leave here" (GA4-02 product, GA4-03 cart, GA4-04 checkout).
+  const stepKey = `${focus.step.from}>${focus.step.to}`;
+  const stepId = stepKey === "view_item>add_to_cart" ? "GA4-02" : /purchase$/.test(stepKey) ? "GA4-04" : "GA4-03";
+  const stepFinding = result.categories.find(c => c.category === "GA4")?.findings.find(f => f.checklistId === stepId);
+  if (!list.length && !stepFinding?.action) return "";
+  const leak = result.ga4Facts?.facts["GA4-01"];
+  const [pageEn, pageAr] = FUD_PAGE_LABEL[focus.page];
+  const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
+  const stepAr = STEP_AR[`${focus.step.from}>${focus.step.to}`] ?? `${focus.step.from} → ${focus.step.to}`;
+  const leadAr = `أكبر تسرب في مسار الشراء لديك: ${stepAr}، ${pct(focus.step.rate)} مقابل معدل معتاد ${pct(focus.step.benchmark)} (فقدان ${pct(1 - focus.step.rate)}). لذلك فحصنا ${pageAr} أولًا.`;
+  const issues = list.filter(f => f.status === "fail" || f.status === "warn");
+  const crop = list.find(f => f.evidence.crop)?.evidence.crop;
+  const rows = list
+    .map(f => {
+      const tone = f.status === "fail" ? "critical" : f.status === "warn" ? "medium" : "pass";
+      const label = f.status === "pass" ? bi("Working", "يعمل") : f.status === "fail" ? bi("Missing", "غير موجود") : bi("Needs work", "يحتاج تحسينًا");
+      return `<li><a href="#row-${`tech-FUD-${f.ruleId}`.replace(/[^A-Za-z0-9_-]/g, "-")}"><span class="sev sev--${tone}">${label}</span><span>${bi(f.business.summary, f.ar?.business.summary ?? f.business.summary)}</span></a></li>`;
+    })
+    .join("");
+  return `
+        <div class="followup" id="ga4-followup">
+          <p class="followup-kicker">${bi("Follow-up from GA4-01", "متابعة من GA4-01")}</p>
+          <h3>${bi(`Why shoppers leave at your ${pageEn}`, `لماذا يغادر المتسوقون عند ${pageAr}`)}</h3>
+          <p class="followup-lead">${bi(`${leak?.en ?? ""} So we checked your ${pageEn} first.`, leadAr)}</p>
+          ${stepFinding?.action ? `<p class="act-step followup-why">${biHtml(`<b>Most likely cause and what to change (${stepId}):</b> ${escapeHtml(stepFinding.action.step)}`, `<b>السبب الأرجح وما يجب تغييره (${stepId}):</b> ${escapeHtml(stepFinding.ar?.action?.step ?? stepFinding.action.step)}`)}</p>` : ""}
+          <div class="followup-body">
+            <ul class="followup-list">${rows}</ul>
+            ${crop ? `<figure class="fud-crop"><img src="${crop}" alt="${escapeHtml(`Your ${pageEn} on a phone`)}" loading="lazy" /><figcaption>${bi(`Your ${pageEn}, on a phone, the day we ran the audit`, `${pageAr} لديك على الهاتف، يوم إجراء التدقيق`)}</figcaption></figure>` : ""}
+          </div>
+          <p class="fud-note">${bi(`Checks on your ${pageEn}: ${issues.length} to fix, ${list.length - issues.length} working.`, `بنود ${pageAr}: ${issues.length} للإصلاح، ${list.length - issues.length} تعمل.`)}</p>
+          ${notChecked.length ? `<p class="fud-note followup-gap">${bi(
+            `Not checked this time: ${notChecked.map(f => ruleById(f.ruleId)?.title.en ?? f.ruleId).join(", ")}. ${focus.page === "cart" && fud.findings.some(f => f.pageType === "cart" && /empty/i.test(f.unassessedReason ?? ""))
+              ? "Our test cart stayed empty, so these couldn't be seen."
+              : "We couldn't see them clearly enough on this visit."} Check them by hand before acting on this step.`,
+            `لم يتم فحصها هذه المرة: ${notChecked.map(f => ruleById(f.ruleId)?.title.ar ?? f.ruleId).join("، ")}. افحصها يدويًا قبل العمل على هذه الخطوة.`,
+          )}</p>` : ""}
+        </div>`;
 }
 
 function techSwitchHtml(id: string): string {
@@ -455,7 +1214,7 @@ function techSwitchHtml(id: string): string {
 // text per field when translate-ar.ts missed a finding, never a blank row.
 // The .tech-toggle checkbox must stay the row's first child: the CSS-only
 // business/technical switch reaches the voices through it (~ * selectors).
-function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: CategoryResult["findings"][number] | undefined): string {
+function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: CategoryResult["findings"][number] | undefined, result?: AuditResult): string {
   const id = techToggleId(cat, point);
   const failed = finding?.status === "fail";
   const fallbackEn = `${point.title}: no specific finding was reported for this check this run.`;
@@ -472,17 +1231,18 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
   const detail = (text: string, cls: string, ar: boolean) => (text ? `<p class="voice ${cls} ${ar ? "i18n-ar" : "i18n-en"}"${ar ? ' dir="rtl"' : ""}>${escapeHtml(text)}</p>` : "");
 
   return `
-          <article class="check check--${status}${failed ? "" : " is-collapsed"}" id="${rowId(cat, point)}" data-status="${status}">
+          <article class="check check--${status}" id="${rowId(cat, point)}" data-status="${status}">
             ${finding ? `<input type="checkbox" class="tech-toggle" id="${id}" />` : ""}
             <div class="check-main">
               <div class="check-side">${side}</div>
               <div class="check-body">
-                <button type="button" class="check-head" aria-expanded="${failed ? "true" : "false"}">
+                <button type="button" class="check-head" aria-expanded="true">
                   <span class="check-titles">
                     <h3 class="voice voice-business i18n-en">${escapeHtml(business.summary)}</h3>
                     <h3 class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(businessAr.summary)}</h3>
                     <h3 class="voice voice-technical i18n-en">${escapeHtml(technical.summary)}</h3>
                     <h3 class="voice voice-technical i18n-ar" dir="rtl">${escapeHtml(technicalAr.summary)}</h3>
+                    ${finding?.opportunity || (failed && finding) ? `<span class="check-tags">${oppChip(finding!.opportunity)}${failed && finding ? adEffectChip(result, finding) : ""}</span>` : ""}
                   </span>
                   <span class="chevron">${CHEVRON}</span>
                 </button>
@@ -491,6 +1251,9 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
                   ${detail(businessAr.detail, "voice-business", true)}
                   ${detail(technical.detail, "voice-technical", false)}
                   ${detail(technicalAr.detail, "voice-technical", true)}
+                  ${criteriaHtml(point, finding, result)}
+                  ${failed && finding?.action && result ? actionBlockHtml(finding.action, finding.ar?.action, result) : ""}
+                  ${!failed && finding?.protect ? protectHtml(finding.protect, finding.ar?.protect) : ""}
                   ${finding ? `<div class="check-foot">${techSwitchHtml(id)}${meta}</div>` : ""}
                 </div>
               </div>
@@ -498,8 +1261,21 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
           </article>`;
 }
 
-function checkGroupsHtml(cat: CategoryResult): string {
-  const checklist = checklistForDisplay(cat.category, cat.checklistTally.total);
+// "What good looks like": the standard the point is judged against (the
+// criteria of an audit finding). Always in the technical view; also in the
+// business view for readers who defend numbers to others (manager, agency).
+function criteriaHtml(point: ChecklistPoint, finding: CategoryResult["findings"][number] | undefined, result?: AuditResult): string {
+  const en = finding?.criteria ?? point.expectedState;
+  if (!en) return "";
+  const ar = finding?.ar?.criteria ?? en;
+  const line = (voice: string, isAr: boolean) =>
+    `<p class="voice ${voice} crit ${isAr ? "i18n-ar" : "i18n-en"}"${isAr ? ' dir="rtl"' : ""}><b>${isAr ? "شكل النتيجة السليمة:" : "What good looks like:"}</b> ${escapeHtml(isAr ? ar : en)}</p>`;
+  const business = result?.audienceRole === "marketing_manager" || result?.audienceRole === "agency";
+  return [line("voice-technical", false), line("voice-technical", true), ...(business ? [line("voice-business", false), line("voice-business", true)] : [])].join("");
+}
+
+function checkGroupsHtml(cat: CategoryResult, result?: AuditResult): string {
+  const checklist = checklistForDisplay(cat.category, cat.checklistTally.total, cat.findings.map(f => f.checklistId));
   const findingsById = new Map(cat.findings.map(f => [f.checklistId, f]));
   // Issues first, worst first; passed checks last (stable sort keeps
   // checklist order for ties).
@@ -512,8 +1288,9 @@ function checkGroupsHtml(cat: CategoryResult): string {
       const points = [...g.points].sort((a, b) => rank(a) - rank(b));
       const issues = points.filter(p => rank(p) < 3);
       const passed = points.filter(p => rank(p) === 3);
-      const rows = (list: ChecklistPoint[]) => list.map(p => checkRowHtml(cat, p, findingsById.get(p.id))).join("");
-      // Passed checks start unfolded; the reader can fold each group away.
+      const rows = (list: ChecklistPoint[]) => list.map(p => checkRowHtml(cat, p, findingsById.get(p.id), result)).join("");
+      // Passed checks are shown open and highlighted, never folded away:
+      // what already works is part of the result, not a detail to dig for.
       return `
         <div class="check-group">
           <div class="group-head">
@@ -522,14 +1299,10 @@ function checkGroupsHtml(cat: CategoryResult): string {
           </div>
           ${issues.length ? `<div class="check-list">${rows(issues)}</div>` : ""}
           ${passed.length ? `
-          <details class="passed-fold" open>
-            <summary>
-              <span class="when-closed">${bi(`Show ${passed.length} passed ${checksWord(passed.length)}`, `عرض ${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</span>
-              <span class="when-open">${bi(`${passed.length} passed ${checksWord(passed.length)}`, `${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</span>
-              ${CHEVRON}
-            </summary>
+          <div class="passed-block">
+            <h4 class="passed-head">${bi(`${passed.length} passed ${checksWord(passed.length)}`, `${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</h4>
             <div class="check-list check-list--passed">${rows(passed)}</div>
-          </details>` : ""}
+          </div>` : ""}
         </div>`;
     })
     .join("");
@@ -544,10 +1317,7 @@ function checksIntroHtml(counts: ReturnType<typeof resultCounts>, result: AuditR
   return `
       <section class="doc-section checks-intro" id="checks">
         <h2>${biHtml(`All ${counts.total} checks`, `جميع البنود (${counts.total})`)}</h2>
-        <p class="section-lead">${bi(
-          "Each check tells you what it means for your store. Turn on Technical details to see the exact setup your developer will need.",
-          "يشرح كل بند ماذا يعني لمتجرك. فعِّل «التفاصيل التقنية» لترى الإعداد الدقيق الذي سيحتاجه المطوّر.",
-        )}</p>
+        <p class="section-lead">${bi(...copyFor(result).checksIntro)}</p>
         ${checkMapHtml(result, counts)}
         <div class="controls">
           <div class="chips" role="group" aria-label="Filter checks">
@@ -581,7 +1351,7 @@ function categorySectionHtml(cat: CategoryResult, result: AuditResult, _assets: 
           <p class="cat-score">${ringSvg(percent, color)}<span><b class="count" data-to="${passed}" style="color:${color}">${passed}</b> / ${total} ${bi("passed", "ناجح")}</span></p>
         </header>
         <p class="section-lead">${biHtml(escapeHtml(CATEGORY_CAPTION[key]), escapeHtml(CATEGORY_CAPTION_AR[key]))}</p>
-        ${checkGroupsHtml(cat)}
+        ${checkGroupsHtml(cat, result)}
       </section>`;
 }
 
@@ -648,6 +1418,13 @@ function sourcesHtml(result: AuditResult): string {
   if (speedPages > 0) {
     sources.push(bi(`Google's speed test (PageSpeed Insights), run on ${speedPages} of your pages`, `اختبار السرعة من Google (PageSpeed Insights) على ${speedPages} من صفحاتك`));
   }
+  if (result.fud) {
+    const loaded = result.fud.pagesSampled.filter(p => p.loaded).length;
+    sources.push(bi(
+      `A phone visit to ${loaded} of your pages, adding one product to the cart (our visit was kept out of your analytics). Purchase-friction rules ${result.fud.ruleSetVersion}.`,
+      `زيارة من هاتف لعدد ${loaded} من صفحاتك مع إضافة منتج واحد إلى السلة (استبعدنا زيارتنا من بيانات التحليلات لديك). قواعد عوائق الشراء ${result.fud.ruleSetVersion}.`,
+    ));
+  }
   const pages = result.discoveredPages.map(u => `<li dir="ltr">${escapeHtml(u)}</li>`).join("");
   return `
       <section class="doc-section" id="sources">
@@ -663,9 +1440,237 @@ function sourcesHtml(result: AuditResult): string {
       </section>`;
 }
 
+// ---- purchase friction (FUD pass, src/fud/) ----
+// Its own section with its own score, never part of the 50-check tally.
+// Reuses the check-row markup (summary/detail toggle, business/technical
+// switch, EN/AR), with three additions per issue: the fix, ready-to-paste
+// copy, and a crop of the store's own page. Rendered only when the pass ran
+// and assessed something — otherwise the report is exactly as before.
+
+const FUD_BAND_LABEL: Record<FudBand, [string, string]> = {
+  quick_win: ["Quick win", "مكسب سريع"],
+  dev_task: ["Needs a developer", "يحتاج إلى مطوّر"],
+  test_first: ["Test first", "اختبره أولًا"],
+};
+const FUD_PAGE_LABEL: Record<FudPageType, [string, string]> = {
+  home: ["homepage", "الصفحة الرئيسية"],
+  product: ["product page", "صفحة المنتج"],
+  cart: ["cart", "سلة التسوق"],
+  collection: ["collection page", "صفحة المجموعة"],
+};
+// Detector-based note on how the same check looks on a desktop screen (the
+// findings themselves are judged on the phone visit — see FudFinding.desktop).
+const FUD_DESKTOP_NOTE: Record<"issue" | "pass", Partial<Record<NonNullable<FudFinding["desktop"]>, [string, string]>>> = {
+  issue: {
+    same: ["On desktop: the same gap.", "على سطح المكتب: الفجوة نفسها."],
+    better: ["On desktop this looks in place, so it is mainly a phone problem.", "على سطح المكتب يبدو هذا في مكانه، فالمشكلة في الهاتف أساسًا."],
+    worse: ["On desktop it is further from where shoppers need it than on the phone.", "على سطح المكتب يبتعد هذا عن المكان الذي يحتاجه المتسوق أكثر من الهاتف."],
+  },
+  pass: {
+    worse: ["On desktop we did not find this in the same place. Worth a look on a large screen.", "على سطح المكتب لم نجد هذا في المكان نفسه. يستحق المراجعة على شاشة كبيرة."],
+  },
+};
+const FUD_GROUP_LABEL: Record<FudGroup, [string, string]> = {
+  trust: ["Trust & cost", "الثقة والتكلفة"],
+  homepage: ["Homepage", "الصفحة الرئيسية"],
+  product: ["Product page", "صفحة المنتج"],
+  navigation: ["Navigation & search", "التنقل والبحث"],
+  collection: ["Collection page", "صفحة المجموعة"],
+  buy_more: ["Order value", "قيمة الطلب"],
+  buy_again: ["Repeat purchases", "تكرار الشراء"],
+  local: ["Local market", "السوق المحلي"],
+  popups: ["Popups", "النوافذ المنبثقة"],
+};
+
+function fudGroupLabel(ruleId: string): [string, string] {
+  const rule = ruleById(ruleId);
+  return FUD_GROUP_LABEL[rule ? groupOf(rule) : "trust"];
+}
+
+const FUNNEL_STEP_TEXT: Partial<Record<string, [string, string]>> = {
+  "view_item>add_to_cart": ["of product views led to an add to cart", "من مشاهدات المنتجات انتهت بالإضافة إلى السلة"],
+  "add_to_cart>begin_checkout": ["of add-to-carts went on to start checkout", "من الإضافات إلى السلة انتقلت إلى بدء إتمام الشراء"],
+  "begin_checkout>purchase": ["of started checkouts ended in a purchase", "من عمليات بدء إتمام الشراء انتهت بعملية شراء"],
+};
+
+function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null, result?: AuditResult): string {
+  const id = `tech-FUD-${f.ruleId}`.replace(/[^A-Za-z0-9_-]/g, "-");
+  const issue = f.status === "fail" || f.status === "warn";
+  const tone = f.status === "fail" ? "critical" : f.status === "warn" ? "medium" : "pass";
+  const side =
+    f.status === "fail" ? `<span class="sev sev--critical">${bi("Missing", "غير موجود")}</span>`
+    : f.status === "warn" ? `<span class="sev sev--medium">${bi("Needs work", "يحتاج تحسينًا")}</span>`
+    : `<span class="sev sev--pass">${bi("Working", "يعمل")}</span>`;
+  const ar = f.ar ?? { technical: f.technical, business: f.business, recommendation: f.recommendation };
+  const voice = (text: string, cls: string, isAr: boolean) => (text ? `<p class="voice ${cls} ${isAr ? "i18n-ar" : "i18n-en"}"${isAr ? ' dir="rtl"' : ""}>${escapeHtml(text)}</p>` : "");
+  const [pageEn, pageAr] = FUD_PAGE_LABEL[f.pageType];
+
+  const step = f.funnel ? FUNNEL_STEP_TEXT[`${f.funnel.from}>${f.funnel.to}`] : undefined;
+  const pct = f.funnel ? Math.round(f.funnel.rate * 100) : 0;
+  const days = periodDays ?? 28;
+  const funnel = f.funnel && step
+    ? `<p class="fud-funnel">${bi(`Your GA4: only ${pct}% ${step[0]} in the last ${days} days.`, `بيانات GA4 لديك: ${pct}% فقط ${step[1]} خلال آخر ${days} يومًا.`)}</p>`
+    : "";
+  const desktopText = f.desktop ? FUD_DESKTOP_NOTE[issue ? "issue" : "pass"][f.desktop] : undefined;
+  const desktopNote = desktopText ? `<p class="fud-desktop">${bi(desktopText[0], desktopText[1])}</p>` : "";
+  const rec = issue && f.recommendation
+    ? `<p class="fud-rec">${biHtml(`<b>What to change:</b> ${escapeHtml(f.recommendation)}`, `<b>ما الذي يجب تغييره:</b> ${escapeHtml(ar.recommendation ?? f.recommendation)}`)}</p>`
+    : "";
+  const copy = issue && f.exampleCopy
+    ? `
+                  <div class="fud-copy">
+                    <span class="fud-copy-label">${bi("Copy you can use", "نص يمكنك استخدامه")}</span>
+                    <p dir="ltr" lang="en">${escapeHtml(f.exampleCopy.en)}</p>
+                    <p dir="rtl" lang="ar">${escapeHtml(f.exampleCopy.ar)}</p>
+                  </div>`
+    : "";
+  const crop = issue && f.evidence.crop
+    ? `
+                  <figure class="fud-crop">
+                    <img src="${f.evidence.crop}" alt="${escapeHtml(`Your ${pageEn} on a phone, where this check looks`)}" loading="lazy" />
+                    <figcaption>${bi(`Your ${pageEn}, on a phone, the day we ran the audit`, `${pageAr} لديك على الهاتف، يوم إجراء التدقيق`)}</figcaption>
+                  </figure>`
+    : "";
+  const meta = `<span class="check-meta"><code>${escapeHtml(f.ruleId)}</code>${f.band && f.pexti ? `${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}<span>PEXTI ${f.pexti.score}</span>` : ""}${bi(pageEn, pageAr)}</span>`;
+  const [groupEn, groupAr] = fudGroupLabel(f.ruleId);
+  const bandTag = `<span class="fud-tags">${oppChip(f.opportunity)}${issue && f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}</span>` : ""}<span class="fud-group-tag">${bi(groupEn, groupAr)}</span></span>`;
+  const act = issue && f.action && result ? actionBlockHtml(f.action, { step: ar.recommendation, doneWhen: f.ar?.doneWhen }, result) : "";
+
+  return `
+          <article class="check check--${tone} fud-row${open ? "" : " is-collapsed"}" id="row-${id}" data-fud-status="${f.status}">
+            <input type="checkbox" class="tech-toggle" id="${id}" />
+            <div class="check-main">
+              <div class="check-side">${side}</div>
+              <div class="check-body">
+                <button type="button" class="check-head" aria-expanded="${open ? "true" : "false"}">
+                  <span class="check-titles">
+                    <h3 class="voice voice-business i18n-en">${escapeHtml(f.business.summary)}</h3>
+                    <h3 class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(ar.business.summary)}</h3>
+                    <h3 class="voice voice-technical i18n-en">${escapeHtml(f.technical.summary)}</h3>
+                    <h3 class="voice voice-technical i18n-ar" dir="rtl">${escapeHtml(ar.technical.summary)}</h3>
+                    ${bandTag}
+                  </span>
+                  <span class="chevron">${CHEVRON}</span>
+                </button>
+                <div class="check-detail">
+                  ${voice(f.business.detail, "voice-business", false)}
+                  ${voice(ar.business.detail, "voice-business", true)}
+                  ${voice(f.technical.detail, "voice-technical", false)}
+                  ${voice(ar.technical.detail, "voice-technical", true)}
+                  ${funnel}
+                  ${desktopNote}
+                  ${act || rec}
+                  ${copy}
+                  ${crop}
+                  <div class="check-foot">${techSwitchHtml(id)}${meta}</div>
+                </div>
+              </div>
+            </div>
+          </article>`;
+}
+
+const TONE_LABEL: Record<"good" | "bad" | "neutral", [string, string]> = {
+  good: ["Strength", "نقطة قوة"],
+  bad: ["Opportunity", "فرصة"],
+  neutral: ["Context", "سياق"],
+};
+
+// "Where the money is": the store's own GA4 numbers, turned into a revenue
+// range (clearly an estimate) and a few plain-language segment findings.
+function insightsHtml(fud: NonNullable<AuditResult["fud"]>): string {
+  const ins = fud.insights;
+  if (!ins || (!ins.text && ins.lines.length === 0)) return "";
+  const opp = ins.opportunity;
+  const head = opp && ins.text
+    ? `
+          <p class="fud-money-figure">${biHtml(
+            `<b>${escapeHtml(formatMoney(opp.low, ins.currency))}–${escapeHtml(formatMoney(opp.high, ins.currency))}</b> a month`,
+            `<b>${escapeHtml(formatMoney(opp.low, ins.currency, true))}–${escapeHtml(formatMoney(opp.high, ins.currency, true))}</b> شهريًا`,
+          )}</p>
+          <p class="fud-money-text">${bi(ins.text.en, ins.text.ar)}</p>
+          <p class="fud-note">${bi(
+            `An estimate, not a promise: it assumes the weakest steps of your funnel close a quarter to a half of the gap to typical benchmarks, from your last ${ins.periodDays} days of GA4 data (revenue ${formatMoney(opp.monthlyRevenue, ins.currency)} a month). It is capped at 30% of current revenue.`,
+            `تقدير وليس وعدًا: يفترض أن أضعف خطوات مسار الشراء تقلّص ربع إلى نصف الفجوة مع المعدلات المعتادة، اعتمادًا على بيانات GA4 لآخر ${ins.periodDays} يومًا (إيرادات ${formatMoney(opp.monthlyRevenue, ins.currency, true)} شهريًا). الحد الأقصى 30% من الإيرادات الحالية.`,
+          )}</p>`
+    : "";
+  const lines = ins.lines
+    .map(l => `
+            <li class="fud-insight fud-insight--${l.tone}"><span class="fud-insight-tag">${bi(TONE_LABEL[l.tone][0], TONE_LABEL[l.tone][1])}</span><span>${bi(l.en, l.ar)}</span></li>`)
+    .join("");
+  return `
+        <div class="fud-money">
+          <h3>${bi("Where the money is", "أين تكمن الفرصة")}</h3>
+          ${head}
+          ${lines ? `<ul class="fud-insights">${lines}</ul>` : ""}
+        </div>`;
+}
+
+function frictionSectionHtml(result: AuditResult): string {
+  const fud = result.fud;
+  if (!fud || fud.assessed === 0) return "";
+  // A reviewer can hide a finding (npm run fud-override); it then leaves the
+  // report and the score, but stays in the saved result for calibration.
+  const shown = fud.findings.filter(f => f.override?.to !== "hidden");
+  const issues = shown.filter(f => f.status === "fail" || f.status === "warn");
+  const quick = issues.filter(f => f.band === "quick_win").slice(0, 3);
+  const quickIds = new Set(quick.map(f => f.ruleId));
+  const rest = issues.filter(f => !quickIds.has(f.ruleId));
+  const working = shown.filter(f => f.status === "pass");
+  const unassessed = shown.filter(f => f.status === "unassessed");
+  const periodDays = result.ga4Metrics?.periodDays ?? null;
+
+  const scanned = fud.pagesSampled.filter(p => p.loaded).map(p => FUD_PAGE_LABEL[p.pageType]);
+  const scannedEn = scanned.map(s => s[0]).join(", ");
+  const scannedAr = scanned.map(s => s[1]).join("، ");
+  const leadEn = fud.score !== null
+    ? `Conversion score ${fud.score}/100 — ${fud.assessed} of ${fud.applicable} checks assessed on your ${scannedEn}, on a phone: the doubts that make shoppers hesitate, and the layout, navigation and offer gaps that cost sales and order value.`
+    : `We checked your ${scannedEn} on a phone for what stops shoppers buying and what lowers order value. Too few checks could be completed for a score, so only the findings are shown.`;
+  const leadAr = fud.score !== null
+    ? `مؤشر التحويل ${fud.score}/100 — تم فحص ${fud.assessed} من ${fud.applicable} بندًا على ${scannedAr} لديك من الهاتف: الشكوك التي تجعل المتسوق يتردد، وفجوات التصميم والتنقل والعروض التي تكلفك مبيعات وقيمة طلب.`
+    : `فحصنا ${scannedAr} لديك من الهاتف بحثًا عمّا يمنع المتسوق من الشراء وما يخفض قيمة الطلب. لم نتمكن من فحص عدد كافٍ من البنود لحساب مؤشر، لذلك نعرض النتائج فقط.`;
+
+  const group = (titleEn: string, titleAr: string, list: FudFinding[], open: boolean) =>
+    list.length
+      ? `
+        <div class="fud-group">
+          <div class="group-head"><h3>${bi(titleEn, titleAr)}</h3><span>${list.length}</span></div>
+          <div class="check-list">${list.map(f => fudRowHtml(f, open, periodDays, result)).join("")}</div>
+        </div>`
+      : "";
+
+  const workingFold = working.length
+    ? `
+        <div class="passed-block fud-group">
+          <h4 class="passed-head">${bi(`Already working (${working.length})`, `يعمل بالفعل (${working.length})`)}</h4>
+          <div class="check-list check-list--passed">${working.map(f => fudRowHtml(f, true, periodDays, result)).join("")}</div>
+        </div>`
+    : "";
+
+  const notChecked = unassessed.length
+    ? `<p class="fud-note">${bi(
+        `Not confirmed this time: ${unassessed.map(f => f.ruleId).join(", ")} — we couldn't reach the page, or couldn't tell with enough certainty.`,
+        `لم يتم تأكيدها هذه المرة: ${unassessed.map(f => f.ruleId).join("، ")} — تعذّر الوصول إلى الصفحة أو لم نتمكن من التأكد بدرجة كافية.`,
+      )}</p>`
+    : "";
+
+  return `
+      <section class="doc-section fud" id="friction">
+        <h2>${bi("Conversion review", "مراجعة التحويل")}</h2>
+        <p class="section-lead">${bi(leadEn, leadAr)}</p>
+        ${insightsHtml(fud)}
+        ${ga4FollowUpHtml(result)}
+        ${group("Fix these first", "أصلح هذه أولًا", quick, true)}
+        ${group(quick.length ? "Also worth improving" : "Worth improving", quick.length ? "تستحق التحسين أيضًا" : "تستحق التحسين", rest, false)}
+        ${!issues.length ? `<p class="fud-note">${bi("Nothing stood out on the pages we checked.", "لم يظهر ما يستدعي التحسين في الصفحات التي فحصناها.")}</p>` : ""}
+        ${workingFold}
+        ${notChecked}
+      </section>`;
+}
+
 // The closing band sits on the card color, a step up from the page, so the
 // call to action reads as the end of the document.
-function ctaHtml(counts: ReturnType<typeof resultCounts>, contactUrl: string): string {
+function ctaHtml(counts: ReturnType<typeof resultCounts>, contactUrl: string, result: AuditResult): string {
+  const cta = copyFor(result).cta;
   return `
     <section class="cta-band">
       <div class="cta-gate" aria-hidden="true"><span class="gate gate--l"></span><span class="gate gate--r"></span></div>
@@ -673,15 +1678,10 @@ function ctaHtml(counts: ReturnType<typeof resultCounts>, contactUrl: string): s
        <div class="cta-wave" aria-hidden="true"></div>
        <div class="cta-inner">
         <div>
-          <h2>${counts.failed > 0
-            ? bi("Want these fixed?", "هل تريد إصلاح هذه المشكلات؟")
-            : bi("Want a second opinion on what's next?", "هل تريد رأيًا في خطوتك التالية؟")}</h2>
-          <p>${bi(
-            "Book a free call with our team. We'll walk through your results, show you which fixes bring in the most sales, and plan the next steps for your store. You don't have to work with us afterwards.",
-            "احجز مكالمة مجانية مع فريقنا. سنراجع نتائجك معك، ونوضح أي الإصلاحات تجلب أكثر مبيعات، ونخطط للخطوات التالية لمتجرك. لن تكون ملزمًا بالعمل معنا بعدها.",
-          )}</p>
+          <h2>${counts.failed > 0 ? bi(...cta.title) : bi(...cta.titlePass)}</h2>
+          <p>${bi(...cta.body)}</p>
         </div>
-        <a class="btn btn--primary btn--lg magnetic" href="${contactUrl}">${bi("Book my free call", "احجز مكالمتي المجانية")}</a>
+        <a class="btn btn--primary btn--lg magnetic" href="${contactUrl}">${bi(...cta.button)}</a>
        </div>
       </div>
     </section>`;
@@ -736,10 +1736,11 @@ function footerHtml(assets: BrandAssets, attributedTo: string, generatedAt: stri
 
 // Phone-width section bar: the contents list is hidden below 1024px, so a
 // sticky row of section links takes its place on a long single-column page.
-function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolean, hasNumbers = false): string {
+function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolean, hasNumbers = false, hasFriction = false): string {
   const links: Array<[string, string, string]> = [["overview", "Summary", "الملخص"]];
-  if (hasFixFirst) links.push(["fix-first", "Fix first", "أصلح أولًا"]);
+  if (hasFixFirst) links.push(["fix-first", ...copyFor(result).jump]);
   if (hasNumbers) links.push(["numbers", "Numbers", "الأرقام"]);
+  if (hasFriction) links.push(["friction", "Conversion", "التحويل"]);
   for (const cat of result.categories) {
     const [en, ar] = CATEGORY_SHORT[cat.category];
     links.push([`sec-${SECTION_SLUG[cat.category]}`, en, ar]);
@@ -751,13 +1752,18 @@ function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolea
 
 // Stripe-docs style table of contents: sticky beside the reading column on
 // wide screens, one line per section, groups listed under each tool.
-function tocHtml(result: AuditResult, hasFixFirst: boolean, hasScreens: boolean, hasSpeed: boolean, hasNumbers = false): string {
+function tocHtml(result: AuditResult, hasFixFirst: boolean, hasScreens: boolean, hasSpeed: boolean, hasNumbers = false, hasFriction = false): string {
   const link = (id: string, en: string, ar: string, sub = false) =>
     `<li${sub ? ' class="toc-sub"' : ""}><a href="#${id}" data-spy="${id}">${bi(en, ar)}</a></li>`;
   const items: string[] = [link("overview", "Summary", "الملخص")];
-  if (hasFixFirst) items.push(link("fix-first", "Fix these first", "أصلح هذه أولًا"));
+  if (result.audienceRole) items.push(link("answers", "Your questions", "أسئلتك"));
+  if (hasFixFirst) items.push(link("fix-first", ...copyFor(result).toc));
   if (hasScreens) items.push(link("screens", "Your store", "متجرك"));
   if (hasNumbers) items.push(link("numbers", "Your numbers", "أرقامك"));
+  if (hasFriction) {
+    const score = result.fud?.score;
+    items.push(`<li><a href="#friction" data-spy="friction">${bi("Conversion review", "مراجعة التحويل")}${score !== null && score !== undefined ? `<span class="toc-n">${score}/100</span>` : ""}</a></li>`);
+  }
   for (const cat of result.categories) {
     const { passed, total } = cat.checklistTally;
     items.push(`<li><a href="#sec-${SECTION_SLUG[cat.category]}" data-spy="sec-${SECTION_SLUG[cat.category]}">${biHtml(escapeHtml(categoryLabel(cat.category, result, false)), escapeHtml(categoryLabel(cat.category, result, true)))}<span class="toc-n">${passed}/${total}</span></a></li>`);
@@ -1002,7 +2008,7 @@ function checkMapHtml(result: AuditResult, counts: ReturnType<typeof resultCount
   let idx = 0;
   const rows = result.categories.map(cat => {
     const byId = new Map(cat.findings.map(f => [f.checklistId, f]));
-    const cells = checklistForDisplay(cat.category, cat.checklistTally.total).map(point => {
+    const cells = checklistForDisplay(cat.category, cat.checklistTally.total, cat.findings.map(f => f.checklistId)).map(point => {
       const f = byId.get(point.id);
       const st = f?.status === "fail" ? f.severity : "pass";
       const en = f?.business.summary ?? point.title;
@@ -1033,12 +2039,13 @@ function gaugeHtml(score: number | null, en: string, ar: string): string {
 // waits beside each section heading with a short label, and lands on the
 // closing call to action. Labels ship here; the script block positions everything and keeps
 // the whole thing hidden when motion is off.
-function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, has: { fixFirst: boolean; screens: boolean; numbers: boolean; speed: boolean }): string {
+function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, has: { fixFirst: boolean; screens: boolean; numbers: boolean; speed: boolean; friction?: boolean }): string {
   const stops: Array<[string, string, string, "ok" | "bad"]> = [];
   stops.push(["overview", `${counts.passed}/${counts.total} passed`, `${counts.passed}/${counts.total} ناجح`, counts.critical > 0 ? "bad" : "ok"]);
   if (has.fixFirst) {
     const n = Math.min(3, counts.failed);
-    stops.push(["fix-first", `${n} to fix first`, `${n} للإصلاح أولًا`, "bad"]);
+    const [gEn, gAr] = copyFor(result).guide;
+    stops.push(["fix-first", `${n} ${gEn}`, `${n} ${gAr}`, "bad"]);
   }
   if (has.screens) stops.push(["screens", "Your store", "متجرك", "ok"]);
   if (has.numbers) {
@@ -1046,6 +2053,10 @@ function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>,
     stops.push(cr !== null && cr !== undefined
       ? ["numbers", `${fmtPct(cr)}% conversion`, `تحويل ${fmtPct(cr)}%`, "ok"]
       : ["numbers", "Your numbers", "أرقامك", "ok"]);
+  }
+  if (has.friction && result.fud) {
+    const issues = result.fud.findings.filter(f => f.override?.to !== "hidden" && (f.status === "fail" || f.status === "warn")).length;
+    stops.push(["friction", `${issues} to improve`, `${issues} للتحسين`, issues > 0 ? "bad" : "ok"]);
   }
   stops.push(["checks", `${counts.failed} need work`, `${counts.failed} تحتاج إصلاحًا`, counts.failed > 0 ? "bad" : "ok"]);
   for (const cat of result.categories) {
@@ -1230,6 +2241,59 @@ p{margin:0; text-wrap:pretty}
 /* fix these first */
 .fix-list{list-style:none; margin:28px 0 0; padding:0; counter-reset:fix; display:flex; flex-direction:column; gap:12px}
 .fix-list li{counter-increment:fix}
+.lane{margin-top:36px}
+.lane-head{font-family:var(--display); font-size:19px; font-weight:700; color:var(--ink)}
+.lane-lead{margin-top:6px; color:var(--ink-2); max-width:68ch}
+.lane .fix-list{margin-top:16px}
+.lane-empty{margin-top:12px; color:var(--ink-3)}
+.lane-note{margin-top:20px; color:var(--ink-3); font-size:14px}
+.rkpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:24px 0 0}
+.rkpi{padding:16px 18px; border-radius:12px; background:var(--bg-soft); border:1px solid var(--card-border)}
+.rkpi dt{color:var(--ink-3); font-size:13px; line-height:1.4}
+.rkpi dd{margin:6px 0 0; font-family:var(--display); font-size:22px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums}
+.money-hero{margin-top:20px; font-family:var(--display); font-size:24px; font-weight:700; color:var(--ink); line-height:1.3}
+.money-src{margin-top:8px; color:var(--ink-2); max-width:68ch}
+.money-src .src{display:block; margin-top:4px; color:var(--ink-3); font-size:13px}
+.fix-tag{display:inline-block; margin-inline-start:8px; padding:2px 8px; border-radius:999px; border:1px solid var(--card-border); color:var(--ink-2); font-size:12px}
+.fix-tag--diy{border-color:rgba(49,218,114,.4); color:#7fe8a6}
+.fix-tag--money{border-color:rgba(242,183,94,.4); color:#f5c97f}
+.qa-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin-top:24px}
+.qa{padding:18px 20px; border-radius:14px; background:var(--bg-soft); border:1px solid rgba(255,107,87,.28)}
+.qa--ok{border-color:rgba(49,218,114,.28)}
+.qa-q{font-family:var(--display); font-size:17px; font-weight:700; color:var(--ink); line-height:1.35}
+.qa-verdict{margin-top:8px; color:var(--ink-2)}
+.qa-verdict--ok{color:#c9f5d9}
+.qa-money{display:block; margin-top:4px; color:#f5c97f; font-weight:600}
+.qa-n{display:block; margin-top:4px; color:var(--ink-3); font-size:13px}
+.qa-list{margin:10px 0 0; padding-inline-start:18px; display:flex; flex-direction:column; gap:6px}
+.qa-list a{color:var(--ink); text-decoration:underline; text-decoration-color:rgba(255,255,255,.25); text-underline-offset:3px}
+.qa-more{margin-top:8px; color:var(--ink-3); font-size:13px}
+.fstrip{margin-top:24px}
+.fstrip-head{color:var(--ink-3); font-size:13px}
+.fs{list-style:none; margin:10px 0 0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px}
+.fs-step{padding:12px 14px; border-radius:12px; background:var(--bg-soft); border:1px solid var(--card-border); display:flex; flex-direction:column; gap:4px}
+.fs-step--low{border-color:rgba(255,107,87,.45)}
+.fs-name{color:var(--ink-3); font-size:13px}
+.fs-step b{font-family:var(--display); font-size:20px; color:var(--ink)}
+.fs-rate{font-size:13px; color:var(--ink-2)}
+.fs-step--low .fs-rate{color:#ffb3a8}
+.fs-rate i{font-style:normal; color:var(--ink-3)}
+.handover{margin-top:36px; padding:18px 20px; border-radius:14px; border:1px dashed var(--card-border)}
+.ho-list{margin:12px 0 0; padding-inline-start:20px; display:flex; flex-direction:column; gap:10px; color:var(--ink)}
+.ho-meta{display:block; margin-top:2px; color:var(--ink-3); font-size:13px}
+.method{margin-top:36px}
+.method-list{margin:10px 0 0; padding-inline-start:20px; display:flex; flex-direction:column; gap:6px; color:var(--ink-2); font-size:14px}
+.crit{margin-top:10px; font-size:14px; color:var(--ink-2)}
+.verdict{margin-top:24px; padding:14px 18px; border-radius:12px; border:1px solid rgba(255,107,87,.3); background:var(--red-tint); color:#ffd3cc; font-weight:600; max-width:76ch}
+.verdict--ok{border-color:rgba(49,218,114,.3); background:rgba(49,218,114,.08); color:#c9f5d9}
+.adfx{display:inline-block; margin-inline-start:8px; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--card-border); color:var(--ink-2); white-space:nowrap}
+.adfx--performance,.adfx--aov,.adfx--optimization{border-color:rgba(49,218,114,.4); color:#7fe8a6}
+.adfx--cost,.adfx--inflated,.adfx--deflated{border-color:rgba(255,107,87,.4); color:#ffb3a8}
+.team-list{list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:10px}
+.team-list li{padding:14px 18px; border-radius:12px; background:var(--bg-soft); border:1px solid var(--card-border)}
+.team-list b{color:var(--ink)}
+.team-n{margin-inline-start:8px; color:var(--ink-3); font-size:13px}
+.team-top{display:block; margin-top:4px; color:var(--ink-2); font-size:14px}
 .fix-list a{display:grid; grid-template-columns:40px minmax(0,1fr); gap:4px 16px; padding:20px 24px; border-radius:14px; background:var(--bg-soft); border:1px solid var(--card-border); text-decoration:none; transition:border-color .2s var(--ease), background .2s var(--ease)}
 .fix-list a::before{content:counter(fix); grid-row:span 2; font-family:var(--display); font-size:22px; font-weight:700; line-height:1.25; color:var(--ink-3)}
 .fix-list a:hover{border-color:var(--card-border-hover); background:var(--card-hover)}
@@ -1287,7 +2351,11 @@ p{margin:0; text-wrap:pretty}
 .check--critical{--status:var(--red-ink); --status-tint:var(--red-tint)}
 .check--medium{--status:var(--amber-ink); --status-tint:var(--amber-tint)}
 .check--low{--status:var(--blue-ink); --status-tint:var(--blue-tint)}
-.check--pass{--status:var(--green-ink); --status-tint:var(--green-tint)}
+.check--pass{--status:var(--green-ink); --status-tint:rgba(106,228,153,.2); border-color:rgba(106,228,153,.38)}
+.check--pass .sev--pass{font-weight:700}
+.passed-block{margin-top:16px}
+.passed-head{display:flex; align-items:center; gap:8px; padding:14px 0 12px; font-family:var(--body); font-size:15px; font-weight:700; color:var(--green-ink)}
+.passed-head::before{content:""; width:11px; height:6px; border:solid currentColor; border-width:0 0 2.5px 2.5px; transform:rotate(-45deg) translate(1px,-2px)}
 .check.is-target{background:var(--card-hover); border-color:var(--card-border-hover)}
 .tech-toggle{position:absolute; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none}
 .check-main{display:grid; grid-template-columns:104px minmax(0,1fr); gap:20px; padding:20px 24px}
@@ -1315,18 +2383,70 @@ p{margin:0; text-wrap:pretty}
 .check-meta{display:none; align-items:center; gap:10px; font-size:13px; color:var(--ink-3)}
 .tech-toggle:checked ~ * .check-meta{display:inline-flex}
 .check-meta code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; color:var(--ink-2); background:var(--bg-soft); padding:2px 6px; border-radius:4px}
-.check--pass .check-main{padding:14px 24px}
-.check--pass h3{font-size:15px; font-weight:500; color:var(--ink)}
 
-.passed-fold{margin-top:4px}
-.passed-fold > summary{display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none; user-select:none; padding:18px 0 12px; font-size:14px; font-weight:600; color:var(--green-ink)}
-.passed-fold > summary::-webkit-details-marker{display:none}
-.passed-fold > summary svg{transition:transform .2s var(--ease)}
-.passed-fold[open] > summary svg{transform:rotate(180deg)}
-.passed-fold > summary:hover{color:var(--ink)}
-.passed-fold .when-open{display:none}
-.passed-fold[open] .when-open{display:inline}
-.passed-fold[open] .when-closed{display:none}
+
+.fud-group{margin-top:32px}
+.fud-tags{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px}
+.fud .check-titles .fud-band{display:inline; margin-top:0}
+.fud-group-tag{font-size:13px; font-weight:500; color:var(--ink-3)}
+.fud-money{margin-top:28px; padding:22px 24px; border-radius:14px; background:var(--bg-soft); border:1px solid var(--card-border)}
+.fud-money h3{font-family:var(--display); font-size:18px; font-weight:600}
+.fud-money-figure{margin-top:12px; font-family:var(--display); font-size:clamp(26px,3.4vw,34px); line-height:1.15; color:var(--green-ink)}
+.fud-money-figure b{font-weight:700}
+.fud-money-text{margin-top:6px; font-size:16px; color:var(--ink); max-width:68ch}
+.fud-money .fud-note{margin-top:10px}
+.fud-insights{list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:12px}
+.fud-insight{display:grid; grid-template-columns:104px minmax(0,1fr); gap:4px 16px; font-size:16px; color:var(--ink-2); max-width:76ch}
+.fud-insight-tag{font-size:13px; font-weight:700; padding-top:3px}
+.fud-insight--good .fud-insight-tag{color:var(--green-ink)}
+.fud-insight--bad .fud-insight-tag{color:var(--amber-ink)}
+.fud-insight--neutral .fud-insight-tag{color:var(--ink-3)}
+@media (max-width:767px){ .fud-insight{grid-template-columns:1fr} .fud-money{padding:18px} }
+.fud .check-titles .fud-band{display:inline-block; margin-top:6px; font-size:13px; font-weight:600; color:var(--ink-3)}
+.fud-band--quick_win{color:var(--green-ink) !important}
+.fud-funnel{font-weight:600; color:var(--amber-ink) !important}
+.fud-desktop{font-size:14px !important; color:var(--ink-3) !important}
+.fud-rec{color:var(--ink) !important}
+.opp{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.02em; padding:2px 8px; border-radius:999px; border:1px solid currentColor; line-height:1.5}
+.opp--revenue_loss{color:var(--red-ink)}
+.opp--revenue_gain{color:var(--green-ink)}
+.opp--risk{color:var(--amber-ink)}
+.opp--benefit{color:var(--blue-ink)}
+.check-tags{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
+.act{margin-top:16px; padding:16px 18px; border-radius:12px; background:var(--bg); border:1px solid var(--line-strong); max-width:72ch}
+.act-step{margin:0; color:var(--ink) !important; font-size:16px}
+.act-step b{font-weight:700}
+.act-meta{display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 16px; margin:12px 0 0; font-size:14px}
+.act-meta div{display:contents}
+.act-meta dt{color:var(--ink-3); font-weight:600}
+.act-meta dd{margin:0; color:var(--ink-2)}
+.act-handoff{display:inline-block; margin-top:12px; font-size:14px; font-weight:600; color:var(--green-ink); text-decoration:none}
+.act-handoff:hover{text-decoration:underline}
+.act-protect{margin-top:12px; font-size:15px; color:var(--ink-2) !important}
+.act-protect b{color:var(--green-ink); font-weight:700}
+.followup{margin-top:24px; padding:22px; border-radius:14px; background:var(--bg-soft); border:1px solid var(--card-border); border-inline-start:3px solid var(--amber-ink)}
+.followup-kicker{margin:0; font-size:13px; font-weight:700; color:var(--amber-ink)}
+.followup h3{margin:6px 0 0; font-size:20px}
+.followup-lead{margin:10px 0 0; color:var(--ink-2); max-width:72ch}
+.followup-why{margin-top:14px; padding:12px 14px; border-radius:10px; background:var(--bg); border:1px solid var(--line-strong); max-width:72ch}
+.followup-gap{color:var(--amber-ink) !important}
+.followup-body{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,260px); gap:20px; margin-top:16px; align-items:start}
+@media (max-width:767px){ .followup-body{grid-template-columns:1fr} }
+.followup-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.followup-list a{display:flex; gap:12px; align-items:baseline; text-decoration:none; color:var(--ink); font-size:15px}
+.followup-list a:hover span:last-child{text-decoration:underline}
+
+.fud-rec b{font-weight:600}
+.fud-copy{margin-top:14px; padding:14px 16px; border-radius:10px; background:var(--bg); border:1px solid var(--line-strong); max-width:68ch}
+.fud-copy-label{display:block; font-size:13px; font-weight:600; color:var(--ink-3); margin-bottom:6px}
+.fud-copy p{margin:0; color:var(--ink) !important; font-size:16px}
+.fud-copy p + p{margin-top:6px; font-family:var(--arabic)}
+.fud-crop{margin:16px 0 4px; max-width:300px}
+.fud-crop img{display:block; width:100%; height:auto; max-height:380px; object-fit:cover; object-position:top; border-radius:12px; border:1px solid var(--line-strong)}
+.fud-crop figcaption{margin-top:8px; font-size:13px; color:var(--ink-3)}
+.fud-note{margin-top:20px; font-size:14px; color:var(--ink-3); max-width:68ch}
+.fud .check-meta span + span{color:var(--ink-3)}
+
 
 /* speed table */
 .table-wrap{margin-top:24px; overflow-x:auto}
@@ -1462,7 +2582,7 @@ main{position:relative; z-index:2}
 .cta-inner{position:relative}
 
 /* hidden start states (motion only) */
-.js-motion :is(.crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-fold > summary, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls){opacity:0}
+.js-motion :is(.crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-head, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls){opacity:0}
 .js-motion :is(.summary h1, .doc-section h2, .cta-band h2){clip-path:inset(-20% 50% -30% 50%)}
 .js-motion .bar > span{transform:scaleX(0); transform-origin:left center}
 #i18n-ar:checked ~ main .bar > span{transform-origin:right center}
@@ -1610,6 +2730,9 @@ body{position:relative}
 .js-motion :is(.kpi, .chart, .checkmap, .speed-card){opacity:0}
 .js-motion :is(.f-fill, .c-fill, .s-fill, .seg){transform:scaleX(0)}
 .js-motion .cell{opacity:0}
+/* Set by revealFallbackScript when a scroll-triggered reveal never fires
+   (embedded viewers that don't scroll the document). */
+.force-in{opacity:1 !important; clip-path:none !important; transform:none !important}
 
 @media (max-width:767px){
   .f-main, .c-row, .s-row{grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"name val" "track track"}
@@ -1641,7 +2764,6 @@ body{position:relative}
   .bar{width:100%; max-width:none; flex:1}
   .shot--mobile{flex:1 1 160px; max-width:200px}
   .check-main{grid-template-columns:1fr; gap:8px; padding:16px 18px}
-  .check--pass .check-main{padding:12px 18px}
   .fix-list a{padding:16px 18px; grid-template-columns:28px minmax(0,1fr); gap:4px 12px}
   .check-side{padding-top:0}
   .controls{align-items:stretch}
@@ -1650,6 +2772,14 @@ body{position:relative}
   .cta-band{padding:56px 0}
   .cta-band .btn{width:100%}
   .footer-grid{grid-template-columns:1fr}
+  /* RTL: content pushed past the left edge can't be scrolled to, so on phones
+     the nav chips wrap instead of scrolling and the tags/chips wrap their text. */
+  .jump{flex-wrap:wrap; overflow:visible}
+  .fix-list a{grid-template-columns:minmax(0,1fr)}
+  .fix-meta{flex-wrap:wrap; row-gap:6px}
+  .fix-list a > *{min-width:0; overflow-wrap:anywhere}
+  .fix-tag, .adfx{white-space:normal; max-width:100%; overflow-wrap:anywhere}
+  .shot, .shot-frame{max-width:100%; min-width:0}
 }
 
 @media print{
@@ -1660,6 +2790,27 @@ body{position:relative}
 }
 `;
 }
+
+/* Fallback for the scroll-triggered reveals. GSAP's ScrollTrigger only fires on
+   document scroll, so in an embed that doesn't scroll the page (the Claude
+   artifact viewer), elements stay at opacity 0. Any hidden element that is in
+   view and still hidden 2.5s later gets .force-in. Normal reveals finish well
+   before that, so they are unaffected. */
+const revealFallbackScript = `(function(){
+  if (!("IntersectionObserver" in window)) return;
+  var sel = ".fix-list li, .lane-lead, .lead, .section-lead, .actions, .fact, .check, .group-head, .passed-head, .cat-score, .kpi, .chart, .checkmap, .speed-card, .cell, .sources li, .sources h3, .speed-table tbody tr, .speed-table tfoot tr, .shot figcaption, .footer-col";
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (!e.isIntersecting) return;
+      var el = e.target;
+      io.unobserve(el);
+      setTimeout(function(){
+        if (parseFloat(getComputedStyle(el).opacity) < 0.5) el.classList.add("force-in");
+      }, 2500);
+    });
+  });
+  document.querySelectorAll(sel).forEach(function(el){ io.observe(el); });
+})();`;
 
 function scriptBlock(): string {
   return `
@@ -1800,7 +2951,7 @@ function scriptBlock(): string {
   gsap.registerPlugin(ST);
 
   var EASE = "expo.out";
-  var HIDDEN = ".crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-fold > summary, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls, .kpi, .chart, .checkmap, .speed-card, .cell";
+  var HIDDEN = ".crumbs, .lead, .summary .callout, .fact, .actions, .section-lead, .fix-list li, .group-head, .check, .passed-head, .cat-score, .speed-table tbody tr, .speed-table tfoot tr, .sources li, .sources h3, .shot figcaption, .cta-inner > div > p, .cta-inner > .btn, .footer-col, .controls, .kpi, .chart, .checkmap, .speed-card, .cell";
   var WIPED = ".summary h1, .doc-section h2, .cta-band h2";
   var fine = window.matchMedia && matchMedia("(pointer:fine)").matches;
   function q(sel, ctx){ return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
@@ -1985,7 +3136,7 @@ function scriptBlock(): string {
     q(".cat-score").forEach(function(s){
       onEnter(s, function(){ rise([s], 12, { delay: .25 }); fill(s, .35); counts(s, .35); });
     });
-    q(".group-head, .passed-fold > summary").forEach(function(el){
+    q(".group-head, .passed-head").forEach(function(el){
       onEnter(el, function(){ rise([el], 16); }, "top 92%");
     });
     ST.batch(".check", { start: "top 94%", once: true, onEnter: function(batch){ rise(batch, 26, { stagger: .07, duration: .75 }); } });
@@ -2056,7 +3207,7 @@ function scriptBlock(): string {
         var rows = q(".check").filter(function(r){ return !r.hidden && r.offsetParent; });
         var vh = innerHeight;
         var inView = rows.filter(function(r){ var b = r.getBoundingClientRect(); return b.top < vh && b.bottom > 0; }).slice(0, 18);
-        gsap.set(rows.concat(q(".group-head, .passed-fold > summary")), { opacity: 1, clearProps: "transform" });
+        gsap.set(rows.concat(q(".group-head, .passed-head")), { opacity: 1, clearProps: "transform" });
         if (inView.length) gsap.fromTo(inView, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5, ease: EASE, stagger: .03, clearProps: "transform" });
         refreshSoon();
       }, 0);
@@ -2559,6 +3710,7 @@ async function renderReport(result: AuditResult): Promise<string> {
   const fixFirst = fixFirstHtml(result);
   const screens = screenshotsHtml(result);
   const numbers = numbersSectionHtml(result);
+  const friction = frictionSectionHtml(result);
   const title = `${result.businessName || hostOf(result.websiteUrl)} · Optimizers Audit`;
 
   return `<!doctype html>
@@ -2588,30 +3740,48 @@ async function renderReport(result: AuditResult): Promise<string> {
     </div>
   </header>
   <main>
-    ${jumpBarHtml(result, Boolean(fixFirst), Boolean(speed), Boolean(numbers))}
+    ${jumpBarHtml(result, Boolean(fixFirst), Boolean(speed), Boolean(numbers), Boolean(friction))}
     <div class="wrap layout">
-      ${tocHtml(result, Boolean(fixFirst), Boolean(screens), Boolean(speed), Boolean(numbers))}
+      ${tocHtml(result, Boolean(fixFirst), Boolean(screens), Boolean(speed), Boolean(numbers), Boolean(friction))}
       <div class="content">
         ${summaryHtml(result, counts, generatedAt, generatedAtAr, contactUrl)}
+        ${questionsHtml(result)}
         ${fixFirst}
         ${screens}
         ${numbers}
+        ${friction}
         ${checksIntroHtml(counts, result)}
         ${result.categories.map(cat => categorySectionHtml(cat, result, assets)).join("")}
         ${speed ? speedSectionHtml(speed) : ""}
         ${sourcesHtml(result)}
       </div>
     </div>
-    ${ctaHtml(counts, contactUrl)}
+    ${ctaHtml(counts, contactUrl, result)}
     ${footerHtml(assets, attributedTo, generatedAt, generatedAtAr, contactUrl)}
   </main>
-  ${guideHtml(result, counts, { fixFirst: Boolean(fixFirst), screens: Boolean(screens), numbers: Boolean(numbers), speed: Boolean(speed) })}
+  ${guideHtml(result, counts, { fixFirst: Boolean(fixFirst), screens: Boolean(screens), numbers: Boolean(numbers), speed: Boolean(speed), friction: Boolean(friction) })}
 <script>${libs}</script>
 <script>${scriptBlock()}</script>
+<script>${revealFallbackScript}</script>
 </body>
 </html>`;
 }
 
 export async function buildAuditHtmlReport(result: AuditResult): Promise<AuditHtmlReport> {
-  return { html: await renderReport(result) };
+  return { html: await renderReport(withReaderSeverity(result)) };
+}
+
+// Each reader sees the severity their ICP gives a point (audience.ts
+// roleSeverity): counts, ordering, tags and the first section all follow it.
+// A copy, so the saved audit keeps the checklist severity.
+function withReaderSeverity(result: AuditResult): AuditResult {
+  const role = result.audienceRole;
+  if (!role) return result;
+  return {
+    ...result,
+    categories: result.categories.map(cat => ({
+      ...cat,
+      findings: cat.findings.map(f => (f.status === "fail" ? { ...f, severity: roleSeverity(role, f.checklistId, f.severity) } : f)),
+    })),
+  };
 }

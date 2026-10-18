@@ -392,3 +392,24 @@ export async function recordDigestSent(): Promise<void> {
   const { error } = await supabase.from("audit_digest_log").insert({});
   if (error) throw new Error(`Supabase recordDigestSent error: ${error.message}`);
 }
+
+// Reviewer tooling (fud-override.ts): read one request and write its saved
+// progress back without holding the worker's lease. Only for rows the worker
+// has finished with — the caller checks the status first.
+export async function getRequestById(id: string): Promise<AuditRequestRow | null> {
+  const supabase = getClient();
+  // Accept the short id shown in report slugs (first characters of the UUID).
+  const query = supabase.from("audit_requests").select("*");
+  const { data, error } = id.length >= 32 ? await query.eq("id", id).limit(1) : await query.order("created_at", { ascending: false }).limit(200);
+  if (error) throw new Error(`Supabase getRequestById error: ${error.message}`);
+  const rows = (data as AuditRequestRow[]) ?? [];
+  if (id.length >= 32) return rows[0] ?? null;
+  const short = id.replace(/-/g, "").toLowerCase();
+  return rows.find(r => r.id.replace(/-/g, "").startsWith(short)) ?? null;
+}
+
+export async function saveProgressDirect(id: string, progress: JobProgress): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase.from("audit_requests").update({ progress }).eq("id", id);
+  if (error) throw new Error(`Supabase saveProgressDirect error: ${error.message}`);
+}

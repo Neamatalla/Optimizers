@@ -1,7 +1,13 @@
 import { countedCategories } from "./scoring.js";
 import { extractJsonPayload, runClaudeHeadless } from "./claude.js";
 import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type ChecklistPoint } from "./checklist.js";
-import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, Ga4FunnelEvent } from "./types.js";
+import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, Ga4FunnelEvent, Ga4Facts, SiteChecks } from "./types.js";
+import { buildAction, defaultProtect, repairActions, type RawAction } from "./actions.js";
+import { ga4FactsPromptBlock, ga4MetricsFromOAuth } from "./ga4-facts.js";
+import { siteChecksPromptBlock } from "./site-checks.js";
+import { readerBrief, type AudienceRole } from "./audience.js";
+import { READER_QUESTIONS } from "./reader-questions.js";
+import { AD_EFFECT_PROMPT, AD_EFFECT_ROLES, adEffectOf, ensureAdDirection } from "./ad-impact.js";
 import type { CrawlFindings } from "./crawl.js";
 
 import { neededMcpServers } from "./mcp-config.js";
@@ -32,6 +38,13 @@ export interface AuditPromptInput {
   // data. null when the visitor used the manual invite-flow instead.
   ga4OAuthData: unknown;
   gtmOAuthData: unknown;
+  // Worker-computed GA4 facts (ga4-facts.ts) and our own visit to the store
+  // (site-checks.ts). Null when there was no OAuth GA4 data / no visit.
+  ga4Facts?: Ga4Facts | null;
+  siteChecks?: SiteChecks | null;
+  // "Your role" from the form. A role with a reader brief (icp/) rewrites the
+  // business voice for that reader; the points and statuses never change.
+  audienceRole?: AudienceRole | null;
 }
 
 function dedupeUpper(ids: (string | null | undefined)[]): string[] {
@@ -72,31 +85,95 @@ function checklistFor(category: CategoryKey, tools: ToolId[]): ChecklistPoint[] 
   return tools.length === 0 ? WEBSITE_CHECKLIST : WEBSITE_CODE_CHECKLIST;
 }
 
-function formatChecklist(category: CategoryKey, tools: ToolId[]): string {
+function formatChecklist(category: CategoryKey, tools: ToolId[], role?: AudienceRole | null): string {
   const points = checklistFor(category, tools);
   if (points.length === 0) return "";
+  // Readers judged on ROAS/CAC get each point's direction (ad-impact.ts), so
+  // the business text and the report's chip say the same thing.
+  const adLine = (id: string) => {
+    const effect = role && AD_EFFECT_ROLES.has(role) ? adEffectOf(id) : null;
+    return effect ? `\n    Ad effect when failing (direction only, never a ROAS/CAC value): ${AD_EFFECT_PROMPT[effect]}` : "";
+  };
   return points
-    .map(p => `  - [${p.id}, ${p.severity}] ${p.title}\n    Expected: ${p.expectedState}\n    Common failure: ${p.commonFailure}\n    How to check it: ${p.validate}`)
+    .map(p => `  - [${p.id}, ${p.severity}, ${p.opportunity}${p.fact ? ", computed" : ""}] ${p.title}\n    Pass when: ${p.expectedState}\n    Fails when: ${p.commonFailure}\n    How to check it: ${p.validate}\n    Default action: ${p.action} (owner: ${p.owners.join(" + ")})\n    Done when: ${p.doneWhen}${adLine(p.id)}`)
     .join("\n");
 }
 
-function buildPrompt(input: AuditPromptInput): string {
+// The reader-neutral half of the voice rules, used instead of the
+// store-owner BUSINESS voice / READING LEVEL blocks when the form named a
+// reader (audience.ts): the reader brief at the end of the prompt is then the
+// only description of who reads the business voice, so the two never
+// contradict each other (e.g. "say the tracking code, not pixel" against a
+// media buyer who says pixel).
+const ROLE_VOICE_RULES = `BUSINESS voice — for the reader described in WHO READS THIS REPORT at the
+end of this prompt. Their terms, the metrics they are judged on and their
+register come from that brief, and only from it:
+- "summary": the same finding in that reader's words, landing on what it
+  means for them.
+- "detail": the CONSEQUENCE for that reader. Which decision gets made on
+  wrong numbers, which spend can't be judged, which revenue is at risk, who
+  feels it, and when they'd notice. Reach for the concrete: name the date,
+  the page, the channel, the amount when you have it.
+- Never restate severity as the impact ("this is critical"). Say what
+  actually happens. Never moralize or sell; describe the consequence and
+  stop. No "we recommend engaging our team".
+
+WRITING RULES — both voices, every finding. The reader is reading a report
+from an agency, so it has to read like a sharp person wrote it, not a
+template:
+- End on the last concrete fact or consequence. No closing line that just
+  reassures or sums up ("The numbers reflect real shoppers.", "Reports can
+  be trusted.", "There are no blind spots."). If the sentence would fit
+  unchanged in another store's report, cut it or replace it with a number,
+  name or date from THIS store.
+- No "X, not Y" endings ("find buyers, not browsers", "clutter, not
+  breakage", "trustworthy, not inflated"). State the positive fact once.
+- Don't lean on the same adverbs: drop "actually", "exactly", "quietly",
+  "silently", "simply", "truly" unless the sentence breaks without them.
+- No setup phrases or reader guidance: "One thing to note:", "It is worth
+  checking", "matters most", "which matters a lot", "the key point is".
+  Say the thing.
+- No em dashes in finding text. Use a full stop or a comma.
+- Vary sentence openings across findings. Passed checks especially must not
+  all follow the same "X is set up, so Y can be trusted" shape.
+- Never use: delve, leverage, utilize, robust, seamless, streamline,
+  empower, crucial, pivotal, testament, game changer.
+- Short sentences, one idea each, in the active voice.
+- The technical voice keeps the real names, values and identifiers, but
+  also uses short sentences and plain connecting words.`;
+
+export function buildPrompt(input: AuditPromptInput): string {
   const categories = countedCategories(input.tools);
   const ga4Candidates = dedupeUpper([...input.crawl.ids.ga4MeasurementIds, input.userProvidedGa4Id]);
   const gtmCandidates = dedupeUpper([...input.crawl.ids.gtmContainerIds, input.userProvidedGtmId]);
 
 
+  const brief = readerBrief(input.audienceRole);
+  // The reader's own questions (reader-questions.ts, from their ICP card).
+  // The report answers each one from the findings behind it, so each
+  // finding is written as part of that answer.
+  const questions = input.audienceRole ? READER_QUESTIONS[input.audienceRole] : [];
+  const questionBlock = brief && questions.length ? `
+## THE READER CAME TO US WITH THESE QUESTIONS
+The report opens with each question and answers it from the findings listed
+under it. Write every finding behind a question as part of that answer: the
+business summary should read as a direct reply to the question, in the
+reader's terms, with this store's numbers.
+${questions.map(q => `- "${q.en}"${q.points.length ? ` (answered by ${q.points.join(", ")})` : " (answered by every fix the reader can make without a developer)"}`).join("\n")}
+` : "";
   const checklistBlocks = categories
-    .map(c => `### ${c} checklist (evaluate every point below; report a finding only for points that are NOT clean)\n${formatChecklist(c, input.tools)}`)
+    .map(c => `### ${c} checklist (evaluate every point below; report a finding only for points that are NOT clean)\n${formatChecklist(c, input.tools, input.audienceRole)}`)
     .join("\n\n");
 
-  return `You are auditing a website for Optimizers, a CRO/analytics agency. Write
-findings as BUSINESS INSIGHTS for a non-technical business owner — for every
-finding, state what the problem is, which tool/area it's in, and how it
-concretely hurts the business (lost revenue, blind spots in decision-making,
-wasted ad spend, compliance/legal exposure, etc). Never just describe a
-metric or a technical config state — always connect it to business impact,
-in plain language a business owner (not an analyst) would understand.
+  return `You are auditing a website for Optimizers, a CRO/analytics agency. Every
+point in this audit is an ACTION POINT for ${brief ? "the reader named in WHO READS THIS REPORT at the end of this prompt" : "a non-technical business owner"}:
+what was found, what it costs or protects, and exactly what to do about it,
+who does it and how they'll know it's done. Each point is one of four types:
+revenue_gain (more sales from current traffic), revenue_loss (money leaking
+now: broken steps, wasted ad spend, sales reported wrong), risk (privacy,
+security, account or data loss) or benefit (better decisions, findability,
+cleaner data). Never just describe a metric or a config state: connect it to
+the business and to the action, in plain language.
 ${input.businessName ? `Address the report to "${input.businessName}" by name where natural — this is purely for tone/personalization, never a signal for picking which GA4 property or GTM container to query (see below, exact ID match only).` : ""}
 
 Website: ${input.website}
@@ -142,11 +219,9 @@ and — only when noted in a section below — a real headless browser. There is
 no PageSpeed Insights / Lighthouse data in this run at all: anything that
 sounds like a Lighthouse audit id is measured in the browser instead.
 
-One exception to "fixed, curated": GA4-D1 through GA4-D15, if GA4 is
-included this run, are deliberately open analysis slots rather than
-individually pre-written checks — their "How to check it" line below just
-points to the "GA4 deep-analysis slots" section further down, which has
-their real instructions.
+GA4 points marked as computed are decided by code: the "Computed GA4 facts"
+section (when present) gives their numbers and status. Points that read our
+own visit to the store use the "Browser facts" section (when present).
 
 Work through EVERY point in EVERY included category's list and give EVERY
 single one of them a real result — this run must always account for exactly
@@ -183,7 +258,7 @@ TECHNICAL voice — for someone who will open the account and fix it:
 - "detail" adds the mechanism — why the configuration produces this result,
   or what exactly the data shows.
 
-BUSINESS voice — for an owner or a marketing lead with no analytics
+${brief ? ROLE_VOICE_RULES : `BUSINESS voice — for an owner or a marketing lead with no analytics
 background:
 - "summary": the same finding with the jargon removed. Not "sessionDefault
   ChannelGroup is 38% Unassigned" but "for about 4 in 10 visits, nothing
@@ -248,7 +323,7 @@ never opened GA4 or GTM. Write it at about a grade 6-8 reading level:
 - Active voice: "Google counts each order once", not "each order is
   counted once".
 - The technical voice keeps the real names, values and identifiers, but
-  also uses short sentences and plain connecting words.
+  also uses short sentences and plain connecting words.`}
 
 1. It's clean → "status": "pass". The technical voice states what you
    actually checked and the real result (e.g. "Property timezone is
@@ -262,10 +337,30 @@ never opened GA4 or GTM. Write it at about a grade 6-8 reading level:
    is wrong with real evidence, and what it costs.
 
 In both cases: "checklistId" is that point's EXACT id from the list below
-(e.g. "GA4-15", "WEB-23") — never invent an id that isn't in the checklist,
+(e.g. "GA4-03", "W-22") — never invent an id that isn't in the checklist,
 never cite the same id twice, and never split one point across multiple
 findings. Every checklistId you cite must come verbatim from the checklists
 below.
+
+ACTIONS — every point in this audit must be something the store can act on.
+Each checklist point below comes with its Type, a default Action, Owner and
+Done when. For every finding:
+- "fail": also return "action": {"step", "owners", "doneWhen", "impact"}.
+  - "step": one imperative sentence, 8-30 words, naming the exact thing to
+    change for THIS store: the page URL, tag name, event, product, setting
+    or link you found. Not "consider", "review" or "ensure". Start from the
+    point's default Action and make it specific.
+  - "owners": one or more of "dev", "marketing", "content", "owner".
+  - "doneWhen": a checkable end state with a number, a named report or tool
+    view, or an observable page state. Start from the point's default.
+  - "impact": one short line on what changes for the business when it's
+    done. Use the store's own numbers; never invent money figures (GA4 money
+    ranges are added by code).
+- "pass": also return "protect": one sentence on what to keep as it is and
+  why, for example "Keep the cart drawer as it is while fixing product pages:
+  52% of carts reach checkout."
+A failed finding without a specific step and a checkable doneWhen is
+rejected and rewritten.
 
 You do NOT assign or return a numeric score anywhere in your response — the
 report's checks-passed count is computed deterministically outside this
@@ -291,17 +386,22 @@ steps below reference ids that only exist in the FULL 50-item checklist and
 won't be present when this run is on the 25-item curated slice instead; skip
 citing those, the general observation just isn't a scored point this run:
 
-1. Open a new page and navigate to ${input.website}. Wait for it to finish loading, then stay idle a few seconds before reading console/network state — some errors and duplicate fires only show up after initial load settles.
-2. Console messages: distinct JS errors (WEB-15), unhandled promise rejections (WEB-18), any error repeating many times in the observation window (WEB-21), and mixed-content warnings (WEB-22).
-3. Network requests during that same load+idle window: tracking-looking requests actually firing vs. just being present in source (WEB-16), any firing more than once for one logical event (WEB-17), first-party 404s on JS/CSS/image/font assets (WEB-23), non-GA4/GTM trackers firing (Meta/TikTok/Snapchat Pixel, Hotjar, Clarity — WEB-24), any request past ~3s in the critical path (WEB-26), blocked/insecure mixed-content requests specifically at the network level (WEB-27), and any .js.map file requested (WEB-30).
-4. Navigate directly to a couple of common leak paths — ${new URL(input.website).origin}/.env and ${new URL(input.website).origin}/.git/config — and confirm each is a real 404, not a 200 (WEB-31). Also navigate to ${new URL(input.website).origin}/robots.txt to read its actual content directly (WEB-38).
-5. If a cookie/consent banner is visible, compare network requests before vs. after accepting or declining it — does the visitor's choice actually change what fires (WEB-50)? Also check Application/cookies for Secure/HttpOnly/SameSite flags on first-party cookies (WEB-34).
-6. Ecommerce dataLayer (WEB-57/58/59): trigger the real journey — view a product, add to cart, begin checkout if reachable — and read window.dataLayer directly. Are the standard event names present at all (WEB-57)? Does each event's ecommerce.items carry item_id/item_name/price/quantity, with currency/value at the event root (WEB-58)? Push two different ecommerce events in sequence and confirm the second's items array doesn't still contain the first's (WEB-59) — this works whether or not GA4/GTM ever actually consumes these events, since it's about what the site itself pushes.
-7. If the discovered-pages list above includes a cart/checkout-looking URL, navigate there specifically and repeat the console-error check (WEB-54), and inspect the DOM for the primary Add-to-Cart/checkout CTA — present, visible, not disabled (WEB-56). If it includes a product URL, read that page's schema.org Product/Offer markup for price + availability (WEB-55).
-8. Resource weight and delivery (WEB-60 through WEB-63), all from that same load's network list plus the DOM: render-blocking scripts/stylesheets resolving before first paint (WEB-60), any image response over ~200KB and any image whose naturalWidth/naturalHeight far exceeds its rendered clientWidth/clientHeight (WEB-61), missing gzip/brotli content-encoding on the document and the largest CSS/JS responses (WEB-62), and the summed transfer size of all script+stylesheet responses on first load, naming the largest individual offenders (WEB-63). Cite real byte numbers and real URLs, not estimates — these four replaced a PageSpeed-Insights-backed category precisely so the numbers come from a real load.
-9. Core Web Vitals and mobile layout, on the same page: measure LCP and CLS in-page via a PerformanceObserver on the "largest-contentful-paint" and "layout-shift" entry types, and read PerformanceNavigationTiming for domContentLoaded/load, comparing against when the tracking requests resolved (WEB-8, WEB-13). Then emulate a ~390x844 mobile viewport and check document.scrollWidth against the viewport width for horizontal overflow, plus the primary CTA's rendered box size (WEB-14).
-10. This browser is your only source of real runtime behavior this run — the static crawl signal above is HTML-only, and there is no PageSpeed/Lighthouse data at all any more. Every finding based on what you directly observed in the browser gets dataSource "live"; anything inferred from the static crawl instead stays "detection".
-11. If the browser tools error out or a page fails to load, don't fail the whole audit — note it as a low-severity WEB finding ("couldn't run a live browser check this time") and continue with the static crawl signal alone for whatever that leaves uncovered.
+1. Open a new page and navigate to ${input.website}. Wait for it to finish loading, then stay idle a few seconds before reading console/network state.
+2. Network requests during that load+idle window: tracking requests really firing on home, product and cart (W-21), any firing twice for one event (W-24), ad pixels (W-25), failed first-party files (W-03), any request past ~3s (W-04), mixed content (W-31), leftover scripts from apps with no visible feature (W-16), third-party weight by domain (W-15).
+3. Navigate to ${new URL(input.website).origin}/.env and ${new URL(input.website).origin}/.git/config and confirm each is a 404 (W-33). Read ${new URL(input.website).origin}/robots.txt and its sitemap (W-39). Load a made-up URL to see the 404 page (W-05).
+4. If a cookie/consent banner is visible, compare requests before vs. after a choice — does it change what fires (W-29)? Read Set-Cookie flags and security headers (W-32; on Shopify, Salla or Zid that point passes as platform-managed).
+5. Ecommerce dataLayer: read window.dataLayer on a product page, and use the Browser facts below for what our own Add-to-Cart click produced (W-22). Each ecommerce event's items carry item_id/item_name/price/quantity, with value/currency (W-23).
+6. On the cart page: console errors or a failed load (W-02). On the product page: schema.org Product/Offer price + availability (W-40), whether they equal the visible price and stock (W-41), brand/GTIN (W-42).
+7. Resource weight from the same load: render-blocking files before first paint (W-12), images far larger than their rendered size or not WebP/AVIF, and below-fold images loading eagerly (W-13), JS+CSS first-load transfer size naming the largest files (W-14), compression and cache headers (W-18), font-display on web fonts (W-19). Cite real byte numbers and URLs.
+8. Core Web Vitals on the product page at a ~390x844 mobile viewport: LCP and CLS via PerformanceObserver (W-09, W-10), long tasks / TBT (W-11), horizontal overflow and tap-target sizes (W-20), price and button contrast (W-47), icon buttons without names (W-50), inputs without labels (W-49).
+9. Every finding from what you saw in the browser gets dataSource "live"; anything from the static crawl stays "detection".
+10. If the browser tools error out, don't fail the audit: write that point from the crawl signal, dataSource "detection".
+
+` : ""}${input.siteChecks ? `## Browser facts (our own visit to the live store, analytics hits blocked)
+These come from a separate phone-sized visit that clicked Add to Cart on a
+real product. Use them for the points that cite "Browser facts"; they are
+"live" evidence.
+${siteChecksPromptBlock(input.siteChecks)}
 
 ` : ""}${categories.includes("GA4") ? `## GA4 data source
 ${input.ga4OAuthData
@@ -312,84 +412,34 @@ ${ga4Candidates.length > 0
     ? `List accessible properties, find each one's web data stream(s), and ONLY use a property whose stream's measurementId is an EXACT string match to one of those IDs.`
     : `The candidate list is empty (GA4 often loads dynamically via GTM rather than a literal gtag.js snippet on the page). Try the cheap path first, before any property enumeration: if a GTM container matched below, inspect ITS tags for a GA4 Configuration tag's measurementId — that's just a second source for a candidate, still exact-match only, not a new matching rule. Do NOT list/enumerate every accessible property while the candidate list is empty — there is nothing for a full listing to match against, so it only burns time and turns for a guaranteed-empty result.`}
 
-If nothing ever matches (empty candidate list with no GTM-tag hit either, or a non-empty list where no property's stream matches any candidate), there is no live GA4 property this run: evaluate GA4-1..GA4-13 against the crawl signal + general best practice and mark dataSource "detection" — and just as importantly, do NOT attempt any GA4-D1..D15 real data pull either (no run_report/run_realtime_report/admin_request calls). Write all 15 GA4-D slots the same way, from the crawl signal + general best-practice reasoning for a business like this one, dataSource "detection". This isn't a shortcut around "GA4-D MUST come from real data" below — it's the same "no property, no data pull, use whatever signal you DO have" fallback already established for every point in this audit, spelled out here explicitly because these 15 slots are the ones most likely to otherwise burn most of this run's time budget attempting real API calls against a property that was never matched. An exact match is the only condition under which you may mark dataSource "live".`}
+If nothing ever matches (empty candidate list with no GTM-tag hit either, or a non-empty list where no property's stream matches any candidate), there is no live GA4 property this run: evaluate every GA4 point against the crawl signal + general best practice and mark dataSource "detection", and do NOT attempt any run_report/run_realtime_report/admin_request calls. An exact match is the only condition under which you may mark dataSource "live".`}
 
-## GA4 deep-analysis slots (GA4-D1 through GA4-D15)
-GA4-1 through GA4-13 above (minus the ones GA4-D covers) are fixed
-CONFIGURATION checks — property settings, data stream setup, industry
-category, service level, retention, Google Ads link presence, key-event
-counting method, and similar Admin API metadata. GA4-D1 through GA4-D15 are
-NOT a second round of that — every one of these 15 MUST come from actually
-pulling and reasoning about real DATA via the GA4 Data API (run_report /
-run_realtime_report), or a real activity log (change-history / access
-report), never from Admin API config/settings fields alone. A finding whose
-only evidence is a config value (property display name, industry category,
-service level, timezone, currency, data-stream URL, a Google Ads link's
-creator email/personalization flag, key-event counting method, property
-type, retention window, etc.) does NOT belong in a GA4-D slot — that's
-GA4-1..13's job, and repeating it here doesn't count as one of the 15.
+${input.ga4Facts ? `## Computed GA4 facts (decided by code — quote, never recompute)
+The worker computed these from the OAuth reports above. For every GA4 point
+listed here:
+- "status" MUST be exactly the status shown: PASS → "pass", FAIL → "fail".
+  NO_DATA means the worker couldn't decide: judge that point yourself from
+  the OAuth data above.
+- Quote the numbers as written (same rounding). Never compute a different
+  rate, total or money figure for these points.
+- The OAuth reports' "conversions" metric counts EVERY key event (page views,
+  add-to-carts, video plays when those are marked as key events), not sales.
+  Never compute a conversion rate or sales figure from it. Sales are the
+  purchase report, or "transactions" (the 3rd metric) where a report has it.
+  A NO_DATA fact that says sales "can't be read" means exactly that: judge
+  the point only from what can be read (visits, shares), say in the finding
+  that sales by that split can't be measured until GA4-20 is fixed, and never
+  state a sales rate for it.
+- The money range ("Estimated gain") is added to the action by code; you may
+  mention it in the business voice but never change it.
 
-Each slot below names the specific real-data pull that's REQUIRED for it —
-what you conclude from that data (is it fine, is it a problem, how severe)
-is entirely your own judgment, not a fixed pass/fail bar; that's what makes
-these "open" rather than individually pre-written checks like GA4-1..13.
-
-- GA4-D1: run_realtime_report (metrics=[activeUsers]) — is the real number
-  plausible for a site that's live right now?
-- GA4-D2: run_report, last 28 days, dimensions=[eventName]
-  metrics=[eventCount] — sum the real totals; is historical volume healthy
-  or near-dead?
-- GA4-D3: run_report TWICE — dateRanges [7daysAgo,today] and
-  [14daysAgo,8daysAgo], metrics=[sessions,eventCount] — compare the two real
-  totals for an unexplained cliff or spike.
-- GA4-D4: run_report, last 28 days, dimensions=[sessionDefaultChannelGroup]
-  metrics=[sessions] — what real share is Unassigned?
-- GA4-D5: run_report, last 28 days, real sessions vs. real key-event
-  completions — is the actual conversion rate plausible for this business?
-- GA4-D6: run_report, last 28 days, metrics=[eventCount,purchaseRevenue,
-  transactions] on the purchase key event — do real purchase counts and real
-  revenue/transactions actually move together?
-- GA4-D7: run_report, last 28 days, dimensions=[landingPage]
-  metrics=[sessions,conversions], ordered by sessions — any real
-  high-traffic page with real zero conversions?
-- GA4-D8: run_report, last 28 days, dimensions=[country] AND separately
-  dimensions=[deviceCategory], metrics=[sessions] — does the real
-  distribution look like genuine traffic or a bot/invalid-traffic pattern?
-- GA4-D9: run_report, last 28 days, metrics=[sessions,engagedSessions,
-  averageSessionDuration] — does real engagement look human?
-- GA4-D10: run_report, last 28 days, a new-vs-returning-user dimension with
-  metrics=[sessions,conversions] — real behavior/conversion difference
-  between the two?
-- GA4-D11: run_report, last 28 days, sessions+conversions split
-  paid-vs-organic channels — real conversion-rate gap between them (ad-spend
-  efficiency signal)?
-- GA4-D12: list_data_streams, cross-checked against the crawl's real
-  detected measurement ID(s) (crawl.ids.ga4MeasurementIds) — does the
-  connected property actually match what's live on the site right now?
-- GA4-D13: admin_request POST :searchChangeHistoryEvents (v1alpha), a
-  recent real date range — any high-risk change actually in the real log?
-- GA4-D14: run_access_report, a recent real date range — anyone
-  unexpected actually shown querying report data?
-- GA4-D15: OPEN — one more real, data-driven insight of your own choosing
-  from anything you pulled above or a related run_report call not listed —
-  state exactly which real data call backed it. Still no config/settings-only
-  findings here either.
-
-Map insights to these exact slot numbers, in this exact order — never skip
-one, never split one insight across two slots, never duplicate something
-already covered by a GA4-1..GA4-13 finding or by another GA4-D slot. Every
-slot still needs a real "status": "pass" finding when its data comes back
-clean (see "no implicit pass" above) — ground it in the actual real numbers
-you pulled for that slot (e.g. "GA4-D9: real engagedSessions/sessions ratio
-is 0.71 with avg duration 94s — looks human, no bot signal") — never a
-fabricated issue, never the placeholder checklist text below verbatim, and
-never a settings/config fact standing in for the required data pull.
-
-For GA4-D findings only: set "severity" to your own honest judgment of that
-specific insight's real business impact (critical/medium/low) based on what
-you actually found — ignore the placeholder "medium" severity shown on the
-GA4-D entries in the checklist below, that's a scoring artifact (every
-checklist point needs some literal severity value), not a real assessment.
+${ga4FactsPromptBlock(input.ga4Facts)}
+` : `## GA4 points without OAuth data
+Pull the data each point's "How to check it" line names (MCP route), with
+the same thresholds stated in its "Common failure" line. When no property
+matched, evaluate every GA4 point from the crawl signal and best practice,
+dataSource "detection", without any data pulls.
+`}
 
 ` : ""}${categories.includes("GTM") ? `## GTM data source
 ${input.gtmOAuthData
@@ -412,14 +462,25 @@ response, from a straight count of each finding's own "status" field
 Produce EXACTLY these categories in your output, no more, no fewer: ${categories.join(", ")}
 ${categories.includes("GA4") ? `
 ## Store numbers for the report's charts ("ga4Metrics")
-Only when the GA4 property was a live exact match: also return the real
-numbers you already pulled for GA4-D2/D4/D5/D6/D10/D11 as "ga4Metrics", so
-the report can chart the store's funnel and conversion rates. Copy numbers
-straight from the data calls, same 28-day window. Never estimate, round up,
-or fill a gap: leave a field null or an array empty when no call returned
-it. When there was no live GA4 property, set "ga4Metrics" to null.
+${input.ga4Facts ? `The worker already computed the store's numbers from the OAuth reports: set "ga4Metrics" to null.` : `Only when the GA4 property was a live exact match: also return the real
+numbers you pulled for the funnel, channel and new-vs-returning points as
+"ga4Metrics", so the report can chart them. Copy numbers straight from the
+data calls, same 28-day window. Never estimate or fill a gap: leave a field
+null or an array empty when no call returned it. When there was no live GA4
+property, set "ga4Metrics" to null.`}
 ` : ""}
-Respond with ONLY a JSON object (no prose, no markdown fence) matching this
+${brief ? `## WHO READS THIS REPORT (overrides the business voice and reading level above)
+${brief}
+${questionBlock}
+
+Before you answer, check every business summary and detail against this
+brief: the reader's terms and the metrics they are judged on. LANGUAGE:
+write every finding, action and protect line in ENGLISH. The Arabic version
+is produced afterwards by a separate translation step; never write Arabic
+in this response. The technical voice, statuses, numbers, ids and the JSON
+shape stay exactly as specified.
+
+` : ""}Respond with ONLY a JSON object (no prose, no markdown fence) matching this
 shape exactly:
 {
   "categories": [
@@ -434,11 +495,13 @@ shape exactly:
             "detail": "<a short paragraph: the mechanism behind that result, or what exactly the data shows>"
           },
           "business": {
-            "summary": "<one line, same fact with the jargon removed — readable by someone who has never opened GA4>",
+            "summary": "${brief ? "<one line, same fact in the voice of WHO READS THIS REPORT above>" : "<one line, same fact with the jargon removed — readable by someone who has never opened GA4>"}",
             "detail": "<a short paragraph: the real consequence — which decision this distorts, what it costs or protects, who feels it and when they would notice. Concrete over general. Stands alone without the technical voice>"
           },
           "dataSource": "<live|detection|public>",
-          "severity": "<critical|medium|low — from the checklist point's own severity for a fixed checklist point (a finding on a critical-severity point is a critical finding), EXCEPT for a GA4-D1..GA4-D15 finding, where you set severity yourself based on that insight's real business impact — see \"GA4 deep-analysis slots\" above>"
+          "severity": "<critical|medium|low — the checklist point's own severity>",
+          "action": "<fail only> { \"step\": \"<imperative, names the exact thing>\", \"owners\": [\"dev|marketing|content|owner\"], \"doneWhen\": \"<checkable end state>\", \"impact\": \"<one line>\" }",
+          "protect": "<pass only: what to keep as it is, and why>"
         }
       ]
     }
@@ -450,7 +513,7 @@ shape exactly:
     "conversions": <total key-event conversions or null>,
     "conversionRate": <purchase or key-event conversion rate in percent, e.g. 2.36, or null>,
     "revenue": <purchaseRevenue or null>,
-    "funnel": [{ "event": "<page_view|view_item|add_to_cart|begin_checkout|add_shipping_info|add_payment_info|purchase>", "count": <eventCount from GA4-D2> }],
+    "funnel": [{ "event": "<page_view|view_item|add_to_cart|begin_checkout|add_shipping_info|add_payment_info|purchase>", "count": <eventCount> }],
     "channels": [{ "name": "<sessionDefaultChannelGroup as GA4 names it>", "sessions": <sessions or null>, "conversionRate": <percent> }],
     "segments": [{ "name": "<new|returning>", "sessions": <sessions or null>, "conversionRate": <percent> }]
   }` : ""}
@@ -475,6 +538,8 @@ interface RawCategoryFinding {
   severity: CategoryFinding["severity"];
   status?: CategoryFinding["status"];
   checklistId: string;
+  action?: RawAction;
+  protect?: unknown;
 }
 
 /**
@@ -562,7 +627,14 @@ interface RawCategoryResult {
  * logged and dropped; a point Claude never cited at all falls back to a
  * generic pass note (also logged) rather than being silently absent.
  */
-export function computeCategoryResult(raw: RawCategoryResult, checklist: ChecklistPoint[]): CategoryResult {
+export interface ComputeOptions {
+  ga4Facts?: Ga4Facts | null;
+  // Filled with the ids whose model-written action failed the actionability
+  // rule (actions.ts), for the repair call.
+  rejected?: Array<{ category: string; id: string }>;
+}
+
+export function computeCategoryResult(raw: RawCategoryResult, checklist: ChecklistPoint[], opts: ComputeOptions = {}): CategoryResult {
   const validIds = new Set(checklist.map(p => p.id));
 
   if (raw.skippedPointIds && raw.skippedPointIds.length > 0) {
@@ -584,17 +656,33 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
 
   const findings: CategoryFinding[] = checklist.map(point => {
     const f = byId.get(point.id);
+    const fact = raw.category === "GA4" ? opts.ga4Facts?.facts[point.id] : undefined;
     if (f) {
-      return {
+      // Defensive default for a stray response missing the field — "fail" is
+      // the safer assumption than silently counting an unclassified finding
+      // as a pass. A computed GA4 fact overrides the model either way.
+      let status = f.status ?? "fail";
+      if (fact && fact.status !== "no_data" && fact.status !== status) {
+        console.warn(`[audit-prompt] ${point.id}: model said ${status}, computed fact says ${fact.status} — using the fact`);
+        status = fact.status;
+      }
+      const finding: CategoryFinding = {
         checklistId: point.id,
         ...normalizeVoices(f, point, raw.category),
-        dataSource: f.dataSource,
-        severity: f.severity,
-        // Defensive default for a stray response missing the field —
-        // "fail" is the safer assumption than silently counting an
-        // unclassified finding as a pass.
-        status: f.status ?? "fail",
+        dataSource: fact && fact.status !== "no_data" ? "live" : f.dataSource,
+        severity: point.severity,
+        status,
+        opportunity: point.opportunity,
+        criteria: point.expectedState,
       };
+      if (status === "fail") {
+        const { action, rejected } = buildAction(f.action, point, fact);
+        finding.action = action;
+        if (rejected) opts.rejected?.push({ category: raw.category, id: point.id });
+      } else {
+        finding.protect = typeof f.protect === "string" && f.protect.trim().split(/\s+/).length >= 5 ? f.protect.trim() : defaultProtect(point);
+      }
+      return finding;
     }
     console.warn(`[audit-prompt] ${raw.category}: no finding returned for checklist id "${point.id}" — the model should cite every point, pass or fail; falling back to a generic pass note`);
     return {
@@ -610,6 +698,9 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
       dataSource: "detection",
       severity: point.severity,
       status: "pass",
+      opportunity: point.opportunity,
+      protect: defaultProtect(point),
+      criteria: point.expectedState,
     };
   });
 
@@ -674,6 +765,11 @@ export function sanitizeGa4Metrics(raw: unknown, categories: CategoryResult[]): 
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const rate = (v: unknown) => { const n = num(v); return n !== null && n <= 100 ? n : null; };
+  // Rates over 100% mean "conversions" counted every key event, not sales:
+  // drop the whole list rather than chart a mix of real and impossible rates.
+  const sane = (list: unknown) => (Array.isArray(list) && list.every(x => num((x as Record<string, unknown>)?.conversionRate) === null || (num((x as Record<string, unknown>).conversionRate) as number) <= 100) ? list : []);
+  r.channels = sane(r.channels);
+  r.segments = sane(r.segments);
   const byEvent = new Map<Ga4FunnelEvent, number>();
   for (const step of Array.isArray(r.funnel) ? r.funnel : []) {
     const s = (step ?? {}) as Record<string, unknown>;
@@ -731,6 +827,16 @@ export async function runAudit(input: AuditPromptInput): Promise<AuditRunResult>
     throw new Error(`Audit response missing a 'categories' array: ${raw.slice(0, 4000)}`);
   }
 
-  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools)));
-  return { categories, ga4Metrics: sanitizeGa4Metrics(parsed.ga4Metrics, categories) };
+  const rejected: Array<{ category: string; id: string }> = [];
+  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools), { ga4Facts: input.ga4Facts, rejected }));
+  if (rejected.length) {
+    const fix = await repairActions(categories, rejected, `audit-${Date.now()}`);
+    console.log(`[audit-prompt] ${rejected.length} action(s) failed the actionability rule; repaired ${fix.repaired}, checklist defaults kept for the rest${fix.error ? ` (repair error: ${fix.error})` : ""}`);
+  }
+  const fromOAuth = input.ga4Facts ? ga4MetricsFromOAuth(input.ga4OAuthData) : null;
+  // Readers judged on ROAS/CAC: every failed point with an ad effect says
+  // which way it moves them, in words (ad-impact.ts).
+  const directed = ensureAdDirection(categories, input.audienceRole);
+  if (directed) console.log(`[audit-prompt] Added the ROAS/CAC direction sentence to ${directed} findings`);
+  return { categories, ga4Metrics: fromOAuth ?? sanitizeGa4Metrics(parsed.ga4Metrics, categories) };
 }

@@ -1,6 +1,8 @@
 import { extractJsonPayload, isRateLimitError, runClaudeHeadless } from "./claude.js";
 import { buildMcpConfig } from "./mcp-config.js";
 import type { AuditResult, CategoryResult, FindingVoice } from "./types.js";
+import { arabicRegisterRule, type AudienceRole } from "./audience.js";
+
 
 /**
  * Best-effort Arabic translation pass, run once per audit AFTER the English
@@ -46,7 +48,15 @@ interface FlatFinding {
   key: string;
   technical: FindingVoice;
   business: FindingVoice;
+  // The action layer (actions.ts): the step and done-state for a failed
+  // point, or what to protect for a passed one.
+  action?: { step: string; doneWhen: string; impact?: string };
+  protect?: string;
+  // What good looks like (the point's expected state), technical register.
+  criteria?: string;
 }
+
+type Translated = { technical: FindingVoice; business: FindingVoice; action?: { step: string; doneWhen: string; impact?: string }; protect?: string; criteria?: string };
 
 interface TranslateResult {
   // Findings translated by THIS pass, out of the ones it attempted.
@@ -72,31 +82,35 @@ function flatten(findings: CategoryResult["findings"], category: string): FlatFi
     key: `${category}:${finding.checklistId}`,
     technical: finding.technical,
     business: finding.business,
+    action: finding.action ? { step: finding.action.step, doneWhen: finding.action.doneWhen, impact: finding.action.impact } : undefined,
+    protect: finding.protect,
+    criteria: finding.criteria,
   }));
 }
 
-function buildPrompt(items: FlatFinding[]): string {
-  const payload = items.map(i => ({ key: i.key, technical: i.technical, business: i.business }));
+function buildPrompt(items: FlatFinding[], role?: AudienceRole | null): string {
+  const payload = items.map(i => ({ key: i.key, technical: i.technical, business: i.business, ...(i.action ? { action: i.action } : {}), ...(i.protect ? { protect: i.protect } : {}), ...(i.criteria ? { criteria: i.criteria } : {}) }));
 
   return `You are translating a CRO/analytics audit report from English into professional Modern Standard Arabic for a business audience in the GCC/MENA region.
 
-Below is a JSON array. Each entry has a "key" (do not translate or alter it — copy it back verbatim, it's how the translation gets matched back to its source), a "technical" object (summary + detail, written for an engineer) and a "business" object (summary + detail, written for a non-technical stakeholder).
+Below is a JSON array. Each entry has a "key" (do not translate or alter it — copy it back verbatim, it's how the translation gets matched back to its source), a "technical" object (summary + detail, written for an engineer) and a "business" object (summary + detail, written for ${arabicRegisterRule(role) ? "the reader named below" : "a non-technical stakeholder"}). Some entries also have an "action" object (step, doneWhen, optional impact: the task handed to the store, written in the business register) or a "protect" string (what to keep as it is).
 
-Translate every "summary" and "detail" string into natural, professional Arabic. Rules:
+Translate every "summary", "detail", "step", "doneWhen", "impact", "protect" and "criteria" string into natural, professional Arabic. "step" stays an instruction (imperative: "أضف"، "انقل"، "فعّل"). Rules:
 - Keep the same two registers distinct in Arabic exactly as they are in English: the technical text should still read like precise engineering language, the business text like plain non-technical language — don't collapse them into the same tone.
 - Keep product/brand names, tool names, and code-level identifiers as-is in Latin script inside the Arabic sentence where that's how an Arabic-speaking engineer would actually write them (e.g. "GA4", "GTM", "dataLayer", "gtag.js", tag/property/parameter/method/event/metric names, URLs, HTML/CSS selectors). Don't transliterate them into Arabic letters.
 - Wrap every such kept-in-Latin-script CODE-LEVEL identifier in parentheses — (run_report), (activeUsers), (eventName), (dataLayer), (gtag.js), a tag/trigger/variable name, etc. — so it reads as a clearly bounded token inside the surrounding RTL sentence instead of blending into it. Short, universally-recognized product acronyms (GA4, GTM) don't need brackets; this is specifically for the longer/mixed-case API, parameter, and code names that are hard to visually delimit inside Arabic text.
 - Numbers, percentages, currency codes (e.g. "AED 9,240"), and dates stay as digits/codes, written left-to-right as usual in Arabic text.
 - Preserve emphasis and meaning exactly — this is a translation, not a rewrite or a summary. Every sentence in the English source should have a corresponding sentence in the Arabic output.
 - Natural Arabic sentence structure, not a word-for-word calque of the English syntax.
-- Reading level for the business text: the reader is a busy store owner in Egypt or the Gulf, not an analyst. Use plain, everyday Modern Standard Arabic, the kind used in business news, not formal or literary Arabic: short sentences with one idea each (split a long English sentence into two Arabic ones rather than chaining it with و/ف/حيث/إذ), common words over formal ones ("يُظهر" not "يتجلّى"، "لذلك" not "ومن ثَمّ"، "حتى الآن" not "حتى تاريخه"), and no long chains of nouns in إضافة. Speak to the owner directly ("متجرك"، "مبيعاتك") where it reads naturally. Keep the meaning and every fact; only the wording gets simpler.
+${arabicRegisterRule(role) ? `- WHO READS THIS: ${arabicRegisterRule(role)} Keep the meaning and every fact; only the wording follows this reader.` : `- Reading level for the business text: the reader is a busy store owner in Egypt or the Gulf, not an analyst. Use plain, everyday Modern Standard Arabic, the kind used in business news, not formal or literary Arabic: short sentences with one idea each (split a long English sentence into two Arabic ones rather than chaining it with و/ف/حيث/إذ), common words over formal ones ("يُظهر" not "يتجلّى"، "لذلك" not "ومن ثَمّ"، "حتى الآن" not "حتى تاريخه"), and no long chains of nouns in إضافة. Speak to the owner directly ("متجرك"، "مبيعاتك") where it reads naturally. Keep the meaning and every fact; only the wording gets simpler.`}
 - Use the standard Arabic CRO/e-commerce term for every metric or concept below — the exact term, every time, in both registers. Never replace one with a descriptive phrase (write "معدل التحويل", never "نسبة الزيارات التي انتهت بعملية شراء"). On a term's first use in an entry, add the English name in parentheses once, e.g. "معدل التحويل (Conversion Rate)".
   conversion rate = معدل التحويل · conversion(s) = التحويلات · conversion funnel / funnel = مسار التحويل · average order value (AOV) = متوسط قيمة الطلب · revenue = الإيرادات · cart abandonment = التخلي عن سلة التسوق · checkout = إتمام الشراء · add to cart = الإضافة إلى السلة · bounce rate = معدل الارتداد · engagement rate = معدل التفاعل · landing page = صفحة الهبوط · call to action (CTA) = دعوة لاتخاذ إجراء (CTA) · traffic source / channel = مصدر الزيارات · sessions / visits = الزيارات · new / returning visitors = الزوار الجدد / الزوار العائدون · attribution = إسناد التحويلات · key event = حدث رئيسي · tracking = التتبع · page speed = سرعة الصفحة · return on ad spend (ROAS) = العائد على الإنفاق الإعلاني (ROAS) · A/B test = اختبار A/B · user experience (UX) = تجربة المستخدم (UX)
 - The technical text keeps the exact identifiers and values, but also in short sentences.
 - Every entry in the input must produce exactly one entry in the output, in the same order, with the same "key" — never skip, merge, or drop one, even a short/simple one.
 
 Return ONLY a JSON array, same length and same order as the input, each entry shaped exactly like:
-{"key": "<copied verbatim>", "technical": {"summary": "<Arabic>", "detail": "<Arabic>"}, "business": {"summary": "<Arabic>", "detail": "<Arabic>"}}
+{"key": "<copied verbatim>", "technical": {"summary": "<Arabic>", "detail": "<Arabic>"}, "business": {"summary": "<Arabic>", "detail": "<Arabic>"}, "action": {"step": "<Arabic>", "doneWhen": "<Arabic>", "impact": "<Arabic>"}, "protect": "<Arabic>"}
+(include "action", "protect" and "criteria" only when the input entry has them; "criteria" is a plain string in the technical register, add it next to "protect" as "criteria": "<Arabic>")
 
 No prose, no markdown fence, no commentary — the entire final answer must be that JSON array and nothing else.
 
@@ -109,14 +123,14 @@ ${JSON.stringify(payload)}`;
  * throws — same best-effort contract as the caller, just scoped to one
  * category's worth of findings instead of the whole audit.
  */
-async function translateBatch(items: FlatFinding[], jobId: string): Promise<{ byKey: Map<string, { technical: FindingVoice; business: FindingVoice }>; error?: string }> {
-  const byKey = new Map<string, { technical: FindingVoice; business: FindingVoice }>();
+async function translateBatch(items: FlatFinding[], jobId: string, role?: AudienceRole | null): Promise<{ byKey: Map<string, Translated>; error?: string }> {
+  const byKey = new Map<string, Translated>();
   if (items.length === 0) return { byKey };
 
   const mcp = await buildMcpConfig(jobId, { ga4Admin: false, gtm: false, browser: false });
   try {
     const raw = await runClaudeHeadless({
-      prompt: buildPrompt(items),
+      prompt: buildPrompt(items, role),
       mcpConfigPath: mcp.configPath,
       allowedTools: [],
       timeoutMs: TRANSLATE_TIMEOUT_MS,
@@ -139,7 +153,15 @@ async function translateBatch(items: FlatFinding[], jobId: string): Promise<{ by
         technical && typeof technical.summary === "string" && typeof technical.detail === "string" &&
         business && typeof business.summary === "string" && typeof business.detail === "string"
       ) {
-        byKey.set(key, { technical: { summary: technical.summary, detail: technical.detail }, business: { summary: business.summary, detail: business.detail } });
+        const a = (entry as any).action;
+        const p = (entry as any).protect;
+        byKey.set(key, {
+          technical: { summary: technical.summary, detail: technical.detail },
+          business: { summary: business.summary, detail: business.detail },
+          action: a && typeof a.step === "string" && typeof a.doneWhen === "string" ? { step: a.step, doneWhen: a.doneWhen, impact: typeof a.impact === "string" ? a.impact : undefined } : undefined,
+          protect: typeof p === "string" ? p : undefined,
+          criteria: typeof (entry as any).criteria === "string" ? (entry as any).criteria : undefined,
+        });
       }
     }
 
@@ -174,7 +196,7 @@ export async function translateFindingsToArabic(result: AuditResult, jobId: stri
   // at a time keeps this pass's load predictable.
   for (const cat of pendingCategories) {
     const items = flatten(cat.findings.filter(f => !f.ar), cat.category);
-    const { byKey, error } = await translateBatch(items, `${jobId}-ar-${cat.category.toLowerCase()}`);
+    const { byKey, error } = await translateBatch(items, `${jobId}-ar-${cat.category.toLowerCase()}`, result.audienceRole);
 
     for (const finding of cat.findings) {
       if (finding.ar) continue;

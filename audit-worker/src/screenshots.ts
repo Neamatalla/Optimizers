@@ -55,7 +55,7 @@ const MOBILE_UA =
  * populated. CHROME_PATH overrides everything for anything unusual (the
  * Docker image sets it to its own Chrome).
  */
-function findChrome(): string | null {
+export function findChrome(): string | null {
   const fromEnv = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
   if (fromEnv && existsSync(fromEnv)) return fromEnv;
 

@@ -45,6 +45,10 @@ export interface AuditRequestRow {
   // Intellia's e-store platform (e.g. "Shopify") from the form's website
   // step, null when Intellia was unavailable. Not read by the worker.
   store_platform: string | null;
+  // "Your role" from the form (audience.ts). Picks the reader brief the
+  // business voice is written for and what the report surfaces first. Null
+  // on rows from before the field existed: the default store-owner voice.
+  audience_role?: import("./audience.js").AudienceRole | null;
   status: RequestStatus;
   result_error: string | null;
   report_url: string | null;
@@ -91,10 +95,20 @@ export interface JobProgress {
   pageSpeed?: AuditResult["pageSpeed"];
   screenshots?: AuditResult["screenshots"];
   ga4Metrics?: Ga4Metrics | null;
+  // Worker-computed GA4 numbers and verdicts (ga4-facts.ts) and the browser
+  // facts the friction collector saw (site-checks.ts) — fed into the audit
+  // prompt so GA4, CRO, the report and the email quote the same figures.
+  ga4Facts?: Ga4Facts | null;
+  siteChecks?: SiteChecks | null;
   // Stage 2: every finding above carries its Arabic text, or the final
   // attempt shipped with the English fallback for the rest. Until then each
   // finding's `ar` is saved as its category finishes, so a retry resumes.
   translated?: boolean;
+  // Stage 1b: the purchase-friction (FUD) pass (src/fud/). Best-effort and
+  // separate from the 50 checks: `{ error }` means it ran and failed, so a
+  // retry doesn't run it again and the report just omits the section.
+  // Undefined means it hasn't run (or FUD_PASS kept it off).
+  fud?: FudResult | { error: string };
   // Stage 3: report built and uploaded.
   reportUrl?: string;
   slug?: string;
@@ -169,8 +183,40 @@ export interface CategoryFinding {
   // undefined for the affected findings, and html-report.ts falls back to
   // the English text for those specific rows even while the reader has
   // Arabic selected — never a blank row.
-  ar?: { technical: FindingVoice; business: FindingVoice };
+  ar?: { technical: FindingVoice; business: FindingVoice; action?: ActionText; protect?: string; criteria?: string };
+  // What good looks like: the checklist point's expected state, the
+  // criteria of the finding (shown on every check, translated with it).
+  criteria?: string;
+  // The action layer (ACTION-POINTS-PROPOSAL.md): which of the four
+  // opportunity types this point is, and for a failed point what to do, who
+  // does it and how to tell it's done. A passed point carries `protect`
+  // (what to keep as it is) instead of an action. Absent on old results.
+  opportunity?: Opportunity;
+  action?: FindingAction;
+  protect?: string;
 }
+
+// The four ways a point pays: more sales from current traffic, money that
+// is leaking now, a risk avoided, or a non-revenue benefit.
+export type Opportunity = "revenue_gain" | "revenue_loss" | "risk" | "benefit";
+export type ActionOwner = "dev" | "marketing" | "content" | "owner";
+
+export interface ActionText {
+  step: string;
+  doneWhen: string;
+  impact?: string;
+}
+
+export interface FindingAction extends ActionText {
+  owners: ActionOwner[];
+  // Where the point continues: a page the Conversion review checked, or
+  // another check in this report.
+  handoff?: Handoff;
+  // Money range behind `impact`, when GA4 data allowed one (ga4-facts.ts).
+  money?: { low: number; high: number; currency: string | null } | null;
+}
+
+export type Handoff = { kind: "cro"; page: FudPageType; url?: string } | { kind: "check"; id: string };
 
 export interface CategoryResult {
   category: CategoryKey;
@@ -219,6 +265,8 @@ export interface AuditResult {
   // Cosmetic only - personalizes the report/email, never used to decide
   // which GA4/GTM property gets queried (see audit-prompt.ts).
   businessName: string | null;
+  // Who the report is written for (audience.ts). Absent/null = store owner.
+  audienceRole?: import("./audience.js").AudienceRole | null;
   // Every page the deterministic discovery pass (discover-pages.ts) found
   // on the site, homepage first — the pages the browser checks are drawn
   // from this list (cart/checkout for WEB-54/56, a product page for
@@ -240,6 +288,122 @@ export interface AuditResult {
   // was a live exact match (see audit-prompt.ts's sanitizeGa4Metrics).
   // Absent or null when there was no live GA4 data or on older results.
   ga4Metrics?: Ga4Metrics | null;
+  // Purchase-friction (FUD) pass result, rendered as its own report section.
+  // Never part of overallScore/possiblePoints. Absent or null when the pass
+  // was off, failed, or on older results — the report then renders exactly
+  // as it did before the pass existed.
+  fud?: FudResult | null;
+  // See JobProgress. Absent on results from before the action layer.
+  ga4Facts?: Ga4Facts | null;
+  siteChecks?: SiteChecks | null;
+}
+
+// ---- purchase friction (FUD) pass — see FUD-PASS-DESIGN.md and src/fud/ ----
+
+// pass/fail as in the 50 checks, plus "warn" (partly there, or not certain
+// enough for a FAIL) and "unassessed" (the page or element needed for the
+// rule couldn't be reached — never turned into a pass or a fail).
+export type FudStatus = "pass" | "warn" | "fail" | "unassessed";
+export type FudBand = "quick_win" | "dev_task" | "test_first";
+export type FudPageType = "home" | "product" | "cart" | "collection";
+
+export interface FudPexti {
+  // 0-100, from the five 1-5 factors below (src/fud/score.ts).
+  score: number;
+  P: number;
+  E: number;
+  C: number;
+  T: number;
+  I: number;
+}
+
+export interface FudFinding {
+  ruleId: string;
+  ruleVersion: string;
+  pageType: FudPageType;
+  pageUrl: string | null;
+  status: FudStatus;
+  unassessedReason?: string;
+  // The judge's own confidence, 0-1, before score.ts's gates.
+  confidence: number;
+  technical: FindingVoice;
+  business: FindingVoice;
+  recommendation?: string;
+  // Ready-to-paste copy for the store, written in both languages.
+  exampleCopy?: { en: string; ar: string };
+  // blockIds = the page text the judge relied on; crop = JPEG data URI of
+  // the page area the rule is about (CTA region, cart drawer, first screen).
+  evidence: { blockIds: string[]; crop?: string | null };
+  pexti: FudPexti | null;
+  band?: FudBand;
+  // When the store's own GA4 funnel shows a drop at the step this rule
+  // affects, e.g. { from: "add_to_cart", to: "begin_checkout", rate: 0.32 }.
+  funnel?: { from: Ga4FunnelEvent; to: Ga4FunnelEvent; rate: number } | null;
+  // Arabic, written by the judge in the same call (not translate-ar.ts), so
+  // this pass never touches the main translation stage or its retries.
+  ar?: { technical: FindingVoice; business: FindingVoice; recommendation?: string; doneWhen?: string };
+  // How the same rule looks at 1440px, from the keyword detectors only (the
+  // judge reads the phone visit). "better" = the detectors found it in place
+  // on desktop, so the gap is mainly a phone problem; "worse" = fine on the
+  // phone but not found in place on desktop. Absent when desktop wasn't
+  // visited or the rule doesn't depend on layout.
+  desktop?: "same" | "better" | "worse";
+  // A reviewer's correction (npm run fud-override). The machine's own status
+  // is kept in `from` so overrides can be counted when calibrating rules;
+  // `hidden` drops the finding from the report and the score entirely.
+  override?: { from: FudStatus; to: FudStatus | "hidden"; reason: string; at: string };
+  // Action layer, same shape as the 50 checks. `focus` = this finding sits on
+  // the page GA4 named as the biggest leak (GA4-01), so it ranks higher and
+  // shows under "Follow-up from GA4".
+  opportunity?: Opportunity;
+  action?: FindingAction;
+  focus?: boolean;
+}
+
+export interface FudResult {
+  ruleSetVersion: string;
+  viewport: "mobile";
+  // Whether home/product were also visited at desktop width.
+  desktopChecked?: boolean;
+  pagesSampled: Array<{ url: string; pageType: FudPageType; loaded: boolean; note?: string }>;
+  // null when coverage is too low for a meaningful score (score.ts).
+  score: number | null;
+  assessed: number;
+  applicable: number;
+  // Ordered for display: fail/warn by PEXTI (highest first), then pass,
+  // then unassessed.
+  findings: FudFinding[];
+  // Money and segment insights from the store's own GA4 data (fud/insights.ts).
+  // Null when there was no GA4 data or too little traffic.
+  insights?: FudInsights | null;
+}
+
+export interface FudInsightLine {
+  kind: "device" | "new_returning" | "channel" | "landing" | "funnel";
+  tone: "good" | "bad" | "neutral";
+  en: string;
+  ar: string;
+}
+
+export interface FudInsights {
+  source: "ga4_oauth" | "ga4_summary";
+  currency: string | null;
+  periodDays: number;
+  sessions: number | null;
+  purchases: number | null;
+  revenue: number | null;
+  conversionRate: number | null;
+  aov: number | null;
+  // Estimated extra revenue per month (a range, never a promise).
+  opportunity: {
+    low: number;
+    high: number;
+    monthlyRevenue: number;
+    basis: "funnel" | "conversion_rate";
+    steps: Array<{ from: string; to: string; rate: number; benchmark: number; lowMultiplier: number; highMultiplier: number }>;
+  } | null;
+  lines: FudInsightLine[];
+  text: { en: string; ar: string } | null;
 }
 
 export type Ga4FunnelEvent = "page_view" | "view_item" | "add_to_cart" | "begin_checkout" | "add_shipping_info" | "add_payment_info" | "purchase";
@@ -258,4 +422,54 @@ export interface Ga4Metrics {
   channels: Array<{ name: string; sessions: number | null; conversionRate: number }>;
   // New vs returning visitors.
   segments: Array<{ name: "new" | "returning"; sessions: number | null; conversionRate: number }>;
+}
+
+// ---- worker-computed GA4 facts (ga4-facts.ts) ----
+
+export type Ga4FactStatus = "pass" | "fail" | "no_data";
+
+export interface Ga4Fact {
+  id: string;
+  status: Ga4FactStatus;
+  // One plain sentence with the store's own numbers, written by code. The
+  // audit prompt must quote these numbers, never recompute them.
+  en: string;
+  money?: { low: number; high: number; currency: string | null } | null;
+  handoff?: Handoff;
+}
+
+export interface Ga4Focus {
+  // The worst funnel step against its benchmark (GA4-01).
+  step: { from: string; to: string; rate: number; benchmark: number } | null;
+  // The page the Conversion review should look at first for that step.
+  page: FudPageType | null;
+  productUrl?: string;
+  landingUrl?: string;
+  campaignLandingUrl?: string;
+}
+
+export interface Ga4Facts {
+  currency: string | null;
+  periodDays: number;
+  sessions: number | null;
+  purchases: number | null;
+  revenue: number | null;
+  conversionRate: number | null;
+  aov: number | null;
+  focus: Ga4Focus;
+  facts: Record<string, Ga4Fact>;
+}
+
+// ---- browser facts from the friction collector (site-checks.ts) ----
+
+export interface SiteChecks {
+  platform: string | null;
+  addToCart: { attempted: boolean; ok: boolean; reason?: string; via?: "drawer" | "page"; method?: "click" | "api"; clickAdded?: boolean };
+  // Event names seen right after our Add-to-Cart click: from the page's own
+  // dataLayer, and from the (blocked) analytics/pixel requests.
+  atcEvents: { dataLayer: string[]; ga4: string[]; pixels: string[] } | null;
+  contactLinks: Array<{ href: string; kind: "whatsapp" | "tel"; valid: boolean }>;
+  soldOutPromoted: number;
+  heroVideoMobile: boolean;
+  pagesVisited: Array<{ pageType: FudPageType; url: string; loaded: boolean }>;
 }

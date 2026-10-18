@@ -9,6 +9,9 @@ import {
   duplicateMessage,
   isBlockedAuditDomain,
   BLOCKED_DOMAIN_MESSAGE,
+  parseAudienceRole,
+  ROLE_LABELS,
+  insertAuditRequest,
 } from "./_lib/audit-intake.js";
 import { verifyOwnership } from "./_lib/ownership-verification.js";
 
@@ -37,7 +40,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = req.body || {};
+    const { tools, website: rawWebsite, email: rawEmail, businessName, role: rawRole, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = req.body || {};
 
     // Strip the test-mode prefix (if any) FIRST, so everything below —
     // validation, normalization, dedupe, the stored row — works on the real
@@ -55,6 +58,11 @@ export default async function handler(req, res) {
 
     if (!Array.isArray(tools) || tools.some(tool => !VALID_TOOLS.has(tool))) {
       return res.status(400).json({ error: "Invalid tools selection." });
+    }
+
+    const { role, invalid: roleInvalid } = parseAudienceRole(rawRole);
+    if (roleInvalid) {
+      return res.status(400).json({ error: "Please choose your role." });
     }
 
     const missingFields = [];
@@ -117,10 +125,7 @@ export default async function handler(req, res) {
     }
 
     const verificationMethods = await verificationPromise;
-
-    const { data: row, error: insertError } = await supabase
-      .from("audit_requests")
-      .insert({
+    const { data: row, error: insertError } = await insertAuditRequest(supabase, {
         tools,
         website: String(website).trim(),
         email: String(email).trim(),
@@ -131,6 +136,8 @@ export default async function handler(req, res) {
         // reviewed or sent straight out (audit-worker/src/poll.ts).
         is_test: isTest,
         business_name: businessName ? String(businessName).trim() : null,
+        // Who the report is written for (audit-worker/src/audience.ts).
+        audience_role: role,
         ga4_measurement_id: ga4MeasurementId ? String(ga4MeasurementId).trim().toUpperCase() : null,
         gtm_container_id: gtmContainerId ? String(gtmContainerId).trim().toUpperCase() : null,
         // Pre-fetched via the OAuth popup flow (api/oauth/google/callback.js),
@@ -149,9 +156,7 @@ export default async function handler(req, res) {
         // unavailable or not configured at the time.
         store_platform: cleanStorePlatform(storePlatform),
         status: "pending",
-      })
-      .select()
-      .single();
+      });
 
     if (insertError) {
       // The race the pre-insert check above can't close: another submission
@@ -193,6 +198,10 @@ export default async function handler(req, res) {
                 <tr style="background-color: #f5f5f5;">
                   <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Tools selected</td>
                   <td style="padding: 12px; border: 1px solid #ddd;">${tools.join(", ") || "None"}</td>
+                </tr>
+                <tr style="background-color: #f5f5f5;">
+                  <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Role</td>
+                  <td style="padding: 12px; border: 1px solid #ddd;">${role ? ROLE_LABELS[role] : "—"}</td>
                 </tr>
                 <tr>
                   <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Business name</td>

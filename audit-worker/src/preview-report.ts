@@ -10,6 +10,9 @@
  *   npm run preview-report -- --path=single     (one tool only: 25 GA4 + 25 website-code)
  *   npm run preview-report -- --path=website    (neither tool: 50 Website)
  *
+ * Add --fud to include the purchase-friction section from a built-in sample,
+ * or --fud=<file.json> to render a real result saved by `npm run fud-run`.
+ *
  * Every finding below is written in BOTH registers (types.ts's FindingVoice)
  * because the report's language toggle is a first-class feature — a fixture
  * with only one voice filled in would render an empty pane on the other side
@@ -17,7 +20,9 @@
  *
  * Output: audit-worker/output/preview-<path>.html (gitignored).
  */
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { sampleFudResult } from "./fud/sample.js";
+import { applyPreviewActions } from "./preview-actions.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildAuditHtmlReport } from "./html-report.js";
@@ -25,6 +30,7 @@ import { captureSiteScreenshots } from "./screenshots.js";
 import { discoverPages } from "./discover-pages.js";
 import { runPageSpeed } from "./pagespeed.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
+import { audienceRoleOf } from "./audience.js";
 import type { AuditResult, CategoryResult } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -366,6 +372,30 @@ async function main() {
         ? { ...base, categories: [ga4Category(), websiteCodeCategory()], overallScore: 33, possiblePoints: 50 }
         : { ...base, categories: [websiteCategory()], overallScore: 31, possiblePoints: 50 };
 
+  // --fud renders the purchase-friction section from a built-in sample;
+  // --fud=<file.json> from a real FudResult saved by `npm run fud-run`.
+  const fudArg = process.argv.find(a => a === "--fud" || a.startsWith("--fud="));
+  if (fudArg) {
+    const file = fudArg.includes("=") ? fudArg.split("=").slice(1).join("=") : null;
+    if (file) {
+      const saved = JSON.parse(await readFile(file, "utf8"));
+      result.fud = saved.result ?? saved;
+    } else {
+      result.fud = sampleFudResult(result.websiteUrl);
+    }
+  }
+
+  // Action-point checklists by default (the real ga4-facts + scoring code on
+  // a sample GA4 pull); --legacy keeps the pre-rewrite fixtures above, to
+  // check older saved results still render.
+  if (!process.argv.includes("--legacy")) applyPreviewActions(result, mode);
+
+  // --role=media_buyer renders the report layout and copy for that reader
+  // (audience.ts). The fixture findings keep their owner-voice text: only a
+  // real run writes the business voice from the reader brief.
+  const role = audienceRoleOf(process.argv.find(a => a.startsWith("--role="))?.split("=")[1]);
+  if (role) result.audienceRole = role;
+
   // Best-effort, same as the real pipeline (poll.ts/test-run.ts) — exercises
   // the Arabic toggle in the preview using the real translation pass instead
   // of a hand-maintained (and easily stale) Arabic fixture. --no-ar skips it
@@ -378,7 +408,7 @@ async function main() {
   const { html } = await buildAuditHtmlReport(result);
   const outDir = path.join(__dirname, "..", "output");
   await mkdir(outDir, { recursive: true });
-  const outPath = path.join(outDir, `preview-${mode}.html`);
+  const outPath = path.join(outDir, `preview-${mode}${role ? `-${role}` : ""}.html`);
   await writeFile(outPath, html, "utf8");
   console.log(`Wrote ${outPath}`);
 }

@@ -76,6 +76,41 @@ export function normalizeHostname(website) {
 
 export { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
 
+// "Your role" on the form: who the report is written for. Same list as
+// audit-worker/src/audience.ts (AUDIENCE_ROLES) and the form's ROLE_OPTIONS.
+export const AUDIENCE_ROLES = ["store_owner", "media_buyer", "marketing_manager", "agency"];
+export const ROLE_LABELS = { store_owner: "E-commerce store owner", media_buyer: "Media buyer", marketing_manager: "Marketing director / manager", agency: "Agency / consultant" };
+
+/**
+ * The stored audience_role. Missing means null (a form from before the field
+ * existed, still cached in someone's browser), so the worker writes the
+ * default store-owner report. Anything else that isn't a known role is
+ * invalid and the caller answers 400.
+ */
+/**
+ * Inserts the request row, and if the table has no audience_role column yet
+ * (the migration supabase/migrations/2026-10-14-audience-role.sql not run),
+ * retries without it, so a missing migration costs the role, never the
+ * visitor's submission. Same { data, error } shape as supabase-js.
+ */
+export async function insertAuditRequest(supabase, record) {
+  const first = await supabase.from("audit_requests").insert(record).select().single();
+  const err = first.error;
+  // Missing column (PGRST204/42703), or a role the table check constraint
+  // doesn't list yet (23514, e.g. "agency" before the 2026-10-15 migration).
+  const text = `${err?.message || ""} ${err?.details || ""}`;
+  const roleProblem = err && ["PGRST204", "42703", "23514"].includes(err.code) && text.includes("audience_role");
+  if (!roleProblem) return first;
+  console.warn(`[audit-request] audience_role rejected (${err.code}): run the latest supabase/migrations/*audience-role*.sql. Saved without the role.`);
+  const { audience_role: _dropped, ...rest } = record;
+  return supabase.from("audit_requests").insert(rest).select().single();
+}
+
+export function parseAudienceRole(value) {
+  if (value === undefined || value === null || value === "") return { role: null, invalid: false };
+  return AUDIENCE_ROLES.includes(value) ? { role: value, invalid: false } : { role: null, invalid: true };
+}
+
 /**
  * What gets stored in audit_requests.store_platform: the platform name the
  * form got from Intellia's e-store check. It arrives from the browser, so
