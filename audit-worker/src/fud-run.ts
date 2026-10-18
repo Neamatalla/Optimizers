@@ -26,6 +26,7 @@ import { discoverPages } from "./discover-pages.js";
 import { collectStoreEvidence } from "./fud/collect.js";
 import type { StoreEvidence } from "./fud/evidence.js";
 import { runFudPass } from "./fud/index.js";
+import { computeGa4Facts } from "./ga4-facts.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -82,7 +83,10 @@ async function main() {
     ga4Metrics = row?.progress?.ga4Metrics ?? null;
     console.log(`[fud-run] GA4 data from request ${row?.id ?? "(not found)"}`);
   }
-  const result = await runFudPass({ website: url!, discoveredPages: [], ga4Metrics, ga4OAuthData, jobId: `fud-run-${host}`, allowFail: true, evidence });
+  // Same GA4 maths as a queued run, so the GA4 hand-off (focus page) shows.
+  const ga4Facts = computeGa4Facts(ga4OAuthData, url!, evidence);
+  if (ga4Facts?.focus.page) console.log(`[fud-run] GA4 focus: ${ga4Facts.focus.page}`);
+  const result = await runFudPass({ website: url!, discoveredPages: [], ga4Metrics, ga4OAuthData, ga4Facts, jobId: `fud-run-${host}`, allowFail: true, evidence });
   const resultPath = path.join(outDir, `fud-${host}-result.json`);
   await writeFile(resultPath, JSON.stringify(result, null, 2), "utf8");
   if ("error" in result) {

@@ -189,13 +189,21 @@ function apiMiddlewarePlugin() {
           const VALID_TOOLS = new Set(['GA4', 'GTM']);
           try {
             const env = loadEnv('development', process.cwd(), '');
-            const { tools, website: rawWebsite, email: rawEmail, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = JSON.parse(body || '{}');
+            const { tools, website: rawWebsite, email: rawEmail, businessName, role: rawRole, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData } = JSON.parse(body || '{}');
 
             // Test-mode prefix comes off first, so every check below runs on
             // the real values — dev twin of api/audit-request.js, same
             // shared parser, same "just another invalid field" answer for a
             // prefix that doesn't qualify.
-            const { parseTestPrefix, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail } = await import('./api/_lib/audit-intake.js');
+            const { parseTestPrefix, auditNotifyEmail, auditHeadsUpEmail, buildHeadsUpEmail, parseAudienceRole, ROLE_LABELS } = await import('./api/_lib/audit-intake.js');
+            // Dev twin of api/audit-request.js's role check.
+            const { role, invalid: roleInvalid } = parseAudienceRole(rawRole);
+            if (roleInvalid) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Please choose your role.' }));
+              return;
+            }
             const parsedIntake = parseTestPrefix({ email: rawEmail, website: rawWebsite });
             if (parsedIntake.invalidFields.length > 0) {
               res.statusCode = 400;
@@ -432,9 +440,8 @@ function apiMiddlewarePlugin() {
               }
             }
 
-            const { data: row, error: insertError } = await supabase
-              .from('audit_requests')
-              .insert({
+            const { insertAuditRequest } = await import('./api/_lib/audit-intake.js');
+            const { data: row, error: insertError } = await insertAuditRequest(supabase, {
                 tools,
                 website: String(website).trim(),
                 email: String(email).trim(),
@@ -442,14 +449,13 @@ function apiMiddlewarePlugin() {
                 website_hostname: websiteHostname || null,
                 is_test: isTest,
                 business_name: businessName ? String(businessName).trim() : null,
+                audience_role: role,
                 ga4_measurement_id: ga4MeasurementId ? String(ga4MeasurementId).trim().toUpperCase() : null,
                 gtm_container_id: gtmContainerId ? String(gtmContainerId).trim().toUpperCase() : null,
                 ga4_oauth_data: ga4OAuthData ?? null,
                 gtm_oauth_data: gtmOAuthData ?? null,
                 status: 'pending',
-              })
-              .select()
-              .single();
+              });
 
             if (insertError) {
               const duplicate = isUniqueViolation(insertError);
@@ -496,6 +502,10 @@ function apiMiddlewarePlugin() {
                         <tr>
                           <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Business name</td>
                           <td style="padding: 12px; border: 1px solid #ddd;">${businessName || '—'}</td>
+                        </tr>
+                        <tr style="background-color: #f5f5f5;">
+                          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Role</td>
+                          <td style="padding: 12px; border: 1px solid #ddd;">${role ? (ROLE_LABELS as Record<string, string>)[role] : '—'}</td>
                         </tr>
                       </table>
                       <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">Queued as audit_requests.id = ${row.id}.</p>
@@ -727,7 +737,7 @@ function apiMiddlewarePlugin() {
           return;
         }
         const redirectUri = dynamicRedirectUri(req);
-        const { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult, oauthResultHtml } = await import('./api/_lib/google-oauth.js');
+        const { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult, oauthResultHtml } = await import('./api/_lib/google-oauth.js');
 
         const url = new URL(req.url, 'http://localhost');
         const code = url.searchParams.get('code');
@@ -762,17 +772,19 @@ function apiMiddlewarePlugin() {
         try {
           const token = await exchangeCodeForToken({ clientId, clientSecret, redirectUri, code });
           console.log('[oauth-callback] token exchange OK');
-          // GA4 only — no tagmanager scope is requested anymore (GTM audit is paid).
-          const ga4Properties = await fetchAllGA4Properties(token);
+          const [ga4Properties, gtmContainers] = await Promise.all([fetchAllGA4Properties(token), fetchAllGTMContainers(token)]);
           console.log('[oauth-callback] ga4Properties:', Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`);
-          console.log(describeOAuthResult({ ga4Properties }));
+          console.log('[oauth-callback] gtmContainers:', Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`);
+          console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
           res.statusCode = 200;
           // Fetch errors travel as their own fields rather than collapsing
           // into an empty list — see the Vercel callback for why.
           res.end(popupHtml({
             type: 'google-oauth-result',
             ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
+            gtmContainers: Array.isArray(gtmContainers) ? gtmContainers : [],
             ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
+            gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
           }));
         } catch (err: any) {
           console.log('[oauth-callback] FAILED:', err.message || err);

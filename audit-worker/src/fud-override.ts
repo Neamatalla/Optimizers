@@ -24,6 +24,7 @@ import "dotenv/config";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { applyOverride, isFudResult } from "./fud/index.js";
 import { computeOverallPoints } from "./scoring.js";
+import { audienceRoleOf } from "./audience.js";
 import { getRequestById, publishAuditReport, saveProgressDirect } from "./supabase.js";
 import type { AuditRequestRow, AuditResult, FudResult, FudStatus, JobProgress } from "./types.js";
 
@@ -92,11 +93,14 @@ async function rebuild(row: AuditRequestRow, progress: JobProgress, fud: FudResu
     possiblePoints: possible,
     websiteUrl: row.website,
     businessName: row.business_name,
+    audienceRole: audienceRoleOf(row.audience_role),
     discoveredPages: progress.discoveredPages ?? [],
     pageSpeed: progress.pageSpeed,
     screenshots: progress.screenshots,
     ga4Metrics: progress.ga4Metrics ?? null,
     fud,
+    ga4Facts: progress.ga4Facts ?? null,
+    siteChecks: progress.siteChecks ?? null,
   };
   const { html } = await buildAuditHtmlReport(result);
   const { publicUrl } = await publishAuditReport({ requestId: row.id, html, businessName: row.business_name, website: row.website, isTest: row.is_test });

@@ -1,4 +1,11 @@
 import { spawn } from "child_process";
+
+// Project settings only: the machine user's own hooks, plugins and skills
+// (~/.claude) stay out of the worker's runs. On the laptop, user-level
+// SessionStart hooks injected their text into every call, and Claude Code
+// 2.1.300 crashed on it (exit 0xC0000409) before the first API turn.
+// Managed settings (the Docker image's) still apply.
+const SETTING_SOURCES = ["--setting-sources", "project"];
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -53,7 +60,7 @@ export async function readUsageWindows(): Promise<UsageWindows | undefined> {
     return undefined;
   }
   const args = [
-    "-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence",
+    "-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence", ...SETTING_SOURCES,
     "--disable-slash-commands", "--strict-mcp-config", "--mcp-config", emptyMcp, "--tools", "", "--effort", "low",
   ];
   return new Promise(resolve => {
@@ -155,7 +162,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   // --no-session-persistence: nothing ever reads these transcripts back, and
   // each one holds whole page snapshots — in the container, HOME is on the
   // persistent volume, so they'd pile up there run after run.
-  const args = ["-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence", "--mcp-config", opts.mcpConfigPath];
+  const args = ["-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence", ...SETTING_SOURCES, "--mcp-config", opts.mcpConfigPath];
   // Omit the flag entirely when empty (e.g. OAuth already covered both GA4
   // and GTM, so no MCP server is needed) rather than passing --allowedTools "" — an
   // empty value there is untested territory, not obviously equivalent to

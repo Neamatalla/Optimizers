@@ -40,7 +40,7 @@ const MIN_SESSIONS = 300;
 
 type Report = { rows?: Array<{ dimensionValues?: Array<{ value?: string }>; metricValues?: Array<{ value?: string }> }>; metadata?: { currencyCode?: string } };
 
-function rowsOf(r: unknown): Array<{ dims: string[]; vals: number[] }> {
+export function rowsOf(r: unknown): Array<{ dims: string[]; vals: number[] }> {
   const rows = (r as Report | undefined)?.rows;
   if (!Array.isArray(rows)) return [];
   return rows.map(row => ({
@@ -49,7 +49,19 @@ function rowsOf(r: unknown): Array<{ dims: string[]; vals: number[] }> {
   }));
 }
 
-interface Normalized {
+// "conversions" in GA4 is every key event. A store that marks view_item,
+// add_to_cart or video events as key events (regal-honey had 21) gets
+// "conversion rates" over 100%, so it only stands in for sales when the key
+// event total is close to the real purchase count.
+const KEY_EVENTS_CLEAN = 1.5;
+
+/** Sales in one report row: transactions (3rd metric) when pulled, else key events if clean, else null. */
+export function salesIn(vals: number[], keyEventsClean: boolean): number | null {
+  if (vals.length >= 3) return vals[2];
+  return keyEventsClean ? vals[1] : null;
+}
+
+export interface Normalized {
   currency: string | null;
   periodDays: number;
   sessions: number | null;
@@ -60,14 +72,22 @@ interface Normalized {
   newVsReturning: Array<{ name: string; sessions: number; purchases: number }>;
   devices: Array<{ name: string; sessions: number; purchases: number | null; revenue: number | null }>;
   landing: Array<{ path: string; sessions: number; purchases: number }>;
+  // Whether per-channel/page/segment sales could be read (see salesIn).
+  // false = only key events were pulled and they include non-purchase events.
+  segmentSales: boolean;
+  keyEventsClean: boolean;
+  keyEvents: number | null;
 }
 
-function fromOAuth(oauth: unknown): Normalized | null {
+export function fromOAuth(oauth: unknown): Normalized | null {
   const rd = (oauth as { reportData?: Record<string, unknown> } | null)?.reportData;
   if (!rd || typeof rd !== "object") return null;
   const currency = (rd.purchaseMetrics as Report | undefined)?.metadata?.currencyCode ?? (rd.totals as Report | undefined)?.metadata?.currencyCode ?? null;
   const totals = rowsOf(rd.totals)[0];
   const purchase = rowsOf(rd.purchaseMetrics)[0];
+  const realPurchases = purchase ? purchase.vals[2] || purchase.vals[0] : null;
+  const keyEvents = totals?.vals[3] ?? null;
+  const clean = realPurchases !== null && keyEvents !== null ? keyEvents <= realPurchases * KEY_EVENTS_CLEAN + 5 : false;
   const funnelRows = rowsOf(rd.funnel);
   // totalUsers (2nd metric) is the closer "distinct people" count per step.
   const funnel = funnelRows.map(r => ({ event: r.dims[0], count: r.vals[1] || r.vals[0] })).filter(s => s.event && s.count > 0);
@@ -87,10 +107,13 @@ function fromOAuth(oauth: unknown): Normalized | null {
     purchases: purchase ? purchase.vals[2] || purchase.vals[0] : totals?.vals[3] ?? null,
     revenue: purchase?.vals[1] ?? null,
     funnel,
-    channels: rowsOf(rd.channels).map(r => ({ name: r.dims[0], sessions: r.vals[0], purchases: r.vals[1] })),
-    newVsReturning: rowsOf(rd.newVsReturning).map(r => ({ name: r.dims[0], sessions: r.vals[0], purchases: r.vals[1] })),
+    channels: bySales(rowsOf(rd.channels), clean).map(r => ({ name: r.dims[0], sessions: r.vals[0], purchases: r.sales })),
+    newVsReturning: bySales(rowsOf(rd.newVsReturning), clean).map(r => ({ name: r.dims[0], sessions: r.vals[0], purchases: r.sales })),
     devices,
-    landing: rowsOf(rd.landingPages).map(r => ({ path: r.dims[0], sessions: r.vals[0], purchases: r.vals[1] })),
+    landing: bySales(rowsOf(rd.landingPages), clean).map(r => ({ path: r.dims[0], sessions: r.vals[0], purchases: r.sales })),
+    segmentSales: clean || rowsOf(rd.channels).some(r => r.vals.length >= 3),
+    keyEventsClean: clean,
+    keyEvents: keyEvents,
   };
 }
 
@@ -108,7 +131,20 @@ function fromSummary(g: Ga4Metrics | null | undefined): Normalized | null {
     newVsReturning: g.segments.map(s => ({ name: s.name, sessions: s.sessions ?? 0, purchases: rateToPurchases(s.sessions, s.conversionRate) })),
     devices: [],
     landing: [],
+    segmentSales: true,
+    keyEventsClean: true,
+    keyEvents: null,
   };
+}
+
+function bySales(rows: Array<{ dims: string[]; vals: number[] }>, clean: boolean): Array<{ dims: string[]; vals: number[]; sales: number }> {
+  const out: Array<{ dims: string[]; vals: number[]; sales: number }> = [];
+  for (const r of rows) {
+    const sales = salesIn(r.vals, clean);
+    if (sales === null) return [];
+    out.push({ ...r, sales });
+  }
+  return out;
 }
 
 const ORDER = ["view_item", "add_to_cart", "begin_checkout", "add_shipping_info", "add_payment_info", "purchase"];

@@ -5,6 +5,7 @@ import { buildMcpConfig } from "../mcp-config.js";
 import type { FindingVoice, Ga4Metrics } from "../types.js";
 import type { PageEvidence, StoreEvidence } from "./evidence.js";
 import type { FudRule, SignalState } from "./rules.js";
+import { arabicRegisterRule, judgeBusinessRule, type AudienceRole } from "../audience.js";
 
 /**
  * One `claude -p` call, no tools, no MCP servers: evidence in, one verdict
@@ -111,7 +112,7 @@ function funnelBlock(ga4: Ga4Metrics | null | undefined): string {
   return `GA4 funnel, last ${ga4.periodDays} days (event counts): ${ga4.funnel.map(s => `${s.event}=${s.count}`).join(", ")}${ga4.conversionRate !== null ? `; conversion rate ${ga4.conversionRate}%` : ""}. Mention a figure only when it relates to the rule.`;
 }
 
-export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined): string {
+export function buildJudgePrompt(evidence: StoreEvidence, rules: Array<{ rule: FudRule; signal: SignalState }>, ga4: Ga4Metrics | null | undefined, role?: AudienceRole | null): string {
   const ruleText = rules
     .map(({ rule, signal }) =>
       [
@@ -143,13 +144,14 @@ HOW TO DECIDE
 WRITING
 - Block ids are for the "blockIds" field only — never write them in any text. Describe locations in words instead ("in the cart drawer", "under the price", "in the footer").
 - technical: for the developer — what was found, where on the page, the exact wording quoted, and the mechanism. summary = one line, detail = 2-4 sentences.
-- business: for a busy store owner, no jargon — what the shopper experiences and what it costs or protects. summary = one line, detail = 2-4 sentences. Speak to the owner ("your cart", "your shoppers").
-- recommendation: for warn/fail, one or two concrete sentences on exactly what to add and where (e.g. "Add a line under the Add to Cart button: …"). Omit for pass.
+${judgeBusinessRule(role) ?? `- business: for a busy store owner, no jargon — what the shopper experiences and what it costs or protects. summary = one line, detail = 2-4 sentences. Speak to the owner ("your cart", "your shoppers").
+- recommendation: for warn/fail, one or two imperative sentences naming exactly what to add or change and where on this store (e.g. "Add a line under the Add to Cart button: …"). This is the action the store owner will be handed, so no "consider" or "review". Omit for pass.`}
 - exampleCopy: for warn/fail where copy is the fix, a short ready-to-paste line in English ("en") and natural Gulf/Egyptian-friendly Modern Standard Arabic ("ar"). Use the store's real currency and real numbers when the evidence shows them; otherwise use a clear placeholder like [X days]. Omit when copy isn't the fix.
-- ar: the technical, business and recommendation texts in plain, professional Modern Standard Arabic for the same store owner. Short sentences, common words. Keep tool names and code identifiers in Latin script.
+- ar: the technical, business and recommendation texts in plain, professional Modern Standard Arabic for the same reader. Short sentences, common words. Keep tool names and code identifiers in Latin script.${arabicRegisterRule(role) ? ` ${arabicRegisterRule(role)}` : ""}
 - E, C, T: only if this store's fix is clearly harder than the default, give that factor exactly one point lower; otherwise omit.
 
-${funnelBlock(ga4)}
+${funnelBlock(ga4)}${evidence.context?.focus ? `
+${evidence.context.focus}` : ""}
 
 STORE FACTS
 ${storeBlock(evidence)}
@@ -271,15 +273,16 @@ export async function runJudge(
   rules: Array<{ rule: FudRule; signal: SignalState }>,
   ga4: Ga4Metrics | null | undefined,
   jobId: string,
+  role?: AudienceRole | null,
 ): Promise<JudgeVerdict[]> {
   if (rules.length === 0) return [];
-  if (rules.length <= BATCH_SIZE) return judgeOnce(evidence, rules, ga4, jobId, "");
+  if (rules.length <= BATCH_SIZE) return judgeOnce(evidence, rules, ga4, jobId, "", role);
   // Even halves, so neither batch is a lonely leftover.
   const batches = Math.ceil(rules.length / BATCH_SIZE);
   const size = Math.ceil(rules.length / batches);
   const out: JudgeVerdict[] = [];
   for (let i = 0; i < batches; i++) {
-    out.push(...(await judgeOnce(evidence, rules.slice(i * size, (i + 1) * size), ga4, `${jobId}-b${i + 1}`, ` batch ${i + 1}/${batches}`)));
+    out.push(...(await judgeOnce(evidence, rules.slice(i * size, (i + 1) * size), ga4, `${jobId}-b${i + 1}`, ` batch ${i + 1}/${batches}`, role)));
   }
   return out;
 }
@@ -290,9 +293,10 @@ async function judgeOnce(
   ga4: Ga4Metrics | null | undefined,
   jobId: string,
   labelSuffix: string,
+  role?: AudienceRole | null,
 ): Promise<JudgeVerdict[]> {
   const mcp = await buildMcpConfig(`${jobId}-fud`, { ga4Admin: false, gtm: false, browser: false });
-  const prompt = buildJudgePrompt(evidence, rules, ga4);
+  const prompt = buildJudgePrompt(evidence, rules, ga4, role);
   try {
     // One retry, and only for a malformed answer: a long bilingual JSON
     // occasionally breaks on a stray quote. Timeouts and rate limits are not

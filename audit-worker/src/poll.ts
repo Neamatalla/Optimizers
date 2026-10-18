@@ -26,11 +26,16 @@ import { discoverPages } from "./discover-pages.js";
 import { runPageSpeed } from "./pagespeed.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
+import { audienceRoleOf } from "./audience.js";
 import { computeOverallPoints } from "./scoring.js";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
-import { isFudResult, runFrictionStage } from "./fud/index.js";
-import { frictionWinsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
+import { fudPassEnabled, isFudResult, runFrictionStage } from "./fud/index.js";
+import { collectStoreEvidence } from "./fud/collect.js";
+import type { StoreEvidence } from "./fud/evidence.js";
+import { collectorFocus, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
+import { siteChecksFrom } from "./site-checks.js";
+import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
 import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
 import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
@@ -120,6 +125,10 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     if (!(await heartbeat(row.id, workerId))) throw new LostLeaseError(`Lost the lease on ${row.id}`);
   };
 
+  // The store visit made before the audit, kept in memory for stage 1b so
+  // both describe the same visit. Lost on a resumed run (1b re-visits).
+  let evidence: StoreEvidence | null = null;
+
   // 1. audit
   if (!progress.categories) {
     const crawl = await crawlWebsite(row.website);
@@ -139,6 +148,26 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
       console.log(`[audit-worker] Captured site screenshots (desktop: ${Boolean(screenshots.desktop)}, mobile: ${Boolean(screenshots.mobile)})`);
     }
 
+    // 1a. GA4 maths and our own store visit, before the audit, so the
+    // prompt quotes worker-computed numbers and what the visit saw (the
+    // action points, ACTION-POINTS-PROPOSAL.md). GA4 picks the pages: the
+    // weakest product and a weak landing page are visited instead of the
+    // first ones discovery found. Both best-effort.
+    const focus = ga4Focus(row.ga4_oauth_data, row.website);
+    if (fudPassEnabled(row)) {
+      try {
+        evidence = await collectStoreEvidence(row.website, discoveredPages, { focus: collectorFocus(focus) });
+      } catch (err) {
+        console.warn(`[audit-worker] Store visit failed for ${row.id}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    const ga4Facts = computeGa4Facts(row.ga4_oauth_data, row.website, evidence);
+    const siteChecks = evidence ? siteChecksFrom(evidence, crawl.structuralSignals.cmsPlatformGuess) : null;
+    if (ga4Facts) {
+      const fails = Object.values(ga4Facts.facts).filter(f => f.status === "fail").map(f => f.id);
+      console.log(`[audit-worker] GA4 facts: ${fails.length} failing (${fails.join(", ") || "none"}), focus ${ga4Facts.focus.page ?? "none"}${ga4Facts.focus.step ? ` (${ga4Facts.focus.step.from}>${ga4Facts.focus.step.to} ${Math.round(ga4Facts.focus.step.rate * 100)}%)` : ""}`);
+    }
+
     const needed = neededMcpServers({ tools: row.tools, ga4OAuthData: row.ga4_oauth_data, gtmOAuthData: row.gtm_oauth_data });
     const mcp = await buildMcpConfig(row.id, needed);
     let categories;
@@ -155,6 +184,9 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
         userProvidedGtmId: row.gtm_container_id,
         ga4OAuthData: row.ga4_oauth_data,
         gtmOAuthData: row.gtm_oauth_data,
+        ga4Facts,
+        siteChecks,
+        audienceRole: audienceRoleOf(row.audience_role),
       }));
     } finally {
       await mcp.cleanup();
@@ -166,7 +198,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     } else {
       console.log(`[audit-worker] PageSpeed scored ${pageSpeed.pages.length} pages (avg mobile ${pageSpeed.average.mobile}, desktop ${pageSpeed.average.desktop})`);
     }
-    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics });
+    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics, ga4Facts, siteChecks });
     await save();
     console.log(`[audit-worker] Saved audit result for ${row.id}`);
   }
@@ -178,7 +210,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   // FUD_PASS=off|test|all. Real FAILs only on test runs or with
   // FUD_ALLOW_FAIL=true; live runs ship them as WARN until the rules are
   // calibrated (rollout phase 2).
-  await runFrictionStage(row, progress, save);
+  await runFrictionStage(row, progress, save, undefined, { evidence });
 
   const categories = progress.categories!;
   const { earned, possible } = computeOverallPoints(categories);
@@ -188,11 +220,14 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     possiblePoints: possible,
     websiteUrl: row.website,
     businessName: row.business_name,
+    audienceRole: audienceRoleOf(row.audience_role),
     discoveredPages: progress.discoveredPages ?? [],
     pageSpeed: progress.pageSpeed,
     screenshots: progress.screenshots,
     ga4Metrics: progress.ga4Metrics ?? null,
     fud: isFudResult(progress.fud) ? progress.fud : null,
+    ga4Facts: progress.ga4Facts ?? null,
+    siteChecks: progress.siteChecks ?? null,
   };
   const categoriesAudited = categories.map(c => c.category);
 
@@ -233,7 +268,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   if (row.is_test) {
     if (!progress.testEmailSent) {
       await ensureLease();
-      await sendAuditEmail({ to: row.email, website: row.website, businessName: row.business_name, reportUrl, categoriesAudited, isTest: true, frictionWins: frictionWinsOf(result.fud) });
+      await sendAuditEmail({ to: row.email, website: row.website, businessName: row.business_name, reportUrl, categoriesAudited, isTest: true, frictionWins: frictionWinsOf(result.fud), topActions: topActionsOf(result, result.audienceRole), audienceRole: result.audienceRole });
       progress.testEmailSent = true;
       await save();
     }
@@ -263,6 +298,8 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
       approveUrl,
       slug: progress.slug ?? "",
       frictionFails: result.fud?.findings.filter(f => f.status === "fail" && f.override?.to !== "hidden").map(f => `${f.ruleId} — ${f.business.summary}`),
+      audienceRole: result.audienceRole,
+      topActions: topActionsOf(result, result.audienceRole),
     });
     progress.reviewEmailSent = true;
     await save();
@@ -405,6 +442,8 @@ async function processDueSends(): Promise<void> {
         // From the saved progress, so a reviewer's overrides (fud-override)
         // made before the send are respected.
         frictionWins: frictionWinsOf(row.progress?.fud),
+        topActions: topActionsOf(row.progress, audienceRoleOf(row.audience_role)),
+        audienceRole: audienceRoleOf(row.audience_role),
       });
       await markSentToClient(row.id);
       console.log(`[audit-worker] Sent to client ${row.id} (${row.email}), scheduled for ${row.scheduled_send_at}`);

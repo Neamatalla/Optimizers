@@ -51,6 +51,12 @@ export const BLOCKED_HITS: RegExp[] = [
   /analytics\.tiktok\.com\/api\//,
   /tr\.snapchat\.com\//,
   /ct\.pinterest\.com\//,
+  // Zid's own store analytics, and the X/Twitter ads pixel (both leaked on
+  // regal-honey.com, 2026-10-14).
+  /raqeeb\.zid\.sa\/collect/,
+  /\bt\.co\/1\/i\/adsct/,
+  /analytics\.twitter\.com\//,
+  /static\.ads-twitter\.com\/.*\/(?:adsct|uwt\.js)?\?/,
   /\.clarity\.ms\/collect/,
   /doubleclick\.net\/(?:pagead|activity|ccm)/,
   /google\.com\/(?:pagead|ccm)\/(?:conversion|collect|1p-conversion)/,
@@ -451,7 +457,31 @@ const FIND_LINKS_JS = String.raw`
   return { product: productByPath || product, collection: collection };
 })()`;
 
-const EMPTY_CART = /your (?:cart|bag|basket) is (?:currently )?empty|cart is empty|no items in (?:your )?cart|السلة فارغة|سلة التسوق فارغة|سلتك فارغة|لا توجد منتجات|عربة التسوق فارغة/i;
+// Arabic carts phrase it many ways ("سلة التسوق الخاصة بكِ فارغة" on
+// tharaa), so any "cart … empty" within a few words counts.
+const EMPTY_CART = /your (?:shopping )?(?:cart|bag|basket) is (?:currently )?empty|cart is (?:currently )?empty|no (?:items|products) in (?:your )?(?:cart|bag)|(?:السلة|سلة|سلتك|عربة|حقيبة)[^.!؟\n]{0,30}(?:فارغة|خالية)|لا توجد منتجات في (?:السلة|سلة)/i;
+
+// Shopify's own cart endpoints, read in the page: how many items the cart
+// really holds (null = not a Shopify store), and a one-item add through the
+// product form's variant, used only when our click left the cart empty.
+const CART_COUNT_JS = `fetch("/cart.js", { credentials: "same-origin", headers: { Accept: "application/json" } })
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (j) { return j && typeof j.item_count === "number" ? j.item_count : null; })
+  .catch(function () { return null; })`;
+const API_ADD_JS = `(async function () {
+  var form = document.querySelector('form[action*="/cart/add"]');
+  var input = form && form.querySelector('[name="id"]');
+  var id = (input && input.value) || new URLSearchParams(location.search).get("variant");
+  if (!id) return false;
+  try {
+    var r = await fetch("/cart/add.js", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ items: [{ id: Number(id), quantity: 1 }] }) });
+    return r.ok;
+  } catch (e) { return false; }
+})()`;
+
+async function cartCount(page: Page): Promise<number | null> {
+  return ((await page.evaluate(CART_COUNT_JS).catch(() => null)) as number | null) ?? null;
+}
 const BOT_WALL = /just a moment|attention required|access denied|are you a robot|captcha|verify you are human|request blocked/i;
 
 // ---- node side -------------------------------------------------------------
@@ -472,6 +502,34 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 interface HitCounter {
   blocked: number;
   leaked: string[];
+  // Event names read off the hits we block (GA4 en=, Meta ev=, TikTok
+  // event) with the time they were sent, so the Add-to-Cart click's own
+  // events can be picked out (W-22, GTM-24).
+  events: Array<{ t: number; vendor: string; name: string }>;
+}
+
+export function hitEvents(url: string, body: string | undefined): Array<{ vendor: string; name: string }> {
+  const out: Array<{ vendor: string; name: string }> = [];
+  const all = `${url}\n${body ?? ""}`;
+  if (/google-analytics\.com|analytics\.google\.com|\/g\/collect/.test(url)) {
+    for (const m of all.matchAll(/(?:^|[?&\n])en=([^&\s]+)/g)) {
+      try {
+        out.push({ vendor: "ga4", name: decodeURIComponent(m[1]) });
+      } catch {
+        out.push({ vendor: "ga4", name: m[1] });
+      }
+    }
+  } else if (/facebook\.com\/tr|facebook\.net\/tr/.test(url)) {
+    const m = /[?&]ev=([^&]+)/.exec(all);
+    if (m) out.push({ vendor: "meta", name: m[1] });
+  } else if (/tiktok/.test(url)) {
+    const m = /"event"\s*:\s*"([^"]+)"/.exec(all);
+    if (m) out.push({ vendor: "tiktok", name: m[1] });
+  } else if (/snapchat|sc-static/.test(url)) {
+    const m = /"?event_type"?\s*[:=]\s*"?([A-Z_]+)/.exec(all);
+    if (m) out.push({ vendor: "snap", name: m[1] });
+  }
+  return out;
 }
 
 async function preparePage(browserContext: Awaited<ReturnType<Browser["createBrowserContext"]>>, counter: HitCounter, profile: Profile): Promise<Page> {
@@ -484,6 +542,15 @@ async function preparePage(browserContext: Awaited<ReturnType<Browser["createBro
     const url = req.url();
     if (isBlockedHit(url)) {
       counter.blocked++;
+      if (counter.events.length < 400) {
+        let body: string | undefined;
+        try {
+          body = req.postData();
+        } catch {
+          body = undefined;
+        }
+        for (const ev of hitEvents(url, body)) counter.events.push({ t: Date.now(), ...ev });
+      }
       req.abort("blockedbyclient").catch(() => {});
       return;
     }
@@ -585,18 +652,50 @@ function isEmptyCart(ev: PageEvidence): boolean {
 }
 
 /** Adds the product to the cart and captures the drawer, or the cart page as fallback. */
+const DATALAYER_LEN_JS = "(window.dataLayer && window.dataLayer.length) || 0";
+const datalayerSince = (n: number) => `
+(function () {
+  var dl = window.dataLayer || [];
+  var out = [];
+  for (var i = ${n}; i < dl.length && out.length < 20; i++) {
+    var e = dl[i];
+    if (e && typeof e === "object") {
+      if (typeof e.event === "string") out.push(e.event);
+      else if (e[0] === "event" && typeof e[1] === "string") out.push(e[1]);
+    }
+  }
+  return out;
+})()`;
+
+/** What the Add-to-Cart click itself sent: new dataLayer entries and blocked hits since the click. */
+async function eventsAfterClick(page: Page, counter: HitCounter, since: number, dlBefore: number): Promise<NonNullable<StoreEvidence["atcEvents"]>> {
+  await sleep(800);
+  const dataLayer = ((await page.evaluate(datalayerSince(dlBefore)).catch(() => [])) as string[]) ?? [];
+  const after = counter.events.filter(e => e.t >= since);
+  const uniq = (xs: string[]) => [...new Set(xs)].slice(0, 15);
+  return {
+    dataLayer: uniq(dataLayer.filter(n => !n.startsWith("gtm."))),
+    ga4: uniq(after.filter(e => e.vendor === "ga4").map(e => e.name)),
+    pixels: uniq(after.filter(e => e.vendor !== "ga4").map(e => `${e.vendor}:${e.name}`)),
+  };
+}
+
 async function addToCartAndCapture(
   page: Page,
   product: PageEvidence | undefined,
   cartUrl: string,
-): Promise<{ cart: PageEvidence; atc: StoreEvidence["addToCart"] }> {
+  counter: HitCounter,
+): Promise<{ cart: PageEvidence; atc: StoreEvidence["addToCart"]; atcEvents?: StoreEvidence["atcEvents"] }> {
   let atc: StoreEvidence["addToCart"] = { attempted: false, ok: false, reason: "no product page" };
+  let atcEvents: StoreEvidence["atcEvents"];
 
   if (product?.loaded && product.cta) {
     atc = { attempted: true, ok: false };
     await page.evaluate(SELECT_VARIANTS_JS).catch(() => 0);
     await sleep(600);
     await page.evaluate(MARK_PRE_JS).catch(() => 0);
+    const dlBefore = ((await page.evaluate(DATALAYER_LEN_JS).catch(() => 0)) as number) || 0;
+    const clickedAt = Date.now();
     const clicked = (await page.evaluate(CLICK_CTA_JS).catch(() => "error")) as string;
     if (clicked !== "clicked") {
       atc.reason = clicked === "disabled" ? "atc_disabled_or_out_of_stock" : "atc_not_clickable";
@@ -620,6 +719,7 @@ async function addToCartAndCapture(
         drawer = (await page.evaluate(FIND_DRAWER_JS).catch(() => false)) as boolean;
         if (drawer) break;
       }
+      atcEvents = await eventsAfterClick(page, counter, clickedAt, dlBefore);
       if (drawer) {
         await sleep(1200);
         const x = await extract(page, "[data-fud-root]", "c").catch(() => null);
@@ -628,39 +728,53 @@ async function addToCartAndCapture(
           ev.cart = { source: "drawer", empty: isEmptyCart(ev) };
           ev.note = "cart drawer";
           ev.crops.cart = await crop(page, { x: 0, y: await page.evaluate("window.scrollY") as number, width: MOBILE.width, height: MOBILE.height });
-          atc = ev.cart.empty ? { attempted: true, ok: false, reason: "atc_drawer_empty" } : { attempted: true, ok: true };
-          if (!ev.cart.empty) return { cart: ev, atc };
+          atc = ev.cart.empty ? { attempted: true, ok: false, reason: "atc_drawer_empty" } : { attempted: true, ok: true, via: "click", clickAdded: true };
+          if (!ev.cart.empty) return { cart: ev, atc, atcEvents };
         }
       } else if (pathOf(page.url()) === before) {
         atc.reason = "atc_no_drawer";
       }
     }
+    // Did the click really add it? A Shopify store's own cart says. When the
+    // click left the cart empty, the same single item is added once through
+    // the store's cart endpoint so the cart can still be reviewed, and the
+    // click is recorded as not having added it (it may be our headless
+    // browser, so it is never reported as a broken button on its own).
+    const count = await cartCount(page);
+    if (count !== null && atc.attempted) {
+      atc.clickAdded = count > 0;
+      if (count === 0 && (await page.evaluate(API_ADD_JS).catch(() => false)) && ((await cartCount(page)) ?? 0) > 0) atc.via = "api";
+    }
   }
 
-  // Cart page: with the item in it if the click worked, empty otherwise.
+  // Cart page: with the item in it if the click (or the fallback) worked.
   const ev = await visit(page, "cart", cartUrl, "c");
   if (ev.loaded) {
     // Nothing was added, so whatever this page shows (an empty-cart message
     // we don't recognise, recommendations, a 404) is not a cart to judge.
-    ev.cart = { source: "page", empty: !atc.attempted || isEmptyCart(ev) };
+    const finalCount = await cartCount(page);
+    ev.cart = { source: "page", empty: !atc.attempted || (finalCount !== null ? finalCount === 0 : isEmptyCart(ev)) };
     ev.crops.cart = ev.crops.fold;
-    if (!ev.cart.empty) atc = { attempted: true, ok: true };
+    if (!ev.cart.empty) atc = { ...atc, attempted: true, ok: true, reason: undefined, via: atc.via ?? "click" };
     else ev.note = atc.attempted ? "cart page was empty" : "nothing could be added to the cart";
   }
-  return { cart: ev, atc };
+  return { cart: ev, atc, atcEvents };
 }
 
 export interface CollectOptions {
   // Also visit home + product at 1440px (no cart, no crops) so position-
   // sensitive rules can say whether desktop differs. Default true.
   desktop?: boolean;
+  // Pages GA4 named (ga4-facts.ts ga4Focus): the weakest product and a weak
+  // landing collection replace the first ones discovery found.
+  focus?: { productUrl?: string; collectionUrl?: string };
 }
 
 export async function collectStoreEvidence(website: string, discoveredPages: string[], opts: CollectOptions = {}): Promise<StoreEvidence> {
   const startedAt = Date.now();
   const homepage = discoveredPages[0] ?? website;
-  let productUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "product");
-  let collectionUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "collection");
+  let productUrl = opts.focus?.productUrl ?? discoveredPages.find(u => pageTypeOf(u, homepage) === "product");
+  let collectionUrl = opts.focus?.collectionUrl ?? discoveredPages.find(u => pageTypeOf(u, homepage) === "collection");
   let cartUrl = discoveredPages.find(u => pageTypeOf(u, homepage) === "cart");
   if (!cartUrl) {
     try {
@@ -673,7 +787,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
   const executablePath = findChrome();
   if (!executablePath) throw new Error("no Chrome/Chromium found — set CHROME_PATH");
 
-  const counter: HitCounter = { blocked: 0, leaked: [] };
+  const counter: HitCounter = { blocked: 0, leaked: [], events: [] };
   let browser: Browser | undefined;
   const work = (async (): Promise<StoreEvidence> => {
     browser = await puppeteer.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars"] });
@@ -701,7 +815,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     const product = productUrl ? await visit(page, "product", productUrl, "p") : failed("product", homepage, "no product page found on the site");
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
-    const { cart, atc } = await addToCartAndCapture(page, product, cartUrl!);
+    const { cart, atc, atcEvents } = await addToCartAndCapture(page, product, cartUrl!, counter);
     pages.push(cart);
     // After the cart, so a slow listing page can never cost the cart rules
     // (unless it was already needed above to find a product).
@@ -747,7 +861,8 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       }
     }
 
-    return { website, pages, desktop, addToCart: atc, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    const focusUrls = opts.focus?.productUrl || opts.focus?.collectionUrl ? { product: opts.focus.productUrl, collection: opts.focus.collectionUrl } : undefined;
+    return { website, pages, desktop, addToCart: atc, atcEvents, focusUrls, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.

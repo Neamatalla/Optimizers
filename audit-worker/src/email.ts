@@ -1,5 +1,8 @@
 import { Resend } from "resend";
-import type { CategoryKey, FudResult } from "./types.js";
+import type { CategoryKey, CategoryResult, FindingAction, FudResult, Opportunity } from "./types.js";
+import { OPPORTUNITY_LABEL } from "./actions.js";
+import { formatMoney } from "./fud/insights.js";
+import { mediaBuyerRank, roleSeverity, type AudienceRole } from "./audience.js";
 
 // Human phrase per category, in a fixed display order — GA4/GTM first when
 // present since they're the higher-intent "we connected your tools" story,
@@ -57,6 +60,128 @@ export interface SendAuditEmailOptions {
   // so the email itself gives a reason to open the report. Omitted, or
   // empty, when the pass didn't run or found no quick wins.
   frictionWins?: string[];
+  // The three actions worth most, from the action layer (topActionsOf).
+  // When present they replace the quick-wins list.
+  topActions?: TopAction[];
+  // Who the report was written for (audience.ts): picks the email copy
+  // (emailCopy) and, for a media buyer, which actions lead.
+  audienceRole?: AudienceRole | null;
+}
+
+export interface TopAction {
+  type: string;
+  step: string;
+  money: string | null;
+}
+
+const SEV: Record<string, number> = { critical: 0, medium: 1, low: 2 };
+const TYPE_RANK: Record<string, number> = { revenue_loss: 0, revenue_gain: 1, risk: 2, benefit: 3 };
+
+/**
+ * The three actions to lead the client email with: GA4 points with a money
+ * range first (biggest first), then the most serious failed checks (money
+ * types before risk and benefit), then Conversion review quick wins.
+ * For a media buyer, tracking (signal) and post-click points lead instead
+ * (audience.ts's mediaBuyerRank), money breaking ties.
+ */
+export function topActionsOf(saved: { categories?: CategoryResult[]; fud?: FudResult | { error: string } | null } | null | undefined, role?: AudienceRole | null): TopAction[] {
+  if (!saved) return [];
+  const rows: Array<{ type: Opportunity; step: string; money: FindingAction["money"]; rank: number }> = [];
+  for (const cat of saved.categories ?? []) {
+    for (const f of cat.findings) {
+      if (f.status !== "fail" || !f.action || !f.opportunity) continue;
+      // The reader's own severity (audience.ts), then the media buyer's lanes.
+      const base = SEV[roleSeverity(role, f.checklistId, f.severity)];
+      const sev = role === "media_buyer" ? mediaBuyerRank(f.checklistId, base) : base;
+      rows.push({ type: f.opportunity, step: f.action.step, money: f.action.money ?? null, rank: sev * 10 + TYPE_RANK[f.opportunity] });
+    }
+  }
+  const fud = saved.fud && "findings" in saved.fud ? saved.fud : null;
+  for (const f of fud?.findings ?? []) {
+    if (f.override?.to === "hidden" || (f.status !== "fail" && f.status !== "warn") || f.band !== "quick_win" || !f.action || !f.opportunity) continue;
+    rows.push({ type: f.opportunity, step: f.action.step, money: null, rank: (role === "media_buyer" ? 15 : 5) + (f.focus ? -3 : 0) });
+  }
+  if (role === "media_buyer") rows.sort((a, b) => a.rank - b.rank || (b.money?.high ?? 0) - (a.money?.high ?? 0));
+  else rows.sort((a, b) => (b.money?.high ?? 0) - (a.money?.high ?? 0) || a.rank - b.rank);
+  return rows.slice(0, 3).map(r => ({
+    type: OPPORTUNITY_LABEL[r.type].en,
+    step: r.step,
+    money: r.money ? `${formatMoney(r.money.low, r.money.currency)}–${formatMoney(r.money.high, r.money.currency)} a month` : null,
+  }));
+}
+
+// ---- client email copy per reader (audience.ts, the ICP cards) ----
+// No role keeps the original store-owner copy. Values are already escaped.
+interface EmailCopy { subject: string; intro: string[]; next: string[]; button: string }
+
+function emailCopy(role: AudienceRole | null | undefined, c: { website: string; coverage: string; businessName: string | null; hasLink: boolean }): EmailCopy {
+  const site = c.website;
+  switch (role) {
+    case "store_owner":
+      return {
+        subject: `${c.businessName ? `${c.businessName}: ` : ""}what's costing ${site} sales`,
+        intro: [
+          `Thank you for trusting us with a look at ${site}. We went through your ${c.coverage} and found what is costing you sales, what is already working, and which fixes you can make yourself in your store admin.`,
+          `The report starts with your biggest leak, with the money it costs from your own data. Each point says what to change and where, and whether you need a developer for it.`,
+        ],
+        next: [
+          "Most of what we found can be fixed, and the biggest wins often take days, not months. If you would rather we did it for you, that is what we do: for over 8 years we have helped e-commerce brands sell more to the visitors they already have, and if we don't improve your conversions, you don't pay.",
+          "Book a free call and we will go through your results and the quickest wins together. No pressure.",
+        ],
+        button: "Book my free call",
+      };
+    case "media_buyer":
+      return {
+        subject: `Your audit for ${site} is ready: tracking and post-click leaks`,
+        intro: [
+          `Thanks for sending us ${site}. We went through its ${c.coverage} from a media buyer's side: whether the ad platforms and GA4 see every sale once and with the right value, and where paid traffic drops after the click.`,
+          "Each point says what it does to ROAS or CAC, who has to fix it and how to check it's done, so you can forward it straight to the store owner or developer. Turn on Technical details for the exact events and tags.",
+        ],
+        next: [
+          "Campaigns can only be as good as the data they learn from and the page the click lands on. Those two are what we fix: tracking the algorithm can trust, and a store that converts more of the clicks you already pay for. For over 8 years we have done this for e-commerce brands, and if we don't improve conversions, you don't pay.",
+          "Book a free call and we will go through the tracking and funnel findings with you and show which fixes move ROAS fastest. You keep the account; we handle the site side.",
+        ],
+        button: "Book my free call",
+      };
+    case "marketing_manager":
+      return {
+        subject: `Your audit for ${site} is ready: priorities for your team`,
+        intro: [
+          `Thank you for trusting us with a look at ${site}. We went through its ${c.coverage} and ranked what we found by what it is worth to the business.`,
+          "The report opens with an executive summary you can share with leadership: the store's numbers, the three fixes worth most, and which team owns each fix. Every point is written as a brief, with the step, the owner and how to confirm it's done.",
+        ],
+        next: [
+          "For over 8 years we have helped e-commerce brands turn more of the visitors they already have into customers, and if we don't improve conversions, you don't pay.",
+          "Book a free call and we will go through the priorities with you and your team and plan the fixes worth most to the business.",
+        ],
+        button: "Book a free call",
+      };
+    case "agency":
+      return {
+        subject: `Your client audit for ${site} is ready`,
+        intro: [
+          `Your audit of ${site} is ready. We went through its ${c.coverage} and wrote every finding so you can put it in front of the client: the evidence behind it, the work it needs, who does it and how both sides will know it's done.`,
+          "The report opens with a client summary that groups the work into tracking, conversion and tech workstreams, to help you scope the engagement. Each finding says whether it came from live account data, the store visit or the public site.",
+        ],
+        next: [
+          "If you want to go through the method or the findings before you share them, book a call with our team.",
+        ],
+        button: "Book a call",
+      };
+    default:
+      return {
+        subject: c.businessName ? `${c.businessName}, your free audit is ready` : "Your free website audit is ready",
+        intro: [
+          `Thank you for trusting us with a look at ${site}. Our team has gone through your ${c.coverage} and put everything we found into one clear report: what is already working well, what is quietly costing you sales, and what to fix first.`,
+          c.hasLink ? "Grab a coffee and have a look. It is written in plain language, so you do not need to be technical to follow it." : "Your full report is attached to this email. It is written in plain language, so you do not need to be technical to follow it.",
+        ],
+        next: [
+          "The good news: most of what we found can be fixed, and the biggest wins often take days, not months. That is exactly what we do. For over 8 years we have helped e-commerce brands turn more of the visitors they already have into customers, without spending more on ads. And if we don't improve your conversions, you don't pay.",
+          "Want us to walk you through it? Book a free call and we will go through your results together, point out the quickest wins, and show you exactly what we would do for your store. No pressure and no jargon.",
+        ],
+        button: "Book my free call",
+      };
+  }
 }
 
 /** The quick wins worth a line in the client email, from a saved result. */
@@ -82,7 +207,9 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
   const name = opts.businessName ? escapeHtml(opts.businessName) : null;
   const website = escapeHtml(opts.website.replace(/^https?:\/\//, "").replace(/\/$/, ""));
   const coverage = coverageSentence(opts.categoriesAudited) || "website";
-  const wins = (opts.frictionWins ?? []).slice(0, 2);
+  const top = (opts.topActions ?? []).slice(0, 3);
+  const copy = emailCopy(opts.audienceRole, { website, coverage, businessName: opts.businessName, hasLink: Boolean(opts.reportUrl) });
+  const wins = top.length ? [] : (opts.frictionWins ?? []).slice(0, 2);
   const p = "color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px;";
   const button = (href: string, label: string, primary: boolean) =>
     `<a href="${href}" style="display: inline-block; background: ${primary ? "#263328" : "#6ae499"}; color: ${primary ? "#ffffff" : "#0e1a10"}; font-weight: bold; font-size: 15px; text-decoration: none; padding: 14px 24px; border-radius: 999px;">${label}</a>`;
@@ -91,7 +218,7 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
   const { error } = await resend.emails.send({
     from: "Optimizers <hello@optimizers.agency>",
     to: [opts.to],
-    subject: `${opts.isTest ? "[TEST] " : ""}${opts.businessName ? `${opts.businessName}, your free audit is ready` : "Your free website audit is ready"}`,
+    subject: `${opts.isTest ? "[TEST] " : ""}${copy.subject}`,
     html: `
       <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 8px 4px;">
         ${opts.isTest ? `<p style="background: #fff4e0; border: 1px solid #f2b75e; border-radius: 8px; color: #7a4b00; font-size: 13px; line-height: 1.6; padding: 10px 14px; margin: 0 0 18px;">
@@ -99,30 +226,21 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
         </p>` : ""}
         <h1 style="color: #263328; font-size: 24px; line-height: 1.3; margin: 0 0 20px;">Your audit is ready${name ? `, ${name}` : ""}!</h1>
         <p style="${p}">${name ? `Hi ${name} team,` : "Hi there,"}</p>
-        <p style="${p}">
-          Thank you for trusting us with a look at ${website}. Our team has gone through your ${coverage} and put everything
-          we found into one clear report: what is already working well, what is quietly costing you sales, and what to fix first.
-        </p>
-        <p style="${p}">
-          ${opts.reportUrl ? "Grab a coffee and have a look. It is written in plain language, so you do not need to be technical to follow it." : "Your full report is attached to this email. It is written in plain language, so you do not need to be technical to follow it."}
-        </p>
+        ${copy.intro.map(t => `<p style="${p}">${t}</p>`).join("\n        ")}
         ${wins.length ? `<p style="${p}">${wins.length === 1 ? "One thing your shoppers notice before they buy:" : "Two things your shoppers notice before they buy:"}</p>
         <ul style="color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px; padding-left: 20px;">
           ${wins.map(w => `<li>${escapeHtml(w)}</li>`).join("")}
         </ul>
         <p style="${p}">${wins.length === 1 ? "It is" : "Both are"} quick to fix, and the report shows exactly where and what to write.</p>` : ""}
+        ${top.length ? `<p style="${p}">Your ${top.length === 1 ? "top action" : `top ${top.length} actions`}, from the report:</p>
+        <ol style="color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px; padding-left: 20px;">
+          ${top.map(a => `<li style="margin-bottom: 8px;"><b style="color: #263328;">${escapeHtml(a.type)}${a.money ? ` · ${escapeHtml(a.money)}` : ""}:</b> ${escapeHtml(a.step)}</li>`).join("")}
+        </ol>
+        <p style="${p}">Each one in the report says who does it and how you'll know it's done.</p>` : ""}
         ${opts.reportUrl ? `<p style="margin: 24px 0 32px;">${button(opts.reportUrl, "See my audit", true)}</p>` : ""}
         <h2 style="color: #263328; font-size: 18px; margin: 8px 0 12px;">So, what's next?</h2>
-        <p style="${p}">
-          The good news: most of what we found can be fixed, and the biggest wins often take days, not months. That is exactly
-          what we do. For over 8 years we have helped e-commerce brands turn more of the visitors they already have into
-          customers, without spending more on ads. And if we don't improve your conversions, you don't pay.
-        </p>
-        <p style="${p}">
-          Want us to walk you through it? Book a free call and we will go through your results together, point out the quickest
-          wins, and show you exactly what we would do for your store. No pressure and no jargon.
-        </p>
-        <p style="margin: 24px 0 32px;">${button(bookUrl, "Book my free call", false)}</p>
+        ${copy.next.map(t => `<p style="${p}">${t}</p>`).join("\n        ")}
+        <p style="margin: 24px 0 32px;">${button(bookUrl, copy.button, false)}</p>
         <p style="${p}">Talk soon,<br /><b>The Optimizers team</b></p>
         <p style="color: #7a857b; font-size: 12px; line-height: 1.6; margin-top: 28px; padding-top: 18px; border-top: 1px solid #e2e6e2;">
           You are receiving this because you requested a free audit at <a href="${siteUrl}" style="color: #7a857b;">optimizers.agency</a>.
@@ -152,7 +270,41 @@ export interface SendInternalReviewEmailOptions {
   // and still being calibrated; a false FAIL in front of a prospect costs
   // more than a missed one.
   frictionFails?: string[];
+  // Who asked (audience.ts) and their top 3 actions: the talk track for the
+  // follow-up call (ICP cards; icp/ICP-PLAYBOOK.md §1.6).
+  audienceRole?: AudienceRole | null;
+  topActions?: TopAction[];
 }
+
+// What our team says on the follow-up call, per reader. Opens on the
+// reader's own problem and their biggest finding, and names the offer that
+// fits them (from the ICP cards' role-in-purchase notes).
+const TALK_TRACK: Record<AudienceRole, { who: string; open: string; press: string; offer: string }> = {
+  store_owner: {
+    who: "Store owner (ICP1): runs the store, fixes things in the Salla/Zid/Shopify admin, judges us on money.",
+    open: "Open with their biggest leak in SAR and the one fix they can make themselves this week.",
+    press: "Payment and delivery (COD fee, mada/Apple Pay/Tabby/Tamara visibility, free-delivery threshold) and how the store works on phones.",
+    offer: "Done-for-you: we make the developer fixes. Keep it low-pressure; they distrust anything that sounds like a pitch.",
+  },
+  media_buyer: {
+    who: "Media buyer (ICP2): runs the store's paid ads, judged on ROAS/CPA, doesn't own the site or the tracking.",
+    open: "Open with the reported-ROAS verdict (over- or under-counting) and the post-click step that loses paid traffic.",
+    press: "Proof he can forward to the owner, and what the fixes do to ROAS/CAC. Never quote ROAS values; we don't see spend.",
+    offer: "He keeps the account; we do the site side and he refers the owner to the retainer. Tools: low, fair price he can pay himself.",
+  },
+  marketing_manager: {
+    who: "Marketing director/manager (ICP3): reports to the CEO, briefs a team, needs numbers they can defend.",
+    open: "Open with the top priority and what it's worth, then who on their team owns it.",
+    press: "Channels that convert vs waste, mobile vs desktop, and privacy/consent exposure.",
+    offer: "A roadmap session with their team; a retainer the CEO approves. Offer a one-page summary they can take upstairs.",
+  },
+  agency: {
+    who: "Agency/consultant (ICP4): will show this to a client; one wrong number burns them.",
+    open: "Open with how defensible the findings are (live-data share, method) and the workstreams they could scope.",
+    press: "Tracking accuracy and anything that could embarrass them with the client (double counting, exposed files, consent).",
+    offer: "Partner terms: audits for their clients, or white-label later. Never pitch Optimizers to their client.",
+  },
+};
 
 // Sent the moment an audit finishes — the requester does NOT get their copy
 // yet (see sendAuditEmail, now only called from poll.ts's due-send check).
@@ -203,7 +355,18 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
           Site: <b>${opts.website}</b><br/>
           Requested by: <b>${opts.requesterEmail}</b><br/>
           Report slug (for the <code>/api/report/edit</code> path): <code>${opts.slug}</code>
-        </p>${opts.frictionFails?.length ? `
+        </p>${opts.audienceRole ? `
+        <div style="background: #eef7f1; border: 1px solid #9fd8b4; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+          <p style="color: #1f4d2e; font-size: 13px; font-weight: bold; margin: 0 0 6px;">Talk track for the follow-up call</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Who:</b> ${TALK_TRACK[opts.audienceRole].who}</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Open with:</b> ${TALK_TRACK[opts.audienceRole].open}</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Press on:</b> ${TALK_TRACK[opts.audienceRole].press}</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Offer:</b> ${TALK_TRACK[opts.audienceRole].offer}</p>${opts.topActions?.length ? `
+          <p style="color: #1f4d2e; font-size: 13px; font-weight: bold; margin: 8px 0 4px;">Their top actions (what the client email leads with)</p>
+          <ol style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 18px;">
+            ${opts.topActions.map(a => `<li>${escapeHtml(a.type)}${a.money ? ` · ${escapeHtml(a.money)}` : ""}: ${escapeHtml(a.step)}</li>`).join("")}
+          </ol>` : ""}
+        </div>` : ""}${opts.frictionFails?.length ? `
         <div style="background: #fff4e5; border: 1px solid #f5c26b; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
           <p style="color: #7a4b00; font-size: 13px; font-weight: bold; margin: 0 0 6px;">Check these purchase-friction FAILs before approving</p>
           <ul style="color: #5c3a00; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 18px;">

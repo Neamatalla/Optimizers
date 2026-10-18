@@ -19,11 +19,11 @@ const GA4_ADMIN_ALPHA_BASE = "https://analyticsadmin.googleapis.com/v1alpha";
 const GA4_DATA_BASE = "https://analyticsdata.googleapis.com/v1beta";
 const GTM_BASE = "https://www.googleapis.com/tagmanager/v2";
 
-// GA4 only — the GTM audit is a paid service now (booked via a call), so the
-// free audit no longer asks for tagmanager.readonly. fetchAllGTMContainers
-// below is kept for when/if that scope comes back, but nothing calls it.
+// GA4 and GTM, both read-only. GTM was gated off the free audit on
+// 2026-10-07 and opened again on 2026-10-14.
 const SCOPES = [
   "https://www.googleapis.com/auth/analytics.readonly",
+  "https://www.googleapis.com/auth/tagmanager.readonly",
 ].join(" ");
 
 // sessionStorage key the callback page writes the result to, read back by
@@ -142,12 +142,17 @@ const LAST_28_DAYS = { startDate: "28daysAgo", endDate: "today" };
 // (checkout: add_shipping_info/add_payment_info/purchase). Real,
 // Google-recommended event names, not a business-specific guess (same
 // reasoning as purchaseMetrics' "purchase" filter below).
-const FUNNEL_EVENTS = ["view_item_list", "view_item", "add_to_cart", "add_shipping_info", "add_payment_info", "purchase"];
+// begin_checkout was missing until 2026-10-13, which hid the cart→checkout
+// step (GA4-03) from every OAuth audit.
+const FUNNEL_EVENTS = ["view_item_list", "view_item", "add_to_cart", "begin_checkout", "add_shipping_info", "add_payment_info", "purchase"];
 
 async function fetchGa4ReportData(propertyName, token) {
   const runReport = (body) => gpost(`${GA4_DATA_BASE}/${propertyName}:runReport`, token, body).catch(e => ({ error: e.message }));
 
-  const [realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion] = await Promise.all([
+  const [
+    realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion,
+    pageFunnel, itemFunnel, campaignLanding, countryConversion, hourDay, sourceMedium, searchTerms, landingDevice,
+  ] = await Promise.all([
     gpost(`${GA4_DATA_BASE}/${propertyName}:runRealtimeReport`, token, { metrics: [{ name: "activeUsers" }] }).catch(e => ({ error: e.message })),
     // NOTE: `dateRange` must NOT be listed in `dimensions` — confirmed
     // directly against the real API: "Field dateRange is not a dimension.
@@ -172,7 +177,7 @@ async function fetchGa4ReportData(propertyName, token) {
     runReport({
       dateRanges: [LAST_28_DAYS],
       dimensions: [{ name: "sessionDefaultChannelGroup" }],
-      metrics: [{ name: "sessions" }, { name: "conversions" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
     }),
     runReport({
       dateRanges: [LAST_28_DAYS],
@@ -181,7 +186,7 @@ async function fetchGa4ReportData(propertyName, token) {
     runReport({
       dateRanges: [LAST_28_DAYS],
       dimensions: [{ name: "landingPage" }],
-      metrics: [{ name: "sessions" }, { name: "conversions" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       limit: "15",
     }),
@@ -195,7 +200,7 @@ async function fetchGa4ReportData(propertyName, token) {
     runReport({
       dateRanges: [LAST_28_DAYS],
       dimensions: [{ name: "newVsReturning" }],
-      metrics: [{ name: "sessions" }, { name: "conversions" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
     }),
     // "purchase" is GA4's own standard Enhanced Ecommerce event name (per
     // Google's recommended-events schema), not a business-specific guess —
@@ -233,9 +238,78 @@ async function fetchGa4ReportData(propertyName, token) {
       dimensions: [{ name: "deviceCategory" }],
       metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "purchaseRevenue" }, { name: "transactions" }],
     }),
+    // ---- action points (audit-worker/src/ga4-facts.ts) ----
+    // GA4-10: views and adds to cart per product page, so the weakest
+    // product can be named by URL and visited by the Conversion review.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "pagePath" }, { name: "eventName" }],
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: { filter: { fieldName: "eventName", inListFilter: { values: ["view_item", "add_to_cart"] } } },
+      orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+      limit: "200",
+    }),
+    // GA4-10 fallback: the same by product name.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "itemName" }],
+      metrics: [{ name: "itemsViewed" }, { name: "itemsAddedToCart" }, { name: "itemsPurchased" }, { name: "itemRevenue" }],
+      orderBys: [{ metric: { metricName: "itemsViewed" }, desc: true }],
+      limit: "30",
+    }),
+    // GA4-07: paid campaigns and where they land.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "sessionCampaignName" }, { name: "sessionDefaultChannelGroup" }, { name: "landingPage" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "60",
+    }),
+    // GA4-09 / GA4-22: visits and sales by country.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "country" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "20",
+    }),
+    // GA4-16: conversion by weekday and hour (168 rows at most).
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "dayOfWeek" }, { name: "hour" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
+      limit: "200",
+    }),
+    // GA4-19: payment gateways showing up as traffic sources.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "50",
+    }),
+    // GA4-13: what shoppers search for.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "searchTerm" }],
+      metrics: [{ name: "eventCount" }],
+      orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+      limit: "20",
+    }),
+    // GA4-05 / GA4-06: landing pages per device.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "landingPage" }, { name: "deviceCategory" }],
+      metrics: [{ name: "sessions" }, { name: "conversions" }, { name: "transactions" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "40",
+    }),
   ]);
 
-  return { realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion };
+  return {
+    realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion,
+    pageFunnel, itemFunnel, campaignLanding, countryConversion, hourDay, sourceMedium, searchTerms, landingDevice,
+  };
 }
 
 /**
@@ -318,7 +392,7 @@ export async function fetchAllGA4Properties(token) {
     const [
       details, retention, keyEvents, adsLinks, attribution, reportData,
       enhancedMeasurement, dataRedaction, measurementProtocolSecrets,
-      googleSignals, customDimensions, customMetrics,
+      googleSignals, customDimensions, customMetrics, audiences,
     ] = await Promise.all([
       gget(`${GA4_ADMIN_BASE}/${propertyName}`, token).catch(e => ({ error: e.message })),
       gget(`${GA4_ADMIN_BASE}/${propertyName}/dataRetentionSettings`, token).catch(e => ({ error: e.message })),
@@ -332,6 +406,8 @@ export async function fetchAllGA4Properties(token) {
       gget(`${GA4_ADMIN_ALPHA_BASE}/${propertyName}/googleSignalsSettings`, token).catch(e => ({ error: e.message })),
       gget(`${GA4_ADMIN_BASE}/${propertyName}/customDimensions?pageSize=200`, token).catch(e => ({ error: e.message })),
       gget(`${GA4_ADMIN_BASE}/${propertyName}/customMetrics?pageSize=200`, token).catch(e => ({ error: e.message })),
+      // GA4-14 (remarketing audiences): names only.
+      gget(`${GA4_ADMIN_ALPHA_BASE}/${propertyName}/audiences?pageSize=50`, token).catch(e => ({ error: e.message })),
     ]);
 
     return {
@@ -350,6 +426,7 @@ export async function fetchAllGA4Properties(token) {
       googleSignals,
       customDimensions: customDimensions.customDimensions || customDimensions,
       customMetrics: customMetrics.customMetrics || customMetrics,
+      audiences: Array.isArray(audiences.audiences) ? audiences.audiences.map(a => ({ displayName: a.displayName })) : audiences.error ? audiences : [],
       // Real Data API pulls (see fetchGa4ReportData's own doc comment) — the
       // fix for GA4-D1..D15 having nothing real to work with on the OAuth
       // route. `{error}` on any individual field means that specific pull
@@ -406,10 +483,20 @@ export async function fetchAllGTMContainers(token) {
       // container belong to the site the visitor entered" instead of
       // inferring it from what the JS-free crawl happened to see.
       domainName: container.domainName || [],
+      // Full parameters since 2026-10-13: the GTM action points need to see
+      // triggers, transaction_id, consent settings and what Custom HTML
+      // loads, not just tag names (long values trimmed to keep the prompt small).
       liveVersion: {
-        tags: (liveVersion.tag || []).map(t => ({ name: t.name, type: t.type })),
-        triggers: (liveVersion.trigger || []).map(t => ({ name: t.name, type: t.type })),
-        variables: (liveVersion.variable || []).map(v => ({ name: v.name, type: v.type })),
+        tags: (liveVersion.tag || []).map(t => ({
+          name: t.name, type: t.type, paused: t.paused || undefined,
+          firingTriggerId: t.firingTriggerId, blockingTriggerId: t.blockingTriggerId,
+          consentSettings: t.consentSettings, parameter: trimParameters(t.parameter),
+        })),
+        triggers: (liveVersion.trigger || []).map(t => ({
+          triggerId: t.triggerId, name: t.name, type: t.type,
+          customEventFilter: t.customEventFilter, filter: t.filter, autoEventFilter: t.autoEventFilter,
+        })),
+        variables: (liveVersion.variable || []).map(v => ({ name: v.name, type: v.type, parameter: trimParameters(v.parameter) })),
       },
       // GA4 measurement IDs configured *inside this container's own tags*
       // (typically a "Google tag" / googtag-type tag's parameters) — the
@@ -424,6 +511,19 @@ export async function fetchAllGTMContainers(token) {
       workspaceCount: workspaces.workspace?.length,
       versionCount: versions.containerVersionHeader?.length,
     };
+  }));
+}
+
+// Keeps GTM parameters readable for the audit prompt: long values (Custom
+// HTML bodies above all) cut to their first 400 characters.
+function trimParameters(params) {
+  if (!Array.isArray(params)) return undefined;
+  return params.map(p => ({
+    key: p.key,
+    type: p.type,
+    value: typeof p.value === "string" && p.value.length > 400 ? `${p.value.slice(0, 400)}…` : p.value,
+    list: Array.isArray(p.list) ? trimParameters(p.list) : undefined,
+    map: Array.isArray(p.map) ? trimParameters(p.map) : undefined,
   }));
 }
 

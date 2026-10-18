@@ -84,6 +84,10 @@ export interface PageFacts {
   infoSections: { details: number; expanders: number };
   // Filled/outlined buttons on the first screen, outside the header.
   heroButtons: string[];
+  // wa.me / api.whatsapp.com / tel: links on the page (W-07, GTM-11).
+  contactLinks?: string[];
+  // "Sold out" badges in the first one and a half screens (W-08).
+  soldOutTop?: number;
   hero: { kind: string; src: string; alt: string; coverPct: number } | null;
   capture: { email: boolean; phone: boolean; account: boolean };
 }
@@ -101,10 +105,19 @@ export interface StoreEvidence {
   // non-empty list means BLOCKED_HITS in collect.ts needs a new entry.
   leakedHits?: string[];
   // Add-to-Cart attempt on the product page, for the cart rules and Sources.
-  addToCart: { attempted: boolean; ok: boolean; reason?: string };
+  // via: how the item got there ("api" = our click left the cart empty and
+  // the store's cart endpoint added it); clickAdded: whether the click alone
+  // added it (known on Shopify stores).
+  addToCart: { attempted: boolean; ok: boolean; reason?: string; via?: "click" | "api"; clickAdded?: boolean };
+  // Event names the click produced: new dataLayer entries, and the GA4 /
+  // pixel hits we blocked (W-22, GTM-24). Absent when nothing was clicked.
+  atcEvents?: { dataLayer: string[]; ga4: string[]; pixels: string[] };
+  // Pages the collector was pointed at by GA4 (ga4-facts.ts focus) instead
+  // of the first ones discovery found.
+  focusUrls?: { product?: string; collection?: string };
   // Store-level numbers from GA4 the rules can use (index.ts fills it in
   // before judging): average order value for M3.
-  context?: { aov?: number; currency?: string | null };
+  context?: { aov?: number; currency?: string | null; focus?: string };
   // Searched the store for a word from the product's name and counted the
   // product links on the results page. Absent when no search was found.
   searchTest?: { query: string; url: string; results: number; loaded: boolean };

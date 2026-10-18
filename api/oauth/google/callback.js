@@ -1,4 +1,4 @@
-import { exchangeCodeForToken, fetchAllGA4Properties, describeOAuthResult, oauthResultHtml } from "../../_lib/google-oauth.js";
+import { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult, oauthResultHtml } from "../../_lib/google-oauth.js";
 
 function parseCookies(header) {
   const out = {};
@@ -47,13 +47,19 @@ export default async function handler(req, res) {
   try {
     const token = await exchangeCodeForToken({ clientId, clientSecret, redirectUri, code });
     console.log("[oauth-callback] token exchange OK");
-    // GA4 only — no tagmanager scope is requested anymore (GTM audit is paid).
-    const ga4Properties = await fetchAllGA4Properties(token);
+    const [ga4Properties, gtmContainers] = await Promise.all([
+      fetchAllGA4Properties(token),
+      fetchAllGTMContainers(token),
+    ]);
     console.log(
       "[oauth-callback] ga4Properties:",
       Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`
     );
-    console.log(describeOAuthResult({ ga4Properties }));
+    console.log(
+      "[oauth-callback] gtmContainers:",
+      Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`
+    );
+    console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
     res.statusCode = 200;
     // A failed fetch travels as its own field rather than collapsing into an
     // empty list: the form used to render "no accessible GA4 properties" for
@@ -62,7 +68,9 @@ export default async function handler(req, res) {
     res.end(oauthResultHtml({
       type: "google-oauth-result",
       ga4Properties: Array.isArray(ga4Properties) ? ga4Properties : [],
+      gtmContainers: Array.isArray(gtmContainers) ? gtmContainers : [],
       ga4Error: Array.isArray(ga4Properties) ? undefined : ga4Properties?.error,
+      gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
     }));
   } catch (err) {
     console.log("[oauth-callback] FAILED:", err.message || err);

@@ -1,4 +1,9 @@
 /**
+ * The checklists used until the action-point rewrite (2026-10-13). Kept only
+ * so reports regenerated from older saved results still find their points;
+ * new runs use checklist.ts. Do not edit.
+ */
+/**
  * Curated checklists for the audit's THREE mutually exclusive run paths
  * (see scoring.ts's countedCategories() for the exact routing), every one
  * of them exactly 50 items:
@@ -73,7 +78,7 @@
  * that the PageSpeed sweep is gone.
  */
 
-export interface ChecklistPoint {
+export interface LegacyChecklistPoint {
   id: string;
   title: string;
   expectedState: string;
@@ -92,7 +97,7 @@ export interface ChecklistPoint {
   severity: "critical" | "medium" | "low";
 }
 
-export const GA4_CHECKLIST: ChecklistPoint[] = [
+export const LEGACY_GA4_CHECKLIST: LegacyChecklistPoint[] = [
   // ── GA4-D1 through GA4-D15 (2026-09-06 rewrite, moved to the front of
   // this list so they're the first thing read/evaluated each run): open,
   // data-driven analysis slots — NOT a fixed pass/fail check like
@@ -168,7 +173,7 @@ export const GA4_CHECKLIST: ChecklistPoint[] = [
 // cross-check. Order and numbering (GTM-1..GTM-25) follows the source doc's
 // own five sections (Installation, Data Quality, Hygiene, Consent/Privacy,
 // Advanced) exactly.
-export const GTM_CHECKLIST: ChecklistPoint[] = [
+export const LEGACY_GTM_CHECKLIST: LegacyChecklistPoint[] = [
   // I. Installation & Structural Integrity
   //
   // Not from the source doc's own "Tag Snippet Presence & Location" item —
@@ -220,7 +225,7 @@ export const GTM_CHECKLIST: ChecklistPoint[] = [
   { id: "GTM-25", title: "Behavioral validation & session replay target handshakes", expectedState: "Where a session-replay tool (Microsoft Clarity, Hotjar, etc.) is present, custom tags forward key events (add_to_cart, coupon usage, form errors) to it as custom events/tags — not just to GA4/ad platforms", commonFailure: "Without this handshake, recordings can't be filtered by the moments that actually matter (an abandoned checkout, a form error) — the tool ends up rarely used for the analysis it's meant for", validate: "Call list_tags for the workspace and check whether a Clarity/Hotjar tag exists alongside the conversion-tracking tags, and whether its trigger set overlaps with the same custom events (add_to_cart, checkout, form errors) the GA4/ad tags use", severity: "low" },
 ];
 
-export const WEBSITE_CHECKLIST: ChecklistPoint[] = [
+export const LEGACY_WEBSITE_CHECKLIST: LegacyChecklistPoint[] = [
   { id: "WEB-1", title: "Container/tag deployment reaches production", expectedState: "Any detected tracking snippet is real, present in the live page source", commonFailure: "A tag exists in the platform's config but was never actually deployed to the live site", validate: "Check the raw page-source crawl for the actual snippet, not just what the platform's own config claims", severity: "critical" }, // 2.1
   { id: "WEB-2", title: "dataLayer declared before the tag snippet", expectedState: "dataLayer array declared above the GTM container script in page source", commonFailure: "Pushes that fire before declaration are silently lost", validate: "Check page-source ordering: dataLayer declaration before the GTM script tag", severity: "medium" }, // 3.8
   { id: "WEB-3", title: "Consent banner wired to tracking", expectedState: "A consent mechanism visibly gates tracking scripts, not just a cookie notice", commonFailure: "A banner exists but tracking fires regardless of the visitor's choice", validate: "Check the crawl signal for a consent-related script, cross-referenced against whether tracking scripts appear unconditionally in source", severity: "critical" }, // 4.1
@@ -345,5 +350,5 @@ const WEBSITE_CODE_CORE_IDS = new Set([
   "WEB-60", "WEB-61", "WEB-62", "WEB-63",
 ]);
 
-export const WEBSITE_CODE_CHECKLIST: ChecklistPoint[] = WEBSITE_CHECKLIST.filter(p => WEBSITE_CODE_CORE_IDS.has(p.id));
+export const LEGACY_WEBSITE_CODE_CHECKLIST: LegacyChecklistPoint[] = LEGACY_WEBSITE_CHECKLIST.filter(p => WEBSITE_CODE_CORE_IDS.has(p.id));
 

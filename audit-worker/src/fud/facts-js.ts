@@ -161,7 +161,26 @@ export const FACTS_JS = String.raw`
   var phoneCapture = !!document.querySelector('input[type="tel"]:not([form]), input[name*="phone" i]');
   var account = [].some.call(document.querySelectorAll("a[href]"), function (a) { return /\/account|\/login|\/my-account|\/sign-in|\/auth\//i.test(a.getAttribute("href") || ""); });
 
+  // WhatsApp / phone links anywhere on the page (W-07, GTM-11).
+  var contact = [];
+  document.querySelectorAll('a[href*="wa.me"], a[href*="api.whatsapp.com"], a[href^="whatsapp:"], a[href^="tel:"]').forEach(function (a) {
+    var h = (a.getAttribute("href") || "").slice(0, 160);
+    if (h && contact.indexOf(h) < 0 && contact.length < 10) contact.push(h);
+  });
+  // "Sold out" badges in the first one and a half screens (W-08).
+  var soldOut = 0;
+  var SOLD = /^(sold ?out|out of stock|نفد(ت)?( الكمية)?|نفذت الكمية|غير متوفر|نفدت من المخزون)$/i;
+  document.querySelectorAll("span, div, p, small, strong, label").forEach(function (el) {
+    if (el.children.length > 1) return;
+    var t = (el.innerText || "").trim();
+    if (!t || t.length > 30 || !SOLD.test(t)) return;
+    var r = vis(el);
+    if (r && r.top + sy < vh * 1.5) soldOut++;
+  });
+
   return {
+    contactLinks: contact,
+    soldOutTop: soldOut,
     lang: (html.getAttribute("lang") || "").slice(0, 10),
     dir: (html.getAttribute("dir") || getComputedStyle(document.body).direction || "").slice(0, 4),
     hreflang: hreflang,

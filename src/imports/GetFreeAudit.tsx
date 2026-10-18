@@ -71,12 +71,11 @@ const normalizeWebsiteUrl = (url: string): string => {
 // exists for it).
 type ToolId = "GA4" | "GTM";
 
-// GTM is gated behind a paid audit: shown (so visitors know it exists) but
-// dimmed and unselectable, pointing them to book a call instead. The OAuth
-// flow no longer requests the tagmanager scope either (api/_lib/google-oauth.js).
+// GTM was gated behind a paid audit from 2026-10-07; open again since
+// 2026-10-14. `locked` stays available to gate a tool again.
 const TOOL_OPTIONS: { id: ToolId; label: string; hint: string; locked?: boolean }[] = [
   { id: "GA4", label: "Google Analytics 4", hint: "GA4 tracking" },
-  { id: "GTM", label: "Google Tag Manager", hint: "GTM container", locked: true },
+  { id: "GTM", label: "Google Tag Manager", hint: "GTM container" },
 ];
 
 // Full property/container objects returned by api/oauth/google/callback.js
@@ -117,10 +116,23 @@ interface GtmContainer {
 // OAUTH_RESULT_KEY must match OAUTH_RESULT_STORAGE_KEY in api/_lib/google-oauth.js.
 const FORM_SNAPSHOT_KEY = "gfa_form_snapshot";
 const OAUTH_RESULT_KEY = "gfa_oauth_result";
+// "Your role": who the report is written for. Same 50 checks for every
+// role; the worker changes the voice and what the report surfaces first
+// (audit-worker/src/audience.ts). Values must match AUDIENCE_ROLES there and
+// in api/_lib/audit-intake.js.
+type AudienceRole = "store_owner" | "media_buyer" | "marketing_manager" | "agency";
+const ROLE_OPTIONS: { id: AudienceRole; label: string }[] = [
+  { id: "store_owner", label: "E-commerce store owner" },
+  { id: "media_buyer", label: "Media buyer" },
+  { id: "marketing_manager", label: "Marketing director / manager" },
+  { id: "agency", label: "Agency / consultant" },
+];
+
 interface FormSnapshot {
   tools: ToolId[];
   website: string;
   email: string;
+  role?: AudienceRole | "";
   stepIndex: number;
   maxStepIndexReached: number;
   detectionResult: { ga4MeasurementIds: string[]; gtmContainerIds: string[] } | null;
@@ -345,6 +357,7 @@ export default function GetFreeAudit() {
     googleAccessConfirmed: false,
     website: "",
     email: "",
+    role: "" as AudienceRole | "",
     // The one selected property/container's full detail — opaque to this
     // component, passed through as-is to the backend. Looked up from
     // ga4Properties/gtmContainers below whenever the visitor picks a
@@ -380,6 +393,7 @@ export default function GetFreeAudit() {
   const [validationErrors, setValidationErrors] = useState({
     website: "",
     email: "",
+    role: "",
   });
   const [stepIndex, setStepIndex] = useState(0);
   const [maxStepIndexReached, setMaxStepIndexReached] = useState(0);
@@ -536,7 +550,7 @@ export default function GetFreeAudit() {
     if (!result || result.type !== "google-oauth-result") return;
 
     if (snapshot) {
-      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email }));
+      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email, role: snapshot!.role ?? "" }));
       if (snapshot.detectionResult) {
         setDetectionResult(snapshot.detectionResult);
         detectedForUrlRef.current = normalizeWebsiteUrl(snapshot.website);
@@ -657,6 +671,7 @@ export default function GetFreeAudit() {
       tools: formData.tools,
       website: formData.website,
       email: formData.email,
+      role: formData.role,
       stepIndex: clampedIndex,
       maxStepIndexReached,
       detectionResult,
@@ -673,7 +688,7 @@ export default function GetFreeAudit() {
     // accessible property, and the crawl-match star is computed client-side
     // once they come back (see the effect above).
     window.location.assign("/api/oauth/google/authorize");
-  }, [formData.tools, formData.website, formData.email, clampedIndex, maxStepIndexReached, detectionResult, t]);
+  }, [formData.tools, formData.website, formData.email, formData.role, clampedIndex, maxStepIndexReached, detectionResult, t]);
 
   const isNextDisabled = () => {
     if (submitAuditMutation.isPending || checkingSite) return true;
@@ -688,7 +703,7 @@ export default function GetFreeAudit() {
         return !formData.googleAccessConfirmed || !ga4Ready || !gtmReady;
       }
       case "website":
-        return !formData.website.trim() || !!websiteError || !formData.email.trim() || !!emailError;
+        return !formData.website.trim() || !!websiteError || !formData.email.trim() || !!emailError || !formData.role;
       default:
         return false;
     }
@@ -717,6 +732,7 @@ export default function GetFreeAudit() {
       // the client never gets to assert it with a flag of its own.
       website: `${isTestSubmission ? TEST_PREFIX : ""}${normalizeWebsiteUrl(formData.website)}`,
       email: `${isTestSubmission ? TEST_PREFIX : ""}${stripTestPrefix(formData.email)}`,
+      role: formData.role || undefined,
     });
   };
 
@@ -741,8 +757,9 @@ export default function GetFreeAudit() {
     if (currentStepKey === "website") {
       const websiteErr = validateRequired(formData.website, "Website") || validateWebsite(formData.website);
       const emailErr = validateRequired(formData.email, "Email") || validateEmail(formData.email);
-      setValidationErrors(prev => ({ ...prev, website: websiteErr, email: emailErr }));
-      if (websiteErr || emailErr || testPrefixInvalid) return;
+      const roleErr = formData.role ? "" : t("Please choose your role");
+      setValidationErrors(prev => ({ ...prev, website: websiteErr, email: emailErr, role: roleErr }));
+      if (websiteErr || emailErr || roleErr || testPrefixInvalid) return;
       setCheckingSite(true);
       const reachable = await runDetection(formData.website);
       setCheckingSite(false);
@@ -955,6 +972,28 @@ export default function GetFreeAudit() {
                   className={`bg-white/10 border-2 ${emailError ? "border-red-500" : "border-[#31da72]/30"} text-white h-9`}
                 />
                 {emailError && <p className="text-red-500 text-sm">{emailError}</p>}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="audit-role" className="text-[13px] text-white/80 font-['Sora:Regular',sans-serif] text-start">
+                  {t("Your role")}
+                </label>
+                <select
+                  id="audit-role"
+                  name="role"
+                  value={formData.role}
+                  onChange={e => {
+                    const value = e.target.value as AudienceRole | "";
+                    setFormData(prev => ({ ...prev, role: value }));
+                    setValidationErrors(prev => ({ ...prev, role: "" }));
+                  }}
+                  className={`bg-white/10 border-2 ${validationErrors.role ? "border-red-500" : "border-[#31da72]/30"} text-white h-9 w-full rounded-md px-2 text-sm`}
+                >
+                  <option value="" disabled className="bg-[#020601]">{t("Choose your role")}</option>
+                  {ROLE_OPTIONS.map(o => (
+                    <option key={o.id} value={o.id} className="bg-[#020601]">{t(o.label)}</option>
+                  ))}
+                </select>
+                {validationErrors.role && <p className="text-red-500 text-sm">{validationErrors.role}</p>}
               </div>
             </div>
           </div>

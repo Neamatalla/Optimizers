@@ -22,6 +22,7 @@
  */
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { sampleFudResult } from "./fud/sample.js";
+import { applyPreviewActions } from "./preview-actions.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildAuditHtmlReport } from "./html-report.js";
@@ -29,6 +30,7 @@ import { captureSiteScreenshots } from "./screenshots.js";
 import { discoverPages } from "./discover-pages.js";
 import { runPageSpeed } from "./pagespeed.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
+import { audienceRoleOf } from "./audience.js";
 import type { AuditResult, CategoryResult } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -383,6 +385,17 @@ async function main() {
     }
   }
 
+  // Action-point checklists by default (the real ga4-facts + scoring code on
+  // a sample GA4 pull); --legacy keeps the pre-rewrite fixtures above, to
+  // check older saved results still render.
+  if (!process.argv.includes("--legacy")) applyPreviewActions(result, mode);
+
+  // --role=media_buyer renders the report layout and copy for that reader
+  // (audience.ts). The fixture findings keep their owner-voice text: only a
+  // real run writes the business voice from the reader brief.
+  const role = audienceRoleOf(process.argv.find(a => a.startsWith("--role="))?.split("=")[1]);
+  if (role) result.audienceRole = role;
+
   // Best-effort, same as the real pipeline (poll.ts/test-run.ts) — exercises
   // the Arabic toggle in the preview using the real translation pass instead
   // of a hand-maintained (and easily stale) Arabic fixture. --no-ar skips it
@@ -395,7 +408,7 @@ async function main() {
   const { html } = await buildAuditHtmlReport(result);
   const outDir = path.join(__dirname, "..", "output");
   await mkdir(outDir, { recursive: true });
-  const outPath = path.join(outDir, `preview-${mode}.html`);
+  const outPath = path.join(outDir, `preview-${mode}${role ? `-${role}` : ""}.html`);
   await writeFile(outPath, html, "utf8");
   console.log(`Wrote ${outPath}`);
 }

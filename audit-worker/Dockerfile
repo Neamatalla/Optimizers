@@ -41,6 +41,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY assets ./assets
+# Reader briefs the audit prompt loads per form role (src/audience.ts).
+COPY icp ./icp
 # logger.ts writes ./logs and run-metrics.ts writes ./output: both go to the
 # volume. entrypoint.sh creates the targets before anything runs.
 RUN ln -s /data/logs /app/logs && ln -s /data/output /app/output
