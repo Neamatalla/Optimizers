@@ -26,11 +26,10 @@
 // nothing acts on the flag; before anything does, the OAuth callback needs to
 // sign what Google actually returned and intake needs to check it.
 //
-// GTM: the free form doesn't request the tagmanager scope today, so no
-// gtmOAuthData arrives and the gtm_* methods can't fire. They read the same
-// container shape api/_lib/google-oauth.js's fetchAllGTMContainers returns
-// (publicId, domainName, discoveredGa4MeasurementIds), so they start working
-// as soon as GTM is reopened, with no change here.
+// GTM: the gtm_* methods read the container shape
+// api/_lib/google-oauth.js's fetchAllGTMContainers returns (publicId,
+// domainName, discoveredGa4MeasurementIds). They only fire when the visitor
+// connected GTM through the OAuth flow.
 
 import { getDomain } from "tldts";
 import { detectTracking } from "./detect-tracking.js";

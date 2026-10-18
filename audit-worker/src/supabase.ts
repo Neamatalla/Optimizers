@@ -398,7 +398,7 @@ export async function recordDigestSent(): Promise<void> {
 // has finished with — the caller checks the status first.
 export async function getRequestById(id: string): Promise<AuditRequestRow | null> {
   const supabase = getClient();
-  // Accept the short id shown in report slugs (first characters of the UUID).
+  // Accept a short id: the first characters of the UUID.
   const query = supabase.from("audit_requests").select("*");
   const { data, error } = id.length >= 32 ? await query.eq("id", id).limit(1) : await query.order("created_at", { ascending: false }).limit(200);
   if (error) throw new Error(`Supabase getRequestById error: ${error.message}`);

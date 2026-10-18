@@ -13,8 +13,8 @@
  *     (no override: just rebuild the report from the saved data with the
  *     current report code, e.g. after a design change)
  *
- * <request-id> is the full id, or the 6 characters at the end of the report
- * slug (e.g. "a1b2c3" from /audit-reports/nour-home-a1b2c3).
+ * <request-id> is the full id, or its first few characters (copy it from
+ * audit_requests in Supabase; report slugs are the domain only, no id).
  *
  * IMPORTANT: republishing rebuilds the report from the saved audit data, so
  * hand edits made through /api/report/edit are overwritten. Do overrides

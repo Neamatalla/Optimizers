@@ -82,12 +82,6 @@ export const AUDIENCE_ROLES = ["store_owner", "media_buyer", "marketing_manager"
 export const ROLE_LABELS = { store_owner: "E-commerce store owner", media_buyer: "Media buyer", marketing_manager: "Marketing director / manager", agency: "Agency / consultant" };
 
 /**
- * The stored audience_role. Missing means null (a form from before the field
- * existed, still cached in someone's browser), so the worker writes the
- * default store-owner report. Anything else that isn't a known role is
- * invalid and the caller answers 400.
- */
-/**
  * Inserts the request row, and if the table has no audience_role column yet
  * (the migration supabase/migrations/2026-10-14-3-add-audience-role.sql not run),
  * retries without it, so a missing migration costs the role, never the
@@ -106,6 +100,12 @@ export async function insertAuditRequest(supabase, record) {
   return supabase.from("audit_requests").insert(rest).select().single();
 }
 
+/**
+ * The stored audience_role. Missing means null (a form from before the field
+ * existed, still cached in someone's browser), so the worker writes the
+ * default store-owner report. Anything else that isn't a known role is
+ * invalid and the caller answers 400.
+ */
 export function parseAudienceRole(value) {
   if (value === undefined || value === null || value === "") return { role: null, invalid: false };
   return AUDIENCE_ROLES.includes(value) ? { role: value, invalid: false } : { role: null, invalid: true };
