@@ -1,6 +1,7 @@
 // Report-edit logic, used by api/report/edit.js. Kept apart from the
 // handler since none of this touches req/res.
 import crypto from "node:crypto";
+import { log } from "./log.js";
 
 // Same slug shape api/audit-report.js already validates against.
 export const REPORT_SLUG_RE = /^[a-zA-Z0-9_-]+$/;
@@ -32,7 +33,7 @@ export async function getReportHtml({ supabase, bucket, slug }) {
     .maybeSingle();
 
   if (lookupError) {
-    console.error("report_pages lookup error:", lookupError);
+    log.error("report_pages lookup error", { error: lookupError });
     return { status: 500, body: { error: "Could not look up report page." } };
   }
   if (!page) {
@@ -41,7 +42,7 @@ export async function getReportHtml({ supabase, bucket, slug }) {
 
   const { data, error: downloadError } = await supabase.storage.from(page.bucket || bucket).download(page.storage_path);
   if (downloadError || !data) {
-    console.error("Supabase report download error:", downloadError);
+    log.error("Supabase report download error", { error: downloadError });
     return { status: 404, body: { error: "Report file not found in storage." } };
   }
 
@@ -65,7 +66,7 @@ export async function updateReportHtml({ supabase, bucket, slug, html }) {
     .maybeSingle();
 
   if (lookupError) {
-    console.error("report_pages lookup error:", lookupError);
+    log.error("report_pages lookup error", { error: lookupError });
     return { status: 500, body: { error: "Could not look up report page." } };
   }
   if (!page) {
@@ -81,7 +82,7 @@ export async function updateReportHtml({ supabase, bucket, slug, html }) {
     });
 
   if (uploadError) {
-    console.error("Supabase report upload error:", uploadError);
+    log.error("Supabase report upload error", { error: uploadError });
     return { status: 500, body: { error: "Could not save report page." } };
   }
 
@@ -95,7 +96,7 @@ export async function updateReportHtml({ supabase, bucket, slug, html }) {
     .eq("id", page.id);
 
   if (updateError) {
-    console.error("report_pages update error (non-fatal, file already saved):", updateError);
+    log.error("report_pages update error (non-fatal, file already saved)", { error: updateError });
   }
 
   return { status: 200, body: { success: true, slug: trimmedSlug } };

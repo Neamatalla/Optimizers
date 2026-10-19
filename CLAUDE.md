@@ -60,6 +60,7 @@ Two animation patterns coexist (documented in `ScrollAnimationRefinement.md`):
   - `audit-report.js` — serves reports at `/audit-reports/:id`
   - `audit-approve.js` — approve link from the internal review email
   - `report/edit.js` — report editing, behind `REPORT_EDIT_API_KEY`
+- **Logging:** JSON lines, read in the Vercel and Railway dashboards (no outside log service). API handlers are wrapped in `withLog` from `api/_lib/log.js` and log with `log.*`. The worker keeps plain `console.*`: `audit-worker/src/logger.ts` formats it, and `log-context.ts` adds the `auditId` of the audit being run. The same `auditId` (`audit_requests.id`) shows up in both dashboards. In production, an API 5xx or crash also emails the reviewer, at most once per route every 15 minutes (`api/_lib/error-alert.js`).
 - `vercel.json` proxies `/blog/*` to WordPress and `/apps/*` to other Vercel apps, and rewrites all other non-API routes to `/index.html` (SPA)
 
 ### Strategy Session Form

@@ -8,6 +8,7 @@
  *   --fresh  discard saved progress and run the whole audit again
  *   --force  also allow rows already awaiting approval, scheduled or done
  */
+import "./logger.js";
 import "dotenv/config";
 import { requeueRequest } from "./supabase.js";
 

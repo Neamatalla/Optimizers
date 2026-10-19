@@ -38,6 +38,7 @@ import { siteChecksFrom } from "./site-checks.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
 import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
+import { runWithLog } from "./log-context.js";
 import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
 
 // Identifies this process in audit_requests.locked_by, so two workers (or a
@@ -97,6 +98,13 @@ function parseLimitResetAt(err: unknown): Date | null {
   return usable.length ? new Date(usable[0]) : null;
 }
 
+// Logs how long one stage of processRequest took. Stages a resumed run skips
+// never start a timer, so they log nothing.
+function stageTimer(stage: string): () => void {
+  const started = Date.now();
+  return () => console.log(`[audit-worker] Stage ${stage} done in ${Math.round((Date.now() - started) / 1000)}s`);
+}
+
 /**
  * Runs one audit request as a sequence of resumable stages. After each stage
  * its output is saved to row.progress, so a retry (after a crash, a lost
@@ -131,6 +139,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
 
   // 1. audit
   if (!progress.categories) {
+    const auditDone = stageTimer("audit");
     const crawl = await crawlWebsite(row.website);
     // Homepage first, then one representative page per commerce-relevant
     // type — the browser checks that need a specific page type pick from
@@ -201,6 +210,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics, ga4Facts, siteChecks });
     await save();
     console.log(`[audit-worker] Saved audit result for ${row.id}`);
+    auditDone();
   }
 
   // 1b. purchase friction (FUD) pass — src/fud/, FUD-PASS-DESIGN.md. Runs
@@ -210,7 +220,8 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   // FUD_PASS=off|test|all. Real FAILs only on test runs or with
   // FUD_ALLOW_FAIL=true; live runs ship them as WARN until the rules are
   // calibrated (rollout phase 2).
-  await runFrictionStage(row, progress, save, undefined, { evidence });
+  const frictionDone = stageTimer("friction");
+  if (await runFrictionStage(row, progress, save, undefined, { evidence })) frictionDone();
 
   const categories = progress.categories!;
   const { earned, possible } = computeOverallPoints(categories);
@@ -239,6 +250,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   // does it ship with the English fallback for what's left — translation
   // never fails an audit that otherwise produced 50 real findings.
   if (!progress.translated) {
+    const translateDone = stageTimer("translate");
     const arabic = await translateFindingsToArabic(result, row.id, { onCategoryDone: save });
     if (arabic.rateLimitError) throw new Error(`Arabic translation hit a limit: ${arabic.rateLimitError}`);
     if (arabic.missing > 0) {
@@ -251,16 +263,20 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     }
     progress.translated = true;
     await save();
+    translateDone();
   }
 
   // 3. publish
   if (!progress.reportUrl) {
+    const publishDone = stageTimer("publish");
     const report = await buildAuditHtmlReport(result);
     const { publicUrl, slug } = await publishAuditReport({ requestId: row.id, html: report.html, businessName: row.business_name, website: row.website, isTest: row.is_test });
     Object.assign(progress, { reportUrl: publicUrl, slug });
     await save();
+    publishDone();
   }
   const reportUrl = progress.reportUrl!;
+  const deliverDone = stageTimer("deliver");
 
   // 4. deliver. Test mode (both fields submitted with a leading "-", see
   // api/_lib/audit-intake.js) skips the review queue entirely: straight to
@@ -273,7 +289,8 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
       await save();
     }
     await markTestRequestSent(row.id, { reportUrl, categoriesAudited });
-    console.log(`[audit-worker] TEST run ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, emailed ${row.email} directly, report: ${reportUrl}`);
+    deliverDone();
+    console.log(`[audit-worker] TEST run ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, emailed the requester directly, report: ${reportUrl}`);
     return;
   }
 
@@ -305,6 +322,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     await save();
   }
   await markRequestAwaitingApproval(row.id, { reportUrl, approvalToken: progress.approvalToken, categoriesAudited });
+  deliverDone();
 
   console.log(`[audit-worker] Awaiting approval ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, report: ${reportUrl}`);
 }
@@ -345,7 +363,11 @@ async function claudeReady(): Promise<boolean> {
 async function tick(): Promise<boolean> {
   const row = await claimNextRequest(WORKER_ID);
   if (!row) return false;
+  // Everything the run logs from here on, however deep, carries row.id.
+  return runWithLog({ auditId: row.id }, () => runClaimed(row));
+}
 
+async function runClaimed(row: AuditRequestRow): Promise<boolean> {
   // Keeps the lease alive through long claude -p runs. A missed beat is only
   // logged: the lease survives several, and saveProgress/ensureLease are what
   // actually stop work if it is lost.
@@ -432,24 +454,28 @@ async function tick(): Promise<boolean> {
 async function processDueSends(): Promise<void> {
   const due = await findDueScheduledRequests();
   for (const row of due) {
-    try {
-      await sendAuditEmail({
-        to: row.email,
-        website: row.website,
-        businessName: row.business_name,
-        reportUrl: row.report_url ?? undefined,
-        categoriesAudited: row.categories_audited ?? [],
-        // From the saved progress, so a reviewer's overrides (fud-override)
-        // made before the send are respected.
-        frictionWins: frictionWinsOf(row.progress?.fud),
-        topActions: topActionsOf(row.progress, audienceRoleOf(row.audience_role)),
-        audienceRole: audienceRoleOf(row.audience_role),
-      });
-      await markSentToClient(row.id);
-      console.log(`[audit-worker] Sent to client ${row.id} (${row.email}), scheduled for ${row.scheduled_send_at}`);
-    } catch (err) {
-      console.error(`[audit-worker] Failed to send due delivery ${row.id}:`, err);
-    }
+    await runWithLog({ auditId: row.id }, () => sendDueDelivery(row));
+  }
+}
+
+async function sendDueDelivery(row: AuditRequestRow): Promise<void> {
+  try {
+    await sendAuditEmail({
+      to: row.email,
+      website: row.website,
+      businessName: row.business_name,
+      reportUrl: row.report_url ?? undefined,
+      categoriesAudited: row.categories_audited ?? [],
+      // From the saved progress, so a reviewer's overrides (fud-override)
+      // made before the send are respected.
+      frictionWins: frictionWinsOf(row.progress?.fud),
+      topActions: topActionsOf(row.progress, audienceRoleOf(row.audience_role)),
+      audienceRole: audienceRoleOf(row.audience_role),
+    });
+    await markSentToClient(row.id);
+    console.log(`[audit-worker] Sent to client ${row.id}, scheduled for ${row.scheduled_send_at}`);
+  } catch (err) {
+    console.error(`[audit-worker] Failed to send due delivery ${row.id}:`, err);
   }
 }
 

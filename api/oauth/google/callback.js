@@ -1,4 +1,5 @@
 import { exchangeCodeForToken, fetchAllGA4Properties, fetchAllGTMContainers, describeOAuthResult, oauthResultHtml } from "../../_lib/google-oauth.js";
+import { log, withLog } from "../../_lib/log.js";
 
 function parseCookies(header) {
   const out = {};
@@ -9,7 +10,7 @@ function parseCookies(header) {
   return out;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
@@ -21,10 +22,9 @@ export default async function handler(req, res) {
 
   const { code, state, error: oauthError } = req.query;
   res.setHeader("Content-Type", "text/html");
-  console.log("[oauth-callback] hit, has code:", Boolean(code), "has error:", Boolean(oauthError));
 
   if (oauthError) {
-    console.log("[oauth-callback] Google denied access:", oauthError);
+    log.warn("Google denied access", { oauthError });
     res.statusCode = 200;
     res.end(oauthResultHtml({ type: "google-oauth-result", error: `Google denied access: ${oauthError}` }));
     return;
@@ -38,7 +38,8 @@ export default async function handler(req, res) {
   const cookies = parseCookies(req.headers.cookie);
   const nonce = String(state || "");
   if (!nonce || nonce !== cookies.g_oauth_state) {
-    console.log("[oauth-callback] state mismatch — nonce:", nonce, "cookie:", cookies.g_oauth_state);
+    // Only whether each side was there: the values are the CSRF secret.
+    log.warn("OAuth state mismatch", { hasState: Boolean(nonce), hasCookie: Boolean(cookies.g_oauth_state) });
     res.statusCode = 200;
     res.end(oauthResultHtml({ type: "google-oauth-result", error: "State mismatch — please try connecting again." }));
     return;
@@ -46,20 +47,16 @@ export default async function handler(req, res) {
 
   try {
     const token = await exchangeCodeForToken({ clientId, clientSecret, redirectUri, code });
-    console.log("[oauth-callback] token exchange OK");
+    log.info("Token exchange OK");
     const [ga4Properties, gtmContainers] = await Promise.all([
       fetchAllGA4Properties(token),
       fetchAllGTMContainers(token),
     ]);
-    console.log(
-      "[oauth-callback] ga4Properties:",
-      Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`
-    );
-    console.log(
-      "[oauth-callback] gtmContainers:",
-      Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`
-    );
-    console.log(describeOAuthResult({ ga4Properties, gtmContainers }));
+    log.info("Fetched Google accounts", {
+      ga4Properties: Array.isArray(ga4Properties) ? `${ga4Properties.length} found` : `ERROR: ${ga4Properties.error}`,
+      gtmContainers: Array.isArray(gtmContainers) ? `${gtmContainers.length} found` : `ERROR: ${gtmContainers.error}`,
+      detail: describeOAuthResult({ ga4Properties, gtmContainers }),
+    });
     res.statusCode = 200;
     // A failed fetch travels as its own field rather than collapsing into an
     // empty list: the form used to render "no accessible GA4 properties" for
@@ -73,8 +70,10 @@ export default async function handler(req, res) {
       gtmError: Array.isArray(gtmContainers) ? undefined : gtmContainers?.error,
     }));
   } catch (err) {
-    console.log("[oauth-callback] FAILED:", err.message || err);
+    log.error("OAuth callback failed", { error: err.message || err });
     res.statusCode = 200;
     res.end(oauthResultHtml({ type: "google-oauth-result", error: err.message || "Connection failed." }));
   }
 }
+
+export default withLog("oauth-callback", handler);

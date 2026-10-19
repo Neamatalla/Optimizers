@@ -20,6 +20,7 @@
  * hand edits made through /api/report/edit are overwritten. Do overrides
  * first, hand edits after.
  */
+import "./logger.js";
 import "dotenv/config";
 import { buildAuditHtmlReport } from "./html-report.js";
 import { applyOverride, isFudResult } from "./fud/index.js";

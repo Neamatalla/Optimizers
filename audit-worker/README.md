@@ -113,7 +113,7 @@ Anything that has to survive a rebuild lives on **one volume at `/data`**
 | Path | What |
 | --- | --- |
 | `/data/home` | `HOME`: the Claude login (`.claude/.credentials.json`), `.claude.json`, history |
-| `/data/logs` | worker daily logs (`/app/logs` links here) |
+| `/data/logs` | worker daily logs, kept 30 days (`/app/logs` links here) |
 | `/data/output` | `run-metrics.jsonl`, previews (`/app/output` links here) |
 | `/data/secrets` | GA4/GTM service-account keys, once those servers are added |
 

@@ -1,4 +1,5 @@
 import { detectTracking, checkStore } from "./_lib/detect-tracking.js";
+import { log, withLog } from "./_lib/log.js";
 
 // Called by the form right after the visitor enters their website URL — see
 // GetFreeAudit.tsx's website step. Best-effort only: this is a UX nicety
@@ -9,7 +10,7 @@ import { detectTracking, checkStore } from "./_lib/detect-tracking.js";
 // Also runs Intellia's e-store check alongside the crawl (checkStore): its
 // verdict decides whether the website step can continue, with the crawl's
 // `reachable` as the fallback only when Intellia is unavailable.
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -34,7 +35,9 @@ export default async function handler(req, res) {
   } catch (err) {
     // Non-fatal from the visitor's point of view — log and return empty
     // candidates rather than an error the form would need to surface.
-    console.error("detect-tracking error:", err?.message || err);
+    log.error("detect-tracking error", { error: err?.message || err });
     return res.status(200).json({ success: false, ga4MeasurementIds: [], gtmContainerIds: [], store: { verdict: "skipped", reason: null, platform: null } });
   }
 }
+
+export default withLog("detect-tracking", handler);

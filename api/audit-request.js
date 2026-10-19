@@ -12,16 +12,9 @@ import {
 } from "./_lib/audit-intake.js";
 import { verifyOwnership } from "./_lib/ownership-verification.js";
 import { escapeHtml } from "./_lib/escape-html.js";
+import { log, setLogContext, withLog } from "./_lib/log.js";
 
-export default async function handler(req, res) {
-  // Logs every outcome (status + error text only, no request data), so a
-  // rejected submission shows up in the Vercel logs instead of vanishing.
-  const originalJson = res.json.bind(res);
-  res.json = body => {
-    console.log(`[audit-request] ${res.statusCode}${body?.error ? ` ${body.error}` : ""}`);
-    return originalJson(body);
-  };
-
+async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -31,7 +24,7 @@ export default async function handler(req, res) {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("SUPABASE_URL / SUPABASE_SECRET_KEY environment variables are not set");
+    log.error("SUPABASE_URL / SUPABASE_SECRET_KEY environment variables are not set");
     return res.status(500).json({ error: "Audit service is not configured." });
   }
 
@@ -107,9 +100,12 @@ export default async function handler(req, res) {
       if (duplicate) {
         return res.status(409).json({ error: duplicateMessage(duplicate), duplicate });
       }
-      console.error("Supabase insert error:", JSON.stringify(insertError));
+      log.error("Supabase insert error", { error: insertError });
       return res.status(500).json({ error: "Could not queue audit request." });
     }
+
+    // The worker logs under the same ID, so one search finds the whole run.
+    setLogContext({ auditId: row.id });
 
     // Internal notification is best-effort — a failure here shouldn't fail the
     // visitor's submission, since the request is already safely queued.
@@ -165,7 +161,7 @@ export default async function handler(req, res) {
           `.trim(),
         });
       } catch (notifyErr) {
-        console.error("Internal notification email failed:", notifyErr);
+        log.error("Internal notification email failed", { error: notifyErr });
       }
     }
 
@@ -176,7 +172,9 @@ export default async function handler(req, res) {
       message: "Audit request received. Check your inbox shortly.",
     });
   } catch (err) {
-    console.error("audit-request serverless function error:", err);
+    log.error("audit-request serverless function error", { error: err });
     return res.status(500).json({ success: false, error: err.message || "An unexpected error occurred." });
   }
 }
+
+export default withLog("audit-request", handler);

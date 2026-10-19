@@ -20,6 +20,7 @@
  *
  * Output: audit-worker/output/preview-<path>.html (gitignored).
  */
+import "./logger.js";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { sampleFudResult } from "./fud/sample.js";
 import { applyPreviewActions } from "./preview-actions.js";

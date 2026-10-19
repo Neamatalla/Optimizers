@@ -1,3 +1,5 @@
+import { log } from "./log.js";
+
 // Ported 1:1 from audit-worker/src/crawl.ts's GA4/GTM extraction — kept in
 // sync deliberately, not re-derived. That version is the one the actual audit
 // pipeline uses to pick a visitor's live GA4 property/GTM container by exact
@@ -83,7 +85,7 @@ const INTELLIA_API_KEY_HEADER = "X-API-Key";
 const STORE_CHECK_TIMEOUT_MS = 12000;
 
 const skipped = why => {
-  console.warn(`[store-check] skipped: ${why}`);
+  log.warn(`Store check skipped: ${why}`);
   return { verdict: "skipped", reason: null, platform: null };
 };
 

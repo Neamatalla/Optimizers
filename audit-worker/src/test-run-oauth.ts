@@ -8,6 +8,7 @@
  *     [--ga4-id=G-XXXXXXX] [--gtm-id=GTM-XXXXXXX] [--business="Some Business"]
  *     [--no-email | --email=you@example.com]
  */
+import "./logger.js";
 import "dotenv/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";

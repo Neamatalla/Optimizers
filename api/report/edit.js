@@ -1,4 +1,5 @@
 import { isAuthorized, getReportHtml, updateReportHtml } from "../_lib/report-edit.js";
+import { log, setLogContext, withLog } from "../_lib/log.js";
 
 // Authenticated by REPORT_EDIT_API_KEY — a credential dedicated to this
 // endpoint, separate from SUPABASE_SECRET_KEY, so report-editing access can
@@ -7,7 +8,7 @@ import { isAuthorized, getReportHtml, updateReportHtml } from "../_lib/report-ed
 // Note: api/audit-report.js serves reports with `s-maxage=3600`, so a PATCH
 // here can take up to an hour to show on the live URL through Vercel's edge
 // cache even though Storage and report_pages update immediately.
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
   const bucket = process.env.AUDIT_REPORTS_BUCKET || "audit-reports";
 
   if (!supabaseUrl || !supabaseSecretKey) {
-    console.error("SUPABASE_URL / SUPABASE_SECRET_KEY environment variables are not set");
+    log.error("SUPABASE_URL / SUPABASE_SECRET_KEY environment variables are not set");
     return res.status(500).json({ error: "Report-edit service is not configured." });
   }
 
@@ -30,12 +31,16 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     const slug = String(req.query?.slug || "").trim();
+    setLogContext({ slug });
     const result = await getReportHtml({ supabase, bucket, slug });
     return res.status(result.status).json(result.body);
   }
 
   // PATCH — full-body replace of one report's stored HTML.
   const { slug, html } = req.body || {};
+  setLogContext({ slug });
   const result = await updateReportHtml({ supabase, bucket, slug, html });
   return res.status(result.status).json(result.body);
 }
+
+export default withLog("report-edit", handler);

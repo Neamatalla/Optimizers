@@ -34,6 +34,7 @@ import { getDomain } from "tldts";
 import { detectTracking } from "./detect-tracking.js";
 import { normalizeHostname } from "./audit-intake.js";
 import { BLOCKED_AUDIT_APEX_ONLY } from "./blocked-domains.js";
+import { log } from "./log.js";
 
 export const VERIFICATION_METHODS = [
   "email_domain",
@@ -129,7 +130,7 @@ export async function verifyOwnership({ email, website, websiteHostname, ga4OAut
     try {
       siteScan = await detectTracking(String(website).trim());
     } catch (err) {
-      console.error("[ownership-verification] site scan failed:", err?.message || err);
+      log.error("Ownership verification site scan failed", { error: err?.message || err });
     }
     if (ga4SiteTagMatches(ga4OAuthData, gtmOAuthData, siteScan, websiteHostname)) passed.add("ga4_site_tag");
     if (gtmSiteTagMatches(gtmOAuthData, siteScan)) passed.add("gtm_site_tag");

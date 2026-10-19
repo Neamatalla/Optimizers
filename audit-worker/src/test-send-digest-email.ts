@@ -8,6 +8,7 @@
  *
  *   npm run test-send-digest-email
  */
+import "./logger.js";
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import { findScheduledDeliveries } from "./supabase.js";

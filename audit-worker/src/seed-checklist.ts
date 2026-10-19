@@ -1,3 +1,4 @@
+import "./logger.js";
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, type ChecklistPoint } from "./checklist.js";

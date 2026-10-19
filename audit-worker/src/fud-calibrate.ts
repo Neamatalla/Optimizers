@@ -18,6 +18,7 @@
  * analytics blocked) — run this on client stores and stores you have
  * permission to test, not on arbitrary sites.
  */
+import "./logger.js";
 import "dotenv/config";
 import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";

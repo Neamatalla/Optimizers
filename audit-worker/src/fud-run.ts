@@ -17,6 +17,7 @@
  * browser session, with analytics hits blocked) — run it on client stores
  * or test stores, not on random sites.
  */
+import "./logger.js";
 import "dotenv/config";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";

@@ -9,6 +9,7 @@
 // email carries (audit-worker/src/email.ts).
 import crypto from "node:crypto";
 import { REPORT_SLUG_RE, isAuthorized } from "./report-edit.js";
+import { log } from "./log.js";
 
 // HMAC of the slug under REPORT_PREVIEW_SECRET, so a preview link needs no
 // stored token, works at every stage, and is separate from approval_token
@@ -49,7 +50,7 @@ export async function getServableReport({ supabase, slug, preview, defaultBucket
     .maybeSingle();
 
   if (lookupError) {
-    console.error("report_pages lookup error:", lookupError);
+    log.error("report_pages lookup error", { error: lookupError });
     // Can't tell whether it's due yet, so don't show it unless signed.
     if (!previewOk) return { status: 500, body: "Could not load audit report." };
   }
@@ -68,7 +69,7 @@ export async function getServableReport({ supabase, slug, preview, defaultBucket
   const { data, error } = await supabase.storage.from(bucket).download(objectPath);
 
   if (error || !data) {
-    console.error("Supabase report download error:", error);
+    log.error("Supabase report download error", { error });
     return { status: 404, body: "Audit report not found." };
   }
 

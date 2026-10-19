@@ -24,6 +24,7 @@
 
 import { parseTestPrefix } from "./test-mode.js";
 import { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
+import { log } from "./log.js";
 
 // Who gets told about a new audit request. This is the audit REVIEWER —
 // the person who later reviews the finished report and clicks the approve
@@ -93,7 +94,7 @@ export async function insertAuditRequest(supabase, record) {
   const text = `${err?.message || ""} ${err?.details || ""}`;
   const roleProblem = err && ["PGRST204", "42703", "23514"].includes(err.code) && text.includes("audience_role");
   if (!roleProblem) return first;
-  console.warn(`[audit-request] audience_role rejected (${err.code}): run the latest supabase/migrations/*audience-role*.sql. Saved without the role.`);
+  log.warn(`audience_role rejected (${err.code}): run the latest supabase/migrations/*audience-role*.sql. Saved without the role.`);
   const { audience_role: _dropped, ...rest } = record;
   return supabase.from("audit_requests").insert(rest).select().single();
 }

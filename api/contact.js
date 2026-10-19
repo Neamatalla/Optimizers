@@ -1,6 +1,7 @@
 import { escapeHtml } from "./_lib/escape-html.js";
+import { log, withLog } from "./_lib/log.js";
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -9,7 +10,7 @@ export default async function handler(req, res) {
   // Check for API key
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.error("RESEND_API_KEY environment variable is not set");
+    log.error("RESEND_API_KEY environment variable is not set");
     return res.status(500).json({ error: "Email service is not configured." });
   }
 
@@ -88,7 +89,7 @@ export default async function handler(req, res) {
     });
 
     if (error) {
-      console.error("Resend API Error:", JSON.stringify(error));
+      log.error("Resend API error", { error });
       return res.status(500).json({ success: false, error: error.message });
     }
 
@@ -98,10 +99,12 @@ export default async function handler(req, res) {
       data,
     });
   } catch (err) {
-    console.error("Serverless function error:", err);
+    log.error("contact serverless function error", { error: err });
     return res.status(500).json({
       success: false,
       error: err.message || "An unexpected error occurred.",
     });
   }
 }
+
+export default withLog("contact", handler);

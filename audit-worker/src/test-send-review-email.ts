@@ -11,6 +11,7 @@
  * PUBLIC_SITE_URL points at localhost — that's what serves both the
  * "View report" link and the "Approve" click target.
  */
+import "./logger.js";
 import "dotenv/config";
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";

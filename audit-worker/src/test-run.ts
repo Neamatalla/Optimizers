@@ -8,6 +8,7 @@
  *     [--tools=GA4,GTM] [--business="Some Business"]
  *     [--ga4-id=G-XXXXXXX] [--gtm-id=GTM-XXXXXXX]
  */
+import "./logger.js";
 import "dotenv/config";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";

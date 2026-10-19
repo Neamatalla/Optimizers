@@ -3,6 +3,7 @@
 // touches req/res.
 import crypto from "node:crypto";
 import { escapeHtml } from "./escape-html.js";
+import { log } from "./log.js";
 
 const APPROVAL_DELAY_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -39,7 +40,7 @@ export async function approveAuditRequest({ supabase, id, token }) {
     .maybeSingle();
 
   if (lookupError) {
-    console.error("audit_requests lookup error:", lookupError);
+    log.error("audit_requests lookup error", { error: lookupError });
     return { status: 500, html: page("Something went wrong", "Could not look up this audit. Try again shortly.") };
   }
   if (!row) {
@@ -75,7 +76,7 @@ export async function approveAuditRequest({ supabase, id, token }) {
     .eq("status", "awaiting_approval"); // guards a double-click race the same way claimNextPendingRequest does
 
   if (updateError) {
-    console.error("audit_requests approve update error:", updateError);
+    log.error("audit_requests approve update error", { error: updateError });
     return { status: 500, html: page("Something went wrong", "Could not record the approval. Try again shortly.") };
   }
 
