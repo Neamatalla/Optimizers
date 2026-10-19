@@ -1,8 +1,6 @@
-// Shared, platform-agnostic "approve this audit for delayed client send"
-// logic. Imported by both api/audit-approve.js (the real Vercel function)
-// and vite.config.ts's dev middleware — same reasoning as report-edit.js and
-// google-oauth.js: none of this touches req/res, so one implementation
-// serves both platforms.
+// "Approve this audit for delayed client send" logic, used by
+// api/audit-approve.js. Kept apart from the handler since none of this
+// touches req/res.
 import crypto from "node:crypto";
 import { escapeHtml } from "./escape-html.js";
 

@@ -416,10 +416,10 @@ export default function GetFreeAudit() {
   const [stepIndex, setStepIndex] = useState(0);
   const [maxStepIndexReached, setMaxStepIndexReached] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  // Only ever set in dev, by the local Supabase-bypass path in vite.config.ts
-  // (see that file's /api/audit-request handler) — the real production path
-  // delivers the report by email only, no reportUrl in the response body.
-  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  // Only ever set in local dev with no Supabase in .env: the audit then runs
+  // on the developer's machine (dev/local-audit.ts) and the response says
+  // where the report will land. Production never sends this.
+  const [localAudit, setLocalAudit] = useState<{ folder: string; log: string } | null>(null);
   // Set from a 409 on submit: this website already used up
   // its one free audit (api/_lib/audit-intake.js). Rendered as a persistent
   // panel rather than only a toast — it's a final answer, not a transient
@@ -452,9 +452,9 @@ export default function GetFreeAudit() {
     },
     onSuccess: (data: any) => {
       setSubmitted(true);
-      if (data?.reportUrl) {
-        toast({ title: "Audit ready!", description: "Your report link is ready below." });
-        setReportUrl(data.reportUrl);
+      if (data?.localAudit) {
+        toast({ title: "Local audit started", description: `The report will be saved in ${data.localAudit.folder}` });
+        setLocalAudit(data.localAudit);
       } else {
         toast({ title: t("Request received!"), description: t("Expect your audit within 2 to 3 business days.") });
       }
@@ -1072,23 +1072,13 @@ export default function GetFreeAudit() {
                 </svg>
               </div>
               <p className="font-['Sora:SemiBold',sans-serif] font-semibold text-[20px] text-white text-center">
-                {reportUrl ? t("Your audit is ready") : t("Thank you! Your audit is on its way")}
+                {localAudit ? "Local audit started" : t("Thank you! Your audit is on its way")}
               </p>
               <p className="font-['Sora:Regular',sans-serif] text-[14px] text-white/60 text-center max-w-[380px]">
-                {reportUrl
-                  ? t("Generated locally for this dev session — production delivers this by email instead.")
+                {localAudit
+                  ? `Dev only (no Supabase in .env). The audit is running on this machine. When it's done, the report is saved in ${localAudit.folder}. Progress: ${localAudit.log}`
                   : t("Every audit is reviewed by an expert on our team before it's sent. Expect yours in your inbox within 2 to 3 business days, and keep an eye on your spam folder too, just in case.")}
               </p>
-              {reportUrl && (
-                <a
-                  href={reportUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-[8px] px-6 py-2.5 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold transition-all"
-                >
-                  {t("View your audit report →")}
-                </a>
-              )}
             </div>
           ) : (
             <>

@@ -96,13 +96,10 @@ const skipped = why => {
  *   "skipped"    Intellia unavailable or not configured: the site is let
  *                through, falling back to detectTracking's `reachable`
  * Never throws.
- *
- * Takes an optional env bag because Vite's dev middleware reads .env through
- * loadEnv() rather than process.env.
  */
-export async function checkStore(url, env) {
-  const endpoint = (env && env.INTELLIA_STORE_CHECK_URL) || process.env.INTELLIA_STORE_CHECK_URL;
-  const apiKey = (env && env.INTELLIA_API_KEY) || process.env.INTELLIA_API_KEY;
+export async function checkStore(url) {
+  const endpoint = process.env.INTELLIA_STORE_CHECK_URL;
+  const apiKey = process.env.INTELLIA_API_KEY;
   if (!endpoint) return skipped("INTELLIA_STORE_CHECK_URL is not set");
 
   let body;

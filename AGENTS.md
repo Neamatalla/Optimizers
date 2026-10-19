@@ -66,7 +66,7 @@ Two animation patterns coexist (documented in `ScrollAnimationRefinement.md`):
 
 ### API
 
-- **Dev:** Custom Vite middleware plugin in `vite.config.ts` handles `POST /api/contact` (has a hardcoded Resend API key fallback)
+- **Dev:** `dev/api-bridge.ts` (a Vite plugin) runs the real `/api` handlers during `npm run dev`. Dev-only extras: fake contact success with no Resend key, a local audit run with no Supabase (`dev/local-audit.ts`: answers right away, the report lands in `audit-worker/output/`), and `/audit-reports/local/<file>.html`
 - **Prod:** Serverless function at `api/contact.js` on Vercel; sends email through Resend API
 - `vercel.json` rewrites all non-API routes to `/index.html` (SPA)
 

@@ -1,7 +1,7 @@
 // Test mode for the "Get a Free Audit" form — dependency-free so the same
 // rule runs in the browser (src/imports/GetFreeAudit.tsx) and on the server
-// (api/audit-request.js, vite.config.ts's dev middleware, via
-// audit-intake.js), same reasoning as blocked-domains.js.
+// (api/audit-request.js, via audit-intake.js), same reasoning as
+// blocked-domains.js.
 //
 // A submission is a test run only when the email AND the website were both
 // typed with a leading "-" AND the email is an @optimizers.agency address —

@@ -1,7 +1,5 @@
-// Shared, platform-agnostic Google OAuth + GA4/GTM data-fetch logic.
-// Imported by both api/oauth/google/*.js (the real Vercel functions) and
-// vite.config.ts's dev middleware — one implementation, not the usual
-// duplicated-per-platform pattern, since none of this touches req/res.
+// Google OAuth + GA4/GTM data-fetch logic, used by api/oauth/google/*.js.
+// Kept apart from the handlers since none of this touches req/res.
 //
 // Underscore-prefixed directory so Vercel's builder doesn't treat this as a
 // route of its own.

@@ -10,6 +10,7 @@ import {
   findExistingAuditRequest,
   insertAuditRequest,
   auditNotifyEmail,
+  validateAuditForm,
 } from "../../api/_lib/audit-intake.js";
 import { fakeSupabase, offlineAndQuiet } from "./helpers.js";
 
@@ -68,15 +69,35 @@ test("duplicateMessage explains the one-audit-per-site rule", () => {
   assert.match(duplicateMessage("unknown"), /already been requested/);
 });
 
-test("auditNotifyEmail prefers the env bag, then process.env, then the default", () => {
+test("auditNotifyEmail uses AUDIT_REVIEWER_EMAIL, then the default", () => {
   const saved = process.env.AUDIT_REVIEWER_EMAIL;
   delete process.env.AUDIT_REVIEWER_EMAIL;
   assert.equal(auditNotifyEmail(), "omar@optimizers.agency");
   process.env.AUDIT_REVIEWER_EMAIL = "env@optimizers.agency";
   assert.equal(auditNotifyEmail(), "env@optimizers.agency");
-  assert.equal(auditNotifyEmail({ AUDIT_REVIEWER_EMAIL: "bag@optimizers.agency" }), "bag@optimizers.agency");
   if (saved === undefined) delete process.env.AUDIT_REVIEWER_EMAIL;
   else process.env.AUDIT_REVIEWER_EMAIL = saved;
+});
+
+test("validateAuditForm passes a good form through with every field", () => {
+  const body = { tools: ["GA4"], website: " https://shop.com ", email: "a@shop.com", role: "agency", ga4MeasurementId: "G-ABC1234", businessName: "Shop", storePlatform: "Shopify", ga4OAuthData: { measurementId: "G-ABC1234" } };
+  assert.deepEqual(validateAuditForm(body), {
+    form: { ...body, isTest: false, website: "https://shop.com", role: "agency", gtmContainerId: undefined },
+  });
+});
+
+test("validateAuditForm strips the test-mode prefix", () => {
+  const { form } = validateAuditForm({ tools: [], website: "-https://shop.com", email: "-omar@optimizers.agency" });
+  assert.equal(form.isTest, true);
+  assert.equal(form.website, "https://shop.com");
+  assert.equal(form.email, "omar@optimizers.agency");
+});
+
+test("validateAuditForm returns the 400 body for a bad form", () => {
+  assert.deepEqual(validateAuditForm({ tools: [], website: "", email: "" }), {
+    invalid: { error: "Website and email are required.", missingFields: ["website", "email"] },
+  });
+  assert.deepEqual(validateAuditForm(undefined), { invalid: { error: "Invalid tools selection." } });
 });
 
 test("findExistingAuditRequest looks up by hostname", async () => {

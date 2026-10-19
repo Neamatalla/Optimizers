@@ -1,7 +1,5 @@
-// Shared, platform-agnostic report-serving logic. Imported by both
-// api/audit-report.js (the real Vercel function) and vite.config.ts's dev
-// middleware — one implementation, not duplicated per platform (same
-// reasoning as report-edit.js).
+// Report-serving logic, used by api/audit-report.js. Kept apart from the
+// handler since none of this touches req/res.
 //
 // A report is uploaded the moment the worker publishes it, days before the
 // client is meant to see it, so serving can't just mean "the file exists".

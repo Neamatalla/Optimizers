@@ -236,8 +236,8 @@ npm run fud-override -- <request-id> A1 hidden "digital product, no shipping"
 
 ## Testing over a tunnel (ngrok or tunnelmole)
 
-The report pages are served by the dev server itself (a dev twin of
-`api/audit-report.js`, since `vercel.json`'s rewrites don't exist locally),
+The report pages are served by the dev server itself (`dev/api-bridge.ts`
+runs `api/audit-report.js` for `/audit-reports/<slug>`, like `vercel.json`'s rewrite),
 so tunnelling the dev server is all it takes to have real, shareable report
 URLs. The generated HTML is fully self-contained — fonts and icons are
 inlined as data URIs — so it renders identically from any origin.

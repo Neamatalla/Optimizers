@@ -49,8 +49,7 @@ describe("detectTracking", () => {
 });
 
 describe("checkStore", () => {
-  useEnv({ INTELLIA_STORE_CHECK_URL: undefined, INTELLIA_API_KEY: undefined });
-  const env = { INTELLIA_STORE_CHECK_URL: "https://intellia.test/check", INTELLIA_API_KEY: "key-1" };
+  useEnv({ INTELLIA_STORE_CHECK_URL: "https://intellia.test/check", INTELLIA_API_KEY: "key-1" });
   const intellia = (body, status = 200) => mockFetch(() => Response.json(body, { status }));
 
   test("sends the site URL with the API key", async () => {
@@ -59,7 +58,7 @@ describe("checkStore", () => {
       sent = { url, init };
       return Response.json({ status: "not_ecommerce" });
     });
-    await checkStore("https://shop.com/", env);
+    await checkStore("https://shop.com/");
     assert.equal(sent.url, "https://intellia.test/check");
     assert.equal(sent.init.method, "POST");
     assert.equal(sent.init.headers["X-API-Key"], "key-1");
@@ -68,45 +67,41 @@ describe("checkStore", () => {
 
   test("an online store comes back as 'store' with its platform", async () => {
     intellia({ status: "ecommerce", platform: " Shopify ", fetch_error: null });
-    assert.deepEqual(await checkStore("https://shop.com", env), { verdict: "store", reason: null, platform: "Shopify" });
+    assert.deepEqual(await checkStore("https://shop.com"), { verdict: "store", reason: null, platform: "Shopify" });
   });
 
   test("a store with no platform name still counts", async () => {
     intellia({ status: "ecommerce", platform: null });
-    assert.deepEqual(await checkStore("https://shop.com", env), { verdict: "store", reason: null, platform: null });
+    assert.deepEqual(await checkStore("https://shop.com"), { verdict: "store", reason: null, platform: null });
   });
 
   test("not a store", async () => {
     intellia({ status: "not_ecommerce", platform: null });
-    assert.deepEqual(await checkStore("https://blog.com", env), { verdict: "not_store", reason: "not_ecommerce", platform: null });
+    assert.deepEqual(await checkStore("https://blog.com"), { verdict: "not_store", reason: "not_ecommerce", platform: null });
   });
 
   test("Intellia couldn't load the site: blocked vs everything else", async () => {
     intellia({ status: "fetch_failed", fetch_error: "blocked" });
-    assert.equal((await checkStore("https://shop.com", env)).reason, "blocked");
+    assert.equal((await checkStore("https://shop.com")).reason, "blocked");
     for (const fetchError of ["timeout", "unreachable", "http_error"]) {
       intellia({ status: "fetch_failed", fetch_error: fetchError });
-      assert.equal((await checkStore("https://shop.com", env)).reason, "unreachable", fetchError);
+      assert.equal((await checkStore("https://shop.com")).reason, "unreachable", fetchError);
     }
   });
 
   test("skipped when Intellia isn't set up, is down, or answers oddly", async () => {
     const skipped = { verdict: "skipped", reason: null, platform: null };
+    delete process.env.INTELLIA_STORE_CHECK_URL;
     assert.deepEqual(await checkStore("https://shop.com"), skipped);
+    process.env.INTELLIA_STORE_CHECK_URL = "https://intellia.test/check";
 
     intellia({ status: "ecommerce" }, 500);
-    assert.deepEqual(await checkStore("https://shop.com", env), skipped);
+    assert.deepEqual(await checkStore("https://shop.com"), skipped);
 
     intellia({ status: "maybe" });
-    assert.deepEqual(await checkStore("https://shop.com", env), skipped);
+    assert.deepEqual(await checkStore("https://shop.com"), skipped);
 
     mockFetch(() => { throw new Error("timeout"); });
-    assert.deepEqual(await checkStore("https://shop.com", env), skipped);
-  });
-
-  test("falls back to process.env when no env bag is passed", async () => {
-    process.env.INTELLIA_STORE_CHECK_URL = "https://intellia.test/check";
-    intellia({ status: "not_ecommerce" });
-    assert.equal((await checkStore("https://shop.com")).verdict, "not_store");
+    assert.deepEqual(await checkStore("https://shop.com"), skipped);
   });
 });

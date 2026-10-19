@@ -1,22 +1,17 @@
 import {
   auditNotifyEmail,
-  parseTestPrefix,
+  validateAuditForm,
   normalizeEmail,
   normalizeHostname,
   cleanStorePlatform,
   findExistingAuditRequest,
   isUniqueViolation,
   duplicateMessage,
-  isBlockedAuditDomain,
-  BLOCKED_DOMAIN_MESSAGE,
-  parseAudienceRole,
   ROLE_LABELS,
   insertAuditRequest,
 } from "./_lib/audit-intake.js";
 import { verifyOwnership } from "./_lib/ownership-verification.js";
 import { escapeHtml } from "./_lib/escape-html.js";
-
-const VALID_TOOLS = new Set(["GA4", "GTM"]);
 
 export default async function handler(req, res) {
   // Logs every outcome (status + error text only, no request data), so a
@@ -41,65 +36,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tools, website: rawWebsite, email: rawEmail, businessName, role: rawRole, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = req.body || {};
-
-    // Strip the test-mode prefix (if any) FIRST, so everything below —
-    // validation, normalization, dedupe, the stored row — works on the real
-    // values. See api/_lib/test-mode.js for what test mode actually changes.
-    // A prefix that doesn't qualify is answered exactly like any other
-    // malformed field, so the response never reveals that test mode exists.
-    const parsed = parseTestPrefix({ email: rawEmail, website: rawWebsite });
-    if (parsed.invalidFields.includes("email")) {
-      return res.status(400).json({ error: "Please enter a valid email address." });
+    const check = validateAuditForm(req.body);
+    if (check.invalid) {
+      return res.status(400).json(check.invalid);
     }
-    if (parsed.invalidFields.includes("website")) {
-      return res.status(400).json({ error: "Please enter a valid website URL." });
-    }
-    const { isTest, email, website } = parsed;
-
-    if (!Array.isArray(tools) || tools.some(tool => !VALID_TOOLS.has(tool))) {
-      return res.status(400).json({ error: "Invalid tools selection." });
-    }
-
-    const { role, invalid: roleInvalid } = parseAudienceRole(rawRole);
-    if (roleInvalid) {
-      return res.status(400).json({ error: "Please choose your role." });
-    }
-
-    const missingFields = [];
-    if (!String(website || "").trim()) missingFields.push("website");
-    if (!String(email || "").trim()) missingFields.push("email");
-    if (missingFields.length > 0) {
-      return res.status(400).json({ error: "Website and email are required.", missingFields });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(String(email).trim())) {
-      return res.status(400).json({ error: "Please enter a valid email address." });
-    }
-
-    try {
-      const websiteUrl = new URL(String(website).trim());
-      if (!websiteUrl.hostname.includes(".")) {
-        return res.status(400).json({ error: "Please enter a valid website URL." });
-      }
-      if (isBlockedAuditDomain(websiteUrl.hostname)) {
-        return res.status(400).json({ error: BLOCKED_DOMAIN_MESSAGE });
-      }
-    } catch {
-      return res.status(400).json({ error: "Please enter a valid website URL." });
-    }
-
-    // Required whenever the corresponding tool is selected — mirrors the
-    // frontend's mandatory (not skippable) GA4/GTM access step.
-    const ga4IdRegex = /^G-[A-Z0-9]{6,}$/i;
-    if (tools.includes("GA4") && !ga4IdRegex.test(String(ga4MeasurementId || "").trim())) {
-      return res.status(400).json({ error: "A valid GA4 measurement ID is required when GA4 is selected." });
-    }
-    const gtmIdRegex = /^GTM-[A-Z0-9]{4,}$/i;
-    if (tools.includes("GTM") && !gtmIdRegex.test(String(gtmContainerId || "").trim())) {
-      return res.status(400).json({ error: "A valid GTM container ID is required when GTM is selected." });
-    }
+    const { isTest, email, website, tools, role, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = check.form;
 
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);

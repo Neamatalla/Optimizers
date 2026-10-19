@@ -1,7 +1,5 @@
-// Shared, platform-agnostic report-edit logic. Imported by both
-// api/report/edit.js (the real Vercel function) and vite.config.ts's dev
-// middleware — one implementation, not duplicated per platform, since none
-// of this touches req/res (same reasoning as google-oauth.js).
+// Report-edit logic, used by api/report/edit.js. Kept apart from the
+// handler since none of this touches req/res.
 import crypto from "node:crypto";
 
 // Same slug shape api/audit-report.js already validates against.

@@ -4,8 +4,7 @@
 // Postgres, see supabase/schema.sql). Nothing acts on it yet: it's a signal
 // on the record, not a gate.
 //
-// Shared by api/audit-request.js and vite.config.ts's dev middleware, same
-// reasoning as audit-intake.js: none of this touches req/res.
+// Used by api/audit-request.js. None of this touches req/res.
 //
 // Each method is recorded on its own, and A/B are kept apart per tool,
 // because they're not equally strong:

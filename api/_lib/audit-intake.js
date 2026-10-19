@@ -1,8 +1,6 @@
-// Shared, platform-agnostic intake rules for the "Get a Free Audit" form —
-// imported by both api/audit-request.js (the real Vercel function) and
-// vite.config.ts's dev middleware, same reasoning as google-oauth.js and
-// report-edit.js: none of this touches req/res, so one implementation
-// serves both platforms.
+// Shared intake rules for the "Get a Free Audit" form — used by
+// api/audit-request.js and by the dev-only local audit run
+// (dev/local-audit.ts). None of this touches req/res.
 //
 // The whole point of this file is the hard one-audit-per-website limit. The
 // audit is expensive (a `claude -p` run with live browser access, then a
@@ -24,6 +22,9 @@
 // written with different normalization than an existing one simply won't
 // collide with it.
 
+import { parseTestPrefix } from "./test-mode.js";
+import { isBlockedAuditDomain, BLOCKED_DOMAIN_MESSAGE } from "./blocked-domains.js";
+
 // Who gets told about a new audit request. This is the audit REVIEWER —
 // the person who later reviews the finished report and clicks the approve
 // link — not the general contact/book-a-meeting inbox (api/contact.js has
@@ -31,11 +32,8 @@
 // the worker uses for the review email (audit-worker/src/poll.ts's
 // REVIEWER_EMAIL), so the "new request" notification and the "report ready
 // for review" email can't drift to different people.
-//
-// Takes an optional env bag because Vite's dev middleware reads .env through
-// loadEnv() rather than process.env.
-export function auditNotifyEmail(env) {
-  return (env && env.AUDIT_REVIEWER_EMAIL) || process.env.AUDIT_REVIEWER_EMAIL || "omar@optimizers.agency";
+export function auditNotifyEmail() {
+  return process.env.AUDIT_REVIEWER_EMAIL || "omar@optimizers.agency";
 }
 
 // Test mode (dash prefix on both fields + an @optimizers.agency email)
@@ -176,4 +174,63 @@ export function duplicateMessage(reason) {
     return "This website has already had its free audit. Each site gets one — get in touch if you'd like us to take another look.";
   }
   return "A free audit has already been requested for this website. Each site gets a single audit — get in touch and we'll help from there.";
+}
+
+const VALID_TOOLS = new Set(["GA4", "GTM"]);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GA4_ID_RE = /^G-[A-Z0-9]{6,}$/i;
+const GTM_ID_RE = /^GTM-[A-Z0-9]{4,}$/i;
+
+/**
+ * Every field check on the audit form's body, in the order the visitor
+ * should hear about them. Returns `{ invalid }`, the 400 body to send back,
+ * or `{ form }`, the submitted values with the test-mode prefix already
+ * stripped (see test-mode.js), so everything after this works on the real
+ * values.
+ *
+ * A prefix that doesn't qualify for test mode is answered exactly like any
+ * other malformed field, so the response never reveals that test mode exists.
+ */
+export function validateAuditForm(body) {
+  const { tools, website: rawWebsite, email: rawEmail, role: rawRole, ga4MeasurementId, gtmContainerId, ...rest } = body || {};
+  const invalid = (error, extra) => ({ invalid: { error, ...extra } });
+
+  const parsed = parseTestPrefix({ email: rawEmail, website: rawWebsite });
+  if (parsed.invalidFields.includes("email")) return invalid("Please enter a valid email address.");
+  if (parsed.invalidFields.includes("website")) return invalid("Please enter a valid website URL.");
+  const { isTest, email, website } = parsed;
+
+  if (!Array.isArray(tools) || tools.some(tool => !VALID_TOOLS.has(tool))) {
+    return invalid("Invalid tools selection.");
+  }
+
+  const { role, invalid: roleInvalid } = parseAudienceRole(rawRole);
+  if (roleInvalid) return invalid("Please choose your role.");
+
+  const missingFields = [];
+  if (!website) missingFields.push("website");
+  if (!email) missingFields.push("email");
+  if (missingFields.length > 0) return invalid("Website and email are required.", { missingFields });
+
+  if (!EMAIL_RE.test(email)) return invalid("Please enter a valid email address.");
+
+  let websiteUrl;
+  try {
+    websiteUrl = new URL(website);
+  } catch {
+    return invalid("Please enter a valid website URL.");
+  }
+  if (!websiteUrl.hostname.includes(".")) return invalid("Please enter a valid website URL.");
+  if (isBlockedAuditDomain(websiteUrl.hostname)) return invalid(BLOCKED_DOMAIN_MESSAGE);
+
+  // Required whenever the corresponding tool is selected — mirrors the
+  // frontend's mandatory (not skippable) GA4/GTM access step.
+  if (tools.includes("GA4") && !GA4_ID_RE.test(String(ga4MeasurementId || "").trim())) {
+    return invalid("A valid GA4 measurement ID is required when GA4 is selected.");
+  }
+  if (tools.includes("GTM") && !GTM_ID_RE.test(String(gtmContainerId || "").trim())) {
+    return invalid("A valid GTM container ID is required when GTM is selected.");
+  }
+
+  return { form: { ...rest, isTest, email, website, tools, role, ga4MeasurementId, gtmContainerId } };
 }
