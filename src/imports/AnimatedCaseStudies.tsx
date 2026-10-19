@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionValueEvent, animate } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionValueEvent, animate } from 'motion/react';
 import { useLanguage } from '../app/contexts/LanguageContext';
 import '../styles/case-studies-animations.css';
 import { MOB_DURATIONS, MOB_EASE } from '../lib/animations';

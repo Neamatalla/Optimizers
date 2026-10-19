@@ -30,7 +30,6 @@ HeaderNav (persistent) → HeaderSection → Services (mobile/desktop variants) 
 ### Key Directories
 
 - `src/app/components/ui/` — shadcn/ui-style primitives built on Radix UI
-- `src/app/components/figma/` — Figma-generated components
 - `src/imports/` — Page sections (hero, case studies, ROI calculator, FAQ, footer, etc.) and SVG components
 - `src/app/contexts/LanguageContext.tsx` — i18n provider (English/Arabic) with RTL support and MutationObserver-based DOM translation
 - `src/app/translations/ar.ts` — Arabic translation dictionary
@@ -66,4 +65,4 @@ Multi-step wizard in `src/imports/StrategySession.tsx` — 5 steps collecting co
 
 ## Styling
 
-Tailwind CSS v4 via `@tailwindcss/vite` plugin (PostCSS config is intentionally empty). Also uses Emotion CSS-in-JS for Material-UI components. Custom CSS variables defined in `src/styles/theme.css`. Many components use inline styles with the Sora font family directly rather than Tailwind classes.
+Tailwind CSS v4 via `@tailwindcss/vite` plugin (PostCSS config is intentionally empty). Custom CSS variables defined in `src/styles/theme.css`. Many components use inline styles with the Sora font family directly rather than Tailwind classes.
