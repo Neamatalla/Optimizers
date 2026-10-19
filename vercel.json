@@ -1,6 +1,8 @@
 {
   "trailingSlash": false,
 
+  "buildCommand": "npm test && npm run build",
+
   "functions": {
     "api/detect-tracking.js": {
       "maxDuration": 20
