@@ -4,6 +4,7 @@
 // google-oauth.js: none of this touches req/res, so one implementation
 // serves both platforms.
 import crypto from "node:crypto";
+import { escapeHtml } from "./escape-html.js";
 
 const APPROVAL_DELAY_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -16,13 +17,6 @@ function tokenMatches(provided, expected) {
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 function page(title, message) {
@@ -54,6 +48,13 @@ export async function approveAuditRequest({ supabase, id, token }) {
     return { status: 404, html: page("Not found", "No audit request matches this link.") };
   }
 
+  // Checked before anything about the row is shown: the pages below name the
+  // client's email and the row's status, which only the reviewer should see.
+  // The token is never cleared, so a reviewer re-clicking still passes.
+  if (!tokenMatches(token, row.approval_token)) {
+    return { status: 401, html: page("Unauthorized", "This approval link is invalid.") };
+  }
+
   if (row.status === "scheduled" || row.status === "done") {
     const due = row.scheduled_send_at ? new Date(row.scheduled_send_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }) : "an earlier approval";
     const detail = row.status === "done"
@@ -64,10 +65,6 @@ export async function approveAuditRequest({ supabase, id, token }) {
 
   if (row.status !== "awaiting_approval") {
     return { status: 409, html: page("Not ready", `This audit is currently "${escapeHtml(row.status)}", not awaiting approval.`) };
-  }
-
-  if (!tokenMatches(token, row.approval_token)) {
-    return { status: 401, html: page("Unauthorized", "This approval link is invalid.") };
   }
 
   const now = new Date();

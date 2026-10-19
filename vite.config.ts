@@ -7,6 +7,7 @@ import { inspect } from 'util'
 import crypto from 'crypto'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { escapeHtml } from './api/_lib/escape-html.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -117,27 +118,27 @@ function apiMiddlewarePlugin() {
                   <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                     <tr style="background-color: #f5f5f5;">
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">First Name</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${firstName}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(firstName)}</td>
                     </tr>
                     <tr>
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Email</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${email}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(email)}</td>
                     </tr>
                     <tr style="background-color: #f5f5f5;">
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Website</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${website}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(website)}</td>
                     </tr>
                     <tr>
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Number Traffic Per Month</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${traffic}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(traffic)}</td>
                     </tr>
                     <tr style="background-color: #f5f5f5;">
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Conversion Volume</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${monthlyConversions}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(monthlyConversions)}</td>
                     </tr>
                     <tr>
                       <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Primary Objective</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${challenge}</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(challenge)}</td>
                     </tr>
                   </table>
                   <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
@@ -498,11 +499,11 @@ function apiMiddlewarePlugin() {
                       <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                         <tr style="background-color: #f5f5f5;">
                           <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Website</td>
-                          <td style="padding: 12px; border: 1px solid #ddd;">${website}</td>
+                          <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(website)}</td>
                         </tr>
                         <tr>
                           <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Email</td>
-                          <td style="padding: 12px; border: 1px solid #ddd;">${email}</td>
+                          <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(email)}</td>
                         </tr>
                         <tr style="background-color: #f5f5f5;">
                           <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Tools selected</td>
@@ -510,7 +511,7 @@ function apiMiddlewarePlugin() {
                         </tr>
                         <tr>
                           <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Business name</td>
-                          <td style="padding: 12px; border: 1px solid #ddd;">${businessName || '—'}</td>
+                          <td style="padding: 12px; border: 1px solid #ddd;">${businessName ? escapeHtml(businessName) : '—'}</td>
                         </tr>
                         <tr style="background-color: #f5f5f5;">
                           <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Role</td>

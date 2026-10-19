@@ -29,8 +29,9 @@ React 18 + TypeScript landing page for Optimizers, a CRO/conversion optimization
 - `npm run preview` — Preview production build on port 4173
 - `npm run share` — ngrok tunnel (tunnels port 5173)
 - `npm run compress-images` — Optimize images via Sharp (`scripts/compress-images.js`)
+- `npm test` — Run the API tests in `tests/api/` (Node's built-in test runner; offline, Supabase/Resend/fetch are faked)
 
-No test framework or linter is configured.
+No linter is configured.
 
 ## Architecture
 
