@@ -1,11 +1,16 @@
+# Optimizers website
 
-  # Create HTML CSS Layout
+Landing page for Optimizers (optimizers.agency), a CRO agency for e-commerce brands in the GCC/MENA region. React 18 + TypeScript, Vite, Tailwind CSS v4. Deployed on Vercel.
 
-  This is a code bundle for Create HTML CSS Layout. The original project is available at https://www.figma.com/design/NMpra6T9eVuAxMQ4q6aQas/Create-HTML-CSS-Layout.
+## Running the code
 
-  ## Running the code
+```
+npm i
+npm run dev     # http://localhost:5173
+npm test        # API tests, offline
+npm run build
+```
 
-  Run `npm i` to install the dependencies.
+Copy `.env.example` to `.env` for the API keys. The dev server runs the real `/api` handlers and works without them (see `dev/api-bridge.ts`).
 
-  Run `npm run dev` to start the development server.
-  
+The audit worker in `audit-worker/` is a separate project with its own README.

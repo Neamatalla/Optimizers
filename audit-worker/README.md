@@ -66,8 +66,8 @@ job finishes.
 **Production:** the Docker image, deployed on Railway with a volume at
 `/data` — see "Running in Docker" below. (The hand-built VPS + systemd setup
 this section used to describe is retired.) Set `PUBLIC_SITE_URL` to the live
-site (`https://optimizers.agency`), not a tunnel, or emailed report links die
-with the tunnel. Run one worker at a time: stop any laptop copy before the
+site (`https://optimizers.agency`), not localhost, or emailed report links
+only open on the worker's machine. Run one worker at a time: stop any laptop copy before the
 container starts polling.
 
 ### How the queue recovers from problems
@@ -233,71 +233,6 @@ npm run fud-override -- <request-id> A1 hidden "digital product, no shipping"
 ```
 
 `<request-id>` is the full id or the 6 characters at the end of the report slug. It saves the correction (keeping the machine's original status), recomputes the score and republishes the report at the same URL. It rebuilds the report from the saved audit data, so do overrides **before** any hand edits through `/api/report/edit`.
-
-## Testing over a tunnel (ngrok or tunnelmole)
-
-The report pages are served by the dev server itself (`dev/api-bridge.ts`
-runs `api/audit-report.js` for `/audit-reports/<slug>`, like `vercel.json`'s rewrite),
-so tunnelling the dev server is all it takes to have real, shareable report
-URLs. The generated HTML is fully self-contained — fonts and icons are
-inlined as data URIs — so it renders identically from any origin.
-
-    npm run dev          # vite on :5173 (the --port flag overrides the config's 4000)
-    npm run share        # ngrok http 5173
-    npm run share:tmole  # tmole 5173 — tunnelmole, also already a dependency
-
-Then switch the two host-dependent values to the tunnel's origin and
-**restart both processes** (each is read at startup):
-
-1. `audit-worker/.env` → `PUBLIC_SITE_URL=https://<sub>.ngrok-free.app`
-   Every emailed report link is built from this (`supabase.ts`'s
-   `publishAuditReport`), and it's persisted into `report_pages.public_url`.
-   Left at localhost, the audit still succeeds and the email still arrives —
-   with a link that only opens on your machine. The worker now prints the
-   link base on startup and warns if it's a localhost address.
-2. `.env` → `GOOGLE_OAUTH_REDIRECT_URI=https://<sub>.ngrok-free.app/api/oauth/google/callback`,
-   **and add that exact URI to the OAuth client in Google Cloud Console.**
-   Skipping this fails twice over: Google rejects the request with
-   `redirect_uri_mismatch`, and even if it didn't, the callback posts its
-   result to the origin derived from this same value — a different origin
-   than the page listening for it, so `GetFreeAudit.tsx`'s origin check
-   drops the message and the popup just closes silently. The dev server logs
-   a HOST MISMATCH warning when a request arrives on a host that doesn't
-   match this value.
-
-Everything else works through either tunnel: `server.allowedHosts` is `true`
-in `vite.config.ts` (Vite otherwise answers "Blocked request" for an unknown
-Host), and both host-dependent values above are read from env rather than
-from the request, so neither tunnel needs special handling.
-
-### ngrok vs tunnelmole
-
-Both work; the differences that actually matter:
-
-- **Forwarded headers.** ngrok sends `x-forwarded-proto: https`; tunnelmole
-  forwards no `x-forwarded-*` headers at all — just a correct `Host`
-  (verified against a header-echo server, not assumed). Only one thing read
-  that header — the dev-only local-report link in the "Supabase not
-  configured" fallback path — and it now treats any non-localhost Host as
-  https rather than defaulting to `http`, so both tunnels produce a correct
-  link.
-- **Interstitial.** ngrok's free tier shows its browser warning page on the
-  first visit to a link. Tunnelmole showed none.
-- **Hostname.** tunnelmole's default hostname embeds your machine's public
-  IP address (`https://<random>-ip-<your-public-ip>.tunnelmole.net`), so any
-  link you share leaks it — worth knowing before sending one to a client.
-  Both services hand out a fresh hostname per session unless you're paying
-  for a reserved one, which means re-doing the two env changes above each
-  time.
-
-Two things to expect rather than debug:
-
-- The report link's host is baked in at publish time: `report_pages.public_url`
-  keeps whatever `PUBLIC_SITE_URL` was set to, so rows from an old tunnel
-  hold dead links.
-- For that reason, run tunnel sessions in **test mode** (dash-prefixed email
-  + website, see above) so those reports land in the test bucket instead of
-  alongside real client ones.
 
 ## How Claude picks the right GA4 property / GTM container
 

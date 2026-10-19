@@ -1,6 +1,6 @@
 // Tees every console.* call to a daily log file, in addition to stdout —
-// so the service running under tmole (no attached terminal to scroll back
-// through) still has a persistent record. Import this FIRST, before any
+// so a worker with no attached terminal to scroll back through still has a
+// persistent record. Import this FIRST, before any
 // other module, so nothing logs before the tee is installed.
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";

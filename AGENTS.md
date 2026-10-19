@@ -24,10 +24,9 @@ React 18 + TypeScript landing page for Optimizers, a CRO/conversion optimization
 
 ## Commands
 
-- `npm run dev` — Start dev server on port 4000
+- `npm run dev` — Start dev server on port 5173
 - `npm run build` — Production build via Vite
 - `npm run preview` — Preview production build on port 4173
-- `npm run share` — ngrok tunnel (tunnels port 5173)
 - `npm run compress-images` — Optimize images via Sharp (`scripts/compress-images.js`)
 - `npm test` — Run the API tests in `tests/api/` (Node's built-in test runner; offline, Supabase/Resend/fetch are faked)
 
@@ -41,17 +40,20 @@ No linter is configured.
 
 ### Section Rendering Order (in App.tsx)
 
-HeaderNav (persistent) → HeaderSection → Services (mobile/desktop variants) → AnimatedHeroSection → Component333 → ProcessWithAnimation → Table → AnimatedCaseStudies (lazy) → Frame2147223150 → ROICalculator (lazy) → PartnersAndTools (lazy) → StrategySession (`#contact`) → MeetTheTeam (lazy, `#team`) → FAQSection (lazy) → GallerySection (lazy) → Footer
+HeaderNav (persistent) → HeaderSection → Services (mobile/desktop variants) → AnimatedHeroSection → Component333 → ProcessWithAnimation → Table → AnimatedCaseStudies (lazy) → Frame2147223150 → ROICalculator (lazy) → PartnersAndTools (lazy) → StrategySession (`#contact`) → MeetTheTeam (lazy, `#team`) → GetFreeAudit (lazy) → FAQSection (lazy) → GallerySection (lazy) → Footer
 
 ### Key Directories
 
-- `src/app/components/ui/` — shadcn/ui-style primitives built on Radix UI
+- `src/app/components/ui/` — the few shadcn/ui primitives in use (button, input, accordion, sonner)
 - `src/imports/` — Page sections (hero, case studies, ROI calculator, FAQ, footer, etc.) and SVG components
 - `src/app/contexts/LanguageContext.tsx` — i18n provider (English/Arabic) with RTL support and MutationObserver-based DOM translation
 - `src/app/translations/ar.ts` — Arabic translation dictionary
+- `api/` — Vercel serverless functions; shared code in `api/_lib/`, tests in `tests/api/`
+- `supabase/` — database schema and migrations for the audit system
+- `audit-worker/` — separate worker that runs the free audits (Docker on Railway, not deployed to Vercel); see its README
 - `src/hooks/` — Custom hooks (`useScrollReveal`, `use-toast`)
-- `src/lib/queryClient.ts` — API request utility with TanStack React Query
-- `src/styles/` — CSS files: `theme.css` (variables), `rtl.css`, `scroll-reveal.css`, `responsive.css`, `services.css`, `case-studies-animations.css`, `top-clients-scroll.css`, `fonts.css`
+- `src/lib/` — `queryClient.ts` (API request utility with TanStack React Query), `animations.ts`, `scrollToSection.ts`
+- `src/styles/` — CSS files: `index.css`, `tailwind.css`, `theme.css` (variables), `rtl.css`, `scroll-reveal.css`, `responsive.css`, `services.css`, `case-studies-animations.css`, `top-clients-scroll.css`, `fonts.css`
 
 ### i18n System
 
@@ -66,8 +68,15 @@ Two animation patterns coexist (documented in `ScrollAnimationRefinement.md`):
 ### API
 
 - **Dev:** `dev/api-bridge.ts` (a Vite plugin) runs the real `/api` handlers during `npm run dev`. Dev-only extras: fake contact success with no Resend key, a local audit run with no Supabase (`dev/local-audit.ts`: answers right away, the report lands in `audit-worker/output/`), and `/audit-reports/local/<file>.html`
-- **Prod:** Serverless function at `api/contact.js` on Vercel; sends email through Resend API
-- `vercel.json` rewrites all non-API routes to `/index.html` (SPA)
+- **Prod:** Vercel serverless functions in `api/`:
+  - `contact.js` — Strategy Session form, sends email through Resend
+  - `audit-request.js` — Get a Free Audit form, queues the request in Supabase
+  - `detect-tracking.js` — finds a site's GA4/GTM IDs to prefill the audit form
+  - `oauth/google/authorize.js`, `callback.js` — Google OAuth for GA4/GTM access
+  - `audit-report.js` — serves reports at `/audit-reports/:id`
+  - `audit-approve.js` — approve link from the internal review email
+  - `report/edit.js` — report editing, behind `REPORT_EDIT_API_KEY`
+- `vercel.json` proxies `/blog/*` to WordPress and `/apps/*` to other Vercel apps, and rewrites all other non-API routes to `/index.html` (SPA)
 
 ### Strategy Session Form
 
@@ -75,9 +84,9 @@ Multi-step wizard in `src/imports/StrategySession.tsx` — 5 steps collecting co
 
 ### Performance Patterns
 
-- Lazy loading with `React.lazy` + `Suspense` for below-fold sections (ROI calculator, team, case studies, gallery, FAQ, partners)
+- Lazy loading with `React.lazy` + `Suspense` for below-fold sections (ROI calculator, team, case studies, free audit, gallery, FAQ, partners)
 - `content-visibility: auto` on heavy sections
-- WebP images with fallbacks
+- WebP images
 
 ## Styling
 
