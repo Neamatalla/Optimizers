@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import { Resend } from "resend";
-import type { CategoryKey, CategoryResult, FindingAction, FudResult, Opportunity } from "./types.js";
-import { OPPORTUNITY_LABEL } from "./actions.js";
+import type { ActionOwner, CategoryKey, CategoryResult, FindingAction, FudResult, Ga4Facts, Opportunity } from "./types.js";
+import { OPPORTUNITY_LABEL, OWNER_LABEL } from "./actions.js";
 import { formatMoney } from "./fud/insights.js";
-import { mediaBuyerRank, roleSeverity, type AudienceRole } from "./audience.js";
+import { mediaBuyerLane, mediaBuyerRank, roleSeverity, type AudienceRole, type MediaBuyerLane } from "./audience.js";
+import { AD_EFFECT_CHIP, adEffectOf, type AdEffect } from "./ad-impact.js";
 
 // Human phrase per category, in a fixed display order — GA4/GTM first when
 // present since they're the higher-intent "we connected your tools" story,
@@ -73,37 +74,100 @@ export interface TopAction {
   type: string;
   step: string;
   money: string | null;
+  // Filled for the store owner and media buyer (their emails and talk track
+  // repeat the report's opening, html-report.ts ownerHeroHtml/buyerHeroHtml).
+  checklistId?: string;
+  summary?: string;
+  owners?: ActionOwner[];
+  doneWhen?: string;
+  severity?: string;
+  lane?: MediaBuyerLane;
+  effect?: AdEffect | null;
+  // "SAR 1,000–SAR 2,000" (no "a month") and the GA4 window behind it.
+  moneyRange?: string;
+  periodDays?: number;
 }
 
 const SEV: Record<string, number> = { critical: 0, medium: 1, low: 2 };
 const TYPE_RANK: Record<string, number> = { revenue_loss: 0, revenue_gain: 1, risk: 2, benefit: 3 };
 
+type SavedResult = {
+  categories?: CategoryResult[];
+  fud?: FudResult | { error: string } | null;
+  ga4Facts?: Ga4Facts | null;
+  ga4Metrics?: { periodDays?: number } | null;
+};
+
+// Same as html-report.ts's dedupeFunnel: when GA4-01 already names the worst
+// funnel step, the point for that step says it again, so it's dropped.
+const STEP_POINT: Record<string, string> = {
+  "view_item>add_to_cart": "GA4-02",
+  "add_to_cart>begin_checkout": "GA4-03",
+  "begin_checkout>purchase": "GA4-04",
+};
+
+/**
+ * The store owner's and media buyer's rows, in the order their report opens
+ * with (html-report.ts ownerHeroHtml / buyerHeroHtml): every failed check,
+ * Conversion review rows excluded. Owner: money first, then severity, top 3.
+ * Media buyer: all of them by lane rank (mediaBuyerRank on the checklist
+ * severity), so the email can split them into its two questions and read the
+ * ROAS verdict across every failed point.
+ */
+function personaActionsOf(saved: SavedResult, role: "store_owner" | "media_buyer"): TopAction[] {
+  type Row = { f: CategoryResult["findings"][number] };
+  let rows: Row[] = (saved.categories ?? []).flatMap(cat => cat.findings.filter(f => f.status === "fail").map(f => ({ f })));
+  if (role === "store_owner") rows.sort((a, b) => (b.f.action?.money?.high ?? 0) - (a.f.action?.money?.high ?? 0) || SEV[a.f.severity] - SEV[b.f.severity]);
+  else rows.sort((a, b) => mediaBuyerRank(a.f.checklistId, SEV[a.f.severity]) - mediaBuyerRank(b.f.checklistId, SEV[b.f.severity]));
+  const step = saved.ga4Facts?.focus?.step;
+  const repeat = step ? STEP_POINT[`${step.from}>${step.to}`] : undefined;
+  if (repeat && rows.some(r => r.f.checklistId === "GA4-01")) rows = rows.filter(r => r.f.checklistId !== repeat);
+  if (role === "store_owner") rows = rows.slice(0, 3);
+  const periodDays = saved.ga4Facts?.periodDays ?? saved.ga4Metrics?.periodDays ?? 28;
+  return rows.map(({ f }) => {
+    const m = f.action?.money ?? null;
+    const range = m ? `${formatMoney(m.low, m.currency)}–${formatMoney(m.high, m.currency)}` : null;
+    return {
+      type: f.opportunity ? OPPORTUNITY_LABEL[f.opportunity].en : "",
+      step: f.action?.step ?? "",
+      money: range ? `${range} a month` : null,
+      checklistId: f.checklistId,
+      summary: f.business.summary,
+      owners: f.action?.owners ?? [],
+      doneWhen: f.action?.doneWhen ?? "",
+      severity: f.severity,
+      lane: mediaBuyerLane(f.checklistId),
+      effect: adEffectOf(f.checklistId),
+      ...(range ? { moneyRange: range, periodDays } : {}),
+    };
+  });
+}
+
 /**
  * The three actions to lead the client email with: GA4 points with a money
  * range first (biggest first), then the most serious failed checks (money
  * types before risk and benefit), then Conversion review quick wins.
- * For a media buyer, tracking (signal) and post-click points lead instead
- * (audience.ts's mediaBuyerRank), money breaking ties.
+ * For a store owner or media buyer the rows follow their report's opening
+ * instead (personaActionsOf); the media buyer gets every failed point.
  */
-export function topActionsOf(saved: { categories?: CategoryResult[]; fud?: FudResult | { error: string } | null } | null | undefined, role?: AudienceRole | null): TopAction[] {
+export function topActionsOf(saved: SavedResult | null | undefined, role?: AudienceRole | null): TopAction[] {
   if (!saved) return [];
+  if (role === "store_owner" || role === "media_buyer") return personaActionsOf(saved, role);
   const rows: Array<{ type: Opportunity; step: string; money: FindingAction["money"]; rank: number }> = [];
   for (const cat of saved.categories ?? []) {
     for (const f of cat.findings) {
       if (f.status !== "fail" || !f.action || !f.opportunity) continue;
-      // The reader's own severity (audience.ts), then the media buyer's lanes.
-      const base = SEV[roleSeverity(role, f.checklistId, f.severity)];
-      const sev = role === "media_buyer" ? mediaBuyerRank(f.checklistId, base) : base;
+      // The reader's own severity (audience.ts).
+      const sev = SEV[roleSeverity(role, f.checklistId, f.severity)];
       rows.push({ type: f.opportunity, step: f.action.step, money: f.action.money ?? null, rank: sev * 10 + TYPE_RANK[f.opportunity] });
     }
   }
   const fud = saved.fud && "findings" in saved.fud ? saved.fud : null;
   for (const f of fud?.findings ?? []) {
     if (f.override?.to === "hidden" || (f.status !== "fail" && f.status !== "warn") || f.band !== "quick_win" || !f.action || !f.opportunity) continue;
-    rows.push({ type: f.opportunity, step: f.action.step, money: null, rank: (role === "media_buyer" ? 15 : 5) + (f.focus ? -3 : 0) });
+    rows.push({ type: f.opportunity, step: f.action.step, money: null, rank: 5 + (f.focus ? -3 : 0) });
   }
-  if (role === "media_buyer") rows.sort((a, b) => a.rank - b.rank || (b.money?.high ?? 0) - (a.money?.high ?? 0));
-  else rows.sort((a, b) => (b.money?.high ?? 0) - (a.money?.high ?? 0) || a.rank - b.rank);
+  rows.sort((a, b) => (b.money?.high ?? 0) - (a.money?.high ?? 0) || a.rank - b.rank);
   return rows.slice(0, 3).map(r => ({
     type: OPPORTUNITY_LABEL[r.type].en,
     step: r.step,
@@ -113,37 +177,12 @@ export function topActionsOf(saved: { categories?: CategoryResult[]; fud?: FudRe
 
 // ---- client email copy per reader (audience.ts, the ICP cards) ----
 // No role keeps the original store-owner copy. Values are already escaped.
+// The store owner and media buyer have their own builders (ownerBody, buyerBody).
 interface EmailCopy { subject: string; intro: string[]; next: string[]; button: string }
 
 function emailCopy(role: AudienceRole | null | undefined, c: { website: string; coverage: string; businessName: string | null; hasLink: boolean }): EmailCopy {
   const site = c.website;
   switch (role) {
-    case "store_owner":
-      return {
-        subject: `${c.businessName ? `${c.businessName}: ` : ""}what's costing ${site} sales`,
-        intro: [
-          `Thank you for trusting us with a look at ${site}. We went through your ${c.coverage} and found what is costing you sales, what is already working, and which fixes you can make yourself in your store admin.`,
-          `The report starts with your biggest leak, with the money it costs from your own data. Each point says what to change and where, and whether you need a developer for it.`,
-        ],
-        next: [
-          "Most of what we found can be fixed, and the biggest wins often take days, not months. If you would rather we did it for you, that is what we do: for over 8 years we have helped e-commerce brands sell more to the visitors they already have, and if we don't improve your conversions, you don't pay.",
-          "Book a free call and we will go through your results and the quickest wins together. No pressure.",
-        ],
-        button: "Book my free call",
-      };
-    case "media_buyer":
-      return {
-        subject: `Your audit for ${site} is ready: tracking and post-click leaks`,
-        intro: [
-          `Thanks for sending us ${site}. We went through its ${c.coverage} from a media buyer's side: whether the ad platforms and GA4 see every sale once and with the right value, and where paid traffic drops after the click.`,
-          "Each point says what it does to ROAS or CAC, who has to fix it and how to check it's done, so you can forward it straight to the store owner or developer. Turn on Technical details for the exact events and tags.",
-        ],
-        next: [
-          "Campaigns can only be as good as the data they learn from and the page the click lands on. Those two are what we fix: tracking the algorithm can trust, and a store that converts more of the clicks you already pay for. For over 8 years we have done this for e-commerce brands, and if we don't improve conversions, you don't pay.",
-          "Book a free call and we will go through the tracking and funnel findings with you and show which fixes move ROAS fastest. You keep the account; we handle the site side.",
-        ],
-        button: "Book my free call",
-      };
     case "marketing_manager":
       return {
         subject: `Your audit for ${site} is ready: priorities for your team`,
@@ -194,37 +233,162 @@ export function frictionWinsOf(fud: FudResult | { error: string } | null | undef
     .map(f => f.business.summary);
 }
 
-export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not set - see audit-worker/.env.example");
-  }
-  if (!opts.reportUrl && !opts.attachment) {
-    throw new Error("sendAuditEmail needs either a reportUrl or an attachment");
-  }
+// ---- store owner and media buyer: the email repeats the report's opening ----
+// psych-map.md #52 (the email promises exactly what the report opens with),
+// #37 (links name their destination), #45 (two equal paths). Money only
+// from GA4 and always with its source; ROAS/CAC as directions, never numbers.
 
+const P = "color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px;";
+const LI = "margin-bottom: 12px;";
+const META = "color: #4d5a4f; font-size: 14px;";
+
+// Two buttons of the same weight, side by side (#45 equal dignity).
+function equalButtons(links: Array<{ href: string; label: string }>): string {
+  const b = (href: string, label: string) =>
+    `<a href="${href}" style="display: inline-block; background: #263328; color: #ffffff; font-weight: bold; font-size: 15px; text-decoration: none; padding: 14px 24px; border-radius: 999px; margin: 0 8px 8px 0;">${label}</a>`;
+  return `<p style="margin: 24px 0 28px;">${links.map(l => b(l.href, l.label)).join("")}</p>`;
+}
+
+function ownerWho(a: TopAction): string {
+  return a.owners?.length && !a.owners.includes("dev") ? "You, in your store admin" : "Your developer";
+}
+
+function buyerWho(a: TopAction): string {
+  return a.owners?.length ? a.owners.map(o => OWNER_LABEL[o].en).join(" + ") : "";
+}
+
+/** "Now: reported ROAS ↑ too high (est.)" — the direction only, as the report's chip. */
+function adDirection(effect: AdEffect | null | undefined): string {
+  if (!effect) return "";
+  const chip = AD_EFFECT_CHIP[effect];
+  return `${chip.en} ${chip.metrics} (est.)`;
+}
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+export interface BuyerVerdict { subject: string; line: string; lead: string; clean: boolean }
+
+/** The buyer report's h1 (html-report.ts buyerHeroHtml), and the subject that promises it. */
+export function buyerVerdictOf(actions: TopAction[], site: string): BuyerVerdict {
+  const signal = actions.filter(a => a.lane === "signal");
+  const postClick = actions.filter(a => a.lane === "post_click");
+  const up = actions.some(a => a.effect === "inflated");
+  const down = actions.some(a => a.effect === "deflated");
+  const both = "tracking and post-click findings";
+  const lead = postClick.length && (up || down || signal.length)
+    ? `After the click: ${postClick[0].summary ?? ""}`
+    : signal.length ? signal[0].summary ?? ""
+    : postClick.length ? postClick[0].summary ?? ""
+    : "Nothing on the site or in the tracking explains weak results. The problem, if there is one, is in the account.";
+  if (up && down) return { subject: `${site}: reported ROAS is likely off in both directions — ${both}`, line: "Reported ROAS is off in both directions", lead, clean: false };
+  if (up) return { subject: `${site}: reported ROAS likely reads high — ${both}`, line: "Reported ROAS likely reads higher than real", lead, clean: false };
+  if (down) return { subject: `${site}: reported ROAS likely reads low — ${both}`, line: "Reported ROAS likely reads lower than real", lead, clean: false };
+  if (signal.length) return { subject: `${site}: the ad platforms get a weak signal — ${both}`, line: "The ad platforms get a weak signal from this store", lead, clean: false };
+  if (postClick.length) return { subject: `${site}: tracking is clean, the leak is after the click`, line: "Tracking is clean. The leak is after the click.", lead, clean: false };
+  return { subject: `${site}: tracking and site passed`, line: "Tracking and the site passed: look at targeting and creative", lead, clean: true };
+}
+
+interface PersonaBody { subject: string; h1: string; body: string }
+
+function ownerBody(top: TopAction[], c: { site: string; reportUrl?: string; bookUrl: string }): PersonaBody {
+  const fixes = top.slice(0, 3);
+  const big = fixes.find(a => a.moneyRange);
+  const subject = big
+    ? `${c.site}: about ${big.moneyRange} a month at one step, and ${plural(fixes.length, "fix", "fixes")}`
+    : fixes.length ? `${c.site}: ${plural(fixes.length, "fix that costs", "fixes that cost")} you sales`
+    : `${c.site}: passed all checks`;
+  const parts: string[] = [];
+  if (big) {
+    parts.push(`<p style="${P}"><b style="color: #263328;">About ${escapeHtml(big.moneyRange!)} a month in sales is at stake at one step of your store.</b><br /><span style="${META}">Source: your own Google Analytics, last ${big.periodDays} days. An estimate of what's at stake, not a promise.</span></p>`);
+  }
+  if (fixes.length) {
+    parts.push(`<p style="${P}">Your report starts with ${fixes.length === 1 ? "this fix" : `these ${fixes.length} fixes`}:</p>
+        <ol style="color: #2b332c; font-size: 15px; line-height: 1.6; margin: 0 0 16px; padding-left: 20px;">
+          ${fixes.map(a => `<li style="${LI}"><b style="color: #263328;">${escapeHtml(a.summary ?? a.step)}</b>${a.money ? ` <span style="${META}">· about ${escapeHtml(a.money)}</span>` : ""}<br /><span style="${META}"><b>Who:</b> ${ownerWho(a)}${a.doneWhen ? `. <b>Done when:</b> ${escapeHtml(a.doneWhen.trim().replace(/[.]+$/, ""))}.` : "."}</span></li>`).join("")}
+        </ol>`);
+    parts.push(`<p style="${P}">Fix them yourself with the report, or let us do the developer fixes for you. Either way works.</p>`);
+  } else {
+    parts.push(`<p style="${P}">Your store passed all the checks in this audit. The report lists what's working, so you can keep it as it is.</p>`);
+  }
+  parts.push(equalButtons([...(c.reportUrl ? [{ href: c.reportUrl, label: "Open your report" }] : []), { href: c.bookUrl, label: "Book a free call" }]));
+  if (!c.reportUrl) parts.push(`<p style="${P}">Your full report is attached to this email.</p>`);
+  return { subject, h1: "Your audit is ready", body: parts.join("\n        ") };
+}
+
+function buyerBody(all: TopAction[], c: { site: string; reportUrl?: string; bookUrl: string }): PersonaBody {
+  const verdict = buyerVerdictOf(all, c.site);
+  const lane = (title: string, list: TopAction[], empty: string) => `
+        <h2 style="color: #263328; font-size: 17px; margin: 18px 0 8px;">${title}</h2>
+        ${list.length ? `<ol style="color: #2b332c; font-size: 15px; line-height: 1.6; margin: 0 0 12px; padding-left: 20px;">
+          ${list.slice(0, 2).map(a => {
+            const dir = adDirection(a.effect);
+            const who = buyerWho(a);
+            const meta = [dir, who ? `<b>Who fixes it:</b> ${escapeHtml(who)}` : ""].filter(Boolean).join(" · ");
+            return `<li style="${LI}"><b style="color: #263328;">${escapeHtml(a.summary ?? a.step)}</b>${meta ? `<br /><span style="${META}">${meta}</span>` : ""}</li>`;
+          }).join("")}
+        </ol>` : `<p style="${P}">${empty}</p>`}`;
+  const parts: string[] = [
+    `<p style="${P}"><b style="color: #263328; font-size: 17px;">${escapeHtml(verdict.line)}</b><br />${escapeHtml(verdict.lead)}</p>`,
+  ];
+  parts.push(lane("Is the number real?", all.filter(a => a.lane === "signal"), "No tracking problem found: each sale reaches GA4 and the pixels once."));
+  parts.push(lane("Does paid traffic convert?", all.filter(a => a.lane === "post_click"), "No post-click leak found in the steps we could measure."));
+  parts.push(`<p style="${META} line-height: 1.6; margin: 0 0 16px;">ROAS and CAC effects are directions, never numbers: this audit doesn't see your ad accounts.</p>`);
+  const handover = c.reportUrl && all.some(a => a.step);
+  const links = c.reportUrl ? [{ href: c.reportUrl, label: "Open your report" }] : [];
+  if (handover) links.push({ href: `${c.reportUrl}#handover`, label: "Forward the owner summary" });
+  else links.push({ href: c.bookUrl, label: "Book a free call" });
+  parts.push(equalButtons(links));
+  if (!c.reportUrl) parts.push(`<p style="${P}">Your full report is attached to this email.</p>`);
+  if (handover) parts.push(`<p style="${P}">You keep the account. If you want the site side fixed, we do that, so your campaigns are judged on real numbers. <a href="${c.bookUrl}" style="color: #263328;">Book a free call</a> if that helps.</p>`);
+  return { subject: verdict.subject, h1: "Your tracking and site audit is ready", body: parts.join("\n        ") };
+}
+
+/** Subject and HTML of the client email, without sending it. */
+export function buildAuditEmail(opts: Omit<SendAuditEmailOptions, "to">): { subject: string; html: string } {
   const siteUrl = (process.env.PUBLIC_SITE_URL || "https://optimizers.agency").replace(/\/$/, "");
   const bookUrl = `${siteUrl}/#contact`;
   const name = opts.businessName ? escapeHtml(opts.businessName) : null;
   const website = escapeHtml(opts.website.replace(/^https?:\/\//, "").replace(/\/$/, ""));
+  const testBanner = opts.isTest ? `<p style="background: #fff4e0; border: 1px solid #f2b75e; border-radius: 8px; color: #7a4b00; font-size: 13px; line-height: 1.6; padding: 10px 14px; margin: 0 0 18px;">
+          <b>Test run.</b> Submitted in test mode, so this skipped the internal review step and came straight here. The report itself is stored in the test bucket, not alongside real client reports.
+        </p>` : "";
+  const footer = `<p style="color: #7a857b; font-size: 12px; line-height: 1.6; margin-top: 28px; padding-top: 18px; border-top: 1px solid #e2e6e2;">
+          You are receiving this because you requested a free audit at <a href="${siteUrl}" style="color: #7a857b;">optimizers.agency</a>.
+        </p>`;
+
+  if (opts.audienceRole === "store_owner" || opts.audienceRole === "media_buyer") {
+    const c = { site: website, reportUrl: opts.reportUrl, bookUrl };
+    const persona = opts.audienceRole === "store_owner" ? ownerBody(opts.topActions ?? [], c) : buyerBody(opts.topActions ?? [], c);
+    return {
+      subject: `${opts.isTest ? "[TEST] " : ""}${persona.subject}`,
+      html: `
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 8px 4px;">
+        ${testBanner}
+        <h1 style="color: #263328; font-size: 24px; line-height: 1.3; margin: 0 0 20px;">${persona.h1}${name ? `, ${name}` : ""}</h1>
+        <p style="${P}">${name ? `Hi ${name} team,` : "Hi there,"}</p>
+        ${persona.body}
+        <p style="${P}">Talk soon,<br /><b>The Optimizers team</b></p>
+        ${footer}
+      </div>
+    `.trim(),
+    };
+  }
+
   const coverage = coverageSentence(opts.categoriesAudited) || "website";
   const top = (opts.topActions ?? []).slice(0, 3);
   const copy = emailCopy(opts.audienceRole, { website, coverage, businessName: opts.businessName, hasLink: Boolean(opts.reportUrl) });
   const wins = top.length ? [] : (opts.frictionWins ?? []).slice(0, 2);
-  const p = "color: #2b332c; font-size: 15px; line-height: 1.7; margin: 0 0 16px;";
+  const p = P;
   const button = (href: string, label: string, primary: boolean) =>
     `<a href="${href}" style="display: inline-block; background: ${primary ? "#263328" : "#6ae499"}; color: ${primary ? "#ffffff" : "#0e1a10"}; font-weight: bold; font-size: 15px; text-decoration: none; padding: 14px 24px; border-radius: 999px;">${label}</a>`;
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from: "Optimizers <hello@optimizers.agency>",
-    to: [opts.to],
+  return {
     subject: `${opts.isTest ? "[TEST] " : ""}${copy.subject}`,
     html: `
       <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 8px 4px;">
-        ${opts.isTest ? `<p style="background: #fff4e0; border: 1px solid #f2b75e; border-radius: 8px; color: #7a4b00; font-size: 13px; line-height: 1.6; padding: 10px 14px; margin: 0 0 18px;">
-          <b>Test run.</b> Submitted in test mode, so this skipped the internal review step and came straight here. The report itself is stored in the test bucket, not alongside real client reports.
-        </p>` : ""}
+        ${testBanner}
         <h1 style="color: #263328; font-size: 24px; line-height: 1.3; margin: 0 0 20px;">Your audit is ready${name ? `, ${name}` : ""}!</h1>
         <p style="${p}">${name ? `Hi ${name} team,` : "Hi there,"}</p>
         ${copy.intro.map(t => `<p style="${p}">${t}</p>`).join("\n        ")}
@@ -243,11 +407,27 @@ export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void>
         ${copy.next.map(t => `<p style="${p}">${t}</p>`).join("\n        ")}
         <p style="margin: 24px 0 32px;">${button(bookUrl, copy.button, false)}</p>
         <p style="${p}">Talk soon,<br /><b>The Optimizers team</b></p>
-        <p style="color: #7a857b; font-size: 12px; line-height: 1.6; margin-top: 28px; padding-top: 18px; border-top: 1px solid #e2e6e2;">
-          You are receiving this because you requested a free audit at <a href="${siteUrl}" style="color: #7a857b;">optimizers.agency</a>.
-        </p>
+        ${footer}
       </div>
     `.trim(),
+  };
+}
+
+export async function sendAuditEmail(opts: SendAuditEmailOptions): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not set - see audit-worker/.env.example");
+  }
+  if (!opts.reportUrl && !opts.attachment) {
+    throw new Error("sendAuditEmail needs either a reportUrl or an attachment");
+  }
+  const { subject, html } = buildAuditEmail(opts);
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from: "Optimizers <hello@optimizers.agency>",
+    to: [opts.to],
+    subject,
+    html,
     attachments: opts.attachment
       ? [{ filename: opts.attachment.filename, content: Buffer.from(opts.attachment.html, "utf8").toString("base64") }]
       : undefined,
@@ -288,19 +468,39 @@ function reportPreviewUrl(reportUrl: string, slug: string, secret: string): stri
 
 // What our team says on the follow-up call, per reader. Opens on the
 // reader's own problem and their biggest finding, and names the offer that
-// fits them (from the ICP cards' role-in-purchase notes).
-const TALK_TRACK: Record<AudienceRole, { who: string; open: string; press: string; offer: string }> = {
+// fits them (from the ICP cards' role-in-purchase notes). The store owner and
+// media buyer open with their own top finding from this report (the same
+// rows their client email and report lead with), and end on one question.
+// Values are HTML; anything from the result is escaped here.
+type TalkTrack = { who: string; open: string | ((top: TopAction[], site: string) => string); press: string; offer: string; ask?: string };
+
+const quote = (t: string | undefined) => `"${escapeHtml((t ?? "").trim())}"`;
+
+const TALK_TRACK: Record<AudienceRole, TalkTrack> = {
   store_owner: {
     who: "Store owner (ICP1): runs the store, fixes things in the Salla/Zid/Shopify admin, judges us on money.",
-    open: "Open with their biggest leak in SAR and the one fix they can make themselves this week.",
+    open: top => {
+      const first = top[0];
+      if (!first) return "Their store passed every check. Open with what's working and should stay as it is; don't invent a problem.";
+      // Rows are money-first, so a GA4 figure, when there is one, is on this row.
+      return `Open with their own top finding: ${quote(first.summary ?? first.step)}${first.moneyRange ? ` (about ${escapeHtml(first.moneyRange)} a month at stake, from their GA4, last ${first.periodDays} days; an estimate, not a promise)` : " (no GA4 money figure: don't quote one)"}. Who does it: ${ownerWho(first).toLowerCase()}.`;
+    },
     press: "Payment and delivery (COD fee, mada/Apple Pay/Tabby/Tamara visibility, free-delivery threshold) and how the store works on phones.",
-    offer: "Done-for-you: we make the developer fixes. Keep it low-pressure; they distrust anything that sounds like a pitch.",
+    offer: "We do the developer fixes for them; the admin fixes they can do themselves, and say so. Keep it low-pressure; they distrust anything that sounds like a pitch.",
+    ask: "\"Which of these fixes have you already tried, and what stopped it?\"",
   },
   media_buyer: {
     who: "Media buyer (ICP2): runs the store's paid ads, judged on ROAS/CPA, doesn't own the site or the tracking.",
-    open: "Open with the reported-ROAS verdict (over- or under-counting) and the post-click step that loses paid traffic.",
+    open: (top, site) => {
+      const verdict = buyerVerdictOf(top, site);
+      const first = top.find(a => a.lane === "signal" || a.lane === "post_click");
+      if (verdict.clean || !first) return `Open with the verdict from their report: ${quote(verdict.line)}. Say plainly that the site and tracking aren't the problem; don't invent one.`;
+      const dir = adDirection(first.effect);
+      return `Open with the verdict from their report: ${quote(verdict.line)}. Then their top finding: ${quote(first.summary ?? first.step)}${dir ? ` (${escapeHtml(dir)})` : ""}${buyerWho(first) ? `, fixed by ${escapeHtml(buyerWho(first).toLowerCase())}` : ""}.`;
+    },
     press: "Proof he can forward to the owner, and what the fixes do to ROAS/CAC. Never quote ROAS values; we don't see spend.",
-    offer: "He keeps the account; we do the site side and he refers the owner to the retainer. Tools: low, fair price he can pay himself.",
+    offer: "We fix the site side (tracking and post-click) so his campaigns are judged on real numbers. He keeps the account and refers the owner to the retainer. Tools: low, fair price he can pay himself.",
+    ask: "\"Which platform's reported conversions do you trust least right now, and do they match the store's own orders?\"",
   },
   marketing_manager: {
     who: "Marketing director/manager (ICP3): reports to the CEO, briefs a team, needs numbers they can defend.",
@@ -315,6 +515,31 @@ const TALK_TRACK: Record<AudienceRole, { who: string; open: string; press: strin
     offer: "Partner terms: audits for their clients, or white-label later. Never pitch Optimizers to their client.",
   },
 };
+
+/** The internal review email's talk-track box. Exported for tests. */
+export function talkTrackHtml(role: AudienceRole, topActions: TopAction[], website: string): string {
+  const t = TALK_TRACK[role];
+  const site = escapeHtml(website.replace(/^https?:\/\//, "").replace(/\/$/, ""));
+  const open = typeof t.open === "function" ? t.open(topActions, site) : t.open;
+  const persona = role === "store_owner" || role === "media_buyer";
+  const shown = persona ? topActions.slice(0, 3) : topActions;
+  const item = (a: TopAction) => persona
+    ? `<li>${escapeHtml(a.summary ?? a.step)}${a.money ? ` · ${escapeHtml(a.money)}` : ""}${a.step ? `: ${escapeHtml(a.step)}` : ""}</li>`
+    : `<li>${escapeHtml(a.type)}${a.money ? ` · ${escapeHtml(a.money)}` : ""}: ${escapeHtml(a.step)}</li>`;
+  return `
+        <div style="background: #eef7f1; border: 1px solid #9fd8b4; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+          <p style="color: #1f4d2e; font-size: 13px; font-weight: bold; margin: 0 0 6px;">Talk track for the follow-up call</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Who:</b> ${t.who}</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Open with:</b> ${open}</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Press on:</b> ${t.press}</p>
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Offer:</b> ${t.offer}</p>${t.ask ? `
+          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Ask:</b> ${t.ask}</p>` : ""}${shown.length ? `
+          <p style="color: #1f4d2e; font-size: 13px; font-weight: bold; margin: 8px 0 4px;">Their top actions (what the client email leads with)</p>
+          <ol style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 18px;">
+            ${shown.map(item).join("")}
+          </ol>` : ""}
+        </div>`;
+}
 
 // Sent the moment an audit finishes — the requester does NOT get their copy
 // yet (see sendAuditEmail, now only called from poll.ts's due-send check).
@@ -372,18 +597,7 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
           Site: <b>${opts.website}</b><br/>
           Requested by: <b>${opts.requesterEmail}</b><br/>
           Report slug (for the <code>/api/report/edit</code> path): <code>${opts.slug}</code>
-        </p>${opts.audienceRole ? `
-        <div style="background: #eef7f1; border: 1px solid #9fd8b4; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
-          <p style="color: #1f4d2e; font-size: 13px; font-weight: bold; margin: 0 0 6px;">Talk track for the follow-up call</p>
-          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Who:</b> ${TALK_TRACK[opts.audienceRole].who}</p>
-          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Open with:</b> ${TALK_TRACK[opts.audienceRole].open}</p>
-          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Press on:</b> ${TALK_TRACK[opts.audienceRole].press}</p>
-          <p style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0 0 6px;"><b>Offer:</b> ${TALK_TRACK[opts.audienceRole].offer}</p>${opts.topActions?.length ? `
-          <p style="color: #1f4d2e; font-size: 13px; font-weight: bold; margin: 8px 0 4px;">Their top actions (what the client email leads with)</p>
-          <ol style="color: #23422d; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 18px;">
-            ${opts.topActions.map(a => `<li>${escapeHtml(a.type)}${a.money ? ` · ${escapeHtml(a.money)}` : ""}: ${escapeHtml(a.step)}</li>`).join("")}
-          </ol>` : ""}
-        </div>` : ""}${opts.frictionFails?.length ? `
+        </p>${opts.audienceRole ? talkTrackHtml(opts.audienceRole, opts.topActions ?? [], opts.website) : ""}${opts.frictionFails?.length ? `
         <div style="background: #fff4e5; border: 1px solid #f5c26b; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
           <p style="color: #7a4b00; font-size: 13px; font-weight: bold; margin: 0 0 6px;">Check these purchase-friction FAILs before approving</p>
           <ul style="color: #5c3a00; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 18px;">

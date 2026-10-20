@@ -5,6 +5,8 @@ import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, 
 import { buildAction, defaultProtect, repairActions, type RawAction } from "./actions.js";
 import { ga4FactsPromptBlock, ga4MetricsFromOAuth } from "./ga4-facts.js";
 import { siteChecksPromptBlock } from "./site-checks.js";
+import { clarityFactsPromptBlock, type ClarityFacts } from "./clarity-facts.js";
+import { personaChecklistFor, personaOf } from "./persona-checklist.js";
 import { readerBrief, type AudienceRole } from "./audience.js";
 import { READER_QUESTIONS } from "./reader-questions.js";
 import { AD_EFFECT_PROMPT, AD_EFFECT_ROLES, adEffectOf, ensureAdDirection } from "./ad-impact.js";
@@ -42,6 +44,11 @@ export interface AuditPromptInput {
   // (site-checks.ts). Null when there was no OAuth GA4 data / no visit.
   ga4Facts?: Ga4Facts | null;
   siteChecks?: SiteChecks | null;
+  // The store's own Microsoft Clarity numbers (clarity-facts.ts). Null when
+  // Clarity wasn't connected on the form.
+  clarityFacts?: ClarityFacts | null;
+  // The media buyer's ad as typed on the form: what it promises and its coupon.
+  adContext?: { text: string | null; coupon: string | null } | null;
   // "Your role" from the form. A role with a reader brief (icp/) rewrites the
   // business voice for that reader; the points and statuses never change.
   audienceRole?: AudienceRole | null;
@@ -78,7 +85,10 @@ function buildAllowedTools(input: AuditPromptInput): string[] {
  * "visitor has both" route, so `tools.length` here is always 0 or 1
  * whenever this is asked for "Website".
  */
-function checklistFor(category: CategoryKey, tools: ToolId[]): ChecklistPoint[] {
+function checklistFor(category: CategoryKey, tools: ToolId[], role?: AudienceRole | null): ChecklistPoint[] {
+  // The store owner and the media buyer have their own points (persona-checklist.ts).
+  const persona = personaOf(role);
+  if (persona) return personaChecklistFor(persona, category, tools);
   if (category === "GA4") return GA4_CHECKLIST;
   if (category === "GTM") return GTM_CHECKLIST;
 
@@ -86,7 +96,7 @@ function checklistFor(category: CategoryKey, tools: ToolId[]): ChecklistPoint[] 
 }
 
 function formatChecklist(category: CategoryKey, tools: ToolId[], role?: AudienceRole | null): string {
-  const points = checklistFor(category, tools);
+  const points: (ChecklistPoint & { factId?: string; whyItMatters?: string })[] = checklistFor(category, tools, role);
   if (points.length === 0) return "";
   // Readers judged on ROAS/CAC get each point's direction (ad-impact.ts), so
   // the business text and the report's chip say the same thing.
@@ -95,7 +105,7 @@ function formatChecklist(category: CategoryKey, tools: ToolId[], role?: Audience
     return effect ? `\n    Ad effect when failing (direction only, never a ROAS/CAC value): ${AD_EFFECT_PROMPT[effect]}` : "";
   };
   return points
-    .map(p => `  - [${p.id}, ${p.severity}, ${p.opportunity}${p.fact ? ", computed" : ""}] ${p.title}\n    Pass when: ${p.expectedState}\n    Fails when: ${p.commonFailure}\n    How to check it: ${p.validate}\n    Default action: ${p.action} (owner: ${p.owners.join(" + ")})\n    Done when: ${p.doneWhen}${adLine(p.id)}`)
+    .map(p => `  - [${p.id}, ${p.severity}, ${p.opportunity}${p.fact ? `, computed${p.factId ? `: use fact ${p.factId}` : ""}` : ""}] ${p.title}\n    Pass when: ${p.expectedState}\n    Fails when: ${p.commonFailure}\n    How to check it: ${p.validate}\n    Default action: ${p.action} (owner: ${p.owners.join(" + ")})\n    Done when: ${p.doneWhen}${p.whyItMatters ? `\n    Why it matters to this reader: ${p.whyItMatters}` : ""}${adLine(p.id)}`)
     .join("\n");
 }
 
@@ -403,6 +413,26 @@ real product. Use them for the points that cite "Browser facts"; they are
 "live" evidence.
 ${siteChecksPromptBlock(input.siteChecks)}
 
+` : ""}${input.clarityFacts ? `## Clarity facts (the store's own Microsoft Clarity, computed by code)
+What real shoppers did on the store. Use these as "live" evidence for any
+point about what shoppers experience (errors, taps that do nothing, leaving
+a page at once, how far they scroll, phone vs desktop, in-app browsers).
+Quote the numbers as written and name the source ("your Clarity, last N
+days"). They compare the store only with itself: never call a rate high or
+low against an outside benchmark.
+${clarityFactsPromptBlock(input.clarityFacts)}
+
+` : ""}${input.adContext ? `## The ad, as the reader typed it on the form
+${input.adContext.text ? `What the ad promises (headline or offer): ${JSON.stringify(input.adContext.text)}` : ""}
+${input.adContext.coupon ? `Coupon code in the ad: ${JSON.stringify(input.adContext.coupon)}` : ""}
+Use it for the points about the landing page matching the ad and about the
+ad's offer reaching the cart: compare it with the headline, offer, price and
+any promo text you see on the home page, the landing page GA4 names and the
+cart (crawl, browser facts). Say plainly what matches and what doesn't. You
+can't apply the coupon at checkout: only check the offer is stated on the
+page and the cart has a place to enter a code. This is the reader's own
+description, not something we saw in the ad account.
+
 ` : ""}${categories.includes("GA4") ? `## GA4 data source
 ${input.ga4OAuthData
   ? `Pre-fetched via the visitor's own Google OAuth consent — already scoped to exactly their account, so this is authoritative and needs no ID-matching or MCP tool calls. Evaluate the GA4 checklist against it directly and mark every resulting finding dataSource "live":\n${JSON.stringify(input.ga4OAuthData, null, 2)}`
@@ -656,7 +686,8 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
 
   const findings: CategoryFinding[] = checklist.map(point => {
     const f = byId.get(point.id);
-    const fact = raw.category === "GA4" ? opts.ga4Facts?.facts[point.id] : undefined;
+    // A persona point carries the id of the fact it was rewritten from.
+    const fact = raw.category === "GA4" ? opts.ga4Facts?.facts[(point as { factId?: string }).factId ?? point.id] : undefined;
     if (f) {
       // Defensive default for a stray response missing the field — "fail" is
       // the safer assumption than silently counting an unclassified finding
@@ -828,7 +859,7 @@ export async function runAudit(input: AuditPromptInput): Promise<AuditRunResult>
   }
 
   const rejected: Array<{ category: string; id: string }> = [];
-  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools), { ga4Facts: input.ga4Facts, rejected }));
+  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools, input.audienceRole), { ga4Facts: input.ga4Facts, rejected }));
   if (rejected.length) {
     const fix = await repairActions(categories, rejected, `audit-${Date.now()}`);
     console.log(`[audit-prompt] ${rejected.length} action(s) failed the actionability rule; repaired ${fix.repaired}, checklist defaults kept for the rest${fix.error ? ` (repair error: ${fix.error})` : ""}`);

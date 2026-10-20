@@ -28,6 +28,12 @@ create table if not exists audit_requests (
   -- no MCP exact-match needed when present.
   ga4_oauth_data jsonb,
   gtm_oauth_data jsonb,
+  -- Microsoft Clarity snapshot pulled at intake by api/clarity/connect.js
+  -- from a token the visitor pasted (the token itself is never stored).
+  -- null when Clarity wasn't connected.
+  clarity_data jsonb,
+  -- The media buyer's ad from the form: { text, coupon }. null when not given.
+  ad_context jsonb,
   -- Public URL to the generated live HTML audit report page.
   report_url text,
   -- Lifecycle (see audit-worker/src/poll.ts). A request that hits a rate

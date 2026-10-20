@@ -1,0 +1,66 @@
+{
+ "store-owner": {
+  "GA4": {
+   "n": 25,
+   "crit": 7,
+   "newFact": 7,
+   "fromTool": 21
+  },
+  "GTM": {
+   "n": 25,
+   "crit": 2,
+   "newFact": 0,
+   "fromTool": 17
+  },
+  "WEBCODE": {
+   "n": 25,
+   "crit": 8,
+   "newFact": 0,
+   "fromTool": 20
+  },
+  "CRO": {
+   "n": 25,
+   "crit": 6,
+   "newFact": 0,
+   "fromTool": 4
+  },
+  "CLARITY": {
+   "n": 3,
+   "crit": 0,
+   "newFact": 3,
+   "fromTool": 0
+  }
+ },
+ "media-buyer": {
+  "GA4": {
+   "n": 25,
+   "crit": 6,
+   "newFact": 12,
+   "fromTool": 19
+  },
+  "GTM": {
+   "n": 25,
+   "crit": 5,
+   "newFact": 0,
+   "fromTool": 14
+  },
+  "WEBCODE": {
+   "n": 25,
+   "crit": 6,
+   "newFact": 0,
+   "fromTool": 19
+  },
+  "CRO": {
+   "n": 25,
+   "crit": 4,
+   "newFact": 6,
+   "fromTool": 5
+  },
+  "CLARITY": {
+   "n": 3,
+   "crit": 0,
+   "newFact": 3,
+   "fromTool": 0
+  }
+ }
+}

@@ -19,7 +19,8 @@ Run `schema.sql` once in the SQL Editor (New query → paste → Run). It alread
 | `2026-10-14-2-add-store-platform.sql` | Add `store_platform` (Intellia's e-store check) | ☐ | ☐ |
 | `2026-10-14-3-add-audience-role.sql` | Add `audience_role` ("Your role" on the form) | ☑ | ☑ |
 | `2026-10-15-add-agency-audience-role.sql` | Allow the `agency` role | ☑ | ☑ |
-
+| `2026-10-20-add-clarity-data.sql` | Add `clarity_data` (Clarity snapshot from the form) | ☐ | ☐ |
+| `2026-10-20-2-add-ad-context.sql` | Add `ad_context` (media buyer's ad text and coupon) | ☐ | ☐ |
 ## Before the baseline
 Squashed into the 2026-10-13 baseline. Full files are in git history before that commit.
 - **2026-09-09:** one free audit per site/email (partial unique indexes), test mode, internal review and delayed send, `report_pages.bucket`. Pre-cutover internal rows were marked as tests.

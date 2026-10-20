@@ -27,6 +27,7 @@
 // in the audit prompt so Claude's words say the same thing.
 
 import type { AudienceRole } from "./audience.js";
+import { PERSONA_AD_EFFECT } from "./checklist-persona-data.js";
 import type { AuditResult, FindingAction } from "./types.js";
 
 export type AdEffect = "performance" | "aov" | "cost" | "inflated" | "deflated" | "optimization";
@@ -59,7 +60,8 @@ export const AD_EFFECT: Readonly<Record<string, AdEffect>> = {
 export const AD_EFFECT_ROLES: ReadonlySet<AudienceRole> = new Set(["media_buyer", "marketing_manager", "agency"]);
 
 export function adEffectOf(checklistId: string): AdEffect | null {
-  return AD_EFFECT[checklistId] ?? null;
+  // Media buyer points carry their own direction (checklist-persona-data.ts).
+  return AD_EFFECT[checklistId] ?? PERSONA_AD_EFFECT[checklistId] ?? null;
 }
 
 /** The sentence Claude gets for the point (direction only). */

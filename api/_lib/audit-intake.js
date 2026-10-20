@@ -86,17 +86,42 @@ export const ROLE_LABELS = { store_owner: "E-commerce store owner", media_buyer:
  * retries without it, so a missing migration costs the role, never the
  * visitor's submission. Same { data, error } shape as supabase-js.
  */
+// Columns added by recent migrations. If one isn't on the table yet, the
+// request is saved without it instead of failing the visitor's submission.
+const OPTIONAL_COLUMNS = {
+  audience_role: "supabase/migrations/*audience-role*.sql",
+  clarity_data: "supabase/migrations/2026-10-20-add-clarity-data.sql",
+  ad_context: "supabase/migrations/2026-10-20-2-add-ad-context.sql",
+};
+
+/**
+ * The media buyer's ad, typed on the form (optional): the headline or offer
+ * the ad promises and a coupon code. Trimmed and capped; null when both are
+ * empty. The audit compares it with the landing page and the cart.
+ */
+export function cleanAdContext(adText, adCoupon) {
+  const text = String(adText ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const coupon = String(adCoupon ?? "").trim().slice(0, 40);
+  return text || coupon ? { text: text || null, coupon: coupon || null } : null;
+}
+
 export async function insertAuditRequest(supabase, record) {
-  const first = await supabase.from("audit_requests").insert(record).select().single();
-  const err = first.error;
-  // Missing column (PGRST204/42703), or a role the table check constraint
-  // doesn't list yet (23514, e.g. "agency" before the 2026-10-15 migration).
-  const text = `${err?.message || ""} ${err?.details || ""}`;
-  const roleProblem = err && ["PGRST204", "42703", "23514"].includes(err.code) && text.includes("audience_role");
-  if (!roleProblem) return first;
-  log.warn(`audience_role rejected (${err.code}): run the latest supabase/migrations/*audience-role*.sql. Saved without the role.`);
-  const { audience_role: _dropped, ...rest } = record;
-  return supabase.from("audit_requests").insert(rest).select().single();
+  let current = record;
+  for (let attempt = 0; attempt <= Object.keys(OPTIONAL_COLUMNS).length; attempt++) {
+    const result = await supabase.from("audit_requests").insert(current).select().single();
+    const err = result.error;
+    // Missing column (PGRST204/42703), or a role the table check constraint
+    // doesn't list yet (23514, e.g. "agency" before the 2026-10-15 migration).
+    const text = `${err?.message || ""} ${err?.details || ""}`;
+    const column = err && ["PGRST204", "42703", "23514"].includes(err.code)
+      ? Object.keys(OPTIONAL_COLUMNS).find(c => c in current && text.includes(c))
+      : null;
+    if (!column) return result;
+    log.warn(`${column} rejected (${err.code}): run ${OPTIONAL_COLUMNS[column]}. Saved without it.`);
+    const { [column]: _dropped, ...rest } = current;
+    current = rest;
+  }
+  return supabase.from("audit_requests").insert(current).select().single();
 }
 
 /**
@@ -137,11 +162,13 @@ export async function findExistingAuditRequest(supabase, { websiteHostname }) {
   if (!websiteHostname) return null;
   // .eq() rather than a hand-built .or()/filter string: the value comes
   // straight from the visitor, and .eq() values are encoded by supabase-js,
-  // so they can't change the query's shape.
+  // so they can't change the query's shape. Test rows never count, same as
+  // the partial unique index.
   const { data, error } = await supabase
     .from("audit_requests")
     .select("id, status, created_at")
     .eq("website_hostname", websiteHostname)
+    .eq("is_test", false)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();

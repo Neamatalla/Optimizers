@@ -35,6 +35,7 @@ import { collectStoreEvidence } from "./fud/collect.js";
 import type { StoreEvidence } from "./fud/evidence.js";
 import { collectorFocus, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
 import { siteChecksFrom } from "./site-checks.js";
+import { computeClarityFacts } from "./clarity-facts.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
 import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
@@ -172,6 +173,10 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     }
     const ga4Facts = computeGa4Facts(row.ga4_oauth_data, row.website, evidence);
     const siteChecks = evidence ? siteChecksFrom(evidence, crawl.structuralSignals.cmsPlatformGuess) : null;
+    const clarityFacts = computeClarityFacts(row.clarity_data);
+    if (clarityFacts) {
+      console.log(`[audit-worker] Clarity: ${clarityFacts.sessions} sessions in ${clarityFacts.days} days, ${clarityFacts.hotPages?.length ?? "no"} page outliers`);
+    }
     if (ga4Facts) {
       const fails = Object.values(ga4Facts.facts).filter(f => f.status === "fail").map(f => f.id);
       console.log(`[audit-worker] GA4 facts: ${fails.length} failing (${fails.join(", ") || "none"}), focus ${ga4Facts.focus.page ?? "none"}${ga4Facts.focus.step ? ` (${ga4Facts.focus.step.from}>${ga4Facts.focus.step.to} ${Math.round(ga4Facts.focus.step.rate * 100)}%)` : ""}`);
@@ -195,6 +200,8 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
         gtmOAuthData: row.gtm_oauth_data,
         ga4Facts,
         siteChecks,
+        clarityFacts,
+        adContext: row.ad_context ?? null,
         audienceRole: audienceRoleOf(row.audience_role),
       }));
     } finally {
@@ -207,7 +214,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     } else {
       console.log(`[audit-worker] PageSpeed scored ${pageSpeed.pages.length} pages (avg mobile ${pageSpeed.average.mobile}, desktop ${pageSpeed.average.desktop})`);
     }
-    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics, ga4Facts, siteChecks });
+    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics, ga4Facts, siteChecks, clarityFacts });
     await save();
     console.log(`[audit-worker] Saved audit result for ${row.id}`);
     auditDone();
@@ -239,7 +246,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     fud: isFudResult(progress.fud) ? progress.fud : null,
     ga4Facts: progress.ga4Facts ?? null,
     siteChecks: progress.siteChecks ?? null,
-  };
+    clarityFacts: progress.clarityFacts ?? null,  };
   const categoriesAudited = categories.map(c => c.category);
 
   // 2. translate. It writes the Arabic straight onto result.categories, which

@@ -1,0 +1,403 @@
+rank	score	id	label	group	I	A	M	F	stores_fail	sources	reason
+1	72.3	CHK-A-039	No duplicate gtag.js double-load on same page	web-tracking	3	3	5	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Duplicate gtag inflates sales counts; developer removes; headless request count
+2	68.5	UX-008	Contact information and support visibility	trust	2	5	5	2.5	2/5	TOOL-CRO	Visible contact and WhatsApp support builds pre-purchase trust; admin setting
+3	68.5	UX-059	Multiple product images	funnel	2	5	5	2.5	2/5	TOOL-CRO	Multiple product photos medium lever; owner uploads in admin; visible
+4	67.3	CHK-B-011	dataLayer format	web-tracking	3	3	4	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	dataLayer format errors undercount purchases; developer fix; headless-checkable
+5	67.3	UX-052	Product information completeness	funnel	2	5	4	3.8	3/5	TOOL-CRO	Complete product specs reduce hesitation; owner edits; partly checkable
+6	64.8	UX-026	Product name visible on listing	web-find	2	5	5	1.3	1/4	TOOL-CRO	Product names on listing; owner edits titles in admin; visible
+7	64.3	CHK-A-041	Container placement on all pages, verified by crawl	web-tracking	2	3	5	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	GTM missing on some pages undercounts sales; developer fix; crawl-verifiable
+8	64.3	UX-004	Page speed Google ranking score	web-speed	2	3	5	3.8	3/4	TOOL-CRO	Slow mobile pages cost sales; developer fixes; Lighthouse-measurable
+9	64.3	UX-018	Limited-time offer shown	funnel	1	5	5	3.8	3/5	TOOL-CRO	Generic urgency banner; no store-specific leak; owner posts in admin
+10	64.3	UX-019	Language adaptation option	other	2	3	5	3.8	3/5	TOOL-CRO	Language switcher helps bilingual shoppers; platform setting; visible
+11	64.3	UX-037	Shipping time displayed	delivery	2	3	5	3.8	3/5	TOOL-CRO	Delivery time on listing sets expectations; shipping settings; visible
+12	63.5	CHK-A-042	Pixels only via GTM, no hardcoded or plugin duplicates	web-tracking	3	3	4	2.5	2/3	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Duplicate pixel sources split or inflate conversions; developer cleanup; headless-detectable
+13	63.5	UX-050	Clear product descriptions	funnel	2	5	4	2.5	2/5	TOOL-CRO	Product descriptions medium lever; owner edits in admin; Arabic checkable on page
+14	63.0	UX-092	Recommendation tools in use	funnel	2	3	4	5.0	4/5	TOOL-CRO	Recommendations lift AOV; app install; script-detectable on storefront
+15	62.8	UX-087	Multiple payment options	payments	3	5	3	1.3	1/5	TOOL-CRO	Missing mada, Apple Pay or BNPL is top leak; admin toggle; badges visible
+16	62.3	UX-061	Shipping cost information shown	delivery	3	3	3	3.8	3/5	TOOL-CRO	Late shipping cost leaks checkout; owner shows it early; partly visible
+17	61.0	CHK-A-077	GTM container deployed on the live site	web-tracking	3	3	5	0.0	0/1	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	No GTM on live site means no tracked sales; developer adds; crawl-checkable
+18	60.5	UX-001	Privacy policy link visible	trust	1	5	5	2.5	2/5	TOOL-CRO	Privacy policy footer link is compliance trust; low sales effect; owner adds in admin
+19	60.5	UX-002	Terms and conditions link visible	trust	1	5	5	2.5	2/5	TOOL-CRO	Terms link: policy clarity, low sales effect; owner adds in admin
+20	60.5	UX-003	Logo links to homepage	web-path	1	5	5	2.5	2/5	TOOL-CRO	Logo home link: navigation habit, minor sales effect; theme setting
+21	60.5	UX-009	Prominent search bar	search	2	3	5	2.5	2/5	TOOL-CRO	Search bar aids product finding; theme or admin toggle; visible fact
+22	60.5	UX-011	Shopping cart visible in navigation	checkout	2	3	5	2.5	2/5	TOOL-CRO	Cart icon in header; visible; mostly theme default
+23	60.5	UX-014	Logo availability	trust	1	5	5	2.5	2/5	TOOL-CRO	Logo visibility basic trust; owner uploads in admin
+24	60.5	UX-023	Review rating or score visible	reviews	2	3	5	2.5	2/5	TOOL-CRO	Review stars on listing build trust; review app setting; visible
+25	60.5	UX-034	Discount savings displayed	pricing	2	3	5	2.5	2/5	TOOL-CRO	Discount savings shown on PDP; theme or app setting; visible
+26	60.5	UX-051	Product reviews available	reviews	2	3	5	2.5	2/5	TOOL-CRO	Reviews on PDP medium trust lever; review app setting; visible
+27	60.5	UX-057	Visible CTAs near product images	checkout	2	3	5	2.5	2/5	TOOL-CRO	Visible add-to-cart near images is medium lever; theme setting; visible
+28	60.0	CHK-A-001	Timezone and currency match backend	web-tracking	3	4	4	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Currency and timezone mismatch makes SAR revenue unreliable; GA4 readable
+29	60.0	CHK-A-015	Key events are KPI-aligned and not stale	web-tracking	3	4	4	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Non-KPI key events distort conversion numbers; GA4 key events readable
+30	60.0	CHK-C-027	Funnel step-ratio benchmarks	orders	3	4	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Checkout step ratio below benchmark signals drop-off; GA4 funnel readable
+31	59.8	UX-129	Return policy visible	trust	2	5	4	1.3	1/4	TOOL-CRO	Visible return policy builds trust; owner adds in admin; footer-checkable
+32	59.3	CHK-B-022	Consent Mode v2 + CMP wiring	web-tracking	2	3	4	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Consent Mode state can block tags and undercount; CMP setting; headless-checkable
+33	59.3	CHK-B-020	Internal promotion/banner tracking	web-tracking	2	3	4	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Promotion view tracking judges banners; developer GTM; partly measurable
+34	59.3	CHK-B-002	Standard event names	web-tracking	2	3	4	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Non-standard event names break ad optimisation data; developer; GTM-readable
+35	59.3	UX-032	Navigation shows all categories and subcategories	web-find	2	3	4	3.8	3/5	TOOL-CRO	Missing categories in menu hide products; owner edits menu; crawlable
+36	56.8	UX-005	HTTPS (secure connection) present	trust	1	5	5	1.3	1/5	TOOL-CRO	HTTPS usually present; owner confirms in host; trust baseline only
+37	56.8	UX-022	Product price visible on listing	pricing	2	3	5	1.3	1/4	TOOL-CRO	Price on listing is medium lever; theme setting; visible storefront fact
+38	56.8	UX-025	Filters visible on mobile	mobile	2	3	5	1.3	1/4	TOOL-CRO	Mobile filter access matters on mobile-heavy traffic; visible
+39	56.8	UX-074	Clear proceed-to-checkout button	checkout	2	3	5	1.3	1/5	TOOL-CRO	Checkout button clarity; theme or admin; visible in cart
+40	56.8	UX-077	Discount code field available	checkout	2	3	5	1.3	1/5	TOOL-CRO	Coupon field visible; coupons must match checkout price; visible
+41	56.3	CHK-A-037	contentGroup coverage not dominated by (not set)	web-tracking	1	3	5	3.8	3/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Content group is GA4 reporting only; no direct sales change
+42	56.3	CHK-A-004	Enhanced Measurement vs custom GTM duplicate events	web-tracking	1	3	5	3.8	3/5	TOOL-CRO,AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Duplicate engagement events, not purchase data; GA4 counts visible
+43	56.3	UX-035	Save-to-favorites mechanism	account	1	3	5	3.8	3/5	TOOL-CRO	Wishlist supports return visits; low direct sales effect
+44	56.3	UX-036	Breadcrumb navigation available	web-find	1	3	5	3.8	3/5	TOOL-CRO	Breadcrumbs are navigation polish; minor sales effect
+45	56.3	UX-039	Item counts shown on filters	web-find	1	3	5	3.8	3/5	TOOL-CRO	Filter counts minor discovery aid; theme or app setting
+46	56.3	UX-053	Review can be left on page	reviews	1	3	5	3.8	3/5	TOOL-CRO	Review submission form; social proof; app setting; visible
+47	56.3	UX-060	Physical store locations shown	trust	1	3	5	3.8	3/5	TOOL-CRO	Store locations build trust for some shoppers; low online sales effect
+48	56.0	CHK-A-078	Conversion tag bound to the intended trigger only	web-tracking	3	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Conversion tag on wrong trigger inflates count; GTM read shows binding
+49	56.0	CHK-B-038	UTM survival through redirects	traffic	3	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Redirect drops UTMs; headless visit with campaign params tests it
+50	56.0	CHK-C-025	Duplicate transaction-ID query	other	3	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Duplicate transaction IDs inflate revenue; GA4 transaction report readable
+51	55.5	CHK-A-055	Base pixel tag sequenced before event tags	web-tracking	2	3	4	2.5	2/3	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Tag sequence affects event capture; developer fix; GTM config readable
+52	55.5	CHK-B-023	Default denied before tags	gtm-privacy	2	3	4	2.5	2/4	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Consent default state controls tag firing; CMP setting; headless-checkable
+53	55.0	UX-093	A/B testing tools in use	other	1	3	4	5.0	4/5	TOOL-CRO	A/B tool presence; no direct sales change; script-detectable
+54	55.0	UX-094	Helpdesk tools in use	trust	1	3	4	5.0	4/5	TOOL-CRO	Helpdesk widget aids support; no direct sales change; detectable
+55	55.0	UX-096	Review management tools in use	reviews	1	3	4	5.0	4/5	TOOL-CRO	Review management tool; credibility; app presence detectable
+56	55.0	UX-097	Survey tools in use	other	1	3	4	5.0	4/5	TOOL-CRO	Survey tool presence; indirect feedback; widget detectable
+57	54.8	UX-072	Total order cost displayed clearly	checkout	3	3	3	1.3	1/5	TOOL-CRO	Hidden total until checkout leaks sales; cart display config; partly visible
+58	54.3	UX-073	Price per unit displayed	pricing	2	3	3	3.8	3/5	TOOL-CRO	Unit price aids value comparison; app or theme; partly visible
+59	52.5	UX-031	Customizable price filter	pricing	1	3	5	2.5	2/5	TOOL-CRO	Price range filter aids search; low-medium effect; app or theme
+60	52.5	UX-038	Sorting mechanism available	web-find	1	3	5	2.5	2/5	TOOL-CRO	Sorting control; minor discovery effect; theme or app setting
+61	52.5	UX-054	Quantity selector near CTA	checkout	1	3	5	2.5	2/5	TOOL-CRO	Quantity selector minor; theme or cart setting; visible
+62	52.5	UX-122	Visible login or account link in navigation	account	1	3	5	2.5	2/4	TOOL-CRO	Account link aids returning customers; theme nav; visible
+63	51.8	CHK-A-063	Official tag templates used instead of Custom HTML	web-tracking	2	3	4	1.3	1/4	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Custom HTML tags risk breakage; developer swaps to templates; GTM-readable
+64	51.8	UX-029	Color swatches displayed	web-find	2	3	4	1.3	1/5	TOOL-CRO	Swatches ease variant choice; theme setting; visible on PDP
+65	51.8	CHK-A-074	GTM performance impact on Core Web Vitals	web-speed	2	3	4	1.3	1/1	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	GTM bloat slows mobile load; developer trims tags; Lighthouse-measurable
+66	51.8	CHK-B-008	dataLayer before snippet	web-tracking	2	3	4	1.3	1/2	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	dataLayer before tags affects event order; developer; headless-checkable
+67	51.8	UX-158	Cross-sell and upsell opportunities	funnel	2	3	4	1.3	1/4	TOOL-CRO	Cross-sell lifts AOV; app or theme setting; partly visible on PDP
+68	51.8	UX-195	Multiple pageview events firing	web-tracking	2	3	4	1.3	1/1	TOOL-CRO	Duplicate pageviews inflate reported numbers; GTM fix by developer
+69	51.3	UX-041	Category navigation has View All link	web-find	1	3	4	3.8	3/5	TOOL-CRO	View All link; minor navigation effect; theme or menu setting
+70	51.3	UX-043	Current location highlighted in navigation	web-find	1	3	4	3.8	3/5	TOOL-CRO	Current-location highlight; minor orientation effect; theme setting
+71	51.3	CHK-A-062	Behavior-analytics tag (Clarity/Hotjar) present and loading	web-tracking	1	3	4	3.8	3/4	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Heatmap tag not loading; analytics only; headless-checkable
+72	51.0	CHK-A-003	Cross-domain tracking linker and session continuity	account	3	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Checkout domain session split loses campaign attribution; redirect testable headless
+73	51.0	CHK-B-005	Required params	orders	3	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Missing currency or value drops revenue; headless dataLayer check possible
+74	51.0	CHK-B-015	Multi-currency value/param accuracy	orders	3	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Wrong currency code corrupts revenue; GA4 currency and headless check
+75	50.5	UX-006	Clear visual hierarchy	web-find	2	3	3	2.5	2/5	TOOL-CRO	Visual hierarchy guides CTAs; subjective; partly visible on screen
+76	50.5	UX-027	Stock availability shown	funnel	2	3	3	2.5	2/5	TOOL-CRO	Out-of-stock variants lose sales; owner manages stock; partly visible
+77	50.5	UX-049	Price presentation clarity	pricing	2	3	3	2.5	2/5	TOOL-CRO	Price clarity is medium lever; partly visible; theme and price display
+78	48.8	CHK-A-025	Universal Analytics fully disconnected and legacy snippet removed	web-tracking	1	3	5	1.3	1/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Legacy UA snippet adds page weight; no direct sales effect
+79	48.8	UX-024	Filters visible on desktop	web-find	1	3	5	1.3	1/4	TOOL-CRO	Desktop filters aid discovery; theme or app setting; visible
+80	48.8	UX-075	Remove from cart available	checkout	1	3	5	1.3	1/5	TOOL-CRO	Remove-from-cart control; minor effect; visible in cart
+81	48.8	UX-191	Viewport meta allows user zoom	web-a11y	1	3	5	1.3	1/1	TOOL-CRO	Viewport zoom block visible in page source; no sales link
+82	48.3	UX-063	SEO-friendly product URL structure	web-path	0	3	5	3.8	3/5	TOOL-CRO	SEO-only URL structure; no checkout or money effect
+83	48.0	CHK-A-047	Trigger Groups use AND conditions where needed	web-tracking	2	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Universal firing overcounts events; GTM trigger groups readable
+84	48.0	CHK-B-010	Item schema field names	orders	2	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Wrong item field names blank item reports; GA4 item dimensions readable
+85	48.0	CHK-B-040	Internal-link UTM/source contamination	traffic	2	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Internal links carry UTMs; headless crawl finds them
+86	48.0	CHK-B-064	Network tab	web-tracking	2	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Duplicate or blocked collect requests; headless network capture
+87	48.0	CHK-C-005	URL parameter bloat	other	2	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	URL explosion blurs page reports; headless crawl and GA4 pagePath
+88	48.0	CHK-C-026	Not-set percentage per item dimension	other	2	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Item dimension not-set share; GA4 item report readable
+89	47.5	UX-010	Alt text on images	web-a11y	1	3	4	2.5	2/5	TOOL-CRO	Alt text is accessibility and SEO; low sales effect; DOM-checkable
+90	47.5	UX-013	Custom scroll event tracking present	web-tracking	1	3	4	2.5	2/3	TOOL-CRO	Scroll tracking is analytics only; no sales change
+91	47.5	UX-062	Loyalty program information shown	account	1	3	4	2.5	2/5	TOOL-CRO	Loyalty promo on PDP; low-medium effect; app setup; visible
+92	47.5	UX-102	Accessibility: text contrast	web-a11y	1	3	4	2.5	2/4	TOOL-CRO	Text contrast below AA; theme color setting; computed-style checkable
+93	47.5	UX-104	Accessibility: non-text content alternatives	web-a11y	1	3	4	2.5	2/4	TOOL-CRO	Image alt text accessibility; owner adds in admin; DOM-checkable
+94	47.5	UX-123	Favorites icon visible in navigation	web-find	1	3	4	2.5	2/4	TOOL-CRO	Favorites icon placement; minor engagement effect; visible in nav
+95	47.5	UX-157	Review score links to review section	reviews	1	3	4	2.5	2/4	TOOL-CRO	Review score link to reviews; minor trust effect; visible
+96	46.3	UX-095	Product analytics tools in use	web-tracking	1	3	3	3.8	3/4	TOOL-CRO	Product analytics tool; indirect effect; partly detectable
+97	46.3	UX-108	Accessibility: captions for prerecorded media	web-a11y	1	3	3	3.8	3/4	TOOL-CRO	Video captions accessibility; owner adds in video tool; partly visible
+98	46.0	CHK-B-003	Conversions fire on confirmed success only	orders	3	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Declined payments fire purchase; needs developer and test order
+99	46.0	CHK-B-004	Backend reconciliation	orders	3	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Backend revenue mismatch; needs backend access, GA4 side readable
+100	46.0	CHK-B-006	transaction_id dedupe	orders	3	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Duplicate transaction IDs double revenue; GA4 transaction report readable
+101	46.0	CHK-B-018	Locale decimal-separator parsing error	orders	3	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Decimal-separator parse turns prices 1000x wrong; GA4 revenue sanity check
+102	45.0	UX-192	Viewport meta allows large zoom	web-a11y	1	3	5	0.0	0/1	TOOL-CRO	Viewport large-zoom visible in page source; no sales link
+103	44.5	UX-017	Canonical link tag present	web-path	0	3	5	2.5	2/5	TOOL-CRO	Canonical tag is SEO-only; no checkout or money effect
+104	44.0	CHK-B-036	UTM taxonomy governance	traffic	2	2	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Capitalized or invented UTMs misfile traffic; GA4 source report readable
+105	44.0	CHK-C-049	Privacy policy alignment	other	1	4	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Privacy policy must disclose session replay; public page crawl
+106	43.8	UX-007	Target size for touch elements	web-a11y	2	1	4	1.3	1/5	TOOL-CRO	Small touch targets hurt mobile taps; theme CSS fix; computed size checkable
+107	43.8	UX-033	Title font readable on mobile	mobile	2	1	4	1.3	1/5	TOOL-CRO	Mobile title size is theme CSS; Arabic readability; computed size checkable
+108	43.8	UX-058	Description font readable on mobile	mobile	2	1	4	1.3	1/5	TOOL-CRO	Mobile description readability; theme CSS; Arabic text checkable
+109	43.3	UX-042	Back-to-top button visible	web-find	0	3	4	3.8	3/5	TOOL-CRO	Back-to-top button is navigation polish; no sales effect
+110	43.2	UX-107	Accessibility: label in name	web-a11y	1	1	4	3.8	3/4	TOOL-CRO	Visible label matches accessible name; theme code; DOM-checkable
+111	43.2	UX-111	Accessibility: timing adjustable	web-a11y	1	1	4	3.8	3/4	TOOL-CRO	Meta refresh timing; theme or redirect code; DOM-checkable
+112	43.0	UX-185	A/B: brand review score in cart	reviews	2	3	3	0.0	0/4	TOOL-CRO	Third-party brand rating near CTA is visible; no sales leak shown
+113	43.0	CHK-A-010	Unwanted referrals excluded (payment gateways, captcha, SSO, own subdomains)	account	2	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Gateway referrals steal credit; GA4 referral exclusion list readable
+114	43.0	CHK-A-056	Consent settings per tag mapped to CMP	web-tracking	2	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Tags fire before consent; headless banner test possible
+115	43.0	CHK-B-048	Phone, email and WhatsApp clicks	funnel	2	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	WhatsApp and phone clicks untracked; headless button and event check
+116	43.0	CHK-C-022	Page-title x event cross-validation	other	2	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Checkout title views vs begin_checkout mismatch; GA4 page and event readable
+117	43.0	CHK-C-030	Item-sum vs transaction-value cross-check	other	2	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Item sum vs transaction value; GA4 item revenue readable
+118	43.0	CHK-C-045	Multi-domain / subdomain Clarity project scope	web-tracking	2	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Checkout subdomain missing Clarity script; headless check
+119	43.0	CHK-A-017	Property access least privilege	account	1	5	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Ex-staff or agency keep Admin; owner removes users in GA4
+120	42.8	UX-194	Heatmap analysis tools in use	funnel	1	4	3	1.3	1/1	TOOL-CRO	Heatmap tool presence; no sales effect shown
+121	42.5	UX-015	Text not embedded in images	web-a11y	1	3	3	2.5	2/5	TOOL-CRO	Text in images hurts accessibility and SEO; partly visible; low sales effect
+122	42.0	CHK-A-061	Container backups and Publish access restricted to leads	web-tracking	2	4	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Overwrite or ex-agency Publish access risks live container; owner changes roles
+123	42.0	CHK-C-003	Sampling	other	2	4	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Sampled reports skew totals; owner can view unsampled
+124	41.8	UX-082	Guest checkout option	checkout	2	3	2	1.3	1/5	TOOL-CRO	Forced account creation loses one-time buyers; platform setting; checkout not observed
+125	41.8	UX-083	No distracting popups or external links	checkout	2	3	2	1.3	1/5	TOOL-CRO	Popups or external links in checkout distract; app setting; not observed
+126	40.0	UX-116	Accessibility: page titles	web-a11y	1	3	4	0.0	0/4	TOOL-CRO	Page titles from SEO settings; accessibility and tabs; DOM-checkable
+127	40.0	CHK-A-020	Property name and industry category set	account	0	5	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Default property name; no sales effect
+128	40.0	CHK-A-067	Explicit tag firing Priority where same-trigger order matters	web-tracking	1	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Tag firing priority; GTM read shows order
+129	40.0	CHK-A-072	Essential built-in variables enabled before auditing triggers	web-tracking	1	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Disabled built-ins break triggers; GTM read shows settings
+130	40.0	CHK-B-065	Console and Elements	web-tracking	2	1	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	JS errors stop later pushes; headless console check
+131	40.0	CHK-C-024	Month-over-month event-volume comparison	other	1	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Event volume jump check; GA4 report readable
+132	39.5	UX-028	Mobile list items clearly separated	mobile	1	1	4	2.5	2/5	TOOL-CRO	Mobile list spacing is theme CSS; minor sales effect
+133	39.5	UX-040	Color filter with thumbnails	web-find	1	1	4	2.5	2/5	TOOL-CRO	Color thumbnails in filter; theme code; minor effect
+134	39.5	UX-055	Title font readable on desktop	web-a11y	1	1	4	2.5	2/5	TOOL-CRO	Desktop title size is theme CSS; minor sales effect
+135	39.5	UX-056	Description font readable on desktop	web-a11y	1	1	4	2.5	2/5	TOOL-CRO	Desktop description size is theme CSS; minor sales effect
+136	39.5	UX-098	Accessibility: labels or instructions	web-a11y	1	1	4	2.5	2/4	TOOL-CRO	Form labels accessibility; theme code; DOM-checkable; low sales effect
+137	39.5	UX-099	Accessibility: headings and labels	web-a11y	1	1	4	2.5	2/4	TOOL-CRO	Heading structure accessibility; theme code; DOM-checkable
+138	39.5	UX-106	Accessibility: link purpose in context	web-a11y	1	1	4	2.5	2/4	TOOL-CRO	Link text accessibility; theme code; DOM-checkable
+139	39.5	UX-112	Accessibility: bypass blocks	web-a11y	1	1	4	2.5	2/4	TOOL-CRO	Skip link presence; theme code; DOM-checkable
+140	39.0	CHK-A-040	Unattributed (not set)/(not set) session volume low	account	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Unattributed sessions hide sources; GA4 not-set share readable
+141	39.0	CHK-A-045	Config and Event Settings variables centralize shared params	web-tracking	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Manual currency typing drops monetization; GTM read shows variable setup
+142	39.0	CHK-A-048	DataLayer variable dot-notation paths exact	web-tracking	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Wrong dataLayer path returns undefined; GTM read plus headless check
+143	39.0	CHK-A-054	event_id deduplication across pixel, CAPI and GA4	web-tracking	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Duplicate conversions across pixel, CAPI, GA4; event_id visible in network
+144	39.0	CHK-B-014	WooCommerce GTM 10-point audit	orders	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	WooCommerce-specific; GTM read possible, platform rare in GCC
+145	39.0	CHK-B-039	Malformed UTM query-string and unresolved-placeholder detection	traffic	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Malformed UTM strings; GA4 source report shows junk values
+146	39.0	CHK-B-073	Page-load-speed tag-firing starvation	web-tracking	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Slow pages lose tag fires; headless timing check
+147	39.0	CHK-C-017	Form interaction tracking	web-path	2	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Form abandonment invisible; headless form interaction check
+148	39.0	UX-188	A/B: microcopy under checkout CTA	checkout	1	4	3	0.0	0/4	TOOL-CRO	Checkout CTA microcopy is generic; easy admin text change
+149	38.8	UX-156	Product review photo upload option	reviews	1	3	3	1.3	1/4	TOOL-CRO	Review photo upload; credibility; review app setting; partly visible
+150	38.8	CHK-A-008	Email redaction ON	gtm-privacy	1	3	3	1.3	1/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Email redaction is privacy compliance; no sales effect
+151	38.8	CHK-A-009	URL query redaction with the site's exact param keys	gtm-privacy	1	3	3	1.3	1/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	URL query redaction; privacy, no sales effect
+152	38.3	UX-016	Vector graphics used for elements	web-speed	1	1	3	3.8	3/5	TOOL-CRO	Vector asset format; minor speed effect; low sales impact
+153	38.3	UX-103	Accessibility: no keyboard trap	web-a11y	1	1	3	3.8	3/4	TOOL-CRO	Keyboard trap accessibility; code fix; needs interaction test
+154	38.3	UX-105	Accessibility: non-text contrast	web-a11y	1	1	3	3.8	3/4	TOOL-CRO	Non-text contrast accessibility; theme code; partly visible
+155	38.3	UX-109	Accessibility: meaningful sequence	web-a11y	1	1	3	3.8	3/4	TOOL-CRO	Reading order accessibility; theme code; partly DOM-checkable
+156	38.0	UX-167	A/B: alternative navigation for paid-ad users	funnel	2	3	2	0.0	0/4	TOOL-CRO	Ad visitors hit unavailable variant; checkable with ad URLs and stock
+157	38.0	UX-184	A/B: emphasize guest checkout option	checkout	2	3	2	0.0	0/4	TOOL-CRO	Guest checkout tested; checkout steps not observed without placing an order
+158	38.0	UX-196	Standard integration present	web-tracking	2	3	2	0.0	0/2	TOOL-CRO	Standard integration missing; platform tracking gap, not confirmed from storefront
+159	38.0	CHK-A-019	Test property and environment routing (no QA on prod)	account	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Test events on production corrupt revenue; needs developer and property check
+160	38.0	CHK-A-073	Logged-in admin exception on primary tags	web-tracking	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Staff sessions pollute data; developer or GTM exception
+161	38.0	CHK-B-007	Ecommerce object clearing	orders	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Old items merge into new push; developer fix
+162	38.0	CHK-B-030	Basic vs Advanced Consent Mode - deliberate choice	gtm-privacy	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Basic consent hides traffic with no modeling; GA4 consent setting
+163	38.0	CHK-B-037	Auto-tagging and click-IDs	traffic	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Auto-tagging off drops click IDs; GA4 Google Ads link setting
+164	38.0	CHK-B-053	Spam/bot form-submission filtering	funnel	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Spam forms fire lead events; headless form test with care
+165	38.0	CHK-C-001	Bot/spam detection	other	2	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Bot sessions inflate traffic; agency filter setup
+166	37.5	CHK-B-054	sGTM deployment	web-tracking	2	1	2	2.5	2/5	TOOL-CRO,OWN-MASTER,OWN-CHECKLIST	Server-side GTM is heavy developer work; setup not visible externally
+167	37.0	CHK-B-013	Shopify Checkout Extensibility migration	orders	3	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Checkout extensibility iOS under-count; not observable on checkout
+168	35.3	UX-113	Accessibility: character key shortcuts	web-a11y	0	1	4	3.8	3/4	TOOL-CRO	Accesskey conflicts accessibility; theme code; DOM-checkable
+169	35.0	UX-186	A/B: cross-sell suggestions in cart	funnel	1	3	3	0.0	0/4	TOOL-CRO	Cross-sell in cart is generic upsell; no store-specific leak
+170	35.0	CHK-A-018	Product links: Ads, BigQuery, Search Console	web-tracking	1	3	3	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Ads, BigQuery and GSC links; ad-platform setup, no direct sales effect
+171	35.0	CHK-A-014	Channel groups classify UTMs, AI traffic and platform params	web-tracking	1	3	3	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Channel groups misfile UTMs; visible in GA4 channel report
+172	35.0	CHK-A-013	Attribution model DDA active with lag and window checks	web-tracking	1	3	3	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Attribution model choice; reporting view, not sales
+173	35.0	CHK-A-021	Remarketing audience recipe set built and shared to Ads	account	1	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Remarketing audiences; ad-side, no direct sales effect
+174	35.0	CHK-A-043	Tag, trigger and variable naming taxonomy enforced	web-tracking	1	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Tag naming taxonomy; GTM read shows names, no sales effect
+175	35.0	CHK-A-044	Constant variables hold all IDs	web-tracking	1	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Hardcoded IDs across tags; maintenance risk, no direct sales effect
+176	35.0	CHK-A-060	Folder organization and dead-tag sweep for old containers	web-tracking	1	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Dead tags slow pages; GTM read finds old tags
+177	35.0	CHK-A-079	Third-party tags configured in GTM actually load	web-tracking	1	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Third-party tags not loading; headless network check
+178	35.0	UX-198	item_list_name and item_list_id present	orders	1	3	3	0.0	0/0	OWN-MASTER	Item list name blank; GA4 collection report and dataLayer check
+179	35.0	CHK-B-066	Application and Cookies	web-tracking	1	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	New-visitor events on clean cookies; headless test
+180	34.5	UX-012	Size of tracking requests	web-tracking	1	1	3	2.5	2/4	TOOL-CRO	Tracking request size is technical; low sales effect
+181	34.5	UX-030	Preserve user scroll position	web-path	1	1	3	2.5	2/5	TOOL-CRO	Scroll restore is theme code; minor effect; headless-testable
+182	34.5	UX-100	Accessibility: keyboard operable	web-a11y	1	1	3	2.5	2/4	TOOL-CRO	Keyboard operability accessibility; theme code; needs interaction test
+183	34.5	UX-101	Accessibility: focus order	web-a11y	1	1	3	2.5	2/4	TOOL-CRO	Focus order accessibility; theme code; needs interaction test
+184	34.5	UX-110	Accessibility: text spacing	web-a11y	1	1	3	2.5	2/4	TOOL-CRO	Text spacing override accessibility; inline styles; testable
+185	34.5	UX-124	Accessibility: orientation	web-a11y	1	1	3	2.5	2/4	TOOL-CRO	Orientation support; theme code; emulation-testable
+186	34.0	CHK-A-011	Internal traffic filter active (team and agency IPs)	web-tracking	1	4	2	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Internal traffic filter; owner visits inflate data slightly
+187	34.0	CHK-A-028	User-ID carries non-PII internal ID only and is monitored	account	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Non-PII user ID risk; developer change; suspension risk to GA4
+188	34.0	CHK-A-046	Triggers use dataLayer custom events and native form listeners	web-tracking	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	CSS-selector triggers break silently; developer check needed
+189	34.0	CHK-A-052	Cookie variables have max-age and matching names	web-tracking	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Cookie expiry breaks cross-session tracking; developer fix
+190	34.0	CHK-A-057	SPA navigation handled (history triggers, ecommerce clearing)	web-tracking	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	SPA route changes missed; developer fix
+191	34.0	CHK-B-017	Bundle/kit item double-counting	orders	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Bundle double-counting overstates item revenue; developer fix
+192	34.0	CHK-B-032	Delayed-consent and post-consent sequencing	gtm-privacy	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Late consent loses campaign source; developer fix
+193	34.0	CHK-B-061	Cookie-lifetime cross-browser QA	web-tracking	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Cookie lifetime gap in privacy segment; cross-browser test needed
+194	34.0	CHK-B-070	iframe-embedded checkout and widget dataLayer bridging	web-tracking	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Iframe checkout conversions missing; headless iframe presence check
+195	34.0	CHK-C-006	Parameter drift	other	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Silent param loss and double-firing; developer fix
+196	34.0	CHK-C-014	SPA virtual pageviews	web-path	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	SPA pageviews missed; developer fix
+197	34.0	CHK-C-029	AOV-canceling-error check	other	2	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Count and AOV both off cancel out; needs backend total
+198	33.8	UX-080	Form field labels or placeholders	checkout	2	1	2	1.3	1/5	TOOL-CRO	Checkout form labels are platform-controlled; checkout not observed
+199	33.8	CHK-A-007	User-provided data collection enabled	web-tracking	1	3	2	1.3	1/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	User-provided data toggle; weak sales link
+200	33.0	UX-163	A/B: payment options near CTA	payments	2	3	1	0.0	0/4	TOOL-CRO	Payment methods near CTA test; payments lever; not verifiable from outside
+201	33.0	UX-176	A/B: payment method icons in cart	payments	2	3	1	0.0	0/4	TOOL-CRO	Payment icons in cart test; payment friction; not verifiable from outside
+202	33.0	UX-179	A/B: free shipping threshold highlight	delivery	2	3	1	0.0	0/4	TOOL-CRO	Free-shipping nudge test; AOV lever; not verifiable from outside
+203	33.0	CHK-B-021	item_id vs ad-platform catalog ID parity	orders	2	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Item ID mismatch kills catalog ads; feed not public
+204	33.0	CHK-C-002	Spike/drop alerts	other	2	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Tag removal goes unnoticed; alert config not readable
+205	32.0	UX-114	Accessibility: name, role, value	web-a11y	1	1	4	0.0	0/4	TOOL-CRO	ARIA names and roles; theme code; DOM-checkable
+206	32.0	UX-117	Accessibility: language of page	web-a11y	1	1	4	0.0	0/4	TOOL-CRO	Page language attribute; theme code; DOM-checkable
+207	32.0	CHK-A-058	Versions named and described	web-tracking	0	3	4	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Version naming; GTM read, no sales effect
+208	31.0	UX-193	Default scroll event tracking present	web-tracking	1	2	3	0.0	0/2	TOOL-CRO	Scroll-tracking event; engagement only, no sales effect
+209	31.0	CHK-A-032	Measurement Protocol secrets rotated and not exposed client-side	account	1	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Measurement Protocol secret in client JS; security, visible in page source
+210	31.0	CHK-A-076	Live site serves the newly published GTM container version	web-tracking	1	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Stale container on live site; headless check of loaded version
+211	31.0	CHK-B-026	PII in URLs	gtm-privacy	1	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	GET forms leak PII into URLs; visible in page_location
+212	31.0	CHK-C-004	High-cardinality dimensions	other	1	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	High-cardinality dims create (other) rows; GA4 report readable
+213	31.0	CHK-C-013	CTA clicks	web-path	1	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	CTA clicks fragile selector; headless event check
+214	31.0	CHK-C-015	404 / error-page tracking	web-path	1	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	404 visits invisible; headless 404 navigation test
+215	30.8	UX-076	Automatic cart quantity update	checkout	1	1	3	1.3	1/5	TOOL-CRO	Auto cart totals are theme code; minor effect; partly testable
+216	30.8	UX-125	Accessibility: focus visible	web-a11y	1	1	3	1.3	1/4	TOOL-CRO	Visible focus indicator accessibility; theme code; needs keyboard test
+217	30.8	CHK-A-016	Custom dims and metrics registered for GTM params	web-tracking	0	3	3	1.3	1/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Custom dimension registration; no sales effect
+218	30.0	UX-126	Accessibility: audio-only and video-only media	web-a11y	1	3	2	0.0	0/4	TOOL-CRO	Media alternatives accessibility; owner adds alternatives; partly visible
+219	30.0	UX-187	A/B: others have item in their carts	funnel	1	3	2	0.0	0/4	TOOL-CRO	Other-carts counter is generic CRO; no measured leak
+220	30.0	UX-189	A/B: order notes or gift message field	checkout	1	3	2	0.0	0/4	TOOL-CRO	Order notes field is minor; no sales leak
+221	30.0	CHK-A-005	Google Signals enabled with justification	web-tracking	1	3	2	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Google Signals toggle; admin-only, no sales effect
+222	30.0	CHK-A-029	Multi-stream architecture verified and GSC binding planned	web-tracking	1	3	2	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Extra stream orphans Search Console link; minor data gap
+223	30.0	CHK-A-027	GA4 numeric quota ceilings audited	account	1	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Quota ceilings; rare for small stores, not sales-visible
+224	30.0	CHK-B-063	GTM Preview	web-tracking	1	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	GTM Preview check; needs live session
+225	30.0	CHK-B-067	DebugView	web-tracking	1	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	DebugView verification; analyst tool, partly visible
+226	30.0	CHK-B-068	Tag Assistant and Analytics Debugger	web-tracking	1	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Multi-tool tag validation; process
+227	30.0	CHK-C-012	Site search	web-path	1	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Site search param not tracked; headless search test
+228	30.0	CHK-C-018	Engaged-session / engagement_time_msec threshold fit	web-path	1	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Engagement threshold; reporting view only
+229	29.0	CHK-B-009	Refund tracking	orders	2	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Refunds not tracked; needs backend and webhook access
+230	29.0	CHK-C-009	BigQuery reconciliation SQL patterns	other	2	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Silent param drop or double purchase; BigQuery needed
+231	28.8	UX-081	Adaptive error messages in forms	checkout	2	1	1	1.3	1/5	TOOL-CRO	Form error messages in checkout; platform-controlled; not observed
+232	27.0	UX-115	Accessibility: info and relationships	web-a11y	1	1	3	0.0	0/4	TOOL-CRO	Semantic structure accessibility; theme code; partly checkable
+233	27.0	UX-118	Accessibility: resize text	web-a11y	1	1	3	0.0	0/3	TOOL-CRO	Text resize accessibility; theme code; testable by emulation
+234	27.0	UX-121	Accessibility: consistent navigation	web-a11y	1	1	3	0.0	0/4	TOOL-CRO	Consistent navigation accessibility; theme code; partly checkable
+235	27.0	UX-127	Accessibility: consistent identification	web-a11y	1	1	3	0.0	0/4	TOOL-CRO	Consistent identification accessibility; theme code; partly checkable
+236	27.0	UX-131	Accessibility: multiple ways	web-a11y	1	1	3	0.0	0/4	TOOL-CRO	Multiple ways to find content; navigation code; partly checkable
+237	27.0	CHK-A-002	Data retention 14 months with reset on activity	web-tracking	0	3	3	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Data retention setting; GA4 admin with no sales effect
+238	27.0	CHK-A-022	Reporting library curated to business model	web-tracking	0	3	3	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Report library setup; no sales effect
+239	27.0	CHK-A-036	Custom-dim slots used vs 50 available	account	0	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Custom dimension slot count; no sales effect
+240	27.0	CHK-A-050	Custom JS variables return a value only	web-tracking	1	1	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Custom JS side effects; code-level fix
+241	27.0	CHK-A-059	One workspace per developer or feature	web-tracking	0	3	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Workspace collisions; process, no sales effect
+242	27.0	CHK-A-068	Distinct dataLayer names when multiple containers share a page	web-tracking	1	1	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Shared dataLayer names; code-level, rare
+243	26.5	UX-136	Accessibility: pause, stop, hide	web-a11y	0	1	3	2.5	2/4	TOOL-CRO	Moving content control accessibility; theme code; partly visible
+244	26.0	UX-190	Accessibility: on input	web-a11y	1	2	2	0.0	0/4	TOOL-CRO	Accessibility input-context rule; no sales link
+245	26.0	UX-197	GA4 interaction events and data privacy overview	web-tracking	1	2	2	0.0	0/1	AGENCY-DH	Retention and PII settings; privacy compliance, no sales effect
+246	26.0	CHK-A-038	pagePath count within benchmark	account	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Path count noise; reporting only
+247	26.0	CHK-A-051	DOM Element variables used as fallback only	web-tracking	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	DOM fallback scraping; developer change
+248	26.0	CHK-A-053	URL and referrer variables extract and persist	web-tracking	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Referrer persistence; developer fix, weak sales link
+249	26.0	CHK-A-066	Custom Template sandbox permissions reviewed before approval	web-tracking	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Template permissions; supply-chain risk, no sales effect
+250	26.0	CHK-B-012	Platform quirks	orders	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Platform item format; developer fix
+251	26.0	CHK-B-024	Regional rules	gtm-privacy	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	EU and US consent rules; little GCC sales effect; banner visible
+252	26.0	CHK-B-025	PII redaction	gtm-privacy	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Plain-text email collected; privacy, no sales effect
+253	26.0	CHK-B-027	Hashed PII only	gtm-privacy	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Raw or hashed email sent without consent; privacy
+254	26.0	CHK-B-041	QR/offline/print and push campaign channel mapping	traffic	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	QR and push channel mapping; minor traffic share
+255	26.0	CHK-C-016	Element Visibility triggers	web-path	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Impression claims from page_view proxy; developer fix
+256	26.0	CHK-C-020	Self-hosted / Vimeo video milestones	web-path	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Video milestones never fire; headless video check
+257	26.0	CHK-C-028	Behavioral validation via session recordings	other	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Recording and event mismatch; Clarity access needed
+258	26.0	CHK-C-032	Consent signal and privacy compliance	web-tracking	1	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity consent before load; headless check of consent gating
+259	25.8	UX-120	Accessibility: use of color	web-a11y	1	1	2	1.3	1/4	TOOL-CRO	Color-only cues accessibility; design change; hard to verify
+260	25.0	UX-020	A/B: show selected reviews section	reviews	1	3	1	0.0	0/5	TOOL-CRO	Generic reviews A/B test; not verifiable from outside
+261	25.0	UX-021	A/B: clickable product categories	funnel	1	3	1	0.0	0/5	TOOL-CRO	Generic category A/B test; not verifiable from outside
+262	25.0	UX-044	A/B: grid view vs list view	funnel	1	3	1	0.0	0/5	TOOL-CRO	Generic layout A/B test; not verifiable from outside
+263	25.0	UX-045	A/B: sticky search bar	search	1	3	1	0.0	0/5	TOOL-CRO	Generic sticky search A/B test; not verifiable from outside
+264	25.0	UX-046	A/B: sticky navigation bar	web-find	1	3	1	0.0	0/5	TOOL-CRO	Generic sticky nav A/B test; not verifiable from outside
+265	25.0	UX-047	A/B: product labels for key products	funnel	1	3	1	0.0	0/5	TOOL-CRO	Generic product labels A/B test; not verifiable from outside
+266	25.0	UX-048	A/B: Add to Cart CTA on product cards	funnel	1	3	1	0.0	0/5	TOOL-CRO	Generic add-to-cart placement A/B test; not verifiable from outside
+267	25.0	UX-064	A/B: trust signals near CTA	trust	1	3	1	0.0	0/5	TOOL-CRO	Generic trust-signal A/B test; not verifiable from outside
+268	25.0	UX-065	A/B: sticky Add to Cart on scroll	funnel	1	3	1	0.0	0/5	TOOL-CRO	Generic sticky add-to-cart A/B test; not verifiable from outside
+269	25.0	UX-066	A/B: CTA positioning and design	funnel	1	3	1	0.0	0/5	TOOL-CRO	Generic CTA placement A/B test; not verifiable from outside
+270	25.0	UX-067	A/B: discount display formats	pricing	1	3	1	0.0	0/5	TOOL-CRO	Generic discount format A/B test; not verifiable from outside
+271	25.0	UX-068	A/B: show current number of viewers	funnel	1	3	1	0.0	0/5	TOOL-CRO	Viewer-count test risks looking fake; not verifiable from outside
+272	25.0	UX-137	A/B: personalized hero banners	funnel	1	3	1	0.0	0/4	TOOL-CRO	Personalized hero test for returning users; not verifiable from outside
+273	25.0	UX-138	A/B: hero banner with clear UVP	funnel	1	3	1	0.0	0/4	TOOL-CRO	Single-UVP hero test; generic CRO; not verifiable from outside
+274	25.0	UX-140	A/B: showcase product benefits	funnel	1	3	1	0.0	0/4	TOOL-CRO	Benefit strip test; generic CRO; not verifiable from outside
+275	25.0	UX-141	A/B: CSR commitment highlight	trust	1	3	1	0.0	0/4	TOOL-CRO	CSR section test; brand effect; not verifiable from outside
+276	25.0	UX-142	A/B: product quiz section	funnel	1	3	1	0.0	0/4	TOOL-CRO	Product quiz test; generic CRO; not verifiable from outside
+277	25.0	UX-149	A/B: floating filter button on mobile	mobile	1	3	1	0.0	0/4	TOOL-CRO	Floating mobile filter test; generic UX; not verifiable
+278	25.0	UX-150	A/B: 2-3 key features on product cards	funnel	1	3	1	0.0	0/4	TOOL-CRO	Card features test; generic CRO; not verifiable from outside
+279	25.0	UX-151	A/B: reorder filter categories by popularity	search	1	3	1	0.0	0/4	TOOL-CRO	Filter order test; generic UX; not verifiable from outside
+280	25.0	UX-153	A/B: display price-per-unit on listing	pricing	1	3	1	0.0	0/4	TOOL-CRO	Price-per-unit test; value perception; not verifiable
+281	25.0	UX-159	A/B: highlight top customer reviews	reviews	1	3	1	0.0	0/4	TOOL-CRO	Curated top reviews test; not verifiable from outside
+282	25.0	UX-160	A/B: urgency text on stock	funnel	1	3	1	0.0	0/4	TOOL-CRO	Scarcity text test; trust risk; not verifiable from outside
+283	25.0	UX-161	A/B: customer video section	reviews	1	3	1	0.0	0/4	TOOL-CRO	Customer video test; generic CRO; not verifiable from outside
+284	25.0	UX-162	A/B: 30-day lowest price display	pricing	1	3	1	0.0	0/4	TOOL-CRO	30-day lowest price test; pricing trust; not verifiable from outside
+285	25.0	UX-164	A/B: highlight return policy	trust	1	3	1	0.0	0/4	TOOL-CRO	Early return policy test; generic CRO; not verifiable from outside
+286	25.0	UX-165	A/B: show popularity or sales count	trust	1	3	1	0.0	0/4	TOOL-CRO	Sales-count social proof test; not verifiable from outside
+287	25.0	UX-166	A/B: contextual captions on product photos	funnel	1	3	1	0.0	0/4	TOOL-CRO	Photo captions test; generic CRO; not verifiable from outside
+288	25.0	UX-168	A/B: bundle or set savings display	pricing	1	3	1	0.0	0/4	TOOL-CRO	Bundle savings test; AOV effect; not verifiable from outside
+289	25.0	UX-169	A/B: customer photos in product gallery	reviews	1	3	1	0.0	0/4	TOOL-CRO	Customer photos test; generic CRO; not verifiable from outside
+290	25.0	UX-170	A/B: customer Q&A section	reviews	1	3	1	0.0	0/4	TOOL-CRO	Customer Q&A test; generic CRO; not verifiable from outside
+291	25.0	UX-171	A/B: brand story or trust statement	trust	1	3	1	0.0	0/4	TOOL-CRO	Brand story test; trust effect; not verifiable from outside
+292	25.0	UX-177	A/B: sticky checkout button on mobile	checkout	1	3	1	0.0	0/4	TOOL-CRO	Sticky checkout button test; generic CRO; not verifiable
+293	25.0	UX-178	A/B: sticky order summary on desktop	checkout	1	3	1	0.0	0/4	TOOL-CRO	Sticky order summary test; generic CRO; not verifiable
+294	25.0	UX-180	A/B: urgency messaging in cart	funnel	1	3	1	0.0	0/4	TOOL-CRO	Cart urgency message test; generic CRO; not verifiable
+295	25.0	UX-181	A/B: security messaging near checkout	trust	1	3	1	0.0	0/4	TOOL-CRO	Security messaging test; trust effect; not verifiable from outside
+296	25.0	UX-182	A/B: total discount savings in cart	pricing	1	3	1	0.0	0/4	TOOL-CRO	Total savings message test; perceived value; not verifiable
+297	25.0	UX-183	A/B: checkout button design variations	checkout	1	3	1	0.0	0/4	TOOL-CRO	Checkout button design test; generic CRO; not verifiable
+298	25.0	CHK-A-024	Every tracked event maps to a documented KPI	account	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Event-to-KPI mapping is a planning document; not measurable
+299	25.0	CHK-A-069	Publish requires second reviewer or documented approval	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Publish review step; process, not visible
+300	25.0	CHK-B-057	Measurement Protocol stitching	web-tracking	2	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Late CRM stitching; needs backend and MP access
+301	25.0	CHK-B-060	Meta CAPI architecture and consent integrity	web-tracking	2	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Server CAPI architecture; developer, high effort
+302	25.0	CHK-B-069	QA test plan	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	QA test matrix; process
+303	25.0	CHK-C-019	Session timeout customization	web-path	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Session timeout; reporting view only
+304	25.0	CHK-C-033	Input masking level	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity input masking; Clarity settings not readable
+305	25.0	CHK-C-034	GA4 integration	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity GA4 integration; Clarity settings not readable
+306	25.0	CHK-C-037	Internal traffic filtering	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity internal IP filter; Clarity settings not readable
+307	25.0	CHK-C-038	Smart events health	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity smart events health; Clarity access needed
+308	25.0	CHK-C-039	Custom tags recipe	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity custom tags; Clarity access needed
+309	25.0	CHK-C-041	Funnels	web-tracking	1	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity funnels; Clarity access needed
+310	24.0	CHK-C-050	CRM lead-quality feedback loop	other	2	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Ad platforms optimise on raw leads; CRM access needed
+311	24.0	UX-119	Accessibility: parsing	web-a11y	0	1	4	0.0	0/4	TOOL-CRO	Unique IDs accessibility; theme code; DOM-checkable
+312	23.0	CHK-A-049	Lookup and RegEx tables map GA4 to partner event names	web-tracking	0	2	3	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Lookup tables reduce tag count; no sales effect
+313	22.8	UX-132	Accessibility: pointer gestures	web-a11y	0	1	3	1.3	1/4	TOOL-CRO	Pointer gesture accessibility; theme code; testable
+314	22.0	CHK-A-026	Audience-trigger events used sparingly and excluded from attribution reports	account	0	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Synthetic audience events; attribution hygiene, no sales effect
+315	22.0	CHK-A-031	Change History reviewed on a cadence	account	0	3	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Change history review; process, no sales effect
+316	22.0	CHK-C-021	Scroll-after-timeout phantom session	web-path	1	1	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Phantom sessions; developer fix, reporting view only
+317	22.0	CHK-C-040	Identify API / custom identifiers	web-tracking	1	1	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Identify API misuse; code-level, headless partly visible
+318	21.0	CHK-A-006	Advanced ad personalization per-region with NPA fallback	web-tracking	1	2	1	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Ad personalization per region; needs GA4 admin, no sales effect
+319	21.0	CHK-A-030	Data Import configured for non-Google paid cost and CRM data	account	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Cost data import for ad channels; ad-account side
+320	21.0	CHK-B-016	Subscription/recurring revenue distinction	orders	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Subscription revenue split; rare for these stores
+321	21.0	CHK-B-019	Guest vs logged-in user_id inconsistency	orders	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	User ID consistency; analyst view only
+322	21.0	CHK-B-029	Consent parameter decoding reference	gtm-privacy	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Consent parameter encoding; needs network decode
+323	21.0	CHK-B-035	Consent Mode behavioral-modeling eligibility	gtm-privacy	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Behavioral modeling threshold; GA4 setting, minor effect
+324	21.0	CHK-B-042	Cross-platform attribution-window reconciliation	traffic	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Attribution window mismatch; analyst view only
+325	21.0	CHK-B-044	Enhanced Conversions	funnel	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Enhanced conversions; ad-platform setting
+326	21.0	CHK-B-045	generate_lead value params	funnel	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Lead value params; ad optimisation only
+327	21.0	CHK-B-058	Secondary pixels	web-tracking	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Secondary pixels; ad-platform setup
+328	21.0	CHK-C-031	Cohort retention cross-check vs backend	other	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Cohort retention vs backend; subscription only
+329	21.0	CHK-C-044	Embedded-iframe recording blind spot	web-tracking	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Iframe recording blind spot; documentation only
+330	21.0	CHK-C-011	Multi-currency FX-rate reporting distortion (analyst literacy note)	other	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	FX-driven revenue shift; interpretation note
+331	21.0	CHK-C-052	Dashboard accuracy (appendix)	other	1	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Dashboard source-of-truth check; BI access needed
+332	20.8	UX-084	Checkout progress steps shown	checkout	1	1	1	1.3	1/5	TOOL-CRO	Checkout progress steps; platform checkout; minor effect; not observed
+333	20.8	UX-085	Form length appropriate	checkout	1	1	1	1.3	1/5	TOOL-CRO	Checkout form length; platform-controlled; minor effect; not observed
+334	20.8	UX-086	Auto-scroll to field with error	checkout	1	1	1	1.3	1/5	TOOL-CRO	Auto-scroll to error field; platform code; minor; not observed
+335	20.8	UX-088	Order summary details visible	checkout	1	1	1	1.3	1/5	TOOL-CRO	Itemized checkout summary; platform-controlled; minor; not observed
+336	20.8	UX-090	Browser autofill supported	checkout	1	1	1	1.3	1/5	TOOL-CRO	Browser autofill on checkout fields; platform-controlled; not observed
+337	20.0	CHK-C-007	Health governance	other	1	3	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Health cadence and owners; process, not measurable
+338	19.0	UX-128	Accessibility: language of parts	web-a11y	0	1	3	0.0	0/4	TOOL-CRO	Language-of-parts accessibility; theme code; DOM-checkable
+339	19.0	UX-133	Accessibility: on focus	web-a11y	0	1	3	0.0	0/4	TOOL-CRO	Focus context change accessibility; theme code; testable
+340	18.0	CHK-A-012	Reporting identity and thresholding strategy known and re-validated	web-tracking	0	2	2	0.0	0/1	AGENCY-DH,OWN-MASTER,OWN-CHECKLIST	Reporting identity thresholds; analyst view only
+341	18.0	CHK-A-065	Zones scope partner publishing in shared containers	web-tracking	0	2	2	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Zones for partner access; no sales effect
+342	17.8	UX-134	Accessibility: audio description for media	web-a11y	0	1	2	1.3	1/4	TOOL-CRO	Audio description for video; accessibility; media-dependent
+343	17.8	UX-135	Accessibility: sensory characteristics	web-a11y	0	1	2	1.3	1/4	TOOL-CRO	Sensory-only instructions accessibility; copy change; hard to verify
+344	17.0	UX-069	A/B: product or trending badges	funnel	0	3	1	0.0	0/5	TOOL-CRO	Generic badge A/B test; low effect; not verifiable
+345	17.0	UX-070	A/B: highlight first-purchase incentives	funnel	0	3	1	0.0	0/5	TOOL-CRO	Generic first-purchase A/B test; low effect; not verifiable
+346	17.0	UX-071	A/B: social sharing buttons	funnel	0	3	1	0.0	0/5	TOOL-CRO	Sharing buttons A/B test; low effect; not verifiable
+347	17.0	UX-078	A/B: continue shopping option	funnel	0	3	1	0.0	0/5	TOOL-CRO	Continue-shopping A/B test; low effect; not verifiable
+348	17.0	UX-079	A/B: FAQ section	funnel	0	3	1	0.0	0/5	TOOL-CRO	FAQ A/B test; low effect; not verifiable
+349	17.0	UX-139	A/B: best-selling products carousel	funnel	0	3	1	0.0	0/4	TOOL-CRO	Bestseller carousel test; low effect; not verifiable
+350	17.0	UX-143	A/B: brand introduction section	trust	0	3	1	0.0	0/4	TOOL-CRO	Brand intro test; low effect; not verifiable from outside
+351	17.0	UX-144	A/B: shop the look section	funnel	0	3	1	0.0	0/4	TOOL-CRO	Shop-the-look test; low effect; not verifiable from outside
+352	17.0	UX-145	A/B: new arrivals section	funnel	0	3	1	0.0	0/4	TOOL-CRO	New arrivals section test; low effect; not verifiable
+353	17.0	UX-146	A/B: loyalty program section	account	0	3	1	0.0	0/4	TOOL-CRO	Loyalty homepage test; low effect; not verifiable
+354	17.0	UX-147	A/B: region-specific messaging	funnel	0	3	1	0.0	0/4	TOOL-CRO	Region messaging test; low effect; not verifiable
+355	17.0	UX-148	A/B: weather-adaptive content	funnel	0	3	1	0.0	0/4	TOOL-CRO	Weather-adaptive test; low effect; not verifiable
+356	17.0	UX-152	A/B: collapse low-use filters by default	search	0	3	1	0.0	0/4	TOOL-CRO	Collapsed filters test; low effect; not verifiable
+357	17.0	UX-154	A/B: recently viewed products section	funnel	0	3	1	0.0	0/4	TOOL-CRO	Recently viewed test; low effect; not verifiable
+358	17.0	UX-155	A/B: wishlist products carousel	account	0	3	1	0.0	0/4	TOOL-CRO	Wishlist carousel test; low effect; not verifiable
+359	17.0	UX-172	A/B: expandable product descriptions	funnel	0	3	1	0.0	0/4	TOOL-CRO	Expandable descriptions test; low effect; not verifiable
+360	17.0	UX-173	A/B: complementary products highlight	funnel	0	3	1	0.0	0/4	TOOL-CRO	Complementary products test; low effect; not verifiable
+361	17.0	UX-174	A/B: location-based add-to-cart social proof	trust	0	3	1	0.0	0/4	TOOL-CRO	Location social proof test; low effect; not verifiable
+362	17.0	UX-175	A/B: on-exit pop-ups	funnel	0	3	1	0.0	0/4	TOOL-CRO	Exit pop-up test; low effect; not verifiable
+363	17.0	CHK-A-023	Baseline explorations exist (Path and Funnel)	account	0	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Baseline explorations; analyst habit, not visible via API
+364	17.0	CHK-A-035	Annotations used to document config changes and launches	account	0	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Annotations; process, no sales effect
+365	17.0	CHK-A-070	Preview and debug share links not left open to external parties	web-tracking	0	3	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Preview links shared; process, no sales effect
+366	17.0	CHK-A-075	AMP pages have dedicated tracking configuration	web-tracking	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	AMP tracking; rare on GCC stores, code-level
+367	17.0	CHK-B-033	TCF v2.2 vendor consent integration	gtm-privacy	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	TCF vendor consent; EU-focused, high effort
+368	17.0	CHK-B-046	Hidden-field injection	funnel	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Hidden-field CRM flow; needs CRM access
+369	17.0	CHK-B-047	Tracking IDs captured for backend stitching	funnel	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Tracking IDs for backend stitching; needs backend
+370	17.0	CHK-B-056	Server hashing and consent passthrough	web-tracking	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Server-side hashing and consent; code-level
+371	17.0	CHK-B-071	AMP page tracking QA	web-tracking	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	AMP untracked; rare on these stores
+372	17.0	CHK-B-072	PWA and service-worker caching interference	web-tracking	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Service worker event loss; code-level
+373	17.0	CHK-C-047	Clarity Data Export API key governance	web-tracking	1	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity export key exposure; developer check
+374	16.0	CHK-B-043	Ads conversion source	funnel	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Ads conversion primary setting; ad account only
+375	16.0	CHK-B-049	Enhanced Conversions diagnostics deep-audit	funnel	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Enhanced conversions diagnostics; ad account only
+376	16.0	CHK-B-050	Offline conversion import dedup	funnel	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Offline import dedup; ad account and CRM needed
+377	16.0	CHK-B-051	Dynamic Number Insertion call tracking	funnel	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Call tracking swap; DNI provider needed, not visible
+378	16.0	CHK-B-052	Google Ads conversion-action Count setting	funnel	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Conversion count setting; ad account only
+379	16.0	CHK-B-055	TikTok/Snap server APIs	web-tracking	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	TikTok and Snap server APIs; ad account only
+380	16.0	CHK-B-059	Meta CAPI match-quality and data-integrity	web-tracking	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Meta EMQ; ad-account data only
+381	16.0	CHK-C-023	Conversion-count sanity ratio	other	2	0	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Platform conversions overstate sales; needs ad account
+382	16.0	CHK-C-051	BigQuery reconciliation queries (appendix)	other	1	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	BigQuery vs ERP tie-out; finance and BQ access needed
+383	14.0	UX-130	Accessibility: audio control	web-a11y	0	1	2	0.0	0/4	TOOL-CRO	Audio control accessibility; theme code; media-dependent
+384	13.0	CHK-A-033	Subproperty filters and roll-up aggregation correct	account	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Subproperty filters; enterprise setup, no sales effect
+385	13.0	CHK-A-064	GA4-to-Clarity event-tagging bridge present and guarded	web-tracking	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity bridge; no sales effect
+386	13.0	CHK-B-001	Property typing	orders	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Property typing convention; architecture only
+387	13.0	CHK-B-028	Deletion protocol	gtm-privacy	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Deletion process; policy, not visible
+388	13.0	CHK-B-031	Consent Mode applicability/scope check	gtm-privacy	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Consent Mode scope check; no sales effect
+389	13.0	CHK-B-034	BigQuery consent-export visibility	gtm-privacy	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	BigQuery consent export; no sales effect for owner
+390	13.0	CHK-B-062	BigQuery export governance	web-tracking	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	BigQuery export governance; no sales effect
+391	13.0	CHK-C-008	GA4 Data/Admin API quota-aware pipelines	other	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Quota-aware pipelines; no sales effect for owner
+392	13.0	CHK-C-036	Project hygiene	web-tracking	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity project hygiene; process
+393	13.0	CHK-C-042	Content Insights	web-tracking	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Content insights scope; no sales effect
+394	13.0	CHK-C-046	Heatmap dynamic-URL aggregation	web-tracking	0	2	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Heatmap URL aggregation; analyst view
+395	12.7	UX-089	Multicolumn forms	checkout	0	1	1	1.3	1/5	TOOL-CRO	Multi-column checkout layout; platform code; minor; not observed
+396	12.7	UX-091	Enter key submits forms	checkout	0	1	1	1.3	1/5	TOOL-CRO	Enter-key submit on forms; platform code; minor; not observed
+397	9.0	CHK-A-071	gtm.allowlist / gtm.blocklist code-level guardrails	web-tracking	0	1	1	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Code-level guardrails; no sales effect
+398	8.0	CHK-A-034	Remarketing audience governance lifecycle	account	0	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Audience governance; ad-side, not measurable
+399	8.0	CHK-C-035	Google Ads integration	web-tracking	0	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Clarity Google Ads link; ad account only
+400	8.0	CHK-C-043	Retention-aware evidence capture	web-tracking	0	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Recording evidence retention; process
+401	8.0	CHK-C-048	Active vs inactive tab time methodology gap	web-tracking	0	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	Time-method interpretation; not a store fact
+402	8.0	CHK-C-010	DST transition date-boundary drift (analyst literacy note)	other	0	2	0	0.0	0/0	OWN-MASTER,OWN-CHECKLIST	DST date artifact; analyst literacy note

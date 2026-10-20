@@ -289,11 +289,17 @@ also isn't shared, that category just degrades to detection-only.
 
 ## Known limitations (Phase 1)
 
-- **GA4 and GTM are the only selectable tools.** Clarity was offered via a
-  pasted-token MCP for a while and Hotjar never was (no comparable API);
-  both are gone as selectable tools. They're still *detected* — a Clarity or
-  Hotjar snippet firing on a site whose owner said they have no tools is a
-  real finding (WEB-24), it just isn't a live-data source.
+- **GA4 and GTM are the only tools that pick checklists.** Microsoft Clarity
+  is a separate, optional source (2026-10-20): the visitor pastes a Clarity
+  Data Export token on the tools step, `api/clarity/connect.js` pulls a
+  snapshot of the last 3 days (at most 3 of Clarity's 10 calls a day per
+  project) and the form submits the snapshot as `audit_requests.clarity_data`.
+  The token is never stored. A project whose top pages aren't on the audited
+  site is rejected. `src/clarity-facts.ts` turns it into facts for the prompt
+  (dead clicks, rage clicks, quick-backs, script errors, scroll, bots, phone
+  share, in-app browsers, pages at twice the site's own rate). Clarity's
+  per-URL and per-device breakdowns have answered 400 for a working token,
+  so they're best-effort. Hotjar has no comparable API and is detection only.
 - **GA4/GTM only get live data once the visitor has actually shared access**
   with the service account's `client_email` (shown to them in the form). If
   they haven't, that category still gets audited — just from the public crawl

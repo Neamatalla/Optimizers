@@ -32,6 +32,7 @@ import { discoverPages } from "./discover-pages.js";
 import { runPageSpeed } from "./pagespeed.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
 import { audienceRoleOf } from "./audience.js";
+import { computeClarityFacts } from "./clarity-facts.js";
 import type { AuditResult, CategoryResult } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -396,6 +397,30 @@ async function main() {
   // real run writes the business voice from the reader brief.
   const role = audienceRoleOf(process.argv.find(a => a.startsWith("--role="))?.split("=")[1]);
   if (role) result.audienceRole = role;
+
+  // --clarity adds a sample Clarity snapshot (shape from a real 2026-10-20
+  // export) so the Clarity section renders.
+  if (process.argv.includes("--clarity")) {
+    result.clarityFacts = computeClarityFacts({
+      source: "clarity", fetchedAt: new Date().toISOString(), days: 3, hostMatch: true,
+      sessions: 6810, botSessions: 1268, distinctUsers: 6060, pagesPerSession: 2.2,
+      engagement: { totalSeconds: 111, activeSeconds: 49 }, scrollDepth: 35.4,
+      behaviours: {
+        deadClicks: { sessionsPct: 3.5, pageViews: 258, count: 460 },
+        rageClicks: { sessionsPct: 0.04, pageViews: 3, count: 5 },
+        quickbacks: { sessionsPct: 13.2, pageViews: 2560, count: 2579 },
+        excessiveScroll: null,
+        scriptErrors: { sessionsPct: 4.6, pageViews: 325, count: 425 },
+        errorClicks: null,
+      },
+      devices: [{ name: "Mobile", sessions: 6569 }, { name: "PC", sessions: 146 }],
+      browsers: [{ name: "FacebookApp", sessions: 2222 }, { name: "ChromeMobile", sessions: 1909 }, { name: "InstagramApp", sessions: 1580 }],
+      os: [], countries: [], referrers: [], pageTitles: [],
+      topPages: [{ url: `${result.websiteUrl.replace(/\/$/, "")}/products/sample`, visits: 3831 }],
+      byUrl: [{ name: `${result.websiteUrl.replace(/\/$/, "")}/products/sample`, sessions: 3900, scrollDepth: 30, deadClicks: 8, quickbacks: 21, scriptErrors: 4 }],
+      byDevice: null,
+    });
+  }
 
   // Best-effort, same as the real pipeline (poll.ts/test-run.ts) — exercises
   // the Arabic toggle in the preview using the real translation pass instead

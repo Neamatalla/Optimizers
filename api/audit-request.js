@@ -9,8 +9,10 @@ import {
   duplicateMessage,
   ROLE_LABELS,
   insertAuditRequest,
+  cleanAdContext,
 } from "./_lib/audit-intake.js";
 import { verifyOwnership } from "./_lib/ownership-verification.js";
+import { sanitizeClaritySnapshot } from "./_lib/clarity.js";
 import { escapeHtml } from "./_lib/escape-html.js";
 import { log, setLogContext, withLog } from "./_lib/log.js";
 
@@ -33,7 +35,7 @@ async function handler(req, res) {
     if (check.invalid) {
       return res.status(400).json(check.invalid);
     }
-    const { isTest, email, website, tools, role, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform } = check.form;
+    const { isTest, email, website, tools, role, businessName, ga4MeasurementId, gtmContainerId, ga4OAuthData, gtmOAuthData, storePlatform, clarityData, adText, adCoupon } = check.form;
 
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -60,6 +62,10 @@ async function handler(req, res) {
     }
 
     const verificationMethods = await verificationPromise;
+    // The Clarity snapshot comes back from the browser, so it's rebuilt from
+    // known fields only. A project that doesn't track this site is dropped.
+    const clarity = sanitizeClaritySnapshot(clarityData, websiteHostname);
+    const adContext = cleanAdContext(adText, adCoupon);
     const { data: row, error: insertError } = await insertAuditRequest(supabase, {
         tools,
         website: String(website).trim(),
@@ -90,6 +96,9 @@ async function handler(req, res) {
         // reports it: not re-checked here. null when Intellia was
         // unavailable or not configured at the time.
         store_platform: cleanStorePlatform(storePlatform),
+        ...(clarity?.hostMatch && { clarity_data: clarity }),
+        // The media buyer's ad headline/offer and coupon, when typed.
+        ...(adContext && { ad_context: adContext }),
         status: "pending",
       });
 
@@ -152,6 +161,10 @@ async function handler(req, res) {
                 <tr style="background-color: #f5f5f5;">
                   <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">GTM ID provided</td>
                   <td style="padding: 12px; border: 1px solid #ddd;">${gtmContainerId ? escapeHtml(gtmContainerId) : "—"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Clarity</td>
+                  <td style="padding: 12px; border: 1px solid #ddd;">${clarity?.hostMatch ? `Connected, ${clarity.sessions ?? 0} sessions in ${clarity.days} days` : "—"}</td>
                 </tr>
               </table>
               <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
