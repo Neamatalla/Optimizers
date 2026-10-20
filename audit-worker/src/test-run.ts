@@ -20,9 +20,8 @@ import { runPageSpeed } from "./pagespeed.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
-import { buildAuditHtmlReport } from "./html-report.js";
+import { buildAuditHtmlReport } from "./html-report-node.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
-import { publishAuditReport } from "./supabase.js";
 import { sendAuditEmail } from "./email.js";
 import type { AuditResult, ToolId } from "./types.js";
 
@@ -122,33 +121,16 @@ async function main() {
   console.log(`[test-run] Saved locally: ${outputPath}`);
 
   if (skipEmail) {
-    console.log("[test-run] --no-email set, skipping upload and delivery. Done.");
+    console.log("[test-run] --no-email set, skipping delivery. Done.");
     return;
   }
 
   const categoriesAudited = result.categories.map(c => c.category);
 
-  // publishAuditReport needs Supabase (storage upload for a stable, from-
-  // anywhere link) — the real production path (poll.ts) always has that
-  // configured, but a local `npm run test-run -- --email=...` shouldn't
-  // have to set up Supabase just to see the email step actually work.
-  // Fall back to attaching the local HTML file directly instead of a
-  // hosted link whenever Supabase isn't configured this run.
-  const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
-
-  if (supabaseConfigured) {
-    // isTest: this script IS a test run by definition — its reports go to
-    // the test bucket so local experiments never pile up next to real
-    // client reports (same bucket a dash-prefixed form submission uses).
-    const { publicUrl: reportUrl } = await publishAuditReport({ requestId, html: htmlReport, businessName, website, isTest: true });
-    console.log(`[test-run] Published report: ${reportUrl}`);
-    console.log(`[test-run] emailing link to ${email}...`);
-    await sendAuditEmail({ to: email, website, businessName, reportUrl, categoriesAudited, isTest: true });
-  } else {
-    console.log("[test-run] SUPABASE_URL/SUPABASE_SECRET_KEY not set — attaching the local HTML report instead of a hosted link.");
-    console.log(`[test-run] emailing attachment to ${email}...`);
-    await sendAuditEmail({ to: email, website, businessName, categoriesAudited, isTest: true, attachment: { filename: path.basename(outputPath), html: htmlReport } });
-  }
+  // Published reports are rows tied to a real audit_requests row, which this
+  // script doesn't have, so the email carries the local file instead.
+  console.log(`[test-run] emailing attachment to ${email}...`);
+  await sendAuditEmail({ to: email, website, businessName, categoriesAudited, isTest: true, attachment: { filename: path.basename(outputPath), html: htmlReport } });
   console.log("[test-run] Done - check the inbox.");
 }
 

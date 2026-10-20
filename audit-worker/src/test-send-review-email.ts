@@ -15,8 +15,7 @@ import "./logger.js";
 import "dotenv/config";
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { buildAuditHtmlReport } from "./html-report.js";
-import { publishAuditReport, markRequestAwaitingApproval } from "./supabase.js";
+import { saveAuditReport, markRequestAwaitingApproval } from "./supabase.js";
 import { sendInternalReviewEmail } from "./email.js";
 import type { AuditResult } from "./types.js";
 
@@ -70,8 +69,7 @@ async function main() {
     ],
   };
 
-  const { html } = await buildAuditHtmlReport(result);
-  const { publicUrl: reportUrl, slug } = await publishAuditReport({ requestId: row.id, html, businessName, website });
+  const { publicUrl: reportUrl, slug } = await saveAuditReport({ requestId: row.id, result });
   console.log(`[test-send-review-email] Published: ${reportUrl}`);
 
   const approvalToken = crypto.randomBytes(24).toString("hex");

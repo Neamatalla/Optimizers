@@ -52,49 +52,60 @@ describe("GET /api/audit-approve", () => {
   });
 });
 
-describe("GET /audit-reports/<slug>", () => {
+describe("GET /api/audit-report", () => {
+  const rows = status => q => {
+    if (q.table === "report_pages") return { data: { audit_request_id: "r1", bucket: "audit-reports", storage_path: null, audit_requests: { status, website: "https://tharaa.shop" } }, error: null };
+    if (q.table === "audit_reports") return { data: { audit_request_id: "r1" }, error: null };
+    if (q.table === "audit_findings") return { data: [], error: null };
+    return { data: null, error: null };
+  };
+
   test("only GET is allowed", async () => {
-    assert.equal((await call(reportHandler, { method: "POST", query: { id: "tharaa-shop" } })).statusCode, 405);
+    assert.equal((await call(reportHandler, { method: "POST", query: { slug: "tharaa-shop" } })).statusCode, 405);
   });
 
   test("500 when Supabase isn't configured", async () => {
     delete process.env.SUPABASE_SECRET_KEY;
-    assert.equal((await call(reportHandler, { query: { id: "tharaa-shop" } })).statusCode, 500);
+    assert.equal((await call(reportHandler, { query: { slug: "tharaa-shop" } })).statusCode, 500);
   });
 
-  test("a sent report is served as cached HTML", async () => {
-    supabaseModule.client = fakeSupabase({
-      db: () => ({ data: { bucket: "audit-reports", storage_path: "r.html", audit_requests: { status: "done" } }, error: null }),
-      files: { "audit-reports/r.html": "<h1>Report</h1>" },
-    });
-    const res = await call(reportHandler, { query: { id: "tharaa-shop" } });
+  test("a sent report is served as JSON, cached for a minute", async () => {
+    supabaseModule.client = fakeSupabase({ db: rows("done") });
+    const res = await call(reportHandler, { query: { slug: "tharaa-shop" } });
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body, "<h1>Report</h1>");
-    assert.equal(res.headers["content-type"], "text/html; charset=utf-8");
-    assert.equal(res.headers["cache-control"], "public, max-age=300, s-maxage=3600");
+    assert.deepEqual(res.body.report, { audit_request_id: "r1" });
+    assert.deepEqual(res.body.findings, []);
+    assert.equal(res.headers["cache-control"], "public, max-age=60, s-maxage=60");
+  });
+
+  test("the old ?id= parameter still works", async () => {
+    supabaseModule.client = fakeSupabase({ db: rows("done") });
+    assert.equal((await call(reportHandler, { query: { id: "tharaa-shop" } })).statusCode, 200);
   });
 
   test("a report that isn't due is a 404 and is not cached", async () => {
-    supabaseModule.client = fakeSupabase({
-      db: () => ({ data: { bucket: "audit-reports", storage_path: "r.html", audit_requests: { status: "awaiting_approval" } }, error: null }),
-      files: { "audit-reports/r.html": "<h1>Report</h1>" },
-    });
-    const res = await call(reportHandler, { query: { id: "tharaa-shop" } });
+    supabaseModule.client = fakeSupabase({ db: rows("awaiting_approval") });
+    const res = await call(reportHandler, { query: { slug: "tharaa-shop" } });
     assert.equal(res.statusCode, 404);
+    assert.deepEqual(res.body, { error: "Audit report not found." });
     assert.equal(res.headers["cache-control"], undefined);
   });
 
   test("a bad slug is a 400", async () => {
-    assert.equal((await call(reportHandler, { query: { id: "../x" } })).statusCode, 400);
+    assert.equal((await call(reportHandler, { query: { slug: "../x" } })).statusCode, 400);
   });
 });
 
 describe("/api/report/edit", () => {
-  const page = { id: "p1", slug: "tharaa-shop", storage_path: "r.html", public_url: "u", updated_at: "t", bucket: "audit-reports" };
-  const withPage = () => {
+  const withReport = () => {
     supabaseModule.client = fakeSupabase({
-      db: q => (q.op === "update" ? { data: null, error: null } : { data: page, error: null }),
-      files: { "audit-reports/r.html": "<h1>Old</h1>" },
+      db: q => {
+        if (q.op === "update") return { data: null, error: null };
+        if (q.table === "report_pages") return { data: { audit_request_id: "r1", bucket: "audit-reports", storage_path: null, public_url: "u", audit_requests: { status: "awaiting_approval" } }, error: null };
+        if (q.table === "audit_reports") return { data: { audit_request_id: "r1" }, error: null };
+        if (q.table === "audit_findings") return { data: q.filters.id ? { id: "f1", kind: "check", audit_request_id: "r1" } : [{ id: "f1" }], error: null };
+        return { data: null, error: null };
+      },
     });
   };
 
@@ -112,23 +123,23 @@ describe("/api/report/edit", () => {
     assert.equal((await call(editHandler, { query: { slug: "tharaa-shop" }, headers: { "x-api-key": "" } })).statusCode, 401);
   });
 
-  test("GET returns the report HTML", async () => {
-    withPage();
+  test("GET returns the report's findings", async () => {
+    withReport();
     const res = await call(editHandler, { query: { slug: "tharaa-shop" }, headers: { "x-api-key": "edit-key" } });
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body.html, "<h1>Old</h1>");
+    assert.deepEqual(res.body.findings, [{ id: "f1" }]);
   });
 
-  test("PATCH replaces the report HTML", async () => {
-    withPage();
-    const res = await call(editHandler, { method: "PATCH", body: { slug: "tharaa-shop", html: "<h1>New</h1>" }, headers: { "x-api-key": "edit-key" } });
+  test("PATCH updates one finding", async () => {
+    withReport();
+    const res = await call(editHandler, { method: "PATCH", body: { slug: "tharaa-shop", findingId: "f1", changes: { protect: "Keep it." } }, headers: { "x-api-key": "edit-key" } });
     assert.equal(res.statusCode, 200);
-    assert.equal(supabaseModule.client.uploads[0].body, "<h1>New</h1>");
+    assert.deepEqual(supabaseModule.client.calls.find(c => c.op === "update").fields, { protect: "Keep it." });
   });
 
-  test("PATCH with empty html is a 400", async () => {
-    withPage();
-    const res = await call(editHandler, { method: "PATCH", body: { slug: "tharaa-shop", html: "" }, headers: { "x-api-key": "edit-key" } });
+  test("PATCH with no changes is a 400", async () => {
+    withReport();
+    const res = await call(editHandler, { method: "PATCH", body: { slug: "tharaa-shop", findingId: "f1", changes: {} }, headers: { "x-api-key": "edit-key" } });
     assert.equal(res.statusCode, 400);
   });
 });

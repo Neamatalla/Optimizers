@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Optimizers Audit</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #020601; color: #b8bab7; }
+      body { display: grid; place-items: center; min-height: 100vh; font: 15px/1.5 system-ui, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <p>Loading your audit…</p>
+    <!-- Served for every /audit-reports/<slug> (vercel.json). Fetches the
+         report's rows and replaces this page with the rendered report. -->
+    <script type="module" src="/src/audit-report/main.ts"></script>
+  </body>
+</html>

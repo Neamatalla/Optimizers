@@ -19,9 +19,8 @@ import { discoverPages } from "./discover-pages.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
 import { computeOverallPoints } from "./scoring.js";
-import { buildAuditHtmlReport } from "./html-report.js";
+import { buildAuditHtmlReport } from "./html-report-node.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
-import { publishAuditReport } from "./supabase.js";
 import { sendAuditEmail } from "./email.js";
 import type { AuditResult, ToolId } from "./types.js";
 
@@ -132,14 +131,14 @@ async function main() {
   console.log(`[test-run-oauth] Saved locally: ${outputPath}`);
 
   if (skipEmail) {
-    console.log("[test-run-oauth] --no-email set, skipping upload and delivery. Done.");
+    console.log("[test-run-oauth] --no-email set, skipping delivery. Done.");
     return;
   }
 
-  const { publicUrl: reportUrl } = await publishAuditReport({ requestId, html: htmlReport, businessName, website, isTest: true });
-  console.log(`[test-run-oauth] Published report: ${reportUrl}`);
-  console.log(`[test-run-oauth] emailing link to ${email}...`);
-  await sendAuditEmail({ to: email, website, businessName, isTest: true, reportUrl, categoriesAudited: result.categories.map(c => c.category) });
+  // Published reports are rows tied to a real audit_requests row, which this
+  // script doesn't have, so the email carries the local file instead.
+  console.log(`[test-run-oauth] emailing attachment to ${email}...`);
+  await sendAuditEmail({ to: email, website, businessName, isTest: true, categoriesAudited: result.categories.map(c => c.category), attachment: { filename: path.basename(outputPath), html: htmlReport } });
   console.log("[test-run-oauth] Done - check the inbox.");
 }
 

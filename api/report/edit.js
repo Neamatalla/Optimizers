@@ -1,13 +1,15 @@
-import { isAuthorized, getReportHtml, updateReportHtml } from "../_lib/report-edit.js";
+import { isAuthorized, getReport, updateFinding } from "../_lib/report-edit.js";
 import { log, setLogContext, withLog } from "../_lib/log.js";
 
 // Authenticated by REPORT_EDIT_API_KEY — a credential dedicated to this
 // endpoint, separate from SUPABASE_SECRET_KEY, so report-editing access can
 // be rotated/revoked without touching full Supabase service-role access.
 //
-// Note: api/audit-report.js serves reports with `s-maxage=3600`, so a PATCH
-// here can take up to an hour to show on the live URL through Vercel's edge
-// cache even though Storage and report_pages update immediately.
+//   GET   ?slug=<slug>                       the report's rows, each finding with its id
+//   PATCH { slug, findingId, changes }       changes one finding (technical, business,
+//                                            ar, action, protect, status)
+//
+// api/audit-report.js caches for 60s, so an edit shows on the page within a minute.
 async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -32,14 +34,13 @@ async function handler(req, res) {
   if (req.method === "GET") {
     const slug = String(req.query?.slug || "").trim();
     setLogContext({ slug });
-    const result = await getReportHtml({ supabase, bucket, slug });
+    const result = await getReport({ supabase, bucket, slug });
     return res.status(result.status).json(result.body);
   }
 
-  // PATCH — full-body replace of one report's stored HTML.
-  const { slug, html } = req.body || {};
-  setLogContext({ slug });
-  const result = await updateReportHtml({ supabase, bucket, slug, html });
+  const { slug, findingId, changes } = req.body || {};
+  setLogContext({ slug, findingId });
+  const result = await updateFinding({ supabase, slug, findingId, changes });
   return res.status(result.status).json(result.body);
 }
 

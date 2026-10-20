@@ -54,4 +54,14 @@ export default defineConfig({
   server: {
     allowedHosts: true,
   },
+  build: {
+    rollupOptions: {
+      // The landing page, and the audit report page served for every
+      // /audit-reports/<slug> (vercel.json, dev/api-bridge.ts).
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        report: path.resolve(__dirname, 'audit-report.html'),
+      },
+    },
+  },
 })

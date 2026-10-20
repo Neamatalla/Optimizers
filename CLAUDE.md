@@ -18,7 +18,7 @@ No linter is configured.
 
 ## Architecture
 
-**Entry flow:** `index.html` → `src/main.tsx` (wraps app in `LanguageProvider`) → `src/app/App.tsx` (sets up `QueryClientProvider`, renders all sections)
+**Entry flow:** `index.html` → `src/main.tsx` (wraps app in `LanguageProvider`) → `src/app/App.tsx` (sets up `QueryClientProvider`, renders all sections). A second Vite entry, `audit-report.html` → `src/audit-report/main.ts`, is the audit report page.
 
 **Path alias:** `@` maps to `src/` (configured in both `vite.config.ts` and `tsconfig.json`)
 
@@ -57,11 +57,11 @@ Two animation patterns coexist (documented in `ScrollAnimationRefinement.md`):
   - `audit-request.js` — Get a Free Audit form, queues the request in Supabase
   - `detect-tracking.js` — finds a site's GA4/GTM IDs to prefill the audit form
   - `oauth/google/authorize.js`, `callback.js` — Google OAuth for GA4/GTM access
-  - `audit-report.js` — serves reports at `/audit-reports/:id`
+  - `audit-report.js` — a report's rows as JSON. `/audit-reports/:slug` is the static page `audit-report.html` (`src/audit-report/main.ts`), which fetches them and renders them with `audit-worker/src/html-report.ts`. Findings live in the `audit_reports` / `audit_findings` tables, images in the public `audit-images` bucket
   - `audit-approve.js` — approve link from the internal review email
-  - `report/edit.js` — report editing, behind `REPORT_EDIT_API_KEY`
+  - `report/edit.js` — edits one finding row, behind `REPORT_EDIT_API_KEY`
 - **Logging:** JSON lines, read in the Vercel and Railway dashboards (no outside log service). API handlers are wrapped in `withLog` from `api/_lib/log.js` and log with `log.*`. The worker keeps plain `console.*`: `audit-worker/src/logger.ts` formats it, and `log-context.ts` adds the `auditId` of the audit being run. The same `auditId` (`audit_requests.id`) shows up in both dashboards. In production, an API 5xx or crash also emails the reviewer, at most once per route every 15 minutes (`api/_lib/error-alert.js`).
-- `vercel.json` proxies `/blog/*` to WordPress and `/apps/*` to other Vercel apps, and rewrites all other non-API routes to `/index.html` (SPA)
+- `vercel.json` proxies `/blog/*` to WordPress and `/apps/*` to other Vercel apps, sends `/audit-reports/*` to `/audit-report.html`, and rewrites all other non-API routes to `/index.html` (SPA)
 
 ### Strategy Session Form
 

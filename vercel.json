@@ -49,8 +49,8 @@
     },
 
     {
-      "source": "/audit-reports/:id",
-      "destination": "/api/audit-report?id=:id"
+      "source": "/audit-reports/:slug",
+      "destination": "/audit-report.html"
     },
 
     {

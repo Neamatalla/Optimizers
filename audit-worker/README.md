@@ -161,12 +161,10 @@ leading `-` on **both** the website and the email:
 
 The prefix is stripped at intake (`api/_lib/audit-intake.js`'s
 `parseTestPrefix`) and stored as `audit_requests.is_test`. From there a test
-run differs from a real one in exactly four ways:
+run differs from a real one in these ways:
 
-- The report is published to `AUDIT_REPORTS_TEST_BUCKET`
-  (`audit-reports-test`) instead of the live bucket. `report_pages.bucket`
-  records which bucket a slug is in, so `/audit-reports/<slug>` serves and
-  `api/report/edit.js` edits either one without being told.
+- The report's slug gets a `test_` prefix (`test_example-com`), so it never
+  takes a client's link.
 - It's emailed **straight to the address in the form** the moment the audit
   finishes — no internal review email, no approval link, no 2-day delay. The
   subject is tagged `[TEST]` and the body carries a banner, so a test that
@@ -232,7 +230,7 @@ npm run fud-override -- <request-id> B1 pass "returns line is in the sticky bar"
 npm run fud-override -- <request-id> A1 hidden "digital product, no shipping"
 ```
 
-`<request-id>` is the full id or the 6 characters at the end of the report slug. It saves the correction (keeping the machine's original status), recomputes the score and republishes the report at the same URL. It rebuilds the report from the saved audit data, so do overrides **before** any hand edits through `/api/report/edit`.
+`<request-id>` is the full id or the 6 characters at the end of the report slug. It saves the correction (keeping the machine's original status) and rewrites the report's friction rows; the page shows it on its next load. It starts from the current rows, so hand edits through `/api/report/edit` stay. `--republish` rebuilds every row from the saved audit data and drops them.
 
 ## How Claude picks the right GA4 property / GTM container
 

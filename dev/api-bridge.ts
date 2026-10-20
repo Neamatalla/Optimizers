@@ -2,7 +2,8 @@
 // runs them in production, so there's one copy of the API, not a dev twin.
 //
 //   /api/<path>              -> api/<path>.js (files under api/_lib are skipped, like on Vercel)
-//   /audit-reports/<slug>    -> api/audit-report.js?id=<slug> (same as vercel.json's rewrite)
+//   /audit-reports/<slug>    -> audit-report.html (same as vercel.json's rewrite), which
+//                               fetches /api/audit-report?slug=<slug>
 //
 // Each handler gets the extras Vercel adds: req.query, req.body (parsed
 // JSON), res.status(), res.json(), res.send(). Handlers are loaded through
@@ -33,18 +34,16 @@ export function apiBridgePlugin() {
         const localReport = url.pathname.match(LOCAL_REPORT_ROUTE)
         if (localReport) return serveLocalReport(localReport[1], rootDir, res)
 
-        const query: Record<string, string> = Object.fromEntries(url.searchParams)
-        let file: string
-        const report = url.pathname.match(REPORT_ROUTE)
-        const api = url.pathname.match(API_ROUTE)
-        if (report) {
-          file = 'api/audit-report.js'
-          query.id = safeDecode(report[1])
-        } else if (api) {
-          file = `api/${api[1]}.js`
-        } else {
+        // Vite serves and transforms the page; the URL in the address bar stays.
+        if (REPORT_ROUTE.test(url.pathname)) {
+          req.url = `/audit-report.html${url.search}`
           return next()
         }
+
+        const query: Record<string, string> = Object.fromEntries(url.searchParams)
+        const api = url.pathname.match(API_ROUTE)
+        if (!api) return next()
+        const file = `api/${api[1]}.js`
         if (!fs.existsSync(path.join(rootDir, file))) return next()
 
         // Re-read .env on every request, so edits apply without a restart.

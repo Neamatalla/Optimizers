@@ -1,14 +1,15 @@
 // Report-serving logic, used by api/audit-report.js. Kept apart from the
 // handler since none of this touches req/res.
 //
-// A report is uploaded the moment the worker publishes it, days before the
-// client is meant to see it, so serving can't just mean "the file exists".
+// A report is saved the moment the worker publishes it, days before the
+// client is meant to see it, so serving can't just mean "the rows exist".
 // A plain /audit-reports/<slug> request only gets the report once it's due
 // to the client (see isClientVisible); the team opens it at any stage with
 // a signed ?preview= link (see previewSignature), which the internal review
 // email carries (audit-worker/src/email.ts).
 import crypto from "node:crypto";
 import { REPORT_SLUG_RE, isAuthorized } from "./report-edit.js";
+import { REPORT_PAGE_COLUMNS, loadReportData } from "./report-data.js";
 import { log } from "./log.js";
 
 // HMAC of the slug under REPORT_PREVIEW_SECRET, so a preview link needs no
@@ -31,28 +32,25 @@ function isClientVisible(request, now = new Date()) {
 
 export async function getServableReport({ supabase, slug, preview, defaultBucket, previewSecret }) {
   if (!REPORT_SLUG_RE.test(slug)) {
-    return { status: 400, body: "Invalid audit report link." };
+    return { status: 400, body: { error: "Invalid audit report link." } };
   }
 
   // Never valid when the secret is unset — previews fail closed, while a
   // client-visible report below still serves.
   const previewOk = Boolean(previewSecret) && isAuthorized(preview, previewSignature(slug, previewSecret));
 
-  // report_pages is the authority on where a report actually lives: a
-  // test-mode run (see api/_lib/audit-intake.js) publishes to a separate
-  // bucket, so the bucket can't be assumed from the slug alone. It also
-  // links the slug to its audit_requests row, whose status decides whether
-  // a plain request may see it.
+  // report_pages links the slug to its audit_requests row, whose status
+  // decides whether a plain request may see it.
   const { data: page, error: lookupError } = await supabase
     .from("report_pages")
-    .select("bucket, storage_path, audit_requests(status, scheduled_send_at)")
+    .select(REPORT_PAGE_COLUMNS)
     .eq("slug", slug)
     .maybeSingle();
 
   if (lookupError) {
     log.error("report_pages lookup error", { error: lookupError });
     // Can't tell whether it's due yet, so don't show it unless signed.
-    if (!previewOk) return { status: 500, body: "Could not load audit report." };
+    if (!previewOk) return { status: 500, body: { error: "Could not load audit report." } };
   }
 
   // A slug with no report_pages row at all predates that table, and every
@@ -61,17 +59,8 @@ export async function getServableReport({ supabase, slug, preview, defaultBucket
   // doesn't exist, so a guessed slug can't confirm a report is there.
   const legacy = !lookupError && !page;
   if (!previewOk && !legacy && !isClientVisible(page?.audit_requests)) {
-    return { status: 404, body: "Audit report not found." };
+    return { status: 404, body: { error: "Audit report not found." } };
   }
 
-  const bucket = page?.bucket || defaultBucket;
-  const objectPath = page?.storage_path || `reports/${slug}/index.html`;
-  const { data, error } = await supabase.storage.from(bucket).download(objectPath);
-
-  if (error || !data) {
-    log.error("Supabase report download error", { error });
-    return { status: 404, body: "Audit report not found." };
-  }
-
-  return { status: 200, body: await data.text() };
+  return loadReportData({ supabase, slug, page, defaultBucket });
 }

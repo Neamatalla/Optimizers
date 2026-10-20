@@ -1,16 +1,26 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { isAuthorized, getReportHtml, updateReportHtml } from "../../api/_lib/report-edit.js";
+import { isAuthorized, getReport, updateFinding } from "../../api/_lib/report-edit.js";
 import { fakeSupabase, offlineAndQuiet } from "./helpers.js";
 
 offlineAndQuiet();
 
-const PAGE = { id: "p1", slug: "tharaa-shop", storage_path: "reports/tharaa-shop/index.html", public_url: "https://optimizers.agency/audit-reports/tharaa-shop", updated_at: "2026-10-18", bucket: "audit-reports-test" };
+const PAGE = { audit_request_id: "r1", bucket: "audit-reports", storage_path: null, public_url: "https://optimizers.agency/audit-reports/tharaa-shop", audit_requests: { status: "awaiting_approval", website: "https://tharaa.shop", business_name: null, audience_role: null } };
+const REPORT = { audit_request_id: "r1", generated_at: "2026-10-20T10:00:00Z" };
+const FINDING = { id: "f1", kind: "check", audit_request_id: "r1" };
+const voice = { summary: "New summary", detail: "New detail" };
 
-function setup(page = PAGE) {
+// report_pages -> page, audit_reports -> report, audit_findings -> the finding.
+function setup({ page = PAGE, report = REPORT, finding = FINDING } = {}) {
   return fakeSupabase({
-    db: q => (q.op === "update" ? { data: null, error: null } : { data: page, error: null }),
-    files: { [`audit-reports-test/${PAGE.storage_path}`]: "<h1>Old</h1>" },
+    db: q => {
+      if (q.op === "update") return { data: null, error: null };
+      if (q.table === "report_pages") return { data: page, error: null };
+      if (q.table === "audit_reports") return { data: report, error: null };
+      if (q.table === "audit_findings") return { data: q.filters.id ? finding : [finding], error: null };
+      return { data: null, error: null };
+    },
+    files: { "audit-reports/reports/tharaa-shop/index.html": "<h1>Old</h1>" },
   });
 }
 
@@ -28,43 +38,64 @@ describe("isAuthorized", () => {
   });
 });
 
-describe("getReportHtml", () => {
-  test("returns the page details and HTML, read from the row's bucket", async () => {
-    const result = await getReportHtml({ supabase: setup(), bucket: "audit-reports", slug: "tharaa-shop" });
-    assert.deepEqual(result, {
-      status: 200,
-      body: { slug: "tharaa-shop", publicUrl: PAGE.public_url, updatedAt: "2026-10-18", html: "<h1>Old</h1>" },
-    });
+describe("getReport", () => {
+  test("returns the rows at any stage, with the slug and link", async () => {
+    const result = await getReport({ supabase: setup(), bucket: "audit-reports", slug: "tharaa-shop" });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.slug, "tharaa-shop");
+    assert.equal(result.body.publicUrl, PAGE.public_url);
+    assert.deepEqual(result.body.findings, [FINDING]);
   });
 
-  test("bad slug, unknown slug, missing file", async () => {
-    assert.equal((await getReportHtml({ supabase: setup(), bucket: "b", slug: "../x" })).status, 400);
-    assert.equal((await getReportHtml({ supabase: setup(null), bucket: "b", slug: "nope" })).status, 404);
-    const noFile = setup({ ...PAGE, storage_path: "gone.html" });
-    assert.equal((await getReportHtml({ supabase: noFile, bucket: "b", slug: "tharaa-shop" })).status, 404);
+  test("bad slug, unknown slug", async () => {
+    assert.equal((await getReport({ supabase: setup(), bucket: "b", slug: "../x" })).status, 400);
+    assert.equal((await getReport({ supabase: setup({ page: null }), bucket: "b", slug: "nope" })).status, 404);
+  });
+
+  test("an old HTML report has nothing to edit", async () => {
+    const old = setup({ page: { ...PAGE, storage_path: "reports/tharaa-shop/index.html" }, report: null });
+    assert.equal((await getReport({ supabase: old, bucket: "audit-reports", slug: "tharaa-shop" })).status, 409);
   });
 });
 
-describe("updateReportHtml", () => {
-  test("replaces the stored file and bumps updated_at", async () => {
+describe("updateFinding", () => {
+  test("updates the finding's row", async () => {
     const supabase = setup();
-    const result = await updateReportHtml({ supabase, bucket: "audit-reports", slug: " tharaa-shop ", html: "<h1>New</h1>" });
-    assert.deepEqual(result, { status: 200, body: { success: true, slug: "tharaa-shop" } });
-    assert.deepEqual(supabase.uploads.map(u => [u.bucket, u.path, u.body, u.options.upsert]), [["audit-reports-test", PAGE.storage_path, "<h1>New</h1>", true]]);
+    const changes = { business: voice, status: "pass" };
+    const result = await updateFinding({ supabase, slug: " tharaa-shop ", findingId: "f1", changes });
+    assert.deepEqual(result, { status: 200, body: { success: true, slug: "tharaa-shop", findingId: "f1" } });
     const update = supabase.calls.find(c => c.op === "update");
-    assert.deepEqual(update.filters, { id: "p1" });
+    assert.equal(update.table, "audit_findings");
+    assert.deepEqual(update.filters, { id: "f1" });
+    assert.deepEqual(update.fields, changes);
   });
 
-  test("rejects a bad slug or empty html without touching storage", async () => {
+  test("rejects bad input without writing", async () => {
     const supabase = setup();
-    assert.equal((await updateReportHtml({ supabase, bucket: "b", slug: "a/b", html: "<p>x</p>" })).status, 400);
-    for (const html of ["", "   ", undefined, 42]) {
-      assert.equal((await updateReportHtml({ supabase, bucket: "b", slug: "tharaa-shop", html })).status, 400);
-    }
-    assert.equal(supabase.uploads.length, 0);
+    const bad = [
+      { slug: "a/b", findingId: "f1", changes: { protect: "x" } },
+      { slug: "tharaa-shop", findingId: "", changes: { protect: "x" } },
+      { slug: "tharaa-shop", findingId: "f1", changes: {} },
+      { slug: "tharaa-shop", findingId: "f1", changes: { point_id: "GA4-99" } },
+      { slug: "tharaa-shop", findingId: "f1", changes: { business: { summary: "only a summary" } } },
+      { slug: "tharaa-shop", findingId: "f1", changes: { status: "warn" } },
+    ];
+    for (const input of bad) assert.equal((await updateFinding({ supabase, ...input })).status, 400, JSON.stringify(input));
+    assert.equal(supabase.calls.filter(c => c.op === "update").length, 0);
+  });
+
+  test("a friction finding takes its own statuses", async () => {
+    const supabase = setup({ finding: { ...FINDING, kind: "friction" } });
+    assert.equal((await updateFinding({ supabase, slug: "tharaa-shop", findingId: "f1", changes: { status: "warn" } })).status, 200);
+  });
+
+  test("a finding from another report is a 404", async () => {
+    const supabase = setup({ finding: { ...FINDING, audit_request_id: "r2" } });
+    assert.equal((await updateFinding({ supabase, slug: "tharaa-shop", findingId: "f1", changes: { protect: "x" } })).status, 404);
+    assert.equal(supabase.calls.filter(c => c.op === "update").length, 0);
   });
 
   test("unknown slug is a 404", async () => {
-    assert.equal((await updateReportHtml({ supabase: setup(null), bucket: "b", slug: "nope", html: "<p>x</p>" })).status, 404);
+    assert.equal((await updateFinding({ supabase: setup({ page: null }), slug: "nope", findingId: "f1", changes: { protect: "x" } })).status, 404);
   });
 });

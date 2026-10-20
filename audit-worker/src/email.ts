@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { Resend } from "resend";
 import type { CategoryKey, CategoryResult, FindingAction, FudResult, Opportunity } from "./types.js";
-import { OPPORTUNITY_LABEL } from "./actions.js";
+import { OPPORTUNITY_LABEL } from "./labels.js";
 import { formatMoney } from "./fud/insights.js";
 import { mediaBuyerRank, roleSeverity, type AudienceRole } from "./audience.js";
 
@@ -42,8 +42,8 @@ export interface SendAuditEmailOptions {
   businessName: string | null;
   categoriesAudited: CategoryKey[];
   // Exactly one of these two is provided by the caller: the normal
-  // production path (poll.ts) always has a hosted reportUrl (Supabase
-  // Storage — see supabase.ts's publishAuditReport), since the visitor
+  // production path (poll.ts) always has a hosted reportUrl (the
+  // /audit-reports/<slug> page — see supabase.ts's saveAuditReport), since the visitor
   // needs a stable link that works from any device, not just the machine
   // that ran the audit. `attachment` is a dev-only fallback test-run.ts uses
   // when Supabase isn't configured locally, so `npm run test-run --email=`
@@ -347,8 +347,10 @@ export async function sendInternalReviewEmail(opts: SendInternalReviewEmailOptio
         <div style="background: #f5f5f5; border-radius: 8px; padding: 14px 18px; margin-top: 16px;">
           <p style="color: #263328; font-size: 13px; font-weight: bold; margin: 0 0 8px;">Editing this report</p>
           <p style="color: #333; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
-            Give these to Claude along with what you want changed — it can GET the
-            current html, edit it, then PATCH it back:
+            Give these to Claude along with what you want changed. GET ?slug= returns
+            the report's findings as JSON, each with an id. PATCH {slug, findingId,
+            changes} updates one finding (technical, business, ar, action, protect or
+            status). The report shows it within a minute.
           </p>
           <p style="color: #333; font-size: 13px; line-height: 1.8; margin: 0; font-family: monospace;">
             Endpoint: ${editEndpoint}<br/>

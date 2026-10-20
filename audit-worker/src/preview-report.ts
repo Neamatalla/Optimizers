@@ -26,7 +26,7 @@ import { sampleFudResult } from "./fud/sample.js";
 import { applyPreviewActions } from "./preview-actions.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildAuditHtmlReport } from "./html-report.js";
+import { buildAuditHtmlReport } from "./html-report-node.js";
 import { captureSiteScreenshots } from "./screenshots.js";
 import { discoverPages } from "./discover-pages.js";
 import { runPageSpeed } from "./pagespeed.js";

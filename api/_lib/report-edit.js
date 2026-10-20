@@ -2,6 +2,7 @@
 // handler since none of this touches req/res.
 import crypto from "node:crypto";
 import { log } from "./log.js";
+import { REPORT_PAGE_COLUMNS, loadReportData } from "./report-data.js";
 
 // Same slug shape api/audit-report.js already validates against.
 export const REPORT_SLUG_RE = /^[a-zA-Z0-9_-]+$/;
@@ -17,87 +18,90 @@ export function isAuthorized(providedKey, expectedKey) {
   return crypto.timingSafeEqual(a, b);
 }
 
-export async function getReportHtml({ supabase, bucket, slug }) {
+async function findPage(supabase, slug) {
+  const { data: page, error } = await supabase
+    .from("report_pages")
+    .select(`${REPORT_PAGE_COLUMNS}, public_url`)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) {
+    log.error("report_pages lookup error", { error });
+    return { result: { status: 500, body: { error: "Could not look up report page." } } };
+  }
+  if (!page) return { result: { status: 404, body: { error: "Unknown report slug." } } };
+  return { page };
+}
+
+/** The report's rows, at any stage (no client-visibility check). */
+export async function getReport({ supabase, bucket, slug }) {
   if (!REPORT_SLUG_RE.test(slug)) {
     return { status: 400, body: { error: "Invalid slug." } };
   }
-
-  // bucket comes from the row, not the caller: a test-mode report lives in
-  // a different bucket (see audit-worker/src/supabase.ts), and the passed-in
-  // `bucket` is only the fallback for rows written before that column
-  // existed.
-  const { data: page, error: lookupError } = await supabase
-    .from("report_pages")
-    .select("slug, storage_path, public_url, updated_at, bucket")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (lookupError) {
-    log.error("report_pages lookup error", { error: lookupError });
-    return { status: 500, body: { error: "Could not look up report page." } };
+  const { page, result } = await findPage(supabase, slug);
+  if (!page) return result;
+  const data = await loadReportData({ supabase, slug, page, defaultBucket: bucket });
+  if (data.status !== 200) return data;
+  if (data.body.legacyHtml !== undefined) {
+    return { status: 409, body: { error: "This report is an old HTML file with no finding rows. Convert it with npm run backfill-report-rows in audit-worker." } };
   }
-  if (!page) {
-    return { status: 404, body: { error: "Unknown report slug." } };
-  }
-
-  const { data, error: downloadError } = await supabase.storage.from(page.bucket || bucket).download(page.storage_path);
-  if (downloadError || !data) {
-    log.error("Supabase report download error", { error: downloadError });
-    return { status: 404, body: { error: "Report file not found in storage." } };
-  }
-
-  const html = await data.text();
-  return { status: 200, body: { slug: page.slug, publicUrl: page.public_url, updatedAt: page.updated_at, html } };
+  return { status: 200, body: { slug, publicUrl: page.public_url, ...data.body } };
 }
 
-export async function updateReportHtml({ supabase, bucket, slug, html }) {
+const isVoice = v => Boolean(v) && typeof v === "object" && typeof v.summary === "string" && typeof v.detail === "string";
+const isObjectOrNull = v => v === null || (typeof v === "object" && !Array.isArray(v));
+const isStringOrNull = v => v === null || typeof v === "string";
+
+// The fields a PATCH may change, and what each must look like.
+const EDITABLE = {
+  technical: isVoice,
+  business: isVoice,
+  ar: isObjectOrNull,
+  action: isObjectOrNull,
+  protect: isStringOrNull,
+  status: v => typeof v === "string",
+};
+const STATUSES = { check: ["pass", "fail"], friction: ["pass", "warn", "fail", "unassessed"] };
+
+/** Changes one finding row. The page shows it on its next load. */
+export async function updateFinding({ supabase, slug, findingId, changes }) {
   const trimmedSlug = String(slug || "").trim();
   if (!REPORT_SLUG_RE.test(trimmedSlug)) {
     return { status: 400, body: { error: "Invalid slug." } };
   }
-  if (typeof html !== "string" || html.trim().length === 0) {
-    return { status: 400, body: { error: "html is required and must be a non-empty string." } };
+  if (typeof findingId !== "string" || !findingId) {
+    return { status: 400, body: { error: "findingId is required (the id of a finding from GET)." } };
+  }
+  if (!changes || typeof changes !== "object" || Array.isArray(changes) || Object.keys(changes).length === 0) {
+    return { status: 400, body: { error: `changes must be an object with one or more of: ${Object.keys(EDITABLE).join(", ")}.` } };
+  }
+  for (const [field, value] of Object.entries(changes)) {
+    if (!EDITABLE[field]) return { status: 400, body: { error: `${field} can't be edited. Editable: ${Object.keys(EDITABLE).join(", ")}.` } };
+    if (!EDITABLE[field](value)) return { status: 400, body: { error: `${field} has the wrong shape.` } };
   }
 
-  const { data: page, error: lookupError } = await supabase
-    .from("report_pages")
-    .select("id, storage_path, bucket")
-    .eq("slug", trimmedSlug)
+  const { page, result } = await findPage(supabase, trimmedSlug);
+  if (!page) return result;
+
+  const { data: finding, error: findingError } = await supabase
+    .from("audit_findings")
+    .select("id, kind, audit_request_id")
+    .eq("id", findingId)
     .maybeSingle();
-
-  if (lookupError) {
-    log.error("report_pages lookup error", { error: lookupError });
-    return { status: 500, body: { error: "Could not look up report page." } };
+  if (findingError) {
+    log.error("audit_findings lookup error", { error: findingError });
+    return { status: 500, body: { error: "Could not look up the finding." } };
   }
-  if (!page) {
-    return { status: 404, body: { error: "Unknown report slug." } };
+  if (!finding || finding.audit_request_id !== page.audit_request_id) {
+    return { status: 404, body: { error: "No finding with that id in this report." } };
   }
-
-  const { error: uploadError } = await supabase.storage
-    .from(page.bucket || bucket)
-    .upload(page.storage_path, Buffer.from(html, "utf8"), {
-      contentType: "text/html; charset=utf-8",
-      cacheControl: "3600",
-      upsert: true,
-    });
-
-  if (uploadError) {
-    log.error("Supabase report upload error", { error: uploadError });
-    return { status: 500, body: { error: "Could not save report page." } };
+  if (changes.status !== undefined && !STATUSES[finding.kind].includes(changes.status)) {
+    return { status: 400, body: { error: `status must be one of: ${STATUSES[finding.kind].join(", ")}.` } };
   }
 
-  // Bumps updated_at via the table's own trigger (set_report_pages_updated_at)
-  // — there's no separate content column on this row to actually change, the
-  // real content lives in Storage above; this update's only purpose is
-  // recording when the page was last edited.
-  const { error: updateError } = await supabase
-    .from("report_pages")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", page.id);
-
+  const { error: updateError } = await supabase.from("audit_findings").update(changes).eq("id", findingId);
   if (updateError) {
-    log.error("report_pages update error (non-fatal, file already saved)", { error: updateError });
+    log.error("audit_findings update error", { error: updateError });
+    return { status: 500, body: { error: "Could not save the finding." } };
   }
-
-  return { status: 200, body: { success: true, slug: trimmedSlug } };
+  return { status: 200, body: { success: true, slug: trimmedSlug, findingId } };
 }

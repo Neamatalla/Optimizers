@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AUDIENCE_ROLES, arabicRegisterRule, audienceRoleOf, judgeBusinessRule, mediaBuyerLane, mediaBuyerRank, readerBrief } from "./audience.js";
+import { AUDIENCE_ROLES, arabicRegisterRule, audienceRoleOf, judgeBusinessRule, mediaBuyerLane, mediaBuyerRank } from "./audience.js";
+import { readerBrief } from "./reader-brief.js";
 import { topActionsOf } from "./email.js";
 import type { CategoryResult } from "./types.js";
 

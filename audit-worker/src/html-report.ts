@@ -1,11 +1,7 @@
-import { readFile } from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
-import { createRequire } from "module";
 import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingAction, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4FunnelEvent, Handoff, Opportunity } from "./types.js";
 import { CHECK_GROUP_LABELS, GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type BaseChecklistPoint, type ChecklistPoint as ActionChecklistPoint } from "./checklist.js";
 import { LEGACY_GA4_CHECKLIST, LEGACY_GTM_CHECKLIST, LEGACY_WEBSITE_CHECKLIST, LEGACY_WEBSITE_CODE_CHECKLIST } from "./checklist-legacy.js";
-import { OPPORTUNITY_LABEL, OWNER_LABEL } from "./actions.js";
+import { OPPORTUNITY_LABEL, OWNER_LABEL } from "./labels.js";
 
 // Display code works on either checklist generation: the action-point lists
 // (checklist.ts) or the ones older saved results were scored against.
@@ -15,9 +11,6 @@ import { formatMoney, STEP_BENCHMARKS } from "./fud/insights.js";
 import { READER_QUESTIONS } from "./reader-questions.js";
 import { mediaBuyerLane, mediaBuyerRank, roleSeverity, type AudienceRole } from "./audience.js";
 import { AD_EFFECT_CHIP, AD_EFFECT_ROLES, AD_EFFECT_SIZE_LABEL, adEffectOf, adEffectSize } from "./ad-impact.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS = path.join(__dirname, "..", "assets");
 
 // Optimizers website palette (computed from optimizers.agency): green-black
 // page, near-black cards, white ink at stepped opacities flattened to solids,
@@ -38,7 +31,6 @@ const GREEN = "#6ae499";
 const AMBER = "#fcd34d";
 const BLUE = "#87a2cf";
 const RED = "#ff6b57";
-const SITE_URL = process.env.PUBLIC_SITE_URL || "https://optimizers.agency";
 
 // Three possible category combinations run per audit (see scoring.ts's
 // countedCategories, always exactly 50 checks): GA4+GTM together, one
@@ -54,12 +46,6 @@ const CATEGORY_SHORT: Record<CategoryKey, [string, string]> = {
   GA4: ["GA4", "GA4"],
   GTM: ["GTM", "GTM"],
   Website: ["Website", "الموقع"],
-};
-
-const CATEGORY_ICON: Record<CategoryKey, string> = {
-  GA4: "chart-growth.png",
-  GTM: "tag.png",
-  Website: "cart.png",
 };
 
 // Plain-language "where this came from" line shown under each section title.
@@ -127,10 +113,6 @@ const DATA_SOURCE_LABEL_AR: Record<string, string> = {
   detection: "تم رصده",
   public: "بيانات عامة",
 };
-
-export interface AuditHtmlReport {
-  html: string;
-}
 
 // Percent-encoded paths in finding text ("/ar-sa/products/%D8%B9…") shown
 // readable; anything that is not valid UTF-8 stays as it was.
@@ -215,51 +197,28 @@ function resultCounts(result: AuditResult) {
   return { critical, medium, low, failed, passed: result.overallScore, total: result.possiblePoints };
 }
 
-async function dataUri(relativePath: string, mime: string): Promise<string> {
-  const file = await readFile(path.join(ASSETS, relativePath));
-  return `data:${mime};base64,${file.toString("base64")}`;
-}
-
-async function fontFaceUri(relativePath: string): Promise<string> {
-  const file = await readFile(path.join(ASSETS, relativePath));
-  return `data:font/woff2;base64,${file.toString("base64")}`;
-}
-
-// Everything is inlined so the report stays one self-contained file: the
-// wordmark, Sora (display) + Inter (body) per the brand tokens, Noto Sans
-// Arabic (the main site's Arabic face, src/styles/fonts.css), and the three
-// category icons.
-async function brandAssets() {
-  const [wordmark, icon, sora400, sora600, sora700, inter400, inter500, inter600, ar400, ar600, ar700, ...categoryIcons] = await Promise.all([
-    dataUri("wordmark-white-trim.png", "image/png"),
-    dataUri("icon-white-trim.png", "image/png"),
-    fontFaceUri("Sora-Regular.woff2"),
-    fontFaceUri("Sora-SemiBold.woff2"),
-    fontFaceUri("Sora-Bold.woff2"),
-    fontFaceUri("Inter-Regular.woff2"),
-    fontFaceUri("Inter-Medium.woff2"),
-    fontFaceUri("Inter-SemiBold.woff2"),
-    fontFaceUri("NotoSansArabic-Regular.woff2"),
-    fontFaceUri("NotoSansArabic-SemiBold.woff2"),
-    fontFaceUri("NotoSansArabic-Bold.woff2"),
-    ...(Object.keys(CATEGORY_ICON) as CategoryKey[]).map(k => dataUri(`icons/${CATEGORY_ICON[k]}`, "image/png")),
-  ]);
-  const categoryKeys = Object.keys(CATEGORY_ICON) as CategoryKey[];
-  const categoryIconMap = Object.fromEntries(categoryKeys.map((k, i) => [k, categoryIcons[i]])) as Record<CategoryKey, string>;
-  return { wordmark, icon, sora400, sora600, sora700, inter400, inter500, inter600, ar400, ar600, ar700, categoryIconMap };
-}
-
-type BrandAssets = Awaited<ReturnType<typeof brandAssets>>;
-
-// GSAP core + ScrollTrigger, inlined like the fonts so the report stays one
-// file that works offline. Read once per process.
-const requireFromHere = createRequire(import.meta.url);
-let motionLibsCache: Promise<string> | null = null;
-function motionLibs(): Promise<string> {
-  motionLibsCache ??= Promise.all(
-    ["gsap/dist/gsap.min.js", "gsap/dist/ScrollTrigger.min.js"].map(m => readFile(requireFromHere.resolve(m), "utf8")),
-  ).then(files => files.join(";\n"));
-  return motionLibsCache;
+/**
+ * Fonts, logos and motion libraries the report needs, passed in so this
+ * module has no Node APIs and also runs in the browser. html-report-node.ts
+ * inlines them as data URIs (one self-contained file); the static report
+ * page (src/audit-report/main.ts) passes URLs.
+ */
+export interface ReportAssets {
+  wordmark: string;
+  icon: string;
+  sora400: string;
+  sora600: string;
+  sora700: string;
+  inter400: string;
+  inter500: string;
+  inter600: string;
+  ar400: string;
+  ar600: string;
+  ar700: string;
+  // GSAP core + ScrollTrigger: their source inlined, or script URLs.
+  motion: { inline: string } | { src: string[] };
+  // optimizers.agency, for the brand and contact links.
+  siteUrl: string;
 }
 
 function fontFace(family: string, weight: number, uri: string): string {
@@ -1339,7 +1298,7 @@ function checksIntroHtml(counts: ReturnType<typeof resultCounts>, result: AuditR
       </section>`;
 }
 
-function categorySectionHtml(cat: CategoryResult, result: AuditResult, _assets: BrandAssets): string {
+function categorySectionHtml(cat: CategoryResult, result: AuditResult, _assets: ReportAssets): string {
   const key = cat.category;
   const { passed, total } = cat.checklistTally;
   const percent = total > 0 ? (passed / total) * 100 : 0;
@@ -1687,13 +1646,13 @@ function ctaHtml(counts: ReturnType<typeof resultCounts>, contactUrl: string, re
     </section>`;
 }
 
-function footerHtml(assets: BrandAssets, attributedTo: string, generatedAt: string, generatedAtAr: string, contactUrl: string): string {
-  const base = SITE_URL.replace(/\/$/, "");
+function footerHtml(assets: ReportAssets, attributedTo: string, generatedAt: string, generatedAtAr: string, contactUrl: string): string {
+  const base = assets.siteUrl.replace(/\/$/, "");
   return `
     <footer class="footer">
       <div class="wrap footer-grid">
         <div class="footer-col footer-brand">
-          <a class="footer-logo" href="${SITE_URL}"><img src="${assets.wordmark}" alt="Optimizers" /></a>
+          <a class="footer-logo" href="${assets.siteUrl}"><img src="${assets.wordmark}" alt="Optimizers" /></a>
           <p>${bi("CRO agency for e-commerce brands in the GCC.", "وكالة لتحسين معدلات التحويل لمتاجر التجارة الإلكترونية في الخليج.")}</p>
           <div class="social">
             <a href="https://web.facebook.com/optimizersagency" aria-label="Optimizers on Facebook">f</a>
@@ -1704,7 +1663,7 @@ function footerHtml(assets: BrandAssets, attributedTo: string, generatedAt: stri
         </div>
         <div class="footer-col">
           <h3>${bi("Quick Links", "روابط سريعة")}</h3>
-          <a href="${SITE_URL}">${bi("About", "من نحن")}</a>
+          <a href="${assets.siteUrl}">${bi("About", "من نحن")}</a>
           <a href="${base}/#services">${bi("Services", "الخدمات")}</a>
           <a href="${base}/#roi-calculator">${bi("ROI Calculator", "حاسبة العائد على الاستثمار")}</a>
           <a href="${contactUrl}">${bi("Contact", "تواصل معنا")}</a>
@@ -1729,7 +1688,7 @@ function footerHtml(assets: BrandAssets, attributedTo: string, generatedAt: stri
           `This audit was generated by <strong>Optimizers</strong> for <strong>${attributedTo}</strong> on ${escapeHtml(generatedAt)}.`,
           `تم إعداد هذا التدقيق من قِبل <strong>Optimizers</strong> لـ <strong>${attributedTo}</strong> بتاريخ ${escapeHtml(generatedAtAr)}.`,
         )}</p>
-        <a href="${SITE_URL}">optimizers.agency</a>
+        <a href="${assets.siteUrl}">optimizers.agency</a>
       </div>
     </footer>`;
 }
@@ -2081,7 +2040,7 @@ function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>,
   </div>`;
 }
 
-function styles(assets: BrandAssets): string {
+function styles(assets: ReportAssets): string {
   return `
 ${fontFace("Sora", 400, assets.sora400)}
 ${fontFace("Sora", 600, assets.sora600)}
@@ -3696,14 +3655,17 @@ function scriptBlock(): string {
 `;
 }
 
-async function renderReport(result: AuditResult): Promise<string> {
-  const [assets, libs] = await Promise.all([brandAssets(), motionLibs()]);
+function renderReport(result: AuditResult, assets: ReportAssets): string {
   const counts = resultCounts(result);
-  const contactUrl = `${SITE_URL.replace(/\/$/, "")}/#contact`;
-  const generatedAt = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const contactUrl = `${assets.siteUrl.replace(/\/$/, "")}/#contact`;
+  const date = result.generatedAt ? new Date(result.generatedAt) : new Date();
+  const generatedAt = date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   // Arabic month name, Latin digits, matching how the findings text keeps
   // numerals (translate-ar.ts's own prompt rule).
-  const generatedAtAr = new Date().toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric", numberingSystem: "latn" });
+  const generatedAtAr = date.toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric", numberingSystem: "latn" });
+  const motion = "inline" in assets.motion
+    ? `<script>${assets.motion.inline}</script>`
+    : assets.motion.src.map(src => `<script src="${escapeHtml(src)}"></script>`).join("\n");
   // Proper noun (business name) or a bare URL either way, never translated.
   const attributedTo = escapeHtml(result.businessName || result.websiteUrl);
   const speed = result.pageSpeed && result.pageSpeed.pages.some(p => p.mobile !== null || p.desktop !== null) ? result.pageSpeed : null;
@@ -3729,7 +3691,7 @@ async function renderReport(result: AuditResult): Promise<string> {
   <header class="topbar">
     <div class="scroll-progress" aria-hidden="true"><span></span></div>
     <div class="wrap topbar-inner">
-      <a class="brand" href="${SITE_URL}"><img src="${assets.wordmark}" alt="Optimizers" /></a>
+      <a class="brand" href="${assets.siteUrl}"><img src="${assets.wordmark}" alt="Optimizers" /></a>
       <div class="topbar-end">
         <div class="lang" role="group" aria-label="Report language">
           <label for="i18n-en" id="lang-en">EN</label>
@@ -3760,15 +3722,16 @@ async function renderReport(result: AuditResult): Promise<string> {
     ${footerHtml(assets, attributedTo, generatedAt, generatedAtAr, contactUrl)}
   </main>
   ${guideHtml(result, counts, { fixFirst: Boolean(fixFirst), screens: Boolean(screens), numbers: Boolean(numbers), speed: Boolean(speed), friction: Boolean(friction) })}
-<script>${libs}</script>
+${motion}
 <script>${scriptBlock()}</script>
 <script>${revealFallbackScript}</script>
 </body>
 </html>`;
 }
 
-export async function buildAuditHtmlReport(result: AuditResult): Promise<AuditHtmlReport> {
-  return { html: await renderReport(withReaderSeverity(result)) };
+/** The full report page. Pure: runs in Node (html-report-node.ts) and in the browser. */
+export function renderAuditReport(result: AuditResult, assets: ReportAssets): string {
+  return renderReport(withReaderSeverity(result), assets);
 }
 
 // Each reader sees the severity their ICP gives a point (audience.ts

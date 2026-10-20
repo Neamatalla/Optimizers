@@ -13,7 +13,7 @@ import {
   markRequestRateLimited,
   markRequestAwaitingApproval,
   markTestRequestSent,
-  publishAuditReport,
+  saveAuditReport,
   findDueScheduledRequests,
   markSentToClient,
   findScheduledDeliveries,
@@ -27,8 +27,7 @@ import { runPageSpeed } from "./pagespeed.js";
 import { buildMcpConfig, neededMcpServers } from "./mcp-config.js";
 import { runAudit } from "./audit-prompt.js";
 import { audienceRoleOf } from "./audience.js";
-import { computeOverallPoints } from "./scoring.js";
-import { buildAuditHtmlReport } from "./html-report.js";
+import { auditResultFrom } from "./report-rows.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
 import { fudPassEnabled, isFudResult, runFrictionStage } from "./fud/index.js";
 import { collectStoreEvidence } from "./fud/collect.js";
@@ -39,7 +38,7 @@ import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, 
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
 import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
 import { runWithLog } from "./log-context.js";
-import type { AuditRequestRow, AuditResult, JobProgress } from "./types.js";
+import type { AuditRequestRow, JobProgress } from "./types.js";
 
 // Identifies this process in audit_requests.locked_by, so two workers (or a
 // restarted one) can tell whose lease a row is under.
@@ -223,24 +222,8 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   const frictionDone = stageTimer("friction");
   if (await runFrictionStage(row, progress, save, undefined, { evidence })) frictionDone();
 
-  const categories = progress.categories!;
-  const { earned, possible } = computeOverallPoints(categories);
-  const result: AuditResult = {
-    categories,
-    overallScore: earned,
-    possiblePoints: possible,
-    websiteUrl: row.website,
-    businessName: row.business_name,
-    audienceRole: audienceRoleOf(row.audience_role),
-    discoveredPages: progress.discoveredPages ?? [],
-    pageSpeed: progress.pageSpeed,
-    screenshots: progress.screenshots,
-    ga4Metrics: progress.ga4Metrics ?? null,
-    fud: isFudResult(progress.fud) ? progress.fud : null,
-    ga4Facts: progress.ga4Facts ?? null,
-    siteChecks: progress.siteChecks ?? null,
-  };
-  const categoriesAudited = categories.map(c => c.category);
+  const result = auditResultFrom(row, progress, isFudResult(progress.fud) ? progress.fud : null);
+  const categoriesAudited = result.categories.map(c => c.category);
 
   // 2. translate. It writes the Arabic straight onto result.categories, which
   // is the same array saved in progress, and saves after each category, so a
@@ -269,8 +252,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   // 3. publish
   if (!progress.reportUrl) {
     const publishDone = stageTimer("publish");
-    const report = await buildAuditHtmlReport(result);
-    const { publicUrl, slug } = await publishAuditReport({ requestId: row.id, html: report.html, businessName: row.business_name, website: row.website, isTest: row.is_test });
+    const { publicUrl, slug } = await saveAuditReport({ requestId: row.id, result, isTest: row.is_test });
     Object.assign(progress, { reportUrl: publicUrl, slug });
     await save();
     publishDone();
@@ -504,7 +486,7 @@ async function main() {
   console.log(`[audit-worker] Starting poll loop (every ${pollIntervalMs}ms) as ${WORKER_ID}, up to ${MAX_ATTEMPTS} attempts per request`);
 
   // Every report link this worker emails is built from PUBLIC_SITE_URL (see
-  // supabase.ts's publishAuditReport), so a stale value is the one config
+  // supabase.ts's saveAuditReport), so a stale value is the one config
   // mistake that produces working audits with dead links — most easily hit
   // when serving through a tunnel (ngrok) whose host changed since the last
   // run, or when it was left pointing at localhost. Printing it up front

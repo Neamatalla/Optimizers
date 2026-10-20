@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import type { AuditRequestRow, JobProgress } from "./types.js";
+import type { AuditRequestRow, AuditResult, FudResult, JobProgress } from "./types.js";
+import { frictionRows, frictionSummary, toRows, type FindingRow, type ReportRow } from "./report-rows.js";
 
 let client: SupabaseClient | null = null;
 
@@ -189,59 +190,112 @@ export function publicSiteUrl(): string {
   return /^https?:\/\//i.test(siteUrl) ? siteUrl : `https://${siteUrl}`;
 }
 
-export async function publishAuditReport(opts: { requestId: string; html: string; businessName: string | null; website: string; isTest?: boolean }): Promise<{ publicUrl: string; slug: string }> {
+const IMAGES_BUCKET = process.env.AUDIT_IMAGES_BUCKET || "audit-images";
+
+/**
+ * Uploads a data-URI image to the public audit-images bucket and returns its
+ * URL. A value that is already a URL (a rebuilt report) is returned as is.
+ */
+async function uploadImage(requestId: string, name: string, value: string | null | undefined, version: string): Promise<string | null> {
+  if (!value) return null;
+  const match = /^data:(image\/[a-z+]+);base64,(.+)$/s.exec(value);
+  if (!match) return value;
+  const [, mime, base64] = match;
+  const objectPath = `${requestId}/${name}.${mime === "image/png" ? "png" : "jpg"}`;
   const supabase = getClient();
-  // Test-mode reports go to their own bucket so throwaway runs never sit
-  // alongside real client reports and the whole lot can be emptied without
-  // touching production. The slug space is shared (test slugs are kept
-  // apart by their "test_" prefix), and report_pages.bucket (written below)
-  // is what tells the serving and editing endpoints where a slug lives.
-  const bucket = opts.isTest
-    ? process.env.AUDIT_REPORTS_TEST_BUCKET || "audit-reports-test"
-    : process.env.AUDIT_REPORTS_BUCKET || "audit-reports";
-  const slug = reportSlug(opts);
-  const objectPath = `reports/${slug}/index.html`;
+  const { error } = await supabase.storage
+    .from(IMAGES_BUCKET)
+    .upload(objectPath, Buffer.from(base64, "base64"), { contentType: mime, cacheControl: "31536000", upsert: true });
+  if (error) throw new Error(`Supabase image upload error (${objectPath}): ${error.message}`);
+  const { data } = supabase.storage.from(IMAGES_BUCKET).getPublicUrl(objectPath);
+  // A rebuild uploads to the same path; the version keeps caches from
+  // showing the old image.
+  return `${data.publicUrl}?v=${version}`;
+}
 
-  const { error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(objectPath, Buffer.from(opts.html, "utf8"), {
-      contentType: "text/html; charset=utf-8",
-      cacheControl: "3600",
-      upsert: true,
-    });
+// The screenshots and friction crops are base64 in progress; the rows hold URLs.
+async function withUploadedImages(requestId: string, result: AuditResult): Promise<AuditResult> {
+  const version = Date.now().toString(36);
+  const shots = result.screenshots;
+  const screenshots = shots
+    ? { desktop: await uploadImage(requestId, "desktop", shots.desktop, version), mobile: await uploadImage(requestId, "mobile", shots.mobile, version) }
+    : shots;
+  return { ...result, screenshots, fud: result.fud ? await withUploadedCrops(requestId, result.fud, version) : result.fud };
+}
 
-  if (uploadError) {
-    throw new Error(`Supabase report upload error: ${uploadError.message}`);
-  }
+async function withUploadedCrops(requestId: string, fud: FudResult, version: string): Promise<FudResult> {
+  const findings = await Promise.all(
+    fud.findings.map(async f => (f.evidence?.crop ? { ...f, evidence: { ...f.evidence, crop: await uploadImage(requestId, `crop-${f.ruleId}`, f.evidence.crop, version) } } : f)),
+  );
+  return { ...fud, findings };
+}
 
+// Replaces an audit's finding rows: all of them, or only one kind.
+async function replaceFindingRows(requestId: string, rows: FindingRow[], kind?: FindingRow["kind"]): Promise<void> {
+  const supabase = getClient();
+  let del = supabase.from("audit_findings").delete().eq("audit_request_id", requestId);
+  if (kind) del = del.eq("kind", kind);
+  const { error: deleteError } = await del;
+  if (deleteError) throw new Error(`Supabase audit_findings delete error: ${deleteError.message}`);
+  if (!rows.length) return;
+  const { error } = await supabase.from("audit_findings").insert(rows.map(r => ({ ...r, audit_request_id: requestId })));
+  if (error) throw new Error(`Supabase audit_findings insert error: ${error.message}`);
+}
+
+/**
+ * Publishes an audit: its result as rows in audit_reports/audit_findings,
+ * its images in the audit-images bucket, and its slug in report_pages.
+ * /audit-reports/<slug> renders the rows in the browser. Safe to re-run: it
+ * replaces the audit's rows, so hand edits made through /api/report/edit are
+ * lost on a re-run.
+ */
+export async function saveAuditReport(opts: { requestId: string; result: AuditResult; isTest?: boolean; slug?: string }): Promise<{ publicUrl: string; slug: string }> {
+  const supabase = getClient();
+  const { report, findings } = toRows(await withUploadedImages(opts.requestId, opts.result));
+
+  const { error: reportError } = await supabase
+    .from("audit_reports")
+    .upsert({ audit_request_id: opts.requestId, ...report }, { onConflict: "audit_request_id" });
+  if (reportError) throw new Error(`Supabase audit_reports upsert error: ${reportError.message}`);
+  await replaceFindingRows(opts.requestId, findings);
+
+  // The slug is the site's domain (test runs are prefixed), so a re-run of
+  // the same request keeps its link; the backfill passes an old report's
+  // own. storage_path is left out: an old report converted to rows keeps it,
+  // a new one has none.
+  const slug = opts.slug ?? reportSlug({ website: opts.result.websiteUrl, isTest: opts.isTest });
   const publicUrl = `${publicSiteUrl()}/audit-reports/${encodeURIComponent(slug)}`;
-
-  // Dedicated record of "the links of the pages" (report_pages — see
-  // supabase/schema.sql), separate from audit_requests'
-  // own report_url column — this is also the row api/report/edit.js reads/
-  // writes against when a published report's content needs to change
-  // later. Upserted on slug so a retried/re-run publish for the same
-  // request doesn't fail on the unique constraint.
-  //
-  // Deliberately non-fatal: report_pages.audit_request_id has a real FK
-  // constraint against audit_requests(id), but test-run.ts/test-run-oauth.ts
-  // call this with a synthetic requestId ("test-<timestamp>", not a UUID
-  // and not a real row) for local testing without a queued request. The
-  // report itself is already safely uploaded to Storage above and the
-  // caller (test-run, or poll.ts in production, where requestId always IS
-  // a real audit_requests.id) already has publicUrl — losing the bookkeeping
-  // row shouldn't fail publishing or block emailing the client their link.
-  const { error: reportPageError } = await supabase
+  const { error: pageError } = await supabase
     .from("report_pages")
-    .upsert(
-      { audit_request_id: opts.requestId, slug, storage_path: objectPath, public_url: publicUrl, bucket },
-      { onConflict: "slug" },
-    );
-  if (reportPageError) {
-    console.warn(`[supabase] report_pages upsert failed (non-fatal): ${reportPageError.message}`);
-  }
+    .upsert({ audit_request_id: opts.requestId, slug, public_url: publicUrl }, { onConflict: "slug" });
+  if (pageError) throw new Error(`Supabase report_pages upsert error: ${pageError.message}`);
 
   return { publicUrl, slug };
+}
+
+/** An audit's saved rows, or null when it has none (not published, or an old HTML report). */
+export async function loadAuditReport(requestId: string): Promise<{ report: ReportRow; findings: FindingRow[] } | null> {
+  const supabase = getClient();
+  const { data: report, error } = await supabase.from("audit_reports").select("*").eq("audit_request_id", requestId).maybeSingle();
+  if (error) throw new Error(`Supabase audit_reports select error: ${error.message}`);
+  if (!report) return null;
+  const { data: findings, error: findingsError } = await supabase
+    .from("audit_findings")
+    .select("*")
+    .eq("audit_request_id", requestId)
+    .order("kind")
+    .order("sort_order");
+  if (findingsError) throw new Error(`Supabase audit_findings select error: ${findingsError.message}`);
+  return { report: report as ReportRow, findings: (findings ?? []) as FindingRow[] };
+}
+
+/** Replaces only the friction rows and summary (fud-override.ts); the check rows and their edits stay. */
+export async function saveFrictionRows(requestId: string, fud: FudResult): Promise<void> {
+  const supabase = getClient();
+  const withCrops = await withUploadedCrops(requestId, fud, Date.now().toString(36));
+  const { error } = await supabase.from("audit_reports").update({ friction: frictionSummary(withCrops) }).eq("audit_request_id", requestId);
+  if (error) throw new Error(`Supabase audit_reports update error: ${error.message}`);
+  await replaceFindingRows(requestId, frictionRows(withCrops), "friction");
 }
 
 export async function markRequestFailed(id: string, message: string): Promise<void> {

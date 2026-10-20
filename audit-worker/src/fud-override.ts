@@ -1,33 +1,30 @@
 /**
  * Reviewer override for one purchase-friction finding, before the report is
- * approved or sent. Changes the finding's status (or hides it), recomputes
- * the Conversion score score, saves it on the request, and republishes the
- * report at the same URL. The machine's original status is kept on the
- * finding (`override.from`) — those are the labels the rules get calibrated
- * against.
+ * approved or sent. Changes the finding's status (or hides it), saves it on
+ * the request, and rewrites the report's friction rows. The report page
+ * shows the change on its next load. The machine's original status is kept
+ * on the finding (`override.from`) — those are the labels the rules get
+ * calibrated against.
  *
  *   npm run fud-override -- <request-id> --list
  *   npm run fud-override -- <request-id> <RULE> <pass|warn|fail|unassessed|hidden> "<reason>"
  *   npm run fud-override -- <request-id> <RULE> hidden "store shows COD in the header" --dry-run
  *   npm run fud-override -- <request-id> --republish
- *     (no override: just rebuild the report from the saved data with the
- *     current report code, e.g. after a design change)
+ *     (no override: rebuild all the report's rows from the saved audit data)
  *
  * <request-id> is the full id, or its first few characters (copy it from
  * audit_requests in Supabase; report slugs are the domain only, no id).
  *
- * IMPORTANT: republishing rebuilds the report from the saved audit data, so
- * hand edits made through /api/report/edit are overwritten. Do overrides
- * first, hand edits after.
+ * An override starts from the report's current friction rows, so hand edits
+ * made through /api/report/edit stay. --republish rebuilds every row from the
+ * saved audit data, so it drops them.
  */
 import "./logger.js";
 import "dotenv/config";
-import { buildAuditHtmlReport } from "./html-report.js";
 import { applyOverride, isFudResult } from "./fud/index.js";
-import { computeOverallPoints } from "./scoring.js";
-import { audienceRoleOf } from "./audience.js";
-import { getRequestById, publishAuditReport, saveProgressDirect } from "./supabase.js";
-import type { AuditRequestRow, AuditResult, FudResult, FudStatus, JobProgress } from "./types.js";
+import { auditResultFrom, fromRows } from "./report-rows.js";
+import { getRequestById, loadAuditReport, saveAuditReport, saveFrictionRows, saveProgressDirect } from "./supabase.js";
+import type { FudResult, FudStatus } from "./types.js";
 
 const STATUSES = ["pass", "warn", "fail", "unassessed", "hidden"] as const;
 
@@ -53,59 +50,44 @@ async function main() {
   const row = await getRequestById(id);
   if (!row) throw new Error(`no audit request matches "${id}"`);
   const progress = row.progress ?? {};
+  // The published rows hold any hand edits, so they're the starting point.
+  const saved = await loadAuditReport(row.id);
   if (republishOnly) {
     if (row.status === "pending" || row.status === "processing") throw new Error(`request is still '${row.status}' — wait for the audit to finish`);
     if (!progress.categories) throw new Error("request has no saved audit result to rebuild the report from");
-    const url = await rebuild(row, progress, isFudResult(progress.fud) ? progress.fud : null);
-    console.log(`Rebuilt and republished: ${url}\n(Hand edits made through /api/report/edit before this were overwritten.)`);
+    // Keep the original report date.
+    const result = { ...auditResultFrom(row, progress, isFudResult(progress.fud) ? progress.fud : null), generatedAt: saved?.report.generated_at };
+    const { publicUrl } = await saveAuditReport({ requestId: row.id, result, isTest: row.is_test });
+    console.log(`Rebuilt the report rows: ${publicUrl}\n(Hand edits made through /api/report/edit before this were dropped.)`);
     return;
   }
-  if (!isFudResult(progress.fud)) throw new Error(`request ${row.id} has no purchase-friction result${progress.fud ? ` (the pass failed: ${(progress.fud as { error: string }).error})` : " (FUD_PASS was off for this run)"}`);
+  const fud = saved ? fromRows(row, saved.report, saved.findings).fud : isFudResult(progress.fud) ? progress.fud : null;
+  if (!fud) throw new Error(`request ${row.id} has no purchase-friction result${progress.fud && !isFudResult(progress.fud) ? ` (the pass failed: ${progress.fud.error})` : " (FUD_PASS was off for this run)"}`);
   console.log(`${row.website} — request ${row.id}, status ${row.status}${row.is_test ? ", TEST" : ""}`);
 
   if (wantList) {
-    list(progress.fud);
+    list(fud);
     return;
   }
   if (!(STATUSES as readonly string[]).includes(to)) throw new Error(`status must be one of: ${STATUSES.join(", ")}`);
   if (row.status === "pending" || row.status === "processing") throw new Error(`request is still '${row.status}' — wait for the audit to finish`);
-  if (!progress.categories) throw new Error("request has no saved audit result to rebuild the report from");
 
-  const updated = applyOverride(progress.fud, ruleId, to as FudStatus | "hidden", reasonParts.join(" "));
+  const updated = applyOverride(fud, ruleId, to as FudStatus | "hidden", reasonParts.join(" "));
   console.log("\nAfter the override:");
   list(updated);
   if (dryRun) {
-    console.log("\n--dry-run: nothing saved, report not republished.");
+    console.log("\n--dry-run: nothing saved.");
     return;
   }
 
   progress.fud = updated;
   await saveProgressDirect(row.id, progress);
-  const publicUrl = await rebuild(row, progress, updated);
-  console.log(`\nSaved and republished: ${publicUrl}\n(Hand edits made through /api/report/edit before this were overwritten.)`);
-}
-
-async function rebuild(row: AuditRequestRow, progress: JobProgress, fud: FudResult | null): Promise<string> {
-  const categories = progress.categories!;
-  const { earned, possible } = computeOverallPoints(categories);
-  const result: AuditResult = {
-    categories,
-    overallScore: earned,
-    possiblePoints: possible,
-    websiteUrl: row.website,
-    businessName: row.business_name,
-    audienceRole: audienceRoleOf(row.audience_role),
-    discoveredPages: progress.discoveredPages ?? [],
-    pageSpeed: progress.pageSpeed,
-    screenshots: progress.screenshots,
-    ga4Metrics: progress.ga4Metrics ?? null,
-    fud,
-    ga4Facts: progress.ga4Facts ?? null,
-    siteChecks: progress.siteChecks ?? null,
-  };
-  const { html } = await buildAuditHtmlReport(result);
-  const { publicUrl } = await publishAuditReport({ requestId: row.id, html, businessName: row.business_name, website: row.website, isTest: row.is_test });
-  return publicUrl;
+  if (saved) {
+    await saveFrictionRows(row.id, updated);
+    console.log(`\nSaved. ${row.report_url ?? "The report"} shows it on its next load.`);
+  } else {
+    console.log("\nSaved on the request. The report isn't published yet and picks this up when it is.");
+  }
 }
 
 main().catch(err => {

@@ -5,7 +5,8 @@ import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, 
 import { buildAction, defaultProtect, repairActions, type RawAction } from "./actions.js";
 import { ga4FactsPromptBlock, ga4MetricsFromOAuth } from "./ga4-facts.js";
 import { siteChecksPromptBlock } from "./site-checks.js";
-import { readerBrief, type AudienceRole } from "./audience.js";
+import type { AudienceRole } from "./audience.js";
+import { readerBrief } from "./reader-brief.js";
 import { READER_QUESTIONS } from "./reader-questions.js";
 import { AD_EFFECT_PROMPT, AD_EFFECT_ROLES, adEffectOf, ensureAdDirection } from "./ad-impact.js";
 import type { CrawlFindings } from "./crawl.js";

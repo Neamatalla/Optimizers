@@ -109,7 +109,7 @@ export interface JobProgress {
   // retry doesn't run it again and the report just omits the section.
   // Undefined means it hasn't run (or FUD_PASS kept it off).
   fud?: FudResult | { error: string };
-  // Stage 3: report built and uploaded.
+  // Stage 3: report saved as rows (supabase.ts saveAuditReport).
   reportUrl?: string;
   slug?: string;
   // Stage 4: delivery. Recorded right after each email so a retry never
@@ -296,6 +296,9 @@ export interface AuditResult {
   // See JobProgress. Absent on results from before the action layer.
   ga4Facts?: Ga4Facts | null;
   siteChecks?: SiteChecks | null;
+  // ISO date the report was published (audit_reports.generated_at), shown on
+  // the report. Absent before publishing: the report shows today's date.
+  generatedAt?: string;
 }
 
 // ---- purchase friction (FUD) pass — see FUD-PASS-DESIGN.md and src/fud/ ----

@@ -13,9 +13,10 @@
     "preview-report": "tsx src/preview-report.ts",
     "requeue": "tsx src/requeue.ts",
     "seed-checklist": "tsx src/seed-checklist.ts",
+    "backfill-report-rows": "tsx src/backfill-report-rows.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/poll.js",
-    "test": "tsx --test src/log-context.test.ts src/fud/fud.test.ts src/fud/fud2.test.ts src/fud/fud3.test.ts src/actions.test.ts src/audience.test.ts src/ad-impact.test.ts",
+    "test": "tsx --test src/log-context.test.ts src/fud/fud.test.ts src/fud/fud2.test.ts src/fud/fud3.test.ts src/actions.test.ts src/audience.test.ts src/ad-impact.test.ts src/report-rows.test.ts",
     "fud-run": "tsx src/fud-run.ts",
     "fud-override": "tsx src/fud-override.ts",
     "fud-calibrate": "tsx src/fud-calibrate.ts"
