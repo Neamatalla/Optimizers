@@ -929,6 +929,7 @@ function ownerHandoverHtml(result: AuditResult): string {
           <h3 class="lane-head">${bi("Send this to the store owner", "ابعت ده لصاحب المتجر")}</h3>
           <p class="lane-lead">${bi("The three fixes worth most, in plain words, with who does each one. Copy it as it is.", "أهم تلات إصلاحات بكلام بسيط، ومين بيعمل كل واحد. انسخه زي ما هو.")}</p>
           <ol class="ho-list">${items}</ol>
+          <button type="button" class="btn btn--primary btn--sm ho-copy" hidden><span class="ho-copy-idle">${bi("Copy the three fixes", "انسخ التلات إصلاحات")}</span><span class="ho-copy-done" hidden>${bi("Copied. Paste it to the store owner.", "اتنسخ. ابعته لصاحب المتجر.")}</span></button>
         </div>`;
 }
 
@@ -972,8 +973,15 @@ function scopeStripHtml(result: AuditResult, buyer: boolean): string {
 // The small score line: the pass count is a fact here, not the headline
 // (PRODUCT.md anti-reference: no hero score).
 function scoreLineHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, ar: (n: number, t: number) => string): string {
-  const friction = result.fud?.score;
-  return `<p class="score-line"><a href="#checks">${bi(`Passed ${counts.passed} of ${counts.total} checks`, ar(counts.passed, counts.total))}</a>${friction !== null && friction !== undefined ? `<span aria-hidden="true">·</span><a href="#friction">${bi(`Conversion score ${friction}/100`, `مؤشر التحويل ${friction}/100`)}</a>` : ""}</p>`;
+  // One count across everything checked: the 50 checks plus every conversion
+  // review rule that got a verdict (warn counts as not passed). Page speed
+  // is scored on its own and stays out.
+  const fud = (result.fud?.findings ?? [])
+    .map(f => f.override?.to ?? f.status)
+    .filter(s => s === "pass" || s === "warn" || s === "fail");
+  const passed = counts.passed + fud.filter(s => s === "pass").length;
+  const total = counts.total + fud.length;
+  return `<p class="score-line"><a href="#checks">${bi(`Passed ${passed} of ${total} checks`, ar(passed, total))}</a></p>`;
 }
 
 
@@ -1050,10 +1058,6 @@ function ownerHeroHtml(result: AuditResult, counts: ReturnType<typeof resultCoun
         <ol class="plan-list plan-list--hero">${fixes.map(r => planItemHtml(r, false)).join("")}</ol>` : ""}
         ${scopeStripHtml(result, false)}
         ${scoreLineHtml(result, counts, (p, t) => `اجتاز ${p} من ${t} ${arChecksNoun(t)}`)}
-        <div class="actions">
-          <a class="btn btn--primary magnetic" href="${contactUrl}">${bi("Let us fix it: book a free call", "خلّنا نصلحها: احجز مكالمة مجانية")}</a>
-          ${rows.length ? `<a class="btn btn--link" href="#fix-first">${bi("Fix it yourself: see your full plan", "صلّحها بنفسك: شوف خطتك كاملة")}${ARROW}</a>` : ""}
-        </div>
       </section>`;
 }
 
@@ -1149,10 +1153,6 @@ function buyerHeroHtml(result: AuditResult, counts: ReturnType<typeof resultCoun
         </div>
         <p class="hero-src">${bi("ROAS and CAC effects are directions, never numbers: this audit doesn't see your ad accounts.", "تأثير ROAS وCAC اتجاه بس، مش أرقام: التدقيق ده مش بيشوف حسابات الإعلانات.")}</p>
         ${scoreLineHtml(result, counts, (p, t) => `نجح ${p} من ${t} بند`)}
-        <div class="actions">
-          ${rows.length ? `<a class="btn btn--primary magnetic" href="#handover">${bi("Get the summary to send the store owner", "خد الملخص اللي تبعته لصاحب المتجر")}</a>` : ""}
-          <a class="btn ${rows.length ? "btn--link" : "btn--primary magnetic"}" href="${contactUrl}">${bi("Book a free call", "احجز مكالمة مجانية")}${rows.length ? ARROW : ""}</a>
-        </div>
       </section>`;
 }
 
@@ -2581,6 +2581,15 @@ p{margin:0; text-wrap:pretty}
 .hero-shots{position:relative; margin:26px 0 30px}
 .hero-shots .shots{margin-top:0}
 .shots-note{margin:12px 0 0; font-size:13px; color:var(--ink-3)}
+/* Phones: both shots side by side so the headline's fixes stay near. */
+@media (max-width:767px){
+  .hero-shots{margin:18px 0 22px}
+  .hero-shots .shots{flex-wrap:nowrap; gap:10px}
+  .hero-shots .shot--desktop{flex:1 1 0; min-width:0}
+  .hero-shots .shot--mobile{flex:0 0 27%; max-width:none}
+  .hero-shots .shot--mobile .shot-frame{border-radius:12px}
+  .hero-shots .shot figcaption{font-size:11px}
+}
 
 /* fix these first */
 .fix-list{list-style:none; margin:28px 0 0; padding:0; counter-reset:fix; display:flex; flex-direction:column; gap:12px}
@@ -2664,6 +2673,8 @@ p{margin:0; text-wrap:pretty}
   .plan-item,.keep-list li,.clarity-list li,.method-list li{break-inside:avoid}
 }
 .ho-list{margin:12px 0 0; padding-inline-start:20px; display:flex; flex-direction:column; gap:10px; color:var(--ink)}
+.ho-copy{margin-top:16px}
+.ho-copy[hidden], .ho-copy [hidden]{display:none}
 .ho-meta{display:block; margin-top:2px; color:var(--ink-3); font-size:13px}
 .method{margin-top:36px}
 .method-list{margin:10px 0 0; padding-inline-start:20px; display:flex; flex-direction:column; gap:6px; color:var(--ink-2); font-size:14px}
@@ -3282,32 +3293,47 @@ function scriptBlock(): string {
     document.body.appendChild(f);
     setTimeout(function(){ if (f.parentNode) f.parentNode.removeChild(f); }, 1900);
   }
-  // Resolves when the page stops moving (scrollend where supported, else a
-  // few still frames), with a cap so a stalled scroll still flashes.
-  function whenStill(done){
-    var finished = false, lastY = scrollY, still = 0, started = Date.now();
-    function end(){ if (finished) return; finished = true; window.removeEventListener("scrollend", end); done(); }
-    window.addEventListener("scrollend", end, { once: true });
-    (function tick(){
-      if (finished) return;
-      if (Math.abs(scrollY - lastY) < 1) still++; else { still = 0; lastY = scrollY; }
-      if (still > 8 || Date.now() - started > 1800) return end();
-      requestAnimationFrame(tick);
-    })();
+  // Our own scroll instead of the browser's smooth scroll: the browser's
+  // takes up to 2s on a long report and gives no reliable end. This one is
+  // short (under a second), eases out, re-aims every frame if the layout
+  // moves, and calls done exactly on arrival. A wheel or touch cancels it.
+  var HEADER = 84;
+  function aimY(target, center){
+    var r = target.getBoundingClientRect();
+    var y = scrollY + r.top - HEADER - 12;
+    if (center && r.height < innerHeight - HEADER) y = scrollY + r.top - HEADER - (innerHeight - HEADER - r.height) / 2;
+    return Math.max(0, Math.min(y, document.documentElement.scrollHeight - innerHeight));
+  }
+  var scrolling = null;
+  function cancelScroll(){ if (scrolling) { cancelAnimationFrame(scrolling.raf); scrolling = null; } }
+  ["wheel", "touchstart", "keydown"].forEach(function(ev){ window.addEventListener(ev, cancelScroll, { passive: true }); });
+  function scrollToTarget(target, center, smooth, done){
+    cancelScroll();
+    var from = scrollY, dist = Math.abs(aimY(target, center) - from);
+    if (!smooth || reduced || dist < 2) { window.scrollTo({ top: aimY(target, center), behavior: "instant" }); done(); return; }
+    var dur = Math.min(900, 380 + dist / 30), t0 = performance.now();
+    var job = scrolling = { raf: 0 };
+    (function step(now){
+      if (scrolling !== job) return;
+      var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      window.scrollTo({ top: from + (aimY(target, center) - from) * e, behavior: "instant" });
+      if (p < 1) { job.raf = requestAnimationFrame(step); return; }
+      scrolling = null;
+      done();
+    })(t0);
   }
   var navSeq = 0;
   function goTo(target, smooth){
     var seq = ++navSeq;
     if (target.classList.contains("check")) openRow(target);
     reveal(target);
-    var isRow = target.classList.contains("check") || target.closest(".plan-list, .keep-list");
-    target.scrollIntoView({ behavior: smooth && !reduced ? "smooth" : "auto", block: isRow ? "center" : "start" });
+    var isRow = target.classList.contains("check") || !!target.closest(".plan-list, .keep-list");
     if (target.classList.contains("check")) {
       target.classList.add("is-target");
       setTimeout(function(){ target.classList.remove("is-target"); }, 2000);
     }
     history.replaceState(null, "", "#" + target.id);
-    whenStill(function(){
+    scrollToTarget(target, isRow, smooth, function(){
       if (seq !== navSeq) return;
       revealInView();
       flash(target);
@@ -3318,6 +3344,22 @@ function scriptBlock(): string {
     var initial = document.getElementById(decodeURIComponent(location.hash.slice(1)));
     if (initial) setTimeout(function(){ goTo(initial, false); }, 60);
   }
+
+  // Buyer handover: copies the list in the language on screen (innerText
+  // skips the hidden language). Shown only when the page can copy.
+  document.querySelectorAll(".ho-copy").forEach(function(btn){
+    var list = btn.parentElement.querySelector(".ho-list");
+    if (!list || !(navigator.clipboard && navigator.clipboard.writeText)) return;
+    btn.hidden = false;
+    var idle = btn.querySelector(".ho-copy-idle"), done = btn.querySelector(".ho-copy-done"), t = null;
+    btn.addEventListener("click", function(){
+      var lines = Array.prototype.map.call(list.querySelectorAll("li"), function(li, i){ return (i + 1) + ". " + li.innerText.replace(/\\s+/g, " ").trim(); });
+      navigator.clipboard.writeText(lines.join("\\n\\n")).then(function(){
+        idle.hidden = true; done.hidden = false;
+        clearTimeout(t); t = setTimeout(function(){ idle.hidden = false; done.hidden = true; }, 2600);
+      }, function(){});
+    });
+  });
 
   // "Technical details for every check" flips every per-check toggle.
   var techAll = document.getElementById("tech-all");

@@ -277,7 +277,7 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   if (!progress.reportUrl) {
     const publishDone = stageTimer("publish");
     const report = await buildAuditHtmlReport(result);
-    const { publicUrl, slug } = await publishAuditReport({ requestId: row.id, html: report.html, businessName: row.business_name, website: row.website, isTest: row.is_test });
+    const { publicUrl, slug } = await publishAuditReport({ requestId: row.id, html: report.html, businessName: row.business_name, website: row.website, isTest: row.is_test, audienceRole: row.audience_role });
     Object.assign(progress, { reportUrl: publicUrl, slug });
     await save();
     publishDone();

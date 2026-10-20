@@ -175,11 +175,15 @@ function hostnameOf(website: string): string {
  * is one per domain (api/_lib/audit-intake.js). Test runs skip that rule,
  * so they get "test_" in front: slugify() never outputs "_", so a test slug
  * can never take a client's. Repeated test runs of one site share a slug
- * and overwrite each other, which is fine for throwaway runs.
+ * and overwrite each other, which is fine for throwaway runs. A test run
+ * with a reader role adds it (test_tharaa-shop-store-owner), so one site's
+ * store owner and media buyer test reports sit side by side.
  */
-export function reportSlug(opts: { website: string; isTest?: boolean }): string {
+export function reportSlug(opts: { website: string; isTest?: boolean; audienceRole?: string | null }): string {
   const base = slugify(hostnameOf(opts.website)) || "site";
-  return opts.isTest ? `test_${base}` : base;
+  if (!opts.isTest) return base;
+  const role = opts.audienceRole ? slugify(opts.audienceRole) : "";
+  return role ? `test_${base}-${role}` : `test_${base}`;
 }
 
 // PUBLIC_SITE_URL set without a scheme (as it once was on staging) made
@@ -189,7 +193,7 @@ export function publicSiteUrl(): string {
   return /^https?:\/\//i.test(siteUrl) ? siteUrl : `https://${siteUrl}`;
 }
 
-export async function publishAuditReport(opts: { requestId: string; html: string; businessName: string | null; website: string; isTest?: boolean }): Promise<{ publicUrl: string; slug: string }> {
+export async function publishAuditReport(opts: { requestId: string; html: string; businessName: string | null; website: string; isTest?: boolean; audienceRole?: string | null }): Promise<{ publicUrl: string; slug: string }> {
   const supabase = getClient();
   // Test-mode reports go to their own bucket so throwaway runs never sit
   // alongside real client reports and the whole lot can be emptied without

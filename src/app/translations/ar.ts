@@ -325,6 +325,7 @@ export const arTranslations: Record<string, string> = {
   "Clarity didn't accept this token. Generate a new one in Settings > Data Export.": "لم يقبل Clarity هذا الرمز. أنشئ رمزًا جديدًا من الإعدادات > تصدير البيانات.",
   "Clarity's daily limit for this project is used up. Try again tomorrow, or continue without Clarity.": "استُهلك الحد اليومي لهذا المشروع في Clarity. حاول غدًا أو أكمل بدون Clarity.",
   "We couldn't reach Clarity right now. Try again, or continue without it.": "تعذّر الوصول إلى Clarity الآن. حاول مرة أخرى أو أكمل بدونه.",
+  "Clarity refused the request. This usually means this project's 10 data requests for today are used up. Try again tomorrow, or continue without Clarity.": "رفض Clarity الطلب. غالبًا معناه إن طلبات البيانات العشرة لهذا المشروع اليوم خلصت. جرّب بكرة أو كمّل بدون Clarity.",
   "Clarity has no visits recorded for the last 3 days on this project.": "لا توجد زيارات مسجلة في Clarity لهذا المشروع خلال آخر 3 أيام.",
   "Enter your website first.": "أدخل موقعك أولًا.",
   // Media buyer's ad (tools step)
