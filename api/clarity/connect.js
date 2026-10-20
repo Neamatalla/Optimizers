@@ -43,6 +43,9 @@ async function handler(req, res) {
       if (err.kind === "auth") return res.status(401).json({ error: "Clarity didn't accept this token. Generate a new one in Settings > Data Export." });
       if (err.kind === "limit") return res.status(429).json({ error: "Clarity's daily limit for this project is used up. Try again tomorrow, or continue without Clarity." });
       log.warn("clarity connect: Clarity unavailable", { error: err.message });
+      // Clarity has answered an empty 400 (not 429) once a project's 10 calls
+      // for the day were spent, so a refusal says that instead of "unreachable".
+      if (/answered 400\.$/.test(err.message)) return res.status(502).json({ error: "Clarity refused the request. This usually means this project's 10 data requests for today are used up. Try again tomorrow, or continue without Clarity." });
       return res.status(502).json({ error: "We couldn't reach Clarity right now. Try again, or continue without it." });
     }
     log.error("clarity connect error", { error: err?.message || err });

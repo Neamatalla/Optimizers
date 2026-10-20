@@ -46,7 +46,13 @@ async function callClarity(token, params) {
   }
   if (res.status === 401 || res.status === 403) throw new ClarityError("auth", "Clarity did not accept this token.");
   if (res.status === 429) throw new ClarityError("limit", "Clarity's daily limit for this project is used up.");
-  if (!res.ok) throw new ClarityError("unavailable", `Clarity answered ${res.status}.`);
+  if (!res.ok) {
+    // Clarity's reply text names the cause (it has answered 400, not 429,
+    // for a used-up daily quota). Kept short; it goes to the server log only.
+    const detail = (await res.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 300);
+    if (/limit|quota|exceed|too many/i.test(detail)) throw new ClarityError("limit", "Clarity's daily limit for this project is used up.");
+    throw new ClarityError("unavailable", `Clarity answered ${res.status}${detail ? `: ${detail}` : "."}`);
+  }
   const body = await res.json().catch(() => null);
   if (!Array.isArray(body)) throw new ClarityError("unavailable", "Clarity sent an unexpected response.");
   return body;

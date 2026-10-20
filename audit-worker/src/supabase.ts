@@ -176,11 +176,15 @@ function hostnameOf(website: string): string {
  * is one per domain (api/_lib/audit-intake.js). Test runs skip that rule,
  * so they get "test_" in front: slugify() never outputs "_", so a test slug
  * can never take a client's. Repeated test runs of one site share a slug
- * and overwrite each other, which is fine for throwaway runs.
+ * and overwrite each other, which is fine for throwaway runs. A test run
+ * with a reader role adds it (test_tharaa-shop-store-owner), so one site's
+ * store owner and media buyer test reports sit side by side.
  */
-export function reportSlug(opts: { website: string; isTest?: boolean }): string {
+export function reportSlug(opts: { website: string; isTest?: boolean; audienceRole?: string | null }): string {
   const base = slugify(hostnameOf(opts.website)) || "site";
-  return opts.isTest ? `test_${base}` : base;
+  if (!opts.isTest) return base;
+  const role = opts.audienceRole ? slugify(opts.audienceRole) : "";
+  return role ? `test_${base}-${role}` : `test_${base}`;
 }
 
 // PUBLIC_SITE_URL set without a scheme (as it once was on staging) made
@@ -263,7 +267,7 @@ export async function saveAuditReport(opts: { requestId: string; result: AuditRe
   // the same request keeps its link; the backfill passes an old report's
   // own. storage_path is left out: an old report converted to rows keeps it,
   // a new one has none.
-  const slug = opts.slug ?? reportSlug({ website: opts.result.websiteUrl, isTest: opts.isTest });
+  const slug = opts.slug ?? reportSlug({ website: opts.result.websiteUrl, isTest: opts.isTest, audienceRole: opts.result.audienceRole });
   const publicUrl = `${publicSiteUrl()}/audit-reports/${encodeURIComponent(slug)}`;
   const { error: pageError } = await supabase
     .from("report_pages")
