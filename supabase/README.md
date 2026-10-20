@@ -22,7 +22,7 @@ Run `schema.sql` once in the SQL Editor (New query → paste → Run). It alread
 | `2026-10-20-audit-report-tables.sql` | Add `audit_reports`, `audit_findings` and the public `audit-images` bucket; `report_pages.storage_path` nullable. Then run `npm run backfill-report-rows` in `audit-worker/` | ☑ | ☐ |
 | `2026-10-20-add-clarity-data.sql` | Add `clarity_data` (Clarity snapshot from the form) | ☑ | ☐ |
 | `2026-10-20-2-add-ad-context.sql` | Add `ad_context` (media buyer's ad text and coupon) | ☑ | ☐ |
-| `2026-10-20-3-add-report-columns.sql` | Add `clarity_facts`, `site_checks` and `category_tallies` to `audit_reports`. Then run `npm run backfill-report-rows` in `audit-worker/` | ☐ | ☐ |
+| `2026-10-20-3-add-report-columns.sql` | Add `clarity_facts`, `site_checks` and `category_tallies` to `audit_reports`. Then run `npm run backfill-report-rows` in `audit-worker/` | ☑ | ☐ |
 
 ## Before the baseline
 Squashed into the 2026-10-13 baseline. Full files are in git history before that commit.
