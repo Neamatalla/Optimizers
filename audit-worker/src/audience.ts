@@ -14,6 +14,8 @@
 // metrics, the copy around the checks, the email, and the Arabic register.
 // Null (rows from before the field) keeps the original store-owner report.
 
+import { PERSONA_LANE } from "./checklist-persona-data.js";
+
 export type AudienceRole = "store_owner" | "media_buyer" | "marketing_manager" | "agency";
 
 export const AUDIENCE_ROLES: readonly AudienceRole[] = ["store_owner", "media_buyer", "marketing_manager", "agency"];
@@ -154,7 +156,8 @@ export type MediaBuyerLane = "signal" | "post_click" | "other";
 export function mediaBuyerLane(checklistId: string): MediaBuyerLane {
   if (SIGNAL_POINTS.has(checklistId)) return "signal";
   if (POST_CLICK_POINTS.has(checklistId)) return "post_click";
-  return "other";
+  // The media buyer's own points carry their lane (checklist-persona-data.ts).
+  return PERSONA_LANE[checklistId] ?? "other";
 }
 
 /**

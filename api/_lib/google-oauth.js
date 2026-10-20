@@ -144,12 +144,19 @@ const LAST_28_DAYS = { startDate: "28daysAgo", endDate: "today" };
 // step (GA4-03) from every OAuth audit.
 const FUNNEL_EVENTS = ["view_item_list", "view_item", "add_to_cart", "begin_checkout", "add_shipping_info", "add_payment_info", "purchase"];
 
+// Paid channel groups for the persona points' paid-only facts (GA4-P*).
+const PAID_CHANNEL_GROUPS = ["Paid Search", "Paid Social", "Paid Shopping", "Paid Video", "Paid Other", "Display", "Cross-network"];
+const PURCHASE_FILTER = { filter: { fieldName: "eventName", stringFilter: { matchType: "EXACT", value: "purchase" } } };
+const PAID_FILTER = { filter: { fieldName: "sessionDefaultChannelGroup", inListFilter: { values: PAID_CHANNEL_GROUPS } } };
+const LAST_90_DAYS = { startDate: "90daysAgo", endDate: "yesterday" };
+
 async function fetchGa4ReportData(propertyName, token) {
   const runReport = (body) => gpost(`${GA4_DATA_BASE}/${propertyName}:runReport`, token, body).catch(e => ({ error: e.message }));
 
   const [
     realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion,
     pageFunnel, itemFunnel, campaignLanding, countryConversion, hourDay, sourceMedium, searchTerms, landingDevice,
+    purchaseIds, purchaseCurrency, itemSales, hostnames, trafficSources, dailyTrend, paidSegments, paidFunnel, paidLanding, events90,
   ] = await Promise.all([
     gpost(`${GA4_DATA_BASE}/${propertyName}:runRealtimeReport`, token, { metrics: [{ name: "activeUsers" }] }).catch(e => ({ error: e.message })),
     // NOTE: `dateRange` must NOT be listed in `dimensions` — confirmed
@@ -302,11 +309,106 @@ async function fetchGa4ReportData(propertyName, token) {
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       limit: "40",
     }),
+    // ---- persona points (ga4-facts.ts GA4-P01..P17) ----
+    // GA4-P01/P02: purchases per transaction id, most-repeated first, so a
+    // duplicated order id or a "(not set)" id shows in the top rows.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "transactionId" }],
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: PURCHASE_FILTER,
+      orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+      limit: "50",
+    }),
+    // GA4-P02/P03: currencies sent on purchase events.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "currencyCode" }],
+      metrics: [{ name: "eventCount" }, { name: "purchaseRevenue" }],
+      dimensionFilter: PURCHASE_FILTER,
+      limit: "10",
+    }),
+    // GA4-P03/P04: item revenue and units sold, with a TOTAL row so item
+    // revenue can be compared with purchase revenue.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "itemName" }],
+      metrics: [{ name: "itemRevenue" }, { name: "itemsPurchased" }],
+      metricAggregations: ["TOTAL"],
+      orderBys: [{ metric: { metricName: "itemsPurchased" }, desc: true }],
+      limit: "50",
+    }),
+    // GA4-P05: which hostnames send data (preview/staging/localhost).
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "hostName" }],
+      metrics: [{ name: "sessions" }, { name: "transactions" }, { name: "purchaseRevenue" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "50",
+    }),
+    // GA4-P06..P09/P14: channel + source/medium/campaign with engagement,
+    // for self-referrals, UTM hygiene, Unassigned and bot-like paid rows.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "sessionDefaultChannelGroup" }, { name: "sessionSource" }, { name: "sessionMedium" }, { name: "sessionCampaignName" }],
+      metrics: [{ name: "sessions" }, { name: "engagedSessions" }, { name: "addToCarts" }, { name: "transactions" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "100",
+    }),
+    // GA4-P14/P15: daily visits, engaged visits and sales over 90 days, to
+    // find spikes with no engagement or no sales.
+    runReport({
+      dateRanges: [LAST_90_DAYS],
+      dimensions: [{ name: "date" }],
+      metrics: [{ name: "sessions" }, { name: "engagedSessions" }, { name: "transactions" }],
+      limit: "100",
+    }),
+    // GA4-P12/P13: paid sessions by device and new vs returning.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "sessionDefaultChannelGroup" }, { name: "deviceCategory" }, { name: "newVsReturning" }],
+      metrics: [{ name: "sessions" }, { name: "transactions" }, { name: "purchaseRevenue" }],
+      dimensionFilter: PAID_FILTER,
+      limit: "100",
+    }),
+    // GA4-P10: the ecommerce funnel for paid sessions only.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "eventName" }],
+      metrics: [{ name: "eventCount" }, { name: "totalUsers" }],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [
+            { filter: { fieldName: "eventName", inListFilter: { values: FUNNEL_EVENTS } } },
+            PAID_FILTER,
+          ],
+        },
+      },
+    }),
+    // GA4-P11: paid landing pages.
+    runReport({
+      dateRanges: [LAST_28_DAYS],
+      dimensions: [{ name: "landingPage" }],
+      metrics: [{ name: "sessions" }, { name: "addToCarts" }, { name: "transactions" }],
+      dimensionFilter: PAID_FILTER,
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: "50",
+    }),
+    // GA4-P16: every event name over 90 days, to find key events that
+    // recorded nothing.
+    runReport({
+      dateRanges: [LAST_90_DAYS],
+      dimensions: [{ name: "eventName" }],
+      metrics: [{ name: "eventCount" }],
+      orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+      limit: "250",
+    }),
   ]);
 
   return {
     realtime, weekOverWeek, eventVolume, channels, totals, landingPages, geoDevice, newVsReturning, purchaseMetrics, funnel, deviceConversion,
     pageFunnel, itemFunnel, campaignLanding, countryConversion, hourDay, sourceMedium, searchTerms, landingDevice,
+    purchaseIds, purchaseCurrency, itemSales, hostnames, trafficSources, dailyTrend, paidSegments, paidFunnel, paidLanding, events90,
   };
 }
 

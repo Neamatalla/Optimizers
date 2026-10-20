@@ -1,0 +1,184 @@
+[
+ {
+  "id": "SO-GA4-06",
+  "title": "Your sales number in GA4 matches your real orders",
+  "pass": "Purchase events equal transactions, no order ID is counted twice, and every purchase has a value and currency.",
+  "fails": "Purchases and transactions differ by over 10%, the same order ID appears more than once (thank-you page refresh), revenue is zero, or currency is missing.",
+  "validate": "Computed GA4 fact: run_report eventName=purchase metrics=[eventCount,transactions,purchaseRevenue]; new query: run_report 28 days dimensions=[transactionId] metrics=[eventCount] filtered to purchase, count IDs with more than one event."
+ },
+ {
+  "id": "SO-GA4-07",
+  "title": "GA4 is recording right now, with no sudden drops or jumps",
+  "pass": "Visitors show in realtime, and week-on-week visits have no unexplained fall or one-source spike.",
+  "fails": "No live users, visits fell over 40% week on week, or one day has a jump from one source or country with almost no engaged visits (likely bots).",
+  "validate": "Computed GA4 fact: run_realtime_report activeUsers; run_report sessions last 7 vs prior 7 days; new query: run_report 28 days dimensions=[date,sessionSource,country] metrics=[sessions,engagedSessions] to flag single-day spikes with near-zero engagement."
+ },
+ {
+  "id": "SO-GA4-15",
+  "title": "Your own store domains showing as a traffic source",
+  "pass": "None of the store's own domains or subdomains (www, shop, checkout or the platform's store domain) appears as a referral source, and no sales are credited to them.",
+  "fails": "The store's own domain or checkout subdomain shows as a referral source with visits or sales, so one visit is split in two and the sale loses the ad or link that brought the shopper.",
+  "validate": "New GA4 fact: run_report 28 days dimensions=[sessionSource,sessionMedium] metrics=[sessions,conversions,purchaseRevenue] filtered to medium=referral; match sources against the store's own domains from the crawl and the hostName report; report the share of sales credited to self-referrals."
+ },
+ {
+  "id": "SO-GA4-17",
+  "title": "Visits and sales with no known source",
+  "pass": "Unassigned and (not set) are under 10% of visits, and campaign names in GA4 are clean (no broken or placeholder values).",
+  "fails": "Over 10% of visits have no known source, or links carry broken or mixed-case campaign tags that GA4 can't sort.",
+  "validate": "Computed GA4 fact: run_report 28 days dimensions=[sessionDefaultChannelGroup] metrics=[sessions]; new check: run_report dimensions=[sessionSource,sessionMedium,sessionCampaignName] to flag placeholder text, encoded characters and case variants of the same source."
+ },
+ {
+  "id": "SO-GA4-19",
+  "title": "Test and preview sites sending data into your real numbers",
+  "pass": "Only your real store domain(s) send visits and purchases to this GA4 property.",
+  "fails": "Preview, staging, theme-editor, localhost or unknown hostnames send visits or test purchases into the live numbers.",
+  "validate": "New GA4 fact: run_report 28 days dimensions=[hostName] metrics=[sessions,transactions,purchaseRevenue]; flag hostnames that are not the store's domains seen in the crawl."
+ },
+ {
+  "id": "SO-GA4-20",
+  "title": "Only real sales count as conversions",
+  "pass": "purchase is a key event, no noise events (page view, scroll, session start) are, and no key event has recorded nothing in the period.",
+  "fails": "purchase is not a key event, noise events are marked as key events, or a key event has no data.",
+  "validate": "Computed GA4 fact: list_key_events; new check: run_report 90 days dimensions=[eventName] metrics=[eventCount] to flag key events with zero count."
+ },
+ {
+  "id": "SO-GA4-22",
+  "title": "Sales recorded per product",
+  "pass": "Purchased items carry product names, and item revenue adds up to order revenue within 5%.",
+  "fails": "Item names show as (not set), or item revenue doesn't add up to order revenue, so you can't see which products sell.",
+  "validate": "New GA4 fact: run_report 28 days dimensions=[itemName] metrics=[itemRevenue,itemsPurchased]; share of (not set) item rows; compare total itemRevenue with purchaseRevenue for the same period."
+ },
+ {
+  "id": "MB-GA4-02",
+  "title": "GA4 records more purchases than real orders",
+  "pass": "purchase event count equals transactions, and no transaction ID appears on more than one purchase event.",
+  "fails": "purchase fires more than once per order (thank-you page refresh, platform app plus GTM, two tags), so GA4 shows more purchases than real orders.",
+  "validate": "GA4: run_report 28 days eventName=purchase metrics=[eventCount, transactions]; second run_report dimensions=[transactionId] metrics=[eventCount], count IDs with eventCount above 1 and purchases with transactionId (not set)."
+ },
+ {
+  "id": "MB-GA4-03",
+  "title": "GA4 purchase revenue zero, in mixed currencies, or not matching its items",
+  "pass": "Every purchase in GA4 carries a numeric value and the store currency, and item revenue adds up to purchase revenue apart from shipping and tax.",
+  "fails": "GA4 purchase revenue is zero or missing, more than one currency shows on purchases, or item revenue does not add up to purchase revenue (missing or duplicated items, value sent as text).",
+  "validate": "GA4: run_report 28 days eventName=purchase metrics=[eventCount, purchaseRevenue, itemRevenue]; run_report dimensions=[currencyCode] for purchase; flag zero revenue, more than one currency, or item revenue far from purchase revenue."
+ },
+ {
+  "id": "MB-GA4-04",
+  "title": "Where paid visitors drop after the click",
+  "pass": "For paid sessions, each step (view_item to add_to_cart, add_to_cart to begin_checkout, begin_checkout to purchase) is at or above the tool's step benchmark.",
+  "fails": "One step loses most paid visitors; the worst step is named with the page behind it.",
+  "validate": "GA4: run_report 28 days dimensions=[eventName, sessionDefaultChannelGroup] metrics=[totalUsers] for view_item, add_to_cart, begin_checkout, purchase, paid channel groups only; compare each step with the GA4-01 benchmarks and name the worst. Checkout steps come from GA4 only; the headless visit does not go past the cart."
+ },
+ {
+  "id": "MB-GA4-08",
+  "title": "Paid landing pages that don't convert",
+  "pass": "No landing page with real paid traffic converts under a third of the store average.",
+  "fails": "A landing page that gets a large share of paid sessions converts under a third of the store average.",
+  "validate": "GA4: run_report 28 days dimensions=[landingPage, sessionDefaultChannelGroup] metrics=[sessions, transactions], paid channel groups only; compare each page with the store average (GA4-06 rule)."
+ },
+ {
+  "id": "MB-GA4-09",
+  "title": "Paid sessions with an unknown source",
+  "pass": "Unassigned and (not set) are under 10% of sessions, and paid traffic lands in a paid channel group.",
+  "fails": "Over 10% of sessions have no known channel, or paid campaigns fall into Unassigned or Referral because of untagged links or mediums GA4 does not recognise.",
+  "validate": "GA4 fact GA4-08: run_report 28 days dimensions=[sessionDefaultChannelGroup] metrics=[sessions, transactions]; list the top source/medium pairs inside Unassigned."
+ },
+ {
+  "id": "MB-GA4-10",
+  "title": "Session breaks between store domains",
+  "pass": "The store's own domains and checkout domain never show as a session source, and links to other store domains carry the _gl linker.",
+  "fails": "The store's own domain, checkout subdomain or app domain appears as a referral source, so the session restarts and the purchase loses the campaign that brought it.",
+  "validate": "GA4: run_report 28 days dimensions=[sessionSource, sessionMedium] metrics=[sessions, transactions], flag the store's own hostnames and checkout domains; headless visit: check whether links to other store domains get a _gl parameter."
+ },
+ {
+  "id": "MB-GA4-11",
+  "title": "Clean UTM names on paid links",
+  "pass": "Paid source, medium and campaign values are lowercase, consistent per platform, use mediums GA4 recognises, and contain no placeholders or broken encoding.",
+  "fails": "One platform appears under several spellings (Facebook, facebook, fb), mediums are invented, or values hold unresolved placeholders ({{campaign.name}}, %7B) or encoded ampersands that break the parameters after them.",
+  "validate": "GA4: run_report 28 days dimensions=[sessionSource, sessionMedium, sessionCampaignName] metrics=[sessions, transactions]; code flags case variants of one source, placeholder patterns ({{, }}, %7B, %7D, &amp;), mediums outside GA4's paid list, and offline values such as utm_medium=qr that land in Unassigned."
+ },
+ {
+  "id": "MB-GA4-12",
+  "title": "Paid traffic on phones vs desktop",
+  "pass": "For paid sessions, mobile conversion is at least 60% of desktop.",
+  "fails": "Paid mobile sessions convert under 60% of paid desktop sessions, with enough visits on both.",
+  "validate": "GA4: run_report 28 days dimensions=[deviceCategory, sessionDefaultChannelGroup] metrics=[sessions, transactions], paid channel groups only (GA4-05 rule)."
+ },
+ {
+  "id": "MB-GA4-13",
+  "title": "Paid sales from new buyers vs returning ones",
+  "pass": "New-user paid sessions record purchases, and paid purchases are not almost all from returning users.",
+  "fails": "Most paid purchases come from returning users while new-user paid sessions convert near zero, so paid campaigns mostly re-buy people who already know the store.",
+  "validate": "GA4: run_report 28 days dimensions=[newVsReturning, sessionDefaultChannelGroup] metrics=[sessions, transactions, purchaseRevenue], paid channel groups only; compare new and returning conversion and each one's share of paid purchases. Extends current fact GA4-12 (returning vs new conversion) to paid sessions."
+ },
+ {
+  "id": "MB-GA4-14",
+  "title": "Paid sessions that look like bots",
+  "pass": "No paid source, campaign or placement brings sessions with near-zero engagement and no add_to_cart, and no session spike shows without matching purchases.",
+  "fails": "One paid source or placement sends many sessions with almost no engagement time and no product views, or sessions jump with no change in purchases.",
+  "validate": "GA4: run_report 28 days dimensions=[sessionSource, sessionMedium, sessionCampaignName] metrics=[sessions, engagementRate, userEngagementDuration, addToCarts, transactions], compare each paid row with the store's paid average; run_report dimensions=[date] for 90 days to find spikes without purchases."
+ },
+ {
+  "id": "MB-GA4-16",
+  "title": "Funnel events all reach GA4 with sane counts",
+  "pass": "view_item, add_to_cart, begin_checkout and purchase all record in GA4, and begin_checkout is in line with views of the checkout page.",
+  "fails": "A funnel event is missing or far too low in GA4, or begin_checkout differs a lot from checkout page views, so a trigger is broken.",
+  "validate": "GA4 fact GA4-17: run_report dimensions=[eventName] metrics=[eventCount] for the ecommerce events; plus run_report dimensions=[pagePath] metrics=[screenPageViews] for checkout pages compared with the begin_checkout count."
+ },
+ {
+  "id": "MB-GA4-17",
+  "title": "Attribution settings that decide paid credit",
+  "pass": "The GA4 reporting attribution model is data-driven or another model the team chose on purpose, and the key event lookback windows are not shortened from GA4's defaults.",
+  "fails": "The model is set to a Google-paid-channels-only last click, or lookback windows are shortened, so GA4 and the conversions Google Ads imports from it credit paid channels differently from what the team assumes.",
+  "validate": "GA4 admin: get_attribution_settings; read reportingAttributionModel, acquisitionConversionEventLookbackWindow and otherConversionEventLookbackWindow; flag a Google-paid-only model or windows shorter than GA4's defaults."
+ },
+ {
+  "id": "MB-GA4-22",
+  "title": "Data comes only from the live store",
+  "pass": "All sessions and purchases come from the store's live hostnames.",
+  "fails": "Staging, preview, localhost, theme-editor or unknown hostnames send sessions or test purchases into the live property.",
+  "validate": "GA4: run_report 28 days dimensions=[hostName] metrics=[sessions, transactions, purchaseRevenue]; flag any hostname that is not the store's live domain or checkout domain."
+ },
+ {
+  "id": "MB-CRO-02",
+  "title": "Top paid campaigns: landing page conversion and what the page offers",
+  "pass": "Each top paid campaign's main landing page converts at or above the store's paid average in GA4, and the top campaign's landing page shows a clear headline and the product or offer on its first screen; where the campaign name names a product, collection or offer, the landing page shows it.",
+  "fails": "A top paid campaign lands mostly on the home page or on a page that converts well below the paid average, or the landing page's first screen has no clear headline, product or offer, or shows a different one from what the campaign name points to.",
+  "validate": "GA4: run_report 28 days, dimensions sessionCampaignName + landingPage for paid channels, metrics sessions, addToCarts, ecommercePurchases; for each top campaign, its main landing page and that page's add-to-cart and purchase rates against the store's paid average. Browser: visit the top campaign landing URL (focus.campaignLandingUrl), screenshot the first screen, read title, H1, offer and price text, and compare them with the product, collection or offer words in the campaign name."
+ },
+ {
+  "id": "MB-CRO-03",
+  "title": "Advertised products that can't be bought",
+  "pass": "The most-viewed products are in stock, every variant can be selected, Add to Cart is active, and no sold-out product sits in the hero or first row of home and collections.",
+  "fails": "A top-viewed product is sold out or its variants can't be chosen while traffic keeps landing on it, or sold-out items are featured where shoppers look first.",
+  "validate": "GA4: run_report 28 days, dimension itemName, metrics itemsViewed and itemsAddedToCart; list the top-viewed items with zero adds or the lowest add rate (new computation). Browser: open the top product (focus.productUrl) and read stock text, variant state and whether Add to Cart is enabled (addToCart reason atc_disabled_or_out_of_stock); read the stock state of products in the hero and first row of home and the visited collection."
+ },
+ {
+  "id": "MB-CRO-04",
+  "title": "Paid landing pages that show 'page not found'",
+  "pass": "None of the landing pages that get paid sessions return an error or a 'not found' page, and the 404 page offers search or a way back.",
+  "fails": "Ads or old links send paid sessions to deleted products or a dead page with no way back.",
+  "validate": "GA4: run_report 28 days, dimensions landingPagePlusQueryString + pageTitle + sessionDefaultChannelGroup (paid channels), metric sessions; flag titles that read as not-found pages. Crawl: request the top paid landing URLs and record HTTP status; check menu and footer links and what the 404 page offers."
+ },
+ {
+  "id": "MB-CRO-11",
+  "title": "Landing page speaks the shopper's language",
+  "pass": "Pages declare the right lang and dir, an Arabic version exists with a visible switcher, and Arabic-language paid sessions land on Arabic pages.",
+  "fails": "Arabic-language sessions land on English pages, or Arabic pages render with broken right-to-left layout.",
+  "validate": "Browser/crawl: read html lang, dir, hreflang and the language switcher on landing and product pages; screenshot the Arabic product page. GA4: run_report 28 days, dimensions language + landingPage for paid channels; flag Arabic-language sessions landing on English pages (new computation)."
+ },
+ {
+  "id": "MB-CRO-13",
+  "title": "Free-shipping threshold set against order value",
+  "pass": "If the store has free shipping above an amount, the amount shows on the product page and in the cart, and it sits a reachable step above the store's GA4 AOV.",
+  "fails": "No threshold shown, or the threshold is far from the store's typical order, so it doesn't move order value.",
+  "validate": "Browser: read free-shipping text on the product page and cart, including any 'add X more' message after our add. GA4: quote AOV from the computed facts and compare it with the threshold found (new computation)."
+ },
+ {
+  "id": "MB-CRO-14",
+  "title": "Ways to add a second item",
+  "pass": "The product page or cart offers related items, bundles or multi-buy offers, and GA4 items per order is above one item.",
+  "fails": "No cross-sell or bundle anywhere, and GA4 shows orders are almost all single items.",
+  "validate": "Browser: detect recommendation blocks, bundle or multi-buy offers on the product page and cart (DOM and known app scripts). GA4: compute items per order = itemsPurchased ÷ transactions, 28 days (new computation)."
+ }
+]

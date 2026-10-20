@@ -6,10 +6,9 @@
 // to its own log file, and the outcome is printed to the dev server log.
 // Never runs in production.
 //
-// --no-email is mandatory: test-run.ts's normal path calls
-// publishAuditReport(), which needs the same Supabase creds this path exists
-// because we don't have. The visitor is emailed below instead, via Resend
-// directly, with a link to the local report.
+// --no-email: test-run.ts would email the report as an attachment. The
+// visitor is emailed below instead, via Resend directly, with a link to the
+// local report.
 import path from 'path'
 import { spawn } from 'child_process'
 import { appendFileSync } from 'fs'

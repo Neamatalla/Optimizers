@@ -66,7 +66,8 @@ test("a valid request is saved as pending and the reviewer is emailed", async ()
   assert.equal(row.store_platform, "Shopify");
   assert.deepEqual(row.verification_methods, ["email_domain"]);
 
-  assert.deepEqual(lookups()[0].filters, { website_hostname: "shop.com" });
+  // Test runs don't use up a site's free audit, same as the unique index.
+  assert.deepEqual(lookups()[0].filters, { website_hostname: "shop.com", is_test: false });
   assert.equal(resend.sent.length, 1);
   assert.deepEqual(resend.sent[0].to, ["reviewer@optimizers.agency"]);
 });
@@ -167,4 +168,28 @@ test("form values are escaped in the reviewer email", async () => {
   await call({ ...FORM, businessName: "<script>alert(1)</script>" });
   assert.doesNotMatch(resend.sent[0].html, /<script>/);
   assert.match(resend.sent[0].html, /&lt;script&gt;/);
+});
+
+const CLARITY = {
+  source: "clarity",
+  days: 3,
+  fetchedAt: "2026-10-20T10:00:00.000Z",
+  sessions: 6810,
+  behaviours: { deadClicks: { sessionsPct: 3.5, pageViews: 258, count: 460 } },
+  topPages: [{ url: "https://www.shop.com/products/a", visits: 3831 }],
+  hostMatch: true,
+};
+
+test("a Clarity snapshot for this site is saved, rebuilt from known fields", async () => {
+  await call({ ...FORM, clarityData: { ...CLARITY, injected: "x" } });
+  const saved = inserted().clarity_data;
+  assert.equal(saved.sessions, 6810);
+  assert.equal(saved.hostMatch, true);
+  assert.equal(saved.injected, undefined);
+  assert.match(resend.sent[0].html, /Connected, 6810 sessions in 3 days/);
+});
+
+test("a Clarity snapshot for another site is not saved", async () => {
+  await call({ ...FORM, clarityData: { ...CLARITY, topPages: [{ url: "https://other.com/", visits: 9 }] } });
+  assert.equal("clarity_data" in inserted(), false);
 });

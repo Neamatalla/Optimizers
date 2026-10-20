@@ -183,8 +183,8 @@ interface Step {
   money: Ga4Fact["money"];
 }
 
-function step(ctx: Ctx, from: string, to: string): Step | null {
-  const byEvent = new Map(ctx.d.funnel.map(s => [s.event, s.count]));
+function step(ctx: Ctx, from: string, to: string, funnel: Normalized["funnel"] = ctx.d.funnel): Step | null {
+  const byEvent = new Map(funnel.map(s => [s.event, s.count]));
   const key = `${from}>${to}`;
   const benchmark = STEP_BENCHMARKS[key];
   if (!benchmark || !byEvent.has(from)) return null;
@@ -200,12 +200,12 @@ function step(ctx: Ctx, from: string, to: string): Step | null {
   return { key, from, to, a, b, rate, benchmark, state: "fail", money: moneyFromStep(ctx, rate, benchmark) };
 }
 
-function steps(ctx: Ctx): { browse: Step | null; cart: Step | null; checkout: Step | null } {
-  const has = (e: string) => ctx.d.funnel.some(s => s.event === e);
+function steps(ctx: Ctx, funnel: Normalized["funnel"] = ctx.d.funnel): { browse: Step | null; cart: Step | null; checkout: Step | null } {
+  const has = (e: string) => funnel.some(s => s.event === e);
   return {
-    browse: step(ctx, "view_item", "add_to_cart"),
-    cart: has("begin_checkout") || !has("add_shipping_info") ? step(ctx, "add_to_cart", "begin_checkout") : step(ctx, "add_to_cart", "add_shipping_info"),
-    checkout: has("begin_checkout") ? step(ctx, "begin_checkout", "purchase") : step(ctx, "add_shipping_info", "purchase"),
+    browse: step(ctx, "view_item", "add_to_cart", funnel),
+    cart: has("begin_checkout") || !has("add_shipping_info") ? step(ctx, "add_to_cart", "begin_checkout", funnel) : step(ctx, "add_to_cart", "add_shipping_info", funnel),
+    checkout: has("begin_checkout") ? step(ctx, "begin_checkout", "purchase", funnel) : step(ctx, "add_shipping_info", "purchase", funnel),
   };
 }
 
@@ -569,6 +569,582 @@ function piiFact(ctx: Ctx): Ga4Fact {
 }
 
 // ---------------------------------------------------------------------------
+// Persona points (GA4-P01..P17): facts for the ICP checklist points, from the
+// reports google-oauth.js added on 2026-10-20 (purchaseIds, purchaseCurrency,
+// itemSales, hostnames, trafficSources, dailyTrend, paidSegments, paidFunnel,
+// paidLanding, events90) plus the attribution settings already fetched.
+// Same rules as above: the store is compared with itself or with a number
+// stated in the point; a missing or failed report (every row saved before
+// that date) is no_data, never a guess.
+
+const PAID_CHANNELS = new Set(["Paid Search", "Paid Social", "Paid Shopping", "Paid Video", "Paid Other", "Display", "Cross-network"]);
+const PAID_MEDIUM = /^(cpc|paid|ppc)$/i;
+// Unresolved ad-platform macros and broken encoding in UTM values.
+const PLACEHOLDER = /\{\{|\}\}|%7b|%7d|&amp;|\{[a-z_.]+\}/i;
+const ENCODED = /%[0-9a-f]{2}/i;
+const NO_VALUE = /^(\((not set|none|direct|data deleted|organic|referral|not provided)\))?$/i;
+const UNKNOWN_CHANNEL = /^(unassigned|\(not set\)|\(other\))$/i;
+// One platform under several names (the point's own example: Facebook, facebook, fb).
+const SOURCE_ALIAS: Record<string, string> = { fb: "facebook", ig: "instagram" };
+// A row needs this many visits before it is named (same floor as GA4-19).
+const MIN_ROW = 5;
+// SO-GA4-06: purchases and transactions may differ by up to 10%.
+const COUNT_TOLERANCE = 0.1;
+// SO-GA4-22: item revenue adds up to order revenue within 5%.
+const ITEM_TOLERANCE = 0.05;
+// A day is a spike at twice the store's own median day, with 50+ extra visits.
+const SPIKE = 2;
+const SPIKE_MIN_EXTRA = 50;
+// "Almost no engagement": under a quarter of the store's own engagement rate.
+const LOW_ENGAGEMENT = 0.25;
+// MB-GA4-13 "near zero": new-user paid conversion under a quarter of returning.
+const NEAR_ZERO = 0.25;
+const CHECKOUT_HOSTS = /^(checkout\.shopify\.com|pay\.shopify\.com)$/i;
+const PLATFORM_HOST = /\.myshopify\.com$/i;
+
+const isPaid = (channel: string, medium = "") => PAID_CHANNELS.has(channel) || PAID_MEDIUM.test(medium);
+const plural = (n: number, word: string) => `${n0(n)} ${word}${n === 1 ? "" : "s"}`;
+
+/** A report that was fetched and didn't fail (rows saved before a report existed have no key at all). */
+function got(r: unknown): boolean {
+  return Boolean(r && typeof r === "object" && !("error" in (r as object)));
+}
+
+/** Whether a report holds every row GA4 has (rowCount within the limit). */
+function complete(r: unknown): boolean {
+  const rc = (r as { rowCount?: number } | undefined)?.rowCount;
+  return typeof rc !== "number" || rc <= rowsOf(r).length;
+}
+
+/** The TOTAL row of a report, or the sum of its rows when it holds them all. */
+function totalsOf(r: unknown): number[] | null {
+  const t = (r as { totals?: Array<{ metricValues?: Array<{ value?: string }> }> } | undefined)?.totals?.[0]?.metricValues;
+  if (Array.isArray(t)) return t.map(m => Number(m.value ?? 0) || 0);
+  if (!complete(r)) return null;
+  return rowsOf(r).reduce<number[]>((acc, x) => x.vals.map((v, i) => (acc[i] ?? 0) + v), []);
+}
+
+const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0;
+};
+
+const bareHost = (h: string) => h.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/[/:?#].*$/, "").replace(/^www\./, "").replace(/\.$/, "");
+
+/** The store's own domains: the audited website and the GA4 web streams' URLs. */
+function storeDomains(ctx: Ctx): string[] {
+  const out = new Set<string>();
+  if (ctx.origin) out.add(bareHost(new URL(ctx.origin).hostname));
+  const streams = ctx.oauth.dataStreams;
+  if (Array.isArray(streams)) {
+    for (const s of streams) {
+      const uri = (s as { webStreamData?: { defaultUri?: string } } | null)?.webStreamData?.defaultUri;
+      if (uri) out.add(bareHost(uri));
+    }
+  }
+  return [...out].filter(d => d.includes("."));
+}
+
+const onDomain = (host: string, domains: string[]) => {
+  const b = bareHost(host);
+  return domains.some(d => b === d || b.endsWith(`.${d}`));
+};
+
+interface SourceRow { channel: string; source: string; medium: string; campaign: string; sessions: number; engaged: number; adds: number; sales: number }
+
+function trafficRows(ctx: Ctx): SourceRow[] | null {
+  if (!got(ctx.rd.trafficSources)) return null;
+  return rowsOf(ctx.rd.trafficSources).map(r => ({
+    channel: r.dims[0] ?? "", source: r.dims[1] ?? "", medium: r.dims[2] ?? "", campaign: r.dims[3] ?? "",
+    sessions: r.vals[0] ?? 0, engaged: r.vals[1] ?? 0, adds: r.vals[2] ?? 0, sales: r.vals[3] ?? 0,
+  }));
+}
+
+function unknownShare(ctx: Ctx): { share: number; unknown: number; total: number } | null {
+  const chans = rowsOf(ctx.rd.channels).map(r => ({ name: r.dims[0], sessions: r.vals[0] }));
+  const total = chans.reduce((s, c) => s + c.sessions, 0);
+  if (!total) return null;
+  const unknown = chans.filter(c => UNKNOWN_CHANNEL.test(c.name)).reduce((s, c) => s + c.sessions, 0);
+  return { share: unknown / total, unknown, total };
+}
+
+/** Broken values (macros, encoding) and one value under several spellings. */
+function tagIssues(rows: SourceRow[], alias = false): { broken: string[]; variants: string[] } {
+  const broken = new Set<string>();
+  for (const r of rows) for (const v of [r.source, r.medium, r.campaign]) if (v && (PLACEHOLDER.test(v) || ENCODED.test(v))) broken.add(v);
+  const variants: string[] = [];
+  for (const field of ["source", "medium"] as const) {
+    const groups = new Map<string, Set<string>>();
+    for (const r of rows) {
+      const v = r[field];
+      if (NO_VALUE.test(v)) continue;
+      const lower = v.trim().toLowerCase();
+      const key = alias ? SOURCE_ALIAS[lower] ?? lower : lower;
+      groups.set(key, (groups.get(key) ?? new Set()).add(v));
+    }
+    for (const set of groups.values()) if (set.size > 1) variants.push([...set].join(" / "));
+  }
+  return { broken: [...broken].slice(0, 4), variants: variants.slice(0, 4) };
+}
+
+interface PurchaseCounts { events: number; revenue: number; tx: number }
+
+function purchaseCounts(ctx: Ctx): PurchaseCounts | null {
+  const row = rowsOf(ctx.rd.purchaseMetrics)[0];
+  return row ? { events: row.vals[0] ?? 0, revenue: row.vals[1] ?? 0, tx: row.vals[2] ?? 0 } : null;
+}
+
+/** Problems with purchase count vs orders: count gap, repeated order ids, purchases with no id. */
+function orderIssues(c: PurchaseCounts, ctx: Ctx): { issues: string[]; idsKnown: boolean } {
+  const issues: string[] = [];
+  if (!c.tx) issues.push("GA4 records no transactions, so purchases carry no order ID");
+  else if (Math.abs(c.events - c.tx) / Math.max(c.events, c.tx) > COUNT_TOLERANCE) issues.push(`purchase events and transactions differ by ${pct(Math.abs(c.events - c.tx) / Math.max(c.events, c.tx))}`);
+  if (!got(ctx.rd.purchaseIds)) return { issues, idsKnown: false };
+  const rows = rowsOf(ctx.rd.purchaseIds);
+  const isUnset = (v: string) => v === "" || v === "(not set)";
+  const unset = rows.filter(r => isUnset(r.dims[0] ?? "")).reduce((s, r) => s + r.vals[0], 0);
+  const dups = rows.filter(r => !isUnset(r.dims[0] ?? "") && r.vals[0] > 1);
+  if (dups.length) {
+    const extra = dups.reduce((s, r) => s + r.vals[0] - 1, 0);
+    issues.push(`${dups.length >= rows.length && !complete(ctx.rd.purchaseIds) ? "at least " : ""}${plural(dups.length, "order ID")} counted on more than one purchase event (${n0(extra)} extra purchases; the most repeated ID ${n0(Math.max(...dups.map(r => r.vals[0])))} times)`);
+  }
+  if (unset) issues.push(`${plural(unset, "purchase event")} with no order ID ((not set))`);
+  return { issues, idsKnown: true };
+}
+
+/** Currencies sent on purchase events; null when the report is missing. */
+function purchaseCurrencies(ctx: Ctx): { codes: string[]; unset: number } | null {
+  if (!got(ctx.rd.purchaseCurrency)) return null;
+  const rows = rowsOf(ctx.rd.purchaseCurrency).filter(r => r.vals[0] > 0);
+  const isUnset = (v: string) => v === "" || v === "(not set)";
+  return {
+    codes: rows.filter(r => !isUnset(r.dims[0] ?? "")).map(r => r.dims[0]),
+    unset: rows.filter(r => isUnset(r.dims[0] ?? "")).reduce((s, r) => s + r.vals[0], 0),
+  };
+}
+
+// MB-GA4-02
+function ordersFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P01";
+  const c = purchaseCounts(ctx);
+  if (!c || !c.events) return { id, status: "no_data", en: "No purchase events in the last 28 days to compare with orders." };
+  const { issues, idsKnown } = orderIssues(c, ctx);
+  const line = `${n0(c.events)} purchase events against ${n0(c.tx)} transactions in 28 days.`;
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}. GA4 shows more purchases than real orders.`, handoff: { kind: "check", id: "GTM-01" } };
+  if (!idsKnown) return { id, status: "no_data", en: `${line} The per-order ID report isn't in this GA4 pull, so repeated order IDs can't be checked.` };
+  return { id, status: "pass", en: `${line} Every order ID is counted once.` };
+}
+
+// SO-GA4-06
+function salesMatchFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P02";
+  const c = purchaseCounts(ctx);
+  if (!c || !c.events) return { id, status: "no_data", en: "No purchase events in the last 28 days to compare with orders." };
+  const { issues, idsKnown } = orderIssues(c, ctx);
+  if (!c.revenue) issues.push("purchase revenue is zero");
+  const cur = purchaseCurrencies(ctx);
+  if (cur ? cur.unset > 0 : !ctx.d.currency) issues.push(cur ? `${plural(cur.unset, "purchase")} sent with no currency` : "no currency on purchases");
+  const line = `${n0(c.events)} purchase events, ${n0(c.tx)} transactions, ${formatMoney(c.revenue, ctx.d.currency)} revenue in 28 days.`;
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.`, handoff: { kind: "check", id: "GTM-01" } };
+  if (!idsKnown) return { id, status: "no_data", en: `${line} The per-order ID report isn't in this GA4 pull, so repeated order IDs can't be checked.` };
+  return { id, status: "pass", en: `${line} Purchases match transactions, no order ID is counted twice, and every purchase has a value and currency.` };
+}
+
+// MB-GA4-03
+function revenueFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P03";
+  const c = purchaseCounts(ctx);
+  if (!c || !c.events) return { id, status: "no_data", en: "No purchase events in the last 28 days." };
+  const issues: string[] = [];
+  if (!c.revenue) issues.push("purchase revenue is zero");
+  const cur = purchaseCurrencies(ctx);
+  if (cur && cur.codes.length > 1) issues.push(`purchases arrive in ${cur.codes.length} currencies (${cur.codes.join(", ")})`);
+  if (cur && cur.unset > 0) issues.push(`${plural(cur.unset, "purchase")} sent with no currency`);
+  const items = got(ctx.rd.itemSales) ? totalsOf(ctx.rd.itemSales) : null;
+  const itemRevenue = items ? items[0] ?? 0 : null;
+  if (itemRevenue !== null && c.revenue > 0) {
+    if (itemRevenue === 0) issues.push("purchases carry no item revenue (items missing)");
+    else if (itemRevenue > c.revenue * (1 + ITEM_TOLERANCE)) issues.push(`item revenue (${formatMoney(itemRevenue, ctx.d.currency)}) is ${pct(itemRevenue / c.revenue - 1)} above purchase revenue (duplicated items)`);
+  }
+  const line = `${formatMoney(c.revenue, ctx.d.currency)} purchase revenue from ${n0(c.events)} purchases in 28 days${itemRevenue !== null ? `, ${formatMoney(itemRevenue, ctx.d.currency)} item revenue` : ""}${cur?.codes.length ? `, currency ${cur.codes.join(", ")}` : ""}.`;
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.`, handoff: { kind: "check", id: "GTM-01" } };
+  if (!cur || itemRevenue === null) return { id, status: "no_data", en: `${line} The currency or item revenue report isn't in this GA4 pull.` };
+  return { id, status: "pass", en: `${line} One currency, a real value on every purchase, and item revenue no higher than purchase revenue.` };
+}
+
+// SO-GA4-22
+function itemsFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P04";
+  const c = purchaseCounts(ctx);
+  if (!got(ctx.rd.itemSales)) return { id, status: "no_data", en: "The per-product sales report isn't in this GA4 pull." };
+  if (!c || !c.revenue) return { id, status: "no_data", en: "No purchase revenue in the last 28 days to compare items with." };
+  const totals = totalsOf(ctx.rd.itemSales);
+  if (!totals) return { id, status: "no_data", en: "Item totals can't be read from this GA4 pull." };
+  const [itemRevenue = 0, units = 0] = totals;
+  const unset = rowsOf(ctx.rd.itemSales).filter(r => r.dims[0] === "(not set)" || r.dims[0] === "").reduce((s, r) => s + (r.vals[1] ?? 0), 0);
+  const issues: string[] = [];
+  if (!units) issues.push("no purchased items are recorded at all");
+  else if (unset / units > ITEM_TOLERANCE) issues.push(`${pct(unset / units)} of items sold (${n0(unset)} of ${n0(units)}) have no product name ((not set))`);
+  const gap = Math.abs(itemRevenue - c.revenue) / c.revenue;
+  if (gap > ITEM_TOLERANCE) issues.push(`item revenue ${formatMoney(itemRevenue, ctx.d.currency)} is ${pct(gap)} ${itemRevenue > c.revenue ? "above" : "below"} order revenue ${formatMoney(c.revenue, ctx.d.currency)}`);
+  const line = `${n0(units)} items sold for ${formatMoney(itemRevenue, ctx.d.currency)} against ${formatMoney(c.revenue, ctx.d.currency)} order revenue in 28 days.`;
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.`, handoff: { kind: "check", id: "GTM-01" } };
+  return { id, status: "pass", en: `${line} Products are named and item revenue is within 5% of order revenue.` };
+}
+
+// SO-GA4-19, MB-GA4-22
+function hostFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P05";
+  if (!got(ctx.rd.hostnames)) return { id, status: "no_data", en: "The hostname report isn't in this GA4 pull." };
+  const domains = storeDomains(ctx);
+  if (!domains.length) return { id, status: "no_data", en: "The store's own domain is unknown, so hostnames can't be judged." };
+  const rows = rowsOf(ctx.rd.hostnames).filter(r => r.dims[0] && r.dims[0] !== "(not set)");
+  if (!rows.length) return { id, status: "no_data", en: "No hostnames recorded in the last 28 days." };
+  const total = rows.reduce((s, r) => s + r.vals[0], 0);
+  const foreign = rows.filter(r => !onDomain(r.dims[0], domains) && !CHECKOUT_HOSTS.test(bareHost(r.dims[0])) && (r.vals[0] >= MIN_ROW || (r.vals[1] ?? 0) > 0));
+  if (!foreign.length) return { id, status: "pass", en: `Every hostname with traffic in 28 days is the store's own (${domains.join(", ")}); ${n0(total)} visits.` };
+  const visits = foreign.reduce((s, r) => s + r.vals[0], 0);
+  const sales = foreign.reduce((s, r) => s + (r.vals[1] ?? 0), 0);
+  return {
+    id,
+    status: "fail",
+    en: `${foreign.slice(0, 4).map(r => `${r.dims[0]} (${n0(r.vals[0])} visits${r.vals[1] ? `, ${n0(r.vals[1])} purchases` : ""})`).join(", ")} send data into this property besides ${domains.join(", ")}: ${pct(visits / Math.max(total, 1))} of visits${sales ? ` and ${plural(sales, "purchase")}` : ""} in 28 days.`,
+  };
+}
+
+// SO-GA4-15
+function selfReferralFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P06";
+  const domains = storeDomains(ctx);
+  if (!domains.length) return { id, status: "no_data", en: "The store's own domain is unknown, so self-referrals can't be judged." };
+  if (!got(ctx.rd.sourceMedium) && !got(ctx.rd.trafficSources)) return { id, status: "no_data", en: "No source/medium data in this GA4 pull." };
+  const pairs = new Map<string, { source: string; medium: string; sessions: number; sales: number | null }>();
+  for (const r of rowsOf(ctx.rd.sourceMedium)) pairs.set(`${r.dims[0]}|${r.dims[1]}`, { source: r.dims[0], medium: r.dims[1], sessions: r.vals[0], sales: r.vals.length >= 3 ? r.vals[2] : null });
+  const fromTraffic = new Map<string, { source: string; medium: string; sessions: number; sales: number | null }>();
+  for (const r of trafficRows(ctx) ?? []) {
+    const key = `${r.source}|${r.medium}`;
+    if (pairs.has(key)) continue;
+    const p = fromTraffic.get(key) ?? { source: r.source, medium: r.medium, sessions: 0, sales: 0 };
+    p.sessions += r.sessions;
+    p.sales = (p.sales ?? 0) + r.sales;
+    fromTraffic.set(key, p);
+  }
+  const all = [...pairs.values(), ...fromTraffic.values()];
+  const own = all.filter(p => /referral/i.test(p.medium) && p.sessions > 0 && (onDomain(p.source, domains) || PLATFORM_HOST.test(bareHost(p.source)) || CHECKOUT_HOSTS.test(bareHost(p.source))));
+  if (!own.length) return { id, status: "pass", en: `None of the store's own domains (${domains.join(", ")}) shows as a referral source in the ${n0(all.length)} source/medium rows read.` };
+  const sales = own.every(p => p.sales !== null) ? own.reduce((s, p) => s + (p.sales ?? 0), 0) : null;
+  const share = sales !== null && ctx.d.purchases ? sales / ctx.d.purchases : null;
+  return {
+    id,
+    status: "fail",
+    en: `The store's own domain shows as a referral source: ${own.slice(0, 4).map(p => `${p.source} (${n0(p.sessions)} visits${p.sales !== null ? `, ${n0(p.sales)} sales` : ""})`).join(", ")}.${share !== null && sales ? ` ${pct(share)} of sales (${n0(sales)} of ${n0(ctx.d.purchases ?? 0)}) are credited to the store itself instead of the ad or link that brought the shopper.` : " Each one splits a visit in two."}`,
+  };
+}
+
+// SO-GA4-17
+function sourceHygieneFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P07";
+  const u = unknownShare(ctx);
+  if (!u) return { id, status: "no_data", en: "No channel data." };
+  const rows = trafficRows(ctx);
+  const issues: string[] = [];
+  if (u.share > UNKNOWN_SOURCE_MAX) issues.push(`${pct(u.share)} of visits (${n0(u.unknown)} of ${n0(u.total)}) have no known source`);
+  if (rows) {
+    const t = tagIssues(rows);
+    if (t.broken.length) issues.push(`broken campaign tags: ${t.broken.map(v => `"${v}"`).join(", ")}`);
+    if (t.variants.length) issues.push(`one source under several spellings: ${t.variants.join("; ")}`);
+  }
+  if (issues.length) return { id, status: "fail", en: `${issues.join("; ")}.`.replace(/^./, ch => ch.toUpperCase()) };
+  if (!rows) return { id, status: "no_data", en: `${pct(u.share)} of visits have no known source; the source/medium/campaign report isn't in this GA4 pull.` };
+  return { id, status: "pass", en: `${pct(u.share)} of visits have no known source (under the 10% bar) and no broken or mixed-case tags in the ${plural(rows.length, "source/medium/campaign row")} read.` };
+}
+
+// MB-GA4-11
+function paidTagsFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P08";
+  const rows = trafficRows(ctx);
+  if (!rows) return { id, status: "no_data", en: "The source/medium/campaign report isn't in this GA4 pull." };
+  const paid = rows.filter(r => isPaid(r.channel, r.medium));
+  const issues: string[] = [];
+  const t = tagIssues(paid, true);
+  if (t.broken.length) issues.push(`unresolved or broken values: ${t.broken.map(v => `"${v}"`).join(", ")}`);
+  if (t.variants.length) issues.push(`one platform under several spellings: ${t.variants.join("; ")}`);
+  const upper = [...new Set(paid.flatMap(r => [r.source, r.medium]).filter(v => v && !NO_VALUE.test(v) && v !== v.toLowerCase()))];
+  if (upper.length) issues.push(`not lowercase: ${upper.slice(0, 4).map(v => `"${v}"`).join(", ")}`);
+  const invented = rows.filter(r => UNKNOWN_CHANNEL.test(r.channel) && !NO_VALUE.test(r.medium) && r.sessions >= MIN_ROW);
+  if (invented.length) issues.push(`mediums GA4 does not recognise, landing in Unassigned: ${invented.slice(0, 4).map(r => `${r.source} / ${r.medium} (${n0(r.sessions)} visits)`).join(", ")}`);
+  const paidSessions = paid.reduce((s, r) => s + r.sessions, 0);
+  if (issues.length) return { id, status: "fail", en: `Paid link tags: ${issues.join("; ")}.` };
+  if (!paid.length) return { id, status: "pass", en: "No paid traffic rows in the last 28 days and no unrecognised mediums." };
+  return { id, status: "pass", en: `${plural(paid.length, "paid source/medium/campaign row")} (${n0(paidSessions)} visits) are lowercase, consistent and free of placeholders.` };
+}
+
+// MB-GA4-09
+function paidChannelFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P09";
+  const u = unknownShare(ctx);
+  if (!u) return { id, status: "no_data", en: "No channel data." };
+  const rows = trafficRows(ctx);
+  const issues: string[] = [];
+  if (u.share > UNKNOWN_SOURCE_MAX) issues.push(`${pct(u.share)} of visits (${n0(u.unknown)} of ${n0(u.total)}) have no known channel`);
+  let top = "";
+  if (rows) {
+    const unassigned = rows.filter(r => UNKNOWN_CHANNEL.test(r.channel)).sort((a, b) => b.sessions - a.sessions);
+    top = unassigned.slice(0, 3).map(r => `${r.source} / ${r.medium} (${n0(r.sessions)})`).join(", ");
+    const tagged = rows.filter(r => r.sessions >= MIN_ROW && ((UNKNOWN_CHANNEL.test(r.channel) && (!NO_VALUE.test(r.medium) || !NO_VALUE.test(r.campaign))) || (r.channel === "Referral" && !NO_VALUE.test(r.campaign))));
+    if (tagged.length) issues.push(`tagged campaign traffic lands outside the paid channels: ${tagged.slice(0, 4).map(r => `${r.source} / ${r.medium}${NO_VALUE.test(r.campaign) ? "" : ` "${r.campaign}"`} in ${r.channel} (${n0(r.sessions)} visits)`).join(", ")}`);
+  }
+  const topText = top ? ` Top pairs in Unassigned: ${top}.` : "";
+  if (issues.length) return { id, status: "fail", en: `${issues.join("; ")}.`.replace(/^./, ch => ch.toUpperCase()) + topText };
+  if (!rows) return { id, status: "no_data", en: `${pct(u.share)} of visits have no known channel; the source/medium/campaign report isn't in this GA4 pull.` };
+  return { id, status: "pass", en: `${pct(u.share)} of visits have no known channel (under the 10% bar) and no tagged campaign traffic falls into Unassigned or Referral.${topText}` };
+}
+
+// MB-GA4-04
+function paidFunnelFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P10";
+  if (!got(ctx.rd.paidFunnel)) return { id, status: "no_data", en: "The paid-traffic funnel report isn't in this GA4 pull." };
+  const funnel = rowsOf(ctx.rd.paidFunnel).map(r => ({ event: r.dims[0], count: r.vals[1] || r.vals[0] })).filter(s => s.event && s.count > 0);
+  if (!funnel.length) return { id, status: "no_data", en: "No paid visitors reached the shopping funnel events in 28 days." };
+  const s = steps(ctx, funnel);
+  const all = [s.browse, s.cart, s.checkout].filter((x): x is Step => Boolean(x));
+  const worst = worstStep(s);
+  const gaps = all.filter(x => x.state === "gap");
+  const measured = all.filter(x => x.state === "pass" || x.state === "fail");
+  if (worst) {
+    const page = STEP_PAGE[worst.key];
+    const others = measured.filter(x => x !== worst);
+    return {
+      id,
+      status: "fail",
+      en: `Paid visitors drop most at ${STEP_NAME[worst.key]}. ${stepSentence(worst)}${others.length ? ` Other paid steps: ${others.map(o => `${STEP_NAME[o.key]} ${pct(o.rate)} (benchmark ${pct(o.benchmark)})`).join(", ")}.` : ""}`,
+      handoff: page ? { kind: "cro", page } : undefined,
+    };
+  }
+  if (gaps.length) return { id, status: "fail", en: `The paid funnel can't be ranked: ${gaps.map(g => `"${g.to}"`).join(", ")} ${gaps.length > 1 ? "look" : "looks"} untracked for paid visitors. Fix tracking first (GA4-17).`, handoff: { kind: "check", id: "GA4-17" } };
+  if (!measured.length) return { id, status: "no_data", en: "Too few paid visitors reached each step in 28 days to judge." };
+  return { id, status: "pass", en: `Every measured paid step is at or above its benchmark: ${measured.map(m => `${STEP_NAME[m.key]} ${pct(m.rate)} (benchmark ${pct(m.benchmark)})`).join(", ")}.` };
+}
+
+// MB-GA4-08
+function paidLandingFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P11";
+  if (!got(ctx.rd.paidLanding)) return { id, status: "no_data", en: "The paid landing-page report isn't in this GA4 pull." };
+  const cr = ctx.cr;
+  const rows = rowsOf(ctx.rd.paidLanding).filter(r => r.dims[0] && !r.dims[0].startsWith("("));
+  if (!cr || !rows.length) return { id, status: "no_data", en: "No paid landing pages with a store conversion rate to compare." };
+  const paidSessions = rows.reduce((s, r) => s + r.vals[0], 0);
+  const minSessions = Math.max(200, paidSessions * 0.03);
+  const weak = rows.filter(r => r.vals[0] >= minSessions && (r.vals[2] ?? 0) / r.vals[0] < cr * LANDING_FLOOR).sort((a, b) => b.vals[0] - a.vals[0])[0];
+  if (!weak) return { id, status: "pass", en: `No paid landing page with ${n0(minSessions)}+ paid visits converts under a third of the store average (${pct(cr)}).` };
+  const path = weak.dims[0];
+  const wcr = (weak.vals[2] ?? 0) / weak.vals[0];
+  const page = pageTypeOfPath(path);
+  return {
+    id,
+    status: "fail",
+    en: `${path} gets ${n0(weak.vals[0])} paid visits in 28 days (${pct(weak.vals[0] / paidSessions)} of paid visits read) and converts at ${pct(wcr)} (${n0(weak.vals[2] ?? 0)} sales), against a store average of ${pct(cr)}.`,
+    handoff: page && page !== "home" ? { kind: "cro", page, url: urlOf(ctx, path) } : undefined,
+  };
+}
+
+/** paidSegments summed by one dimension (1 = device, 2 = new/returning). */
+function paidBy(ctx: Ctx, dim: 1 | 2): Map<string, { sessions: number; sales: number }> | null {
+  if (!got(ctx.rd.paidSegments)) return null;
+  const m = new Map<string, { sessions: number; sales: number }>();
+  for (const r of rowsOf(ctx.rd.paidSegments)) {
+    const v = m.get(r.dims[dim]) ?? { sessions: 0, sales: 0 };
+    v.sessions += r.vals[0];
+    v.sales += r.vals[1] ?? 0;
+    m.set(r.dims[dim], v);
+  }
+  return m;
+}
+
+// MB-GA4-12
+function paidDeviceFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P12";
+  const by = paidBy(ctx, 1);
+  if (!by) return { id, status: "no_data", en: "The paid device report isn't in this GA4 pull." };
+  const mobile = by.get("mobile");
+  const desktop = by.get("desktop");
+  if (!mobile || !desktop || mobile.sessions < 200 || desktop.sessions < 200 || !desktop.sales) return { id, status: "no_data", en: "Not enough paid visits with sales on both phone and desktop to compare." };
+  const m = mobile.sales / mobile.sessions;
+  const dk = desktop.sales / desktop.sessions;
+  const line = `Paid phone visits convert at ${pct(m)} (${n0(mobile.sessions)} visits) against ${pct(dk)} on desktop (${n0(desktop.sessions)} visits): phones are at ${Math.round((m / dk) * 100)}% of desktop.`;
+  if (m >= dk * MOBILE_FLOOR) return { id, status: "pass", en: `${line} Within the 60% bar.` };
+  return { id, status: "fail", en: `${line} Under the 60% bar.`, handoff: { kind: "cro", page: "product" } };
+}
+
+// MB-GA4-13
+function paidNewBuyersFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P13";
+  const by = paidBy(ctx, 2);
+  if (!by) return { id, status: "no_data", en: "The paid new-vs-returning report isn't in this GA4 pull." };
+  const nv = by.get("new");
+  const rv = by.get("returning");
+  if (!nv || !rv || nv.sessions < 200 || rv.sessions < 50 || !(nv.sales + rv.sales)) return { id, status: "no_data", en: "Not enough new and returning paid visits with sales to compare." };
+  const n = nv.sales / nv.sessions;
+  const r = rv.sales / rv.sessions;
+  const retShare = rv.sales / (nv.sales + rv.sales);
+  const line = `Paid visits from new users convert at ${pct(n)} (${n0(nv.sessions)} visits, ${n0(nv.sales)} sales) against ${pct(r)} for returning users (${n0(rv.sessions)} visits, ${n0(rv.sales)} sales); returning users make ${pct(retShare)} of paid sales.`;
+  if (!nv.sales) return { id, status: "fail", en: `${line} New-user paid visits recorded no purchases at all.` };
+  if (retShare > 0.5 && n < r * NEAR_ZERO) return { id, status: "fail", en: `${line} Paid campaigns mostly re-buy people who already know the store.` };
+  return { id, status: "pass", en: line };
+}
+
+interface Day { date: string; sessions: number; engaged: number; sales: number }
+
+function dailyRows(ctx: Ctx): Day[] | null {
+  if (!got(ctx.rd.dailyTrend)) return null;
+  return rowsOf(ctx.rd.dailyTrend)
+    .map(r => ({ date: r.dims[0] ?? "", sessions: r.vals[0] ?? 0, engaged: r.vals[1] ?? 0, sales: r.vals[2] ?? 0 }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const dayLabel = (d: string) => (/^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` : d);
+
+/** Days at twice the store's own median day or more; null when there are too few days to judge. */
+function spikeDays(days: Day[]): { m: number; me: number; mt: number; spikes: Day[] } | null {
+  if (days.length < 14) return null;
+  const m = median(days.map(d => d.sessions));
+  const me = median(days.map(d => d.engaged));
+  const mt = median(days.map(d => d.sales));
+  return { m, me, mt, spikes: days.filter(d => d.sessions > m * SPIKE && d.sessions - m >= SPIKE_MIN_EXTRA) };
+}
+
+// MB-GA4-14
+function paidBotsFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P14";
+  const rows = trafficRows(ctx);
+  const days = dailyRows(ctx);
+  const issues: string[] = [];
+  if (rows) {
+    const paid = rows.filter(r => isPaid(r.channel, r.medium) && r.sessions > 0);
+    const sessions = paid.reduce((s, r) => s + r.sessions, 0);
+    const avg = sessions ? paid.reduce((s, r) => s + r.engaged, 0) / sessions : 0;
+    const minSessions = Math.max(150, (ctx.d.sessions ?? 0) * 0.02);
+    const bots = paid.filter(r => r.sessions >= minSessions && r.adds === 0 && r.engaged / r.sessions < avg * LOW_ENGAGEMENT);
+    if (bots.length) issues.push(`${bots.slice(0, 3).map(r => `${r.source} / ${r.medium}${NO_VALUE.test(r.campaign) ? "" : ` "${r.campaign}"`} sent ${n0(r.sessions)} visits with ${pct(r.engaged / r.sessions)} engaged (paid average ${pct(avg)}) and no add to cart`).join("; ")}`);
+  }
+  const sp = days ? spikeDays(days) : null;
+  if (sp) {
+    const flat = sp.spikes.filter(d => d.sales <= sp.mt);
+    if (flat.length) {
+      const big = [...flat].sort((a, b) => b.sessions - a.sessions)[0];
+      issues.push(`${plural(flat.length, "day")} in 90 days had visits jump with no rise in sales, e.g. ${dayLabel(big.date)}: ${n0(big.sessions)} visits (usual day ${n0(sp.m)}) and ${n0(big.sales)} sales (usual ${n0(sp.mt)})`);
+    }
+  }
+  if (issues.length) return { id, status: "fail", en: `${issues.join(". ")}. Likely bot or junk placements.` };
+  if (!rows || !sp) return { id, status: "no_data", en: "The source/campaign engagement or the daily 90-day report isn't in this GA4 pull." };
+  return { id, status: "pass", en: `No paid source with real volume shows near-zero engagement and no adds to cart, and no day in 90 had a visit spike without sales (usual day ${n0(sp.m)} visits).` };
+}
+
+// SO-GA4-07
+function recordingFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P15";
+  const realtimeOk = got(ctx.rd.realtime);
+  const live = rowsOf(ctx.rd.realtime).reduce((s, r) => s + r.vals[0], 0);
+  const wow = rowsOf(ctx.rd.weekOverWeek);
+  const sessionsFor = (name: string) => wow.filter(r => r.dims.includes(name)).reduce((s, r) => s + r.vals[0], 0);
+  const last = sessionsFor("last7Days");
+  const prior = sessionsFor("prior7Days");
+  // Visits the store averages in 30 minutes (the realtime window).
+  const expected = last / (7 * 48);
+  const issues: string[] = [];
+  let liveUnjudged = false;
+  if (realtimeOk && live === 0) {
+    if (expected >= 5) issues.push(`no live users, while the store averages ${n0(expected)} visits every 30 minutes`);
+    else liveUnjudged = true;
+  }
+  if (wow.length) {
+    if (last === 0 && prior > 0) issues.push("nothing recorded in the last 7 days");
+    else if (prior >= 200 && last < prior * (1 - DROP_ALERT)) issues.push(`visits fell ${pct(1 - last / prior)} week on week (${n0(last)} vs ${n0(prior)})`);
+  }
+  const days = dailyRows(ctx);
+  const sp = days ? spikeDays(days.slice(-28)) : null;
+  if (sp && sp.m > 0) {
+    const usual = sp.me / sp.m;
+    const junk = sp.spikes.filter(d => (d.engaged - sp.me) / (d.sessions - sp.m) < usual * LOW_ENGAGEMENT);
+    if (junk.length) {
+      const big = [...junk].sort((a, b) => b.sessions - a.sessions)[0];
+      issues.push(`${dayLabel(big.date)} had ${n0(big.sessions)} visits against a usual ${n0(sp.m)}, and almost none of the extra visits were engaged (${pct(big.engaged / big.sessions)} engaged that day vs ${pct(usual)} usually): likely bots`);
+    }
+  }
+  const line = wow.length ? `${n0(last)} visits in the last 7 days against ${n0(prior)} the week before; ${realtimeOk ? `${n0(live)} active users at the time of the audit` : "realtime not available"}.` : "";
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.`.trim(), handoff: { kind: "check", id: "W-21" } };
+  if (!wow.length || !realtimeOk || !sp || liveUnjudged) return { id, status: "no_data", en: `${line} ${liveUnjudged ? "No live users, but the store is too quiet for that to prove anything." : "Realtime, week-on-week or daily data is missing from this GA4 pull."}`.trim() };
+  return { id, status: "pass", en: `${line} No sudden drop and no one-day spike of unengaged visits in 28 days.` };
+}
+
+// SO-GA4-20
+function keyEventsUsedFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P16";
+  const raw = ctx.oauth.keyEvents as unknown;
+  if (!Array.isArray(raw)) return { id, status: "no_data", en: "Key events list not available." };
+  const names = raw.map(k => String((k as { eventName?: string }).eventName ?? "")).filter(Boolean);
+  const noise = names.filter(n => NOISE_KEY_EVENTS.has(n));
+  const issues: string[] = [];
+  if (!names.includes("purchase")) issues.push("purchase is not a key event");
+  if (noise.length) issues.push(`${noise.join(", ")} ${noise.length > 1 ? "are" : "is"} marked as key`);
+  const ev = got(ctx.rd.events90) ? ctx.rd.events90 : null;
+  const counts = new Map(rowsOf(ev).map(r => [r.dims[0], r.vals[0]]));
+  const full = ev ? complete(ev) : false;
+  const zero = ev ? names.filter(n => (counts.has(n) ? counts.get(n)! <= 0 : full)) : [];
+  const unknown = ev && !full ? names.filter(n => !counts.has(n)) : [];
+  if (zero.length) issues.push(`${zero.join(", ")} recorded nothing in 90 days`);
+  const line = `Key events: ${names.join(", ") || "none"}.`;
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.` };
+  if (!ev || unknown.length) return { id, status: "no_data", en: `${line} Their 90-day counts aren't all in this GA4 pull.` };
+  return { id, status: "pass", en: `${line} purchase is key, no noise events are, and each recorded data in 90 days (${names.map(n => `${n} ${n0(counts.get(n) ?? 0)}`).join(", ")}).` };
+}
+
+// MB-GA4-17
+function attributionFact(ctx: Ctx): Ga4Fact {
+  const id = "GA4-P17";
+  const a = ctx.oauth.attribution as { reportingAttributionModel?: string; acquisitionConversionEventLookbackWindow?: string; otherConversionEventLookbackWindow?: string; error?: string } | undefined;
+  if (!a || typeof a !== "object" || a.error || !a.reportingAttributionModel) return { id, status: "no_data", en: "Attribution settings not available." };
+  const days = (w?: string) => {
+    const m = /(\d+)_DAYS/.exec(w ?? "");
+    return m ? Number(m[1]) : null;
+  };
+  const acq = days(a.acquisitionConversionEventLookbackWindow);
+  const other = days(a.otherConversionEventLookbackWindow);
+  const label = a.reportingAttributionModel.replace(/_/g, " ").toLowerCase();
+  const issues: string[] = [];
+  if (/GOOGLE_PAID|ADS_PREFERRED/.test(a.reportingAttributionModel)) issues.push("the model credits Google paid channels only");
+  if (acq !== null && acq < 30) issues.push(`the first-visit (acquisition) lookback is ${acq} days instead of GA4's default 30`);
+  if (other !== null && other < 90) issues.push(`the lookback for other key events is ${other} days instead of GA4's default 90`);
+  const line = `Reporting attribution model: ${label}; lookback ${acq ?? "?"} days for acquisition key events, ${other ?? "?"} days for the rest.`;
+  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.` };
+  if (acq === null || other === null) return { id, status: "no_data", en: `${line} The lookback windows couldn't be read.` };
+  return { id, status: "pass", en: `${line} Not a Google-paid-only model, and the windows are GA4's defaults.` };
+}
+
+/** The persona-point facts, keyed GA4-P01..P17. */
+function personaFacts(ctx: Ctx): Ga4Fact[] {
+  return [
+    ordersFact(ctx),
+    salesMatchFact(ctx),
+    revenueFact(ctx),
+    itemsFact(ctx),
+    hostFact(ctx),
+    selfReferralFact(ctx),
+    sourceHygieneFact(ctx),
+    paidTagsFact(ctx),
+    paidChannelFact(ctx),
+    paidFunnelFact(ctx),
+    paidLandingFact(ctx),
+    paidDeviceFact(ctx),
+    paidNewBuyersFact(ctx),
+    paidBotsFact(ctx),
+    recordingFact(ctx),
+    keyEventsUsedFact(ctx),
+    attributionFact(ctx),
+  ];
+}
+
+// ---------------------------------------------------------------------------
 
 function context(oauth: unknown, website: string, evidence: StoreEvidence | null): Ctx | null {
   const d = fromOAuth(oauth);
@@ -673,6 +1249,7 @@ export function computeGa4Facts(oauth: unknown, website: string, evidence: Store
     settingsFact(ctx),
     retentionFact(ctx),
     piiFact(ctx),
+    ...personaFacts(ctx),
   ];
 
   return {

@@ -52,6 +52,9 @@ const result: AuditResult = {
     applicable: 3,
     findings: [friction("A1", "fail", 80), friction("B1", "warn", 40), friction("C1", "pass", null)],
   },
+  // Only carried through, so any shape will do.
+  siteChecks: { addToCart: { ok: true } } as unknown as AuditResult["siteChecks"],
+  clarityFacts: { days: 3, sessions: 6810 } as unknown as AuditResult["clarityFacts"],
   generatedAt: "2026-10-20T10:00:00.000Z",
 };
 
@@ -85,4 +88,28 @@ test("no friction section stays null", () => {
   const { report, findings } = toRows({ ...result, fud: null });
   assert.equal(report.friction, null);
   assert.equal(fromRows(request, report, findings).fud, null);
+});
+
+test("old results that listed failed checks only keep their counts", () => {
+  // Before 2026-09-06 passes had no finding: GA4 passed 17 of 25 with 1 row,
+  // and GTM passed all 25 with none.
+  const old: AuditResult = {
+    ...result,
+    categories: [
+      { category: "GA4", score: 68, checklistTally: { total: 25, evaluated: 25, passed: 17 }, findings: [check("GA4-01", "fail")] },
+      { category: "GTM", score: 100, checklistTally: { total: 25, evaluated: 25, passed: 25 }, findings: [] },
+    ],
+    overallScore: 42,
+    possiblePoints: 50,
+  };
+  const { report, findings } = toRows(old);
+  const back = fromRows(request, report, findings);
+  assert.deepEqual(back.categories, old.categories);
+  assert.equal(back.overallScore, 42);
+});
+
+test("rows saved before category_tallies existed still count from the rows", () => {
+  const { report, findings } = toRows(result);
+  const back = fromRows(request, { ...report, category_tallies: null }, findings);
+  assert.deepEqual(back.categories, result.categories);
 });

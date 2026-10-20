@@ -1,4 +1,6 @@
 import type { ActionOwner, FindingSeverity, Handoff, Opportunity } from "./types.js";
+import { PERSONA_GROUP_LABELS } from "./checklist-persona-data.js";
+import { personaPoint } from "./persona-checklist.js";
 
 /**
  * The action-point checklists (ACTION-POINTS-PROPOSAL.md, 2026-10-13). Every
@@ -63,6 +65,8 @@ export const CHECK_GROUP_LABELS: Record<string, { en: string; ar: string }> = {
   "web-risk": { en: "Security and privacy risk", ar: "مخاطر الأمان والخصوصية" },
   "web-find": { en: "Findability and sales channels", ar: "الظهور في البحث وقنوات البيع" },
   "web-a11y": { en: "Accessibility on the buying path", ar: "سهولة الاستخدام في مسار الشراء" },
+  // The store owner's and media buyer's own sections (so-*, mb-*).
+  ...PERSONA_GROUP_LABELS,
 };
 
 type Def = Omit<ChecklistPoint, "expectedState" | "commonFailure"> & { pass: string; fires: string };
@@ -700,6 +704,7 @@ const WEBSITE_CODE_IDS = new Set(["W-01", "W-02", "W-03", "W-04", "W-07", "W-08"
 export const WEBSITE_CODE_CHECKLIST: ChecklistPoint[] = WEBSITE_CHECKLIST.filter(p => WEBSITE_CODE_IDS.has(p.id));
 
 const ALL = [...GA4_CHECKLIST, ...GTM_CHECKLIST, ...WEBSITE_CHECKLIST];
+// Shared points first, then the store owner's and media buyer's own (persona-checklist.ts).
 export function checklistPoint(id: string): ChecklistPoint | undefined {
-  return ALL.find(p => p.id === id);
+  return ALL.find(p => p.id === id) ?? personaPoint(id);
 }

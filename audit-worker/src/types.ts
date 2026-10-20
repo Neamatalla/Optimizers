@@ -1,7 +1,7 @@
 
-// Hotjar and Clarity are not offered — Clarity's manual-token flow was
-// removed in favor of the GA4/GTM auto-detect + OAuth property picker; no
-// equivalent live-data path exists for either tool otherwise.
+// GA4 and GTM pick the checklists. Microsoft Clarity is separate and
+// optional: a snapshot pulled at intake (clarity_data below, see
+// clarity-facts.ts). Hotjar isn't offered.
 export type ToolId = "GA4" | "GTM";
 
 // pending -> processing -> awaiting_approval -> scheduled -> done, with
@@ -28,6 +28,13 @@ export interface AuditRequestRow {
   // exact-ID-match re-verification the way MCP-sourced data does.
   ga4_oauth_data: unknown;
   gtm_oauth_data: unknown;
+  // The store's own Clarity snapshot from the form (api/clarity/connect.js),
+  // rebuilt and site-matched at intake. Undefined on rows from before the
+  // column existed; null when Clarity wasn't connected.
+  clarity_data?: unknown;
+  // The media buyer's ad from the form (api/_lib/audit-intake.js
+  // cleanAdContext): headline/offer and coupon. Undefined/null when not given.
+  ad_context?: { text: string | null; coupon: string | null } | null;
   // Both the email and the website were submitted with a leading "-" (see
   // api/_lib/audit-intake.js's parseTestPrefix). Test runs execute the
   // whole real pipeline, then diverge at delivery: the report is published
@@ -100,6 +107,8 @@ export interface JobProgress {
   // prompt so GA4, CRO, the report and the email quote the same figures.
   ga4Facts?: Ga4Facts | null;
   siteChecks?: SiteChecks | null;
+  // The store's own Clarity numbers (clarity-facts.ts), null without Clarity.
+  clarityFacts?: import("./clarity-facts.js").ClarityFacts | null;
   // Stage 2: every finding above carries its Arabic text, or the final
   // attempt shipped with the English fallback for the rest. Until then each
   // finding's `ar` is saved as its category finishes, so a retry resumes.
@@ -296,6 +305,8 @@ export interface AuditResult {
   // See JobProgress. Absent on results from before the action layer.
   ga4Facts?: Ga4Facts | null;
   siteChecks?: SiteChecks | null;
+  // See JobProgress. Absent when Clarity wasn't connected or on older results.
+  clarityFacts?: import("./clarity-facts.js").ClarityFacts | null;
   // ISO date the report was published (audit_reports.generated_at), shown on
   // the report. Absent before publishing: the report shows today's date.
   generatedAt?: string;

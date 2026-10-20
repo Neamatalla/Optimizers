@@ -28,6 +28,12 @@ create table if not exists audit_requests (
   -- no MCP exact-match needed when present.
   ga4_oauth_data jsonb,
   gtm_oauth_data jsonb,
+  -- Microsoft Clarity snapshot pulled at intake by api/clarity/connect.js
+  -- from a token the visitor pasted (the token itself is never stored).
+  -- null when Clarity wasn't connected.
+  clarity_data jsonb,
+  -- The media buyer's ad from the form: { text, coupon }. null when not given.
+  ad_context jsonb,
   -- Public URL to the generated live HTML audit report page.
   report_url text,
   -- Lifecycle (see audit-worker/src/poll.ts). A request that hits a rate
@@ -276,6 +282,16 @@ create table if not exists audit_reports (
   friction jsonb,
   screenshot_desktop_url text,
   screenshot_mobile_url text,
+  -- The store's Clarity numbers (audit-worker/src/clarity-facts.ts); null
+  -- without Clarity.
+  clarity_facts jsonb,
+  -- What our own phone visit to the store saw (site-checks.ts); null when
+  -- the visit didn't run.
+  site_checks jsonb,
+  -- Per category: { total, evaluated, implicit_passes }. Results from before
+  -- 2026-09-06 listed failed checks only; implicit_passes counts their passes
+  -- (0 for newer results), added to the passes counted from audit_findings.
+  category_tallies jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

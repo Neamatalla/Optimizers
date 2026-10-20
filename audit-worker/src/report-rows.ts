@@ -14,6 +14,16 @@ import { frictionScore, sortFindings } from "./fud/score.js";
  * a status edited through api/report/edit.js updates every score with it.
  */
 
+// One per category, in report order. Results from before 2026-09-06 listed
+// failed checks only: their passes have no rows, so implicit_passes counts
+// them (0 for newer results).
+export interface CategoryTally {
+  category: CategoryKey;
+  total: number;
+  evaluated: number;
+  implicit_passes: number;
+}
+
 // The audit_requests fields the report needs.
 export interface ReportRequest {
   website: string;
@@ -33,6 +43,11 @@ export interface ReportRow {
   friction: FrictionSummary | null;
   screenshot_desktop_url: string | null;
   screenshot_mobile_url: string | null;
+  clarity_facts: AuditResult["clarityFacts"] | null;
+  site_checks: AuditResult["siteChecks"] | null;
+  // Null on reports saved before the column existed: fromRows then counts
+  // everything from the rows.
+  category_tallies: CategoryTally[] | null;
 }
 
 // FudFinding fields that have no column of their own.
@@ -69,8 +84,20 @@ export function toRows(result: AuditResult): { report: ReportRow; findings: Find
     friction: fud ? frictionSummary(fud) : null,
     screenshot_desktop_url: result.screenshots?.desktop ?? null,
     screenshot_mobile_url: result.screenshots?.mobile ?? null,
+    clarity_facts: result.clarityFacts ?? null,
+    site_checks: result.siteChecks ?? null,
+    category_tallies: categoryTallies(result.categories),
   };
   return { report, findings: [...checkRows(result.categories), ...frictionRows(fud)] };
+}
+
+export function categoryTallies(categories: CategoryResult[]): CategoryTally[] {
+  return categories.map(c => ({
+    category: c.category,
+    total: c.checklistTally.total,
+    evaluated: c.checklistTally.evaluated,
+    implicit_passes: c.checklistTally.passed - c.findings.filter(f => f.status === "pass").length,
+  }));
 }
 
 export function frictionSummary(fud: FudResult): FrictionSummary {
@@ -88,7 +115,8 @@ function checkRows(categories: CategoryResult[]): FindingRow[] {
         point_id: f.checklistId,
         // One running order across categories, so it also keeps their order.
         sort_order: rows.length,
-        status: f.status,
+        // Same default as audit-prompt.ts computeCategoryResult.
+        status: f.status ?? "fail",
         severity: f.severity ?? null,
         opportunity: f.opportunity ?? null,
         data_source: f.dataSource ?? null,
@@ -138,12 +166,15 @@ export function fromRows(request: ReportRequest, report: ReportRow, findings: Fi
     if (!byCategory.has(key)) byCategory.set(key, []);
     byCategory.get(key)!.push(checkFinding(r));
   }
-  const categories: CategoryResult[] = [...byCategory].map(([category, list]) => {
-    const passed = list.filter(f => f.status === "pass").length;
+  const tallies: CategoryTally[] = report.category_tallies
+    ?? [...byCategory].map(([category, list]) => ({ category, total: list.length, evaluated: list.length, implicit_passes: 0 }));
+  const categories: CategoryResult[] = tallies.map(t => {
+    const list = byCategory.get(t.category) ?? [];
+    const passed = list.filter(f => f.status === "pass").length + t.implicit_passes;
     return {
-      category,
-      score: list.length ? Math.round((passed / list.length) * 100) : 0,
-      checklistTally: { total: list.length, evaluated: list.length, passed },
+      category: t.category,
+      score: t.total ? Math.round((passed / t.total) * 100) : 0,
+      checklistTally: { total: t.total, evaluated: t.evaluated, passed },
       findings: list,
     };
   });
@@ -174,6 +205,8 @@ export function fromRows(request: ReportRequest, report: ReportRow, findings: Fi
     ga4Metrics: report.ga4_metrics ?? null,
     fud,
     ga4Facts: report.ga4_facts ?? null,
+    siteChecks: report.site_checks ?? null,
+    clarityFacts: report.clarity_facts ?? null,
     generatedAt: report.generated_at,
   };
 }
@@ -233,5 +266,6 @@ export function auditResultFrom(row: Pick<AuditRequestRow, "website" | "business
     fud,
     ga4Facts: progress.ga4Facts ?? null,
     siteChecks: progress.siteChecks ?? null,
+    clarityFacts: progress.clarityFacts ?? null,
   };
 }

@@ -76,9 +76,12 @@ test("email: a media buyer's top actions lead with tracking, the owner's with mo
     { category: "Website", findings: [finding("W-33", "critical", "risk", "hide .env", null)] },
   ] as unknown as CategoryResult[];
   assert.deepEqual(topActionsOf({ categories }).map(a => a.step), ["fix funnel", "hide .env", "dedupe meta"]);
-  // Media buyer: the Meta dedupe point is critical for them (audience.ts
-  // roleSeverity) and a tracking point, so it leads; the exposed file drops.
-  assert.deepEqual(topActionsOf({ categories }, "media_buyer").map(a => a.step), ["dedupe meta", "fix funnel", "hide .env"]);
+  // Media buyer: same order as the report's opening (buyerHeroHtml's
+  // mediaBuyerRank on checklist severity): the critical post-click point, then
+  // the medium tracking point; the exposed file (no lane) drops to last.
+  const buyer = topActionsOf({ categories }, "media_buyer");
+  assert.deepEqual(buyer.map(a => a.step), ["fix funnel", "dedupe meta", "hide .env"]);
+  assert.deepEqual(buyer.map(a => a.lane), ["post_click", "signal", "other"]);
 });
 
 test("reader questions: every role has its own, and each points at real checks and rules", async () => {

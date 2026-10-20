@@ -9,6 +9,7 @@ import {
   duplicateMessage,
   findExistingAuditRequest,
   insertAuditRequest,
+  cleanAdContext,
   auditNotifyEmail,
   validateAuditForm,
 } from "../../api/_lib/audit-intake.js";
@@ -100,11 +101,11 @@ test("validateAuditForm returns the 400 body for a bad form", () => {
   assert.deepEqual(validateAuditForm(undefined), { invalid: { error: "Invalid tools selection." } });
 });
 
-test("findExistingAuditRequest looks up by hostname", async () => {
+test("findExistingAuditRequest looks up real (non-test) requests by hostname", async () => {
   const row = { id: "r1", status: "done", created_at: "2026-10-01" };
   const supabase = fakeSupabase({ db: () => ({ data: row, error: null }) });
   assert.deepEqual(await findExistingAuditRequest(supabase, { websiteHostname: "shop.com" }), { reason: "website", row });
-  assert.deepEqual(supabase.calls[0].filters, { website_hostname: "shop.com" });
+  assert.deepEqual(supabase.calls[0].filters, { website_hostname: "shop.com", is_test: false });
 });
 
 test("findExistingAuditRequest returns null when there is no match or no hostname", async () => {
@@ -140,10 +141,34 @@ test("insertAuditRequest retries without the role when the table rejects it", as
   }
 });
 
+test("insertAuditRequest drops clarity_data, then the role, when neither column exists yet", async () => {
+  const supabase = fakeSupabase({
+    db: q => {
+      const missing = ["clarity_data", "audience_role"].find(c => c in q.row);
+      return missing
+        ? { data: null, error: { code: "PGRST204", message: `Could not find the '${missing}' column` } }
+        : { data: { id: "r1" }, error: null };
+    },
+  });
+  const result = await insertAuditRequest(supabase, { email: "a@b.com", audience_role: "agency", clarity_data: { source: "clarity" } });
+  assert.equal(result.error, null);
+  assert.equal(supabase.calls.length, 3);
+  assert.deepEqual(supabase.calls[2].row, { email: "a@b.com" });
+});
+
 test("insertAuditRequest does not retry other errors", async () => {
   const error = { code: "23505", message: "website_hostname" };
   const supabase = fakeSupabase({ db: () => ({ data: null, error }) });
   const result = await insertAuditRequest(supabase, { email: "a@b.com", audience_role: "agency" });
   assert.equal(result.error, error);
   assert.equal(supabase.calls.length, 1);
+});
+
+test("cleanAdContext trims, caps and drops an empty ad", () => {
+  assert.deepEqual(cleanAdContext("  30% off   abayas \n", " ABAYA30 "), { text: "30% off abayas", coupon: "ABAYA30" });
+  assert.deepEqual(cleanAdContext("", "SAVE10"), { text: null, coupon: "SAVE10" });
+  assert.equal(cleanAdContext("", ""), null);
+  assert.equal(cleanAdContext(undefined, null), null);
+  assert.equal(cleanAdContext("x".repeat(900), "y".repeat(90)).text.length, 500);
+  assert.equal(cleanAdContext("x", "y".repeat(90)).coupon.length, 40);
 });

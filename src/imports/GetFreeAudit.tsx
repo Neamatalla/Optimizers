@@ -65,11 +65,22 @@ const normalizeWebsiteUrl = (url: string): string => {
 };
 
 // --- Tool selection ---
-// Hotjar and Clarity aren't offered — no MCP or live-data integration exists
-// for either (Clarity's manual-token flow was removed in favor of this
-// website-first auto-detect + OAuth property picker; no equivalent path
-// exists for it).
+// GA4 and GTM decide which checklists the audit runs. Microsoft Clarity is
+// separate and optional (see the Clarity panel on the tools step): the
+// visitor pastes a Data Export token, api/clarity/connect.js returns a
+// snapshot, and only the snapshot is submitted. Hotjar isn't offered (no
+// comparable data API).
 type ToolId = "GA4" | "GTM";
+
+type ClarityState = {
+  open: boolean;
+  token: string;
+  status: "idle" | "connecting" | "connected" | "error";
+  error: string;
+  snapshot: unknown;
+  sessions: number | null;
+};
+const CLARITY_IDLE: ClarityState = { open: false, token: "", status: "idle", error: "", snapshot: null, sessions: null };
 
 // GTM was gated behind a paid audit from 2026-10-07; open again since
 // 2026-10-14. `locked` stays available to gate a tool again.
@@ -155,6 +166,10 @@ interface FormSnapshot {
   detectionResult: { ga4MeasurementIds: string[]; gtmContainerIds: string[] } | null;
   reachable: boolean | null;
   store: StoreCheck | null;
+  // A connected Clarity snapshot, kept across the Google redirect. Never the token.
+  clarity?: { snapshot: unknown; sessions: number | null } | null;
+  adText?: string;
+  adCoupon?: string;
 }
 
 // Unions every connected GTM container's own discovered GA4 IDs — used
@@ -376,6 +391,10 @@ export default function GetFreeAudit() {
     website: "",
     email: "",
     role: "" as AudienceRole | "",
+    // Media buyers only, optional: what their ad promises and its coupon,
+    // so the audit can compare them with the landing page and the cart.
+    adText: "",
+    adCoupon: "",
     // The one selected property/container's full detail — opaque to this
     // component, passed through as-is to the backend. Looked up from
     // ga4Properties/gtmContainers below whenever the visitor picks a
@@ -427,6 +446,7 @@ export default function GetFreeAudit() {
   const [alreadyAuditedMessage, setAlreadyAuditedMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [checkingSite, setCheckingSite] = useState(false);
+  const [clarity, setClarity] = useState<ClarityState>(CLARITY_IDLE);
 
   const steps = useMemo(() => buildSteps(formData.tools), [formData.tools]);
   // Same rule the server applies. A prefix that doesn't qualify for test
@@ -477,6 +497,20 @@ export default function GetFreeAudit() {
       ...prev,
       tools: prev.tools.includes(id) ? prev.tools.filter(t => t !== id) : [...prev.tools, id],
     }));
+  };
+
+  // One call to Clarity through our API. The token is cleared from state as
+  // soon as the snapshot comes back; only the snapshot is submitted.
+  const connectClarity = async () => {
+    const token = clarity.token.trim();
+    if (!token || clarity.status === "connecting") return;
+    setClarity(prev => ({ ...prev, status: "connecting", error: "" }));
+    try {
+      const data: any = await apiRequest("POST", "/api/clarity/connect", { token, website: normalizeWebsiteUrl(formData.website) });
+      setClarity(prev => ({ ...prev, token: "", status: "connected", snapshot: data?.snapshot ?? null, sessions: data?.summary?.sessions ?? null }));
+    } catch (err: any) {
+      setClarity(prev => ({ ...prev, status: "error", error: err?.message || t("We couldn't connect Clarity. Try again, or continue without it.") }));
+    }
   };
 
   const handleWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -572,7 +606,7 @@ export default function GetFreeAudit() {
     if (!result || result.type !== "google-oauth-result") return;
 
     if (snapshot) {
-      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email, role: snapshot!.role ?? "" }));
+      setFormData(prev => ({ ...prev, tools: snapshot!.tools, website: snapshot!.website, email: snapshot!.email, role: snapshot!.role ?? "", adText: snapshot!.adText ?? "", adCoupon: snapshot!.adCoupon ?? "" }));
       if (snapshot.detectionResult) {
         setDetectionResult(snapshot.detectionResult);
         detectedForUrlRef.current = normalizeWebsiteUrl(snapshot.website);
@@ -581,6 +615,9 @@ export default function GetFreeAudit() {
       }
       setStepIndex(snapshot.stepIndex);
       setMaxStepIndexReached(snapshot.maxStepIndexReached);
+      if (snapshot.clarity?.snapshot) {
+        setClarity({ ...CLARITY_IDLE, open: true, status: "connected", snapshot: snapshot.clarity.snapshot, sessions: snapshot.clarity.sessions });
+      }
     }
     // The section is lazy-loaded far down the page, so the #free-audit hash
     // alone can't scroll to it — do it once it's actually rendered.
@@ -700,6 +737,9 @@ export default function GetFreeAudit() {
       detectionResult,
       reachable: reachableRef.current,
       store: storeRef.current,
+      clarity: clarity.status === "connected" ? { snapshot: clarity.snapshot, sessions: clarity.sessions } : null,
+      adText: formData.adText,
+      adCoupon: formData.adCoupon,
     };
     try {
       sessionStorage.setItem(FORM_SNAPSHOT_KEY, JSON.stringify(snapshot));
@@ -712,7 +752,7 @@ export default function GetFreeAudit() {
     // accessible property, and the crawl-match star is computed client-side
     // once they come back (see the effect above).
     window.location.assign("/api/oauth/google/authorize");
-  }, [formData.tools, formData.website, formData.email, formData.role, clampedIndex, maxStepIndexReached, detectionResult, t]);
+  }, [formData.tools, formData.website, formData.email, formData.role, formData.adText, formData.adCoupon, clampedIndex, maxStepIndexReached, detectionResult, clarity, t]);
 
   const isNextDisabled = () => {
     if (submitAuditMutation.isPending || checkingSite) return true;
@@ -759,6 +799,9 @@ export default function GetFreeAudit() {
       // Saved as audit_requests.store_platform; not re-checked server-side.
       storePlatform: storeRef.current?.verdict === "store" ? storeRef.current.platform ?? undefined : undefined,
       role: formData.role || undefined,
+      // Rebuilt and site-checked again server-side (api/_lib/clarity.js).
+      clarityData: clarity.status === "connected" ? clarity.snapshot ?? undefined : undefined,
+      ...(formData.role === "media_buyer" && { adText: formData.adText.trim() || undefined, adCoupon: formData.adCoupon.trim() || undefined }),
     });
   };
 
@@ -870,6 +913,94 @@ export default function GetFreeAudit() {
                 {t("Nothing selected: we'll audit your website's code and speed.")}
               </p>
             )}
+            <div className="w-full max-w-[560px] flex flex-col gap-[10px]">
+              <ToolCard
+                label="Microsoft Clarity"
+                hint={t("Optional: shows where shoppers get stuck")}
+                isSelected={clarity.open}
+                onClick={() => setClarity(prev => (prev.open ? CLARITY_IDLE : { ...prev, open: true }))}
+              />
+              {clarity.open && clarity.status !== "connected" && (
+                <div className="flex flex-col gap-[8px] rounded-xl border border-white/15 bg-white/[0.04] px-[16px] py-[14px]">
+                  <label htmlFor="clarity-token" className="text-[13px] text-white/75 font-['Sora:Regular',sans-serif] text-start leading-[1.6]">
+                    {t("In Clarity, open Settings, then Data Export, then Generate new API token. Paste it here.")}
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-[8px]">
+                    <input
+                      id="clarity-token"
+                      type="password"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={clarity.token}
+                      onChange={e => setClarity(prev => ({ ...prev, token: e.target.value, status: prev.status === "error" ? "idle" : prev.status, error: "" }))}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          connectClarity();
+                        }
+                      }}
+                      placeholder={t("Paste your Clarity API token")}
+                      className="flex-1 min-w-0 bg-white/10 border-2 border-[#31da72]/30 text-white h-10 rounded-md px-3 text-sm"
+                      dir="ltr"
+                    />
+                    <Button
+                      onClick={connectClarity}
+                      disabled={!clarity.token.trim() || clarity.status === "connecting"}
+                      className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-10 text-sm font-semibold"
+                    >
+                      {clarity.status === "connecting" ? t("Connecting...") : t("Connect Clarity")}
+                    </Button>
+                  </div>
+                  <p className="text-[12px] text-white/55 font-['Sora:Regular',sans-serif] text-start">
+                    {t("We read the last 3 days once. We don't keep your token.")}
+                  </p>
+                  {clarity.status === "error" && (
+                    <p className="text-red-500 text-xs text-start" role="alert">{t(clarity.error)}</p>
+                  )}
+                </div>
+              )}
+              {formData.role === "media_buyer" && (
+                <div className="flex flex-col gap-[8px] rounded-xl border border-white/15 bg-white/[0.04] px-[16px] py-[14px] mt-[6px]">
+                  <label htmlFor="ad-text" className="text-[13px] text-white/75 font-['Sora:Regular',sans-serif] text-start leading-[1.6]">
+                    {t("Optional: what does your main ad promise? We'll check the landing page says the same.")}
+                  </label>
+                  <textarea
+                    id="ad-text"
+                    rows={2}
+                    maxLength={500}
+                    value={formData.adText}
+                    onChange={e => setFormData(prev => ({ ...prev, adText: e.target.value }))}
+                    onKeyDown={e => e.stopPropagation()}
+                    placeholder={t("e.g. 30% off all abayas, free delivery in Riyadh")}
+                    className="bg-white/10 border-2 border-[#31da72]/30 text-white rounded-md px-3 py-2 text-sm resize-none"
+                  />
+                  <label htmlFor="ad-coupon" className="text-[13px] text-white/75 font-['Sora:Regular',sans-serif] text-start">
+                    {t("Coupon code in the ad (optional)")}
+                  </label>
+                  <input
+                    id="ad-coupon"
+                    type="text"
+                    maxLength={40}
+                    value={formData.adCoupon}
+                    onChange={e => setFormData(prev => ({ ...prev, adCoupon: e.target.value }))}
+                    className="bg-white/10 border-2 border-[#31da72]/30 text-white h-10 rounded-md px-3 text-sm"
+                    dir="ltr"
+                  />
+                </div>
+              )}
+              {clarity.status === "connected" && (
+                <p className="text-[13px] text-[#31da72] font-['Sora:Regular',sans-serif] text-center" aria-live="polite">
+                  {t("Clarity connected")}
+                  {clarity.sessions !== null && (
+                    <>
+                      {" · "}
+                      <bdi>{clarity.sessions.toLocaleString("en-US")}</bdi> {t("sessions in the last 3 days")}
+                    </>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
         );
       case "google-access": {
