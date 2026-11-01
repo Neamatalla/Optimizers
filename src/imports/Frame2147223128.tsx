@@ -17,6 +17,8 @@ import imgClientLogo2DenVc from "../assets/client-logo-2-denvc.png";
 import imgTharaaLogo from "../assets/tharaa-logo.png";
 import imgMeluraLogo from "../assets/melura-logo.png";
 import imgMisimuLogo from "../assets/misimu-logo.svg";
+import imgMansogLogo from "../assets/mansog-logo.png";
+import imgHedeyaLogo from "../assets/hedeya-logo.png";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
 import headerVideoMp4 from "../assets/2026-full-1.mp4";
 import { imgGroup } from "./svg-0tz7a";
@@ -1099,6 +1101,32 @@ function Component11() {
   );
 }
 
+function Component12() {
+  return (
+    <div className="h-[60px] relative shrink-0 w-[140px] client-logo" data-name="Component 14">
+      <img
+        alt="Mansog"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgMansogLogo}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
+function Component13() {
+  return (
+    <div className="h-[72px] relative shrink-0 w-[90px] client-logo" data-name="Component 15">
+      <img
+        alt="Hedeya"
+        className="absolute inset-0 max-w-none object-contain pointer-events-none w-full h-full"
+        src={imgHedeyaLogo}
+        decoding="async"
+      />
+    </div>
+  );
+}
+
 function Frame4() {
   const { language } = useLanguage();
   const isRtl = language === "ar";
@@ -1139,6 +1167,12 @@ function Frame4() {
     </div>,
     <div key="misimu_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0">
       <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component11 /></div>
+    </div>,
+    <div key="mansog_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0">
+      <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component12 /></div>
+    </div>,
+    <div key="hedeya_comp" className="flex justify-center items-center h-auto overflow-visible shrink-0 mx-0">
+      <div className="scale-[1.0] origin-center lg:scale-[1.0]"><Component13 /></div>
     </div>,
   ];
 

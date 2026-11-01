@@ -7,6 +7,8 @@ import imgRectangle4 from "../assets/omar-maged.webp";
 import imgAlaa from "../assets/alaa-abdullah.webp";
 import imgAdhamMarzouk from "../assets/adham-marzouk.png";
 import imgYaseenHossam from "../assets/yaseen-hossam.webp";
+import imgYomnaAhmed from "../assets/yomna-ahmed.webp";
+import imgMohamedAdel from "../assets/mohamed-adel.webp";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
 function Lights() {
@@ -618,15 +620,116 @@ const Safer5 = React.memo(function Safer5() {
     );
 });
 
+type TeamCardProps = {
+    id: string;
+    name: string;
+    role: string;
+    image: string;
+    color: string;
+};
+
+// "#RRGGBB" -> "r,g,b", for the inner glow shadow.
+function hexToRgb(hex: string) {
+    const n = parseInt(hex.slice(1), 16);
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
+
+// Same card as Safer1-5, with the member passed in as props.
+const TeamCard = React.memo(function TeamCard({ id, name, role, image, color }: TeamCardProps) {
+    const { t } = useLanguage();
+    return (
+        <div className="h-[305.22px] relative rounded-[27.422px] shrink-0 w-[239.988px]" data-name="Safer">
+            <div className="absolute h-[303.931px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.66px]" data-name="Lights">
+                <div className="absolute bg-[#333333] h-[303.931px] left-0 rounded-[17.139px] top-0 w-[237.66px]">
+                    <div className="absolute inset-0 pointer-events-none rounded-[inherit]" style={{ boxShadow: `inset 0px 4.57px 27.422px -7.998px rgba(${hexToRgb(color)},0.4)` }} />
+                </div>
+                <div className="absolute h-[312px] left-[calc(50%+0.02px)] top-[-4px] translate-x-[-50%] w-[326px]">
+                    <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+                        <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 to-black" />
+                        <div className="absolute inset-0 overflow-hidden">
+                            <img alt="" className="absolute max-w-none object-cover object-top size-full" src={image} decoding="async" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="absolute flex h-[307.359px] items-center justify-center left-[0.02px] top-[0.01px] w-[239.946px]">
+                <div className="flex-none rotate-[-90deg]">
+                    <div className="h-[239.946px] overflow-clip relative rounded-[18.282px] w-[307.359px]" data-name="Card">
+                        <div
+                            className="absolute inset-0 pointer-events-none rounded-[18.282px]"
+                            style={{
+                                padding: "0.8px",
+                                background: `linear-gradient(to left, ${color} 0%, ${color} 30%, transparent 100%)`,
+                                WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                                WebkitMaskComposite: "xor",
+                                maskComposite: "exclude",
+                            }}
+                        />
+                        <div className="absolute contents left-[-221.37px] top-[-263.6px]" data-name="Bg Elements">
+                            <div className="absolute flex h-[840.295px] items-center justify-center left-[-220.57px] mix-blend-screen top-[-262.8px] w-[726.745px]">
+                                <div className="flex-none rotate-[72.8deg]">
+                                    <div className="h-[540.234px] relative w-[712.397px]" data-name="Light greyish">
+                                        <div className="absolute inset-[-15.65%_-11.86%]">
+                                            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.443 709.281">
+                                                <g filter={`url(#filter0_f_${id})`} style={{ mixBlendMode: "screen" }}>
+                                                    <path d={svgPaths.p85e3500} fill={`url(#paint0_radial_${id})`} fillOpacity="0.4" />
+                                                </g>
+                                                <defs>
+                                                    <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.281" id={`filter0_f_${id}`} width="881.443" x="0" y="0">
+                                                        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                                                        <feGaussianBlur stdDeviation="42.2616" />
+                                                    </filter>
+                                                    <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.145 -255.659 255.436 -240.397 540.257 366.262)" gradientUnits="userSpaceOnUse" id={`paint0_radial_${id}`} r="1">
+                                                        <stop offset="0.409332" stopColor={color} />
+                                                        <stop offset="1" stopOpacity="0" />
+                                                        <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
+                                                    </radialGradient>
+                                                </defs>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="absolute contents left-[calc(50%-97.42px)] top-[53.19px] translate-x-[-50%]" data-name="Text">
+                            <div className="absolute flex h-[131px] items-center justify-center left-[calc(50%-82.92px)] top-[53.99px] translate-x-[-50%] w-[23px]">
+                                <div className="flex-none rotate-[90deg]">
+                                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px] whitespace-nowrap">
+                                        {name}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="absolute flex h-[129px] items-center justify-center left-[calc(50%-114.92px)] top-[54.99px] translate-x-[-50%] w-[17px]">
+                                <div className="flex-none rotate-[90deg]">
+                                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t(role)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+const NEW_MEMBERS: TeamCardProps[] = [
+    // Placeholder colors, close to the existing palette, until final ones are picked.
+    { id: "yomna", name: "Yomna Ahmed", role: "UI/UX Designer", image: imgYomnaAhmed, color: "#F49AC2" },
+    { id: "mohamed_adel", name: "Mohamed Adel", role: "AI Content Creator", image: imgMohamedAdel, color: "#7DD3E8" },
+];
+
 function Frame1() {
     return (
-        <div className="flex flex-wrap gap-[24px] items-center justify-center w-full px-4">
+        // Four cards per row (4 x 240px + 3 x 24px gaps).
+        <div className="flex flex-wrap gap-[24px] items-center justify-center w-full max-w-[1040px] mx-auto">
             <Safer />
             <Safer1 />
             <Safer2 />
             <Safer3 />
             <Safer4 />
             <Safer5 />
+            {NEW_MEMBERS.map((m) => <TeamCard key={m.id} {...m} />)}
         </div>
     );
 }
@@ -1240,11 +1343,91 @@ function MobileSafer5() {
   );
 }
 
+// Same card as MobileSafer1-5, with the member and its grid position passed in.
+function MobileTeamCard({ id, name, role, image, color, top, left }: TeamCardProps & { top: number; left: string }) {
+  const { t } = useLanguage();
+  return (
+    <div className="absolute h-[203.49px] rounded-[18.282px] w-[160px]" style={{ top, left }} data-name="MobileSafer">
+      <div className="absolute h-[202.631px] left-[0.78px] overflow-clip top-[0.77px] w-[158.448px]" data-name="MobileLights">
+        <div className="absolute bg-[#333333] h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+          <div className="absolute inset-0 pointer-events-none rounded-[inherit]" style={{ boxShadow: `inset 0px 3.047px 18.282px -5.332px rgba(${hexToRgb(color)},0.4)` }} />
+        </div>
+        <div className="absolute h-[202.631px] left-0 rounded-[11.427px] top-0 w-[158.448px]">
+          <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.427px]">
+            <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.427px] to-black" />
+            <div className="absolute inset-0 overflow-hidden rounded-[11.427px]">
+              <img alt="" className="absolute max-w-none object-cover object-top rounded-[11.427px] size-full" src={image} />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="absolute flex h-[204.916px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.972px]">
+        <div className="-rotate-90 flex-none">
+          <div className="h-[159.972px] overflow-clip relative rounded-[12.188px] w-[204.916px]" data-name="MobileCard">
+            <div
+                className="absolute inset-0 pointer-events-none rounded-[12.188px]"
+                style={{
+                    padding: "0.762px",
+                    background: `linear-gradient(to left, ${color} 0%, ${color} 30%, transparent 100%)`,
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude",
+                }}
+            />
+            <div className="absolute contents left-[-147.82px] top-[-175.97px]" data-name="Bg Elements">
+              <div className="absolute flex h-[560.224px] items-center justify-center left-[-147.06px] mix-blend-screen top-[-175.21px] w-[484.52px]">
+                <div className="flex-none rotate-[72.8deg]">
+                  <div className="h-[360.174px] relative w-[474.955px]" data-name="Light greyish">
+                    <div className="absolute inset-[-15.65%_-11.86%]">
+                      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 587.658 472.877">
+                        <g filter={`url(#filter0_f_mobile_${id})`} style={{ mixBlendMode: "screen" }}>
+                          <path d={svgMobilePaths.p1d11f480} fill={`url(#paint0_radial_mobile_${id})`} fillOpacity="0.55" />
+                        </g>
+                        <defs>
+                          <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="472.877" id={`filter0_f_mobile_${id}`} width="587.658" x="0" y="0">
+                            <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                            <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                            <feGaussianBlur stdDeviation="28.1758" />
+                          </filter>
+                          <radialGradient cx="0" cy="0" gradientTransform="matrix(-160.105 -170.448 170.299 -160.273 360.189 244.187)" gradientUnits="userSpaceOnUse" id={`paint0_radial_mobile_${id}`} r="1">
+                            <stop offset="0.409332" stopColor={color} />
+                            <stop offset="1" stopOpacity="0" />
+                            <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
+                          </radialGradient>
+                        </defs>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.19px)] top-[33.24px]" data-name="MobileText">
+              <div className="-translate-x-1/2 absolute flex h-[92px] items-center justify-center left-[calc(50%-55.61px)] top-[34.01px] w-[16px]">
+                <div className="flex-none rotate-90">
+                  <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.333px] relative text-[12.667px] text-white text-center tracking-[-0.2533px] whitespace-nowrap">{name}</p>
+                </div>
+              </div>
+              <div className="-translate-x-1/2 absolute flex h-[92px] items-center justify-center left-[calc(50%-76.61px)] top-[34.01px] w-[12px]">
+                <div className="flex-none rotate-90">
+                  <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.362px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t(role)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-// Wide enough for all six 240px cards plus gaps in one row (a second row
-// would be cut off by the fixed canvas height).
+// Mobile grid: 2 columns, rows 218.5px apart (see MobileSafer-MobileSafer5).
+const MOBILE_COLUMNS = ["20px", "calc(50% + 7.5px)"];
+const MOBILE_FIRST_NEW_ROW_TOP = 735.25;
+const MOBILE_HEIGHT = 970;
+
+// Two rows of four 240px cards under the heading.
 const CANVAS_WIDTH = 1600;
-const CANVAS_HEIGHT = 560;
+const CANVAS_HEIGHT = 900;
 
 export default function MeetTheTeam() {
     const { t } = useLanguage();
@@ -1271,17 +1454,18 @@ export default function MeetTheTeam() {
         { name: "Adham Marzouk", role: "Software Engineer", image: imgAdhamMarzouk, color: "#FFA437" },
         { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#B794F6" },
         { name: "Yaseen Hossam", role: "Operations and Client Success Executive", image: imgYaseenHossam, color: "#92EBB4" },
+        ...NEW_MEMBERS,
     ];
 
     return (
         <div className="bg-[#020601] relative w-full overflow-hidden">
             {/* Mobile: Responsive Grid from Figma */}
             <div 
-                className="lg:hidden relative w-full h-[750px] max-w-[375px] mx-auto overflow-hidden"
+                className="lg:hidden relative w-full max-w-[375px] mx-auto overflow-hidden"
                 style={{
                     transform: window.innerWidth >= 768 ? `scale(${Math.min(window.innerWidth / 400, 1.8)})` : 'none',
                     transformOrigin: 'top center',
-                    height: window.innerWidth >= 768 ? `${750 * Math.min(window.innerWidth / 400, 1.8)}px` : '750px'
+                    height: window.innerWidth >= 768 ? `${MOBILE_HEIGHT * Math.min(window.innerWidth / 400, 1.8)}px` : `${MOBILE_HEIGHT}px`
                 }}
             >
                 <p className="absolute top-[40px] left-1/2 -translate-x-1/2 w-[335px] text-center font-['Sora',sans-serif] font-semibold text-[46px] leading-[48px] tracking-[-1.84px] bg-clip-text text-transparent bg-gradient-to-b from-[rgba(255,255,255,0.6)] to-[rgba(20,23,19,0.5)] z-0">
@@ -1293,6 +1477,14 @@ export default function MeetTheTeam() {
                 <MobileSafer3 />
                 <MobileSafer4 />
                 <MobileSafer5 />
+                {NEW_MEMBERS.map((m, i) => (
+                    <MobileTeamCard
+                        key={m.id}
+                        {...m}
+                        top={MOBILE_FIRST_NEW_ROW_TOP + Math.floor(i / 2) * 218.5}
+                        left={MOBILE_COLUMNS[i % 2]}
+                    />
+                ))}
             </div>
 
             {/* Desktop: Scaled canvas */}
