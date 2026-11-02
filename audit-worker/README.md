@@ -36,7 +36,7 @@ wherever you start it.
    - `GTM_MCP_SCRIPT_PATH` / `GTM_SERVICE_ACCOUNT_PATH` — same idea, for
      `google-tag-manager-mcp-server`.
 3. Set up the database once: run `supabase/baseline.sql` (repo root), then
-   every migration in order — see "New project" in `supabase/README.md`.
+   every migration in order — see "New project" in `docs/DB_WORKFLOW.md`.
 4. Make sure `claude` is on `PATH` for whatever user/service runs this (or set
    `CLAUDE_BIN` to an absolute path).
 5. For requests where the visitor picked zero or one of GA4/GTM, the audit
@@ -97,7 +97,7 @@ container starts polling.
   It refuses rows already awaiting approval, scheduled or done unless you add
   `--force`.
 
-Database setup and schema changes: see `supabase/README.md`.
+Database setup and schema changes: see `docs/DB_WORKFLOW.md`.
 
 ## Running in Docker
 

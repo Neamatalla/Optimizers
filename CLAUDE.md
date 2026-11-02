@@ -10,7 +10,7 @@ Before any work, follow the team workflow: branching, commits, testing, merging 
 
 Before any database work (migrations, schema changes), follow the database workflow:
 
-@supabase/README.md
+@docs/DB_WORKFLOW.md
 
 ## Project Overview
 
@@ -43,7 +43,7 @@ HeaderNav (persistent) → HeaderSection → Services (mobile/desktop variants) 
 - `src/app/contexts/LanguageContext.tsx` — i18n provider (English/Arabic) with RTL support and MutationObserver-based DOM translation
 - `src/app/translations/ar.ts` — Arabic translation dictionary
 - `api/` — Vercel serverless functions; shared code in `api/_lib/`, tests in `tests/api/`
-- `supabase/` — the audit system's database: a frozen baseline plus numbered migrations (see `supabase/README.md`)
+- `supabase/` — the audit system's database: a frozen baseline plus numbered migrations (see `docs/DB_WORKFLOW.md`)
 - `audit-worker/` — separate worker that runs the free audits (Docker on Railway, not deployed to Vercel); see its README
 - `src/hooks/` — Custom hooks (`useScrollReveal`, `use-toast`)
 - `src/lib/` — `queryClient.ts` (API request utility with TanStack React Query), `animations.ts`, `scrollToSection.ts`

@@ -37,4 +37,4 @@ How we work on this repo. Claude reads this before starting any work.
 
 ## 6. Database migrations
 
-- Follow `supabase/README.md`. In short: only run a migration when explicitly asked to, never edit the baseline, and give every migration its own folder with a README.
+- Follow `docs/DB_WORKFLOW.md`. In short: only run a migration when explicitly asked to, never edit the baseline, and give every migration its own folder with a README.
