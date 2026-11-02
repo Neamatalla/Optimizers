@@ -63,8 +63,9 @@ COPY docker/managed-settings.json /etc/claude-code/managed-settings.json
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# HOME on the volume: Claude's login (.claude/.credentials.json), its
-# .claude.json and history survive container rebuilds and redeploys.
+# HOME on the volume: Claude's .claude.json and history survive container
+# rebuilds and redeploys. Claude is billed to ANTHROPIC_API_KEY (a variable),
+# not to a login saved here.
 ENV NODE_ENV=production \
     TZ=UTC \
     HOME=/data/home \

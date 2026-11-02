@@ -86,42 +86,24 @@ export async function readUsageWindows(): Promise<UsageWindows | undefined> {
   });
 }
 
-export interface ClaudeLoginStatus {
-  loggedIn: boolean;
-  // Who/how when logged in, or why not — for the log line and alert email.
+export interface ApiKeyStatus {
+  ok: boolean;
+  // For the log line and alert email. Never contains the key itself.
   detail: string;
 }
 
 /**
- * Whether the CLI has a usable login, from `claude auth status` (reads local
- * credentials; no model call, no plan usage). poll.ts checks it before
- * claiming work: without a login every audit fails "Not logged in", and each
- * claim would burn one of that request's attempts before anyone heard.
- * Never throws.
+ * Whether ANTHROPIC_API_KEY is set. The worker bills Claude to that key:
+ * with it set, `claude -p` always uses it, ahead of any saved subscription
+ * login. poll.ts checks it before claiming work, so a missing key pauses the
+ * worker instead of failing audits (or quietly using a subscription login).
+ * A key that is set but wrong shows up later as an account error
+ * (isAccountError). Never throws.
  */
-export async function checkClaudeLogin(): Promise<ClaudeLoginStatus> {
-  const bin = process.env.CLAUDE_BIN || "claude";
-  return new Promise(resolve => {
-    let out = "";
-    const child = spawn(bin, ["auth", "status", "--json"], { stdio: ["ignore", "pipe", "ignore"] });
-    const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
-    child.stdout.on("data", chunk => { out += chunk.toString(); });
-    child.on("error", err => {
-      clearTimeout(timer);
-      resolve({ loggedIn: false, detail: `could not run ${bin}: ${err.message}` });
-    });
-    child.on("close", () => {
-      clearTimeout(timer);
-      try {
-        const status = JSON.parse(out);
-        resolve(status?.loggedIn
-          ? { loggedIn: true, detail: `${status.authMethod ?? "logged in"}${status.email ? ` as ${status.email}` : ""}` }
-          : { loggedIn: false, detail: "`claude auth status` reports loggedIn: false" });
-      } catch {
-        resolve({ loggedIn: false, detail: `unreadable \`claude auth status\` output: ${out.slice(0, 200) || "(none)"}` });
-      }
-    });
-  });
+export function checkApiKey(env: NodeJS.ProcessEnv = process.env): ApiKeyStatus {
+  return env.ANTHROPIC_API_KEY?.trim()
+    ? { ok: true, detail: "ANTHROPIC_API_KEY is set" }
+    : { ok: false, detail: "ANTHROPIC_API_KEY is not set" };
 }
 
 // Heuristic match against whatever `claude -p` printed (runClaudeHeadless

@@ -35,9 +35,9 @@ import type { StoreEvidence } from "./fud/evidence.js";
 import { collectorFocus, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
 import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
-import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
+import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudePausedEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
+import { readUsageWindows, checkApiKey, isRateLimitError } from "./claude.js";
 import { runWithLog } from "./log-context.js";
 import type { AuditRequestRow, JobProgress } from "./types.js";
 
@@ -316,36 +316,42 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   console.log(`[audit-worker] Awaiting approval ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, report: ${reportUrl}`);
 }
 
-// The login state last seen (null until the first check), so the alert goes
+// The key state last seen (null until the first check), so the alert goes
 // out once per outage rather than on every poll.
-let claudeLoggedIn: boolean | null = null;
+let apiKeyOk: boolean | null = null;
 
 /**
- * Checked before claiming any audit. Logged out means every claim would fail
- * "Not logged in" and burn one of that request's attempts, so instead the
- * worker claims nothing until the login is back. On the change to logged out
- * (including at startup) it logs and emails the reviewer once; on the change
- * back it logs and carries on, no restart needed. Never throws.
+ * Checked before claiming any audit. Without ANTHROPIC_API_KEY every claim
+ * would fail (or bill a leftover subscription login), so instead the worker
+ * claims nothing until the key is there. On the change to missing (including
+ * at startup) it logs and emails the reviewer once; on the change back it
+ * logs and carries on. Never throws.
  */
 async function claudeReady(): Promise<boolean> {
-  const status = await checkClaudeLogin();
-  if (status.loggedIn) {
-    if (claudeLoggedIn !== true) {
-      console.log(`[audit-worker] Claude login OK (${status.detail})${claudeLoggedIn === false ? ", resuming audits" : ""}`);
+  const status = checkApiKey();
+  if (status.ok) {
+    if (apiKeyOk !== true) {
+      console.log(`[audit-worker] Claude API key OK (${status.detail})${apiKeyOk === false ? ", resuming audits" : ""}`);
     }
-    claudeLoggedIn = true;
+    apiKeyOk = true;
     return true;
   }
-  if (claudeLoggedIn !== false) {
-    console.error(`[audit-worker] Claude isn't logged in (${status.detail}). Not claiming audits until it is; requests wait in the queue.`);
+  if (apiKeyOk !== false) {
+    console.error(`[audit-worker] ${status.detail}. Not claiming audits until it is; requests wait in the queue.`);
     try {
-      await sendClaudeLoginAlertEmail({ to: REVIEWER_EMAIL, workerId: WORKER_ID, detail: status.detail });
-      console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the missing Claude login`);
+      await sendClaudePausedEmail({
+        to: REVIEWER_EMAIL,
+        workerId: WORKER_ID,
+        reason: "the Claude API key is missing",
+        detail: status.detail,
+        fix: "Add ANTHROPIC_API_KEY to the worker's variables (Railway service > Variables, or audit-worker/.env locally). The key comes from the Anthropic Console. The worker resumes as soon as it starts with the key.",
+      });
+      console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the missing API key`);
     } catch (err) {
-      console.error("[audit-worker] Also failed to email the login alert:", err);
+      console.error("[audit-worker] Also failed to email the API key alert:", err);
     }
   }
-  claudeLoggedIn = false;
+  apiKeyOk = false;
   return false;
 }
 
