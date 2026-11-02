@@ -35,8 +35,8 @@ wherever you start it.
      `ga4-admin-mcp` project's `src/index.mjs` and its service-account JSON key.
    - `GTM_MCP_SCRIPT_PATH` / `GTM_SERVICE_ACCOUNT_PATH` — same idea, for
      `google-tag-manager-mcp-server`.
-3. Run `supabase/schema.sql` (repo root) once against your Supabase project —
-   SQL Editor → New query → paste → Run. Creates the `audit_requests` table.
+3. Set up the database once: run `supabase/baseline.sql` (repo root), then
+   every migration in order — see "New project" in `supabase/README.md`.
 4. Make sure `claude` is on `PATH` for whatever user/service runs this (or set
    `CLAUDE_BIN` to an absolute path).
 5. For requests where the visitor picked zero or one of GA4/GTM, the audit
@@ -314,5 +314,5 @@ also isn't shared, that category just degrades to detection-only.
   sitemap.xml) because the browser needs real cart/product URLs to visit.
 - **One audit per website, ever.** The intake endpoint rejects a repeat
   submission for the same hostname (409), backed by a unique index in
-  Postgres — see `supabase/schema.sql`. The same email can request audits
+  Postgres — see `supabase/baseline.sql`. The same email can request audits
   for different sites.

@@ -42,7 +42,7 @@ async function handler(req, res) {
 
     // One free audit per website, ever (the same email can request audits
     // for other sites). Checked here for a real explanation, enforced for
-    // real by the unique index on website_hostname (see supabase/schema.sql)
+    // real by the unique index on website_hostname (see supabase/baseline.sql)
     // — the insert below turns a lost race into the same 409.
     //
     // Test runs are exempt, in both places: skipped here, and the index

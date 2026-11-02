@@ -37,5 +37,4 @@ How we work on this repo. Claude reads this before starting any work.
 
 ## 6. Database migrations
 
-- Only run a migration when explicitly asked to.
-- Log every applied migration in the migration log in `supabase/README.md`, as we already do.
+- Follow `supabase/README.md`. In short: only run a migration when explicitly asked to, never edit the baseline, and give every migration its own folder with a README.

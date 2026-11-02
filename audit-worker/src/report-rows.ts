@@ -4,7 +4,7 @@ import { computeOverallPoints } from "./scoring.js";
 import { frictionScore, sortFindings } from "./fud/score.js";
 
 /**
- * An audit's result as database rows (supabase/schema.sql: audit_reports,
+ * An audit's result as database rows (supabase/migrations/2026-10-20-1-audit-report-tables/: audit_reports,
  * audit_findings) and back. The worker writes with toRows (supabase.ts
  * saveAuditReport); the static report page reads with fromRows
  * (src/audit-report/main.ts). No Node APIs: this module also runs in the

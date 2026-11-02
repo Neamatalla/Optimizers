@@ -1,7 +1,7 @@
 // Ownership verification for the "Get a Free Audit" form: does the visitor
 // actually own the website they asked us to audit? Recorded on the row as
 // audit_requests.verification_methods (is_verified is derived from it in
-// Postgres, see supabase/schema.sql). Nothing acts on it yet: it's a signal
+// Postgres, see supabase/migrations/2026-10-14-1-add-ownership-verification/). Nothing acts on it yet: it's a signal
 // on the record, not a gate.
 //
 // Used by api/audit-request.js. None of this touches req/res.

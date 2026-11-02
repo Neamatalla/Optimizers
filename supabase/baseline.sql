@@ -1,7 +1,6 @@
--- The complete current schema, for a NEW Supabase project (SQL Editor -> New
--- query -> paste -> Run): the 2026-10-13 baseline with every later migration
--- in supabase/migrations/ folded in. Each change goes in both places — see
--- supabase/README.md.
+-- Baseline schema as of 2026-10-13. Frozen: never edit this file.
+-- Every change since is a migration in supabase/migrations/. A new project
+-- runs this file, then every migration in order — see supabase/README.md.
 
 -- ---------------------------------------------------------------------------
 -- audit_requests: the queue the Vercel capture endpoint (api/audit-request.js)
@@ -28,12 +27,6 @@ create table if not exists audit_requests (
   -- no MCP exact-match needed when present.
   ga4_oauth_data jsonb,
   gtm_oauth_data jsonb,
-  -- Microsoft Clarity snapshot pulled at intake by api/clarity/connect.js
-  -- from a token the visitor pasted (the token itself is never stored).
-  -- null when Clarity wasn't connected.
-  clarity_data jsonb,
-  -- The media buyer's ad from the form: { text, coupon }. null when not given.
-  ad_context jsonb,
   -- Public URL to the generated live HTML audit report page.
   report_url text,
   -- Lifecycle (see audit-worker/src/poll.ts). A request that hits a rate
@@ -61,10 +54,9 @@ create table if not exists audit_requests (
   -- (audit-worker/src/email.ts's coverageSentence) needs it again at send
   -- time, out of processDueSends.
   categories_audited text[],
-  -- Normalized forms written by api/_lib/audit-intake.js's
-  -- normalizeEmail/normalizeHostname. website_hostname is behind the
-  -- one-free-audit-per-site limit (see the unique index below);
-  -- email_normalized is for lookups only and is not unique.
+  -- Normalized forms behind the one-free-audit-per-site/email limit (see the
+  -- unique indexes below). Written by api/_lib/audit-intake.js's
+  -- normalizeEmail/normalizeHostname.
   email_normalized text,
   website_hostname text,
   -- A submission whose email AND website were both typed with a leading "-"
@@ -74,30 +66,6 @@ create table if not exists audit_requests (
   -- delay. The worker reads the flag long after intake to pick the bucket
   -- and delivery path (audit-worker/src/poll.ts).
   is_test boolean not null default false,
-  -- Ownership verification (2026-10-14): which checks showed the visitor
-  -- owns the website, written once at intake by
-  -- api/_lib/ownership-verification.js (the file documents each method).
-  -- is_verified is true when any passed; it's derived, so it can't drift
-  -- from the list and can't be written directly. Recorded only, nothing
-  -- acts on either yet.
-  verification_methods text[] not null default '{}'
-    constraint audit_requests_verification_methods_check
-    check (verification_methods <@ array['email_domain', 'ga4_stream_url', 'ga4_site_tag', 'gtm_container_domain', 'gtm_site_tag']::text[]),
-  is_verified boolean generated always as (cardinality(verification_methods) > 0) stored,
-  -- The e-commerce platform (e.g. 'Shopify') Intellia's e-store check found
-  -- on the form's website step (api/_lib/detect-tracking.js's checkStore),
-  -- as the browser reported it at submit. Sites Intellia says aren't stores
-  -- never get past that step, so null means Intellia was unavailable or not
-  -- configured at the time (2026-10-14).
-  store_platform text,
-  -- Who the report is written for: the form's "Your role" (2026-10-14,
-  -- 'agency' added 2026-10-15). Same checks for every role; the worker
-  -- changes the voice and what the report surfaces first
-  -- (audit-worker/src/audience.ts). Null on rows from before the field: the
-  -- default store-owner report.
-  audience_role text
-    constraint audit_requests_audience_role_check
-    check (audience_role is null or audience_role in ('store_owner', 'media_buyer', 'marketing_manager', 'agency')),
   -- Job queue resilience (see audit-worker/src/poll.ts):
   --   attempts      Real attempts used, incremented when a worker claims the
   --                 row. Rate-limit bounces give theirs back. The worker gives
@@ -128,14 +96,16 @@ create index if not exists audit_requests_is_test_created_at_idx
 create index if not exists audit_requests_processing_heartbeat_idx
   on audit_requests (heartbeat_at) where status = 'processing';
 
--- One free audit per website, ever (2026-09-09; the per-email limit was
--- dropped 2026-10-13). The audit is expensive — a `claude -p` run with live
--- browser access, then a human review pass before it's sent — so it's
--- offered exactly once per site, regardless of how the first one turned
--- out. api/_lib/audit-intake.js checks for an existing row before inserting
--- so the visitor gets a real explanation, but this index is what makes the
+-- One free audit per website and per email address, ever (2026-09-09).
+-- The audit is expensive — a `claude -p` run with live browser access, then
+-- a human review pass before it's sent — so it's offered exactly once per
+-- site and once per address, regardless of how the first one turned out.
+-- api/_lib/audit-intake.js checks for an existing row before inserting so
+-- the visitor gets a real explanation, but these indexes are what make the
 -- limit hold when two submissions race each other. Partial on purpose: test
--- rows never consume a site's one audit.
+-- rows never consume a site's or address's one audit.
+create unique index if not exists audit_requests_email_normalized_key
+  on audit_requests (email_normalized) where is_test = false;
 create unique index if not exists audit_requests_website_hostname_key
   on audit_requests (website_hostname) where is_test = false;
 
@@ -231,12 +201,14 @@ create table if not exists report_pages (
   -- The site's domain, e.g. "tharaa-shop"; "test_tharaa-shop" for a test
   -- run (see audit-worker/src/supabase.ts's reportSlug()).
   slug text not null unique,
-  -- Only for old reports still served as an HTML file, e.g.
-  -- "reports/tharaa-shop/index.html". Reports from 2026-10-20 on are rows
-  -- in audit_reports/audit_findings and have none.
-  storage_path text,
-  -- Which Storage bucket that old file is in: 'audit-reports' normally,
+  -- e.g. "reports/tharaa-shop/index.html" — the path
+  -- audit-worker/src/supabase.ts's publishAuditReport() uploads to.
+  storage_path text not null,
+  -- Which Storage bucket that path is in: 'audit-reports' normally,
   -- 'audit-reports-test' for a test-mode run (see audit_requests.is_test).
+  -- api/audit-report.js and api/report/edit.js read this rather than
+  -- assuming the default bucket, which is what lets one slug space cover
+  -- both.
   bucket text not null default 'audit-reports',
   public_url text not null,
   created_at timestamptz not null default now(),
@@ -263,113 +235,9 @@ create trigger report_pages_set_updated_at
   execute function set_report_pages_updated_at();
 
 -- ---------------------------------------------------------------------------
--- audit_reports / audit_findings: the final result of each audit as rows.
--- The worker writes them (audit-worker/src/supabase.ts saveAuditReport);
--- /audit-reports/<slug> is a static page that fetches them through
--- api/audit-report.js and renders them in the browser. The overall score and
--- per-category tallies are not stored: the page counts passes from
--- audit_findings, so editing a status updates the score.
+-- Storage buckets. Both private: the worker uploads with the secret key, and
+-- api/audit-report.js serves reports through /audit-reports/<slug>.
 -- ---------------------------------------------------------------------------
-create table if not exists audit_reports (
-  audit_request_id uuid primary key references audit_requests(id) on delete cascade,
-  -- The report date shown on the page.
-  generated_at timestamptz not null default now(),
-  discovered_pages jsonb not null default '[]',
-  page_speed jsonb,
-  ga4_metrics jsonb,
-  ga4_facts jsonb,
-  -- The friction (FUD) result without its findings, or {"error": ...}.
-  friction jsonb,
-  screenshot_desktop_url text,
-  screenshot_mobile_url text,
-  -- The store's Clarity numbers (audit-worker/src/clarity-facts.ts); null
-  -- without Clarity.
-  clarity_facts jsonb,
-  -- What our own phone visit to the store saw (site-checks.ts); null when
-  -- the visit didn't run.
-  site_checks jsonb,
-  -- Per category: { total, evaluated, implicit_passes }. Results from before
-  -- 2026-09-06 listed failed checks only; implicit_passes counts their passes
-  -- (0 for newer results), added to the passes counted from audit_findings.
-  category_tallies jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table audit_reports enable row level security;
-
-create or replace function set_audit_reports_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists audit_reports_set_updated_at on audit_reports;
-create trigger audit_reports_set_updated_at
-  before update on audit_reports
-  for each row
-  execute function set_audit_reports_updated_at();
-
-create table if not exists audit_findings (
-  id uuid primary key default gen_random_uuid(),
-  audit_request_id uuid not null references audit_requests(id) on delete cascade,
-  kind text not null check (kind in ('check', 'friction')),
-  -- GA4 / GTM / Website for checks; the page type for friction rules.
-  category text not null,
-  -- The checklist id (GA4-03, W-22) or friction rule id (A1).
-  point_id text not null,
-  sort_order integer not null,
-  status text not null,
-  severity text,
-  opportunity text,
-  data_source text,
-  technical jsonb not null,
-  business jsonb not null,
-  ar jsonb,
-  action jsonb,
-  protect text,
-  criteria text,
-  -- Friction-only fields: pexti, band, funnel, evidence, recommendation,
-  -- exampleCopy, override, confidence, pageUrl...
-  details jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (audit_request_id, kind, point_id)
-);
-
-create index if not exists audit_findings_report_idx
-  on audit_findings (audit_request_id, kind, sort_order);
--- "Every store failing GA4-03".
-create index if not exists audit_findings_point_status_idx
-  on audit_findings (point_id, status);
-
-alter table audit_findings enable row level security;
-
-create or replace function set_audit_findings_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists audit_findings_set_updated_at on audit_findings;
-create trigger audit_findings_set_updated_at
-  before update on audit_findings
-  for each row
-  execute function set_audit_findings_updated_at();
-
--- ---------------------------------------------------------------------------
--- Storage buckets. The two report buckets are private and only hold old
--- reports still served as an HTML file. audit-images is public: screenshots
--- and friction crops at <audit_request_id>/<name>.jpg.
--- ---------------------------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('audit-images', 'audit-images', true)
-on conflict (id) do update set public = true;
-
 insert into storage.buckets (id, name, public)
 values ('audit-reports', 'audit-reports', false)
 on conflict (id) do update set public = false;
