@@ -9,8 +9,8 @@ the link via Resend.
 
 This is a **separate Node project from the website** — not built by Vite, not
 deployed to Vercel. It runs as a long-lived container (see "Running in
-Docker"), because it logs in as `claude` and that can't happen inside a
-stateless serverless function.
+Docker"), because `claude -p` needs a real machine and audits run for many
+minutes, which a stateless serverless function can't do.
 
 ## Why it's separate
 
@@ -35,6 +35,9 @@ wherever you start it.
      `ga4-admin-mcp` project's `src/index.mjs` and its service-account JSON key.
    - `GTM_MCP_SCRIPT_PATH` / `GTM_SERVICE_ACCOUNT_PATH` — same idea, for
      `google-tag-manager-mcp-server`.
+   - `ANTHROPIC_API_KEY` — the Anthropic Console key Claude is billed to
+     (API credits). `CLAUDE_MODEL` picks the model (`claude-opus-5-5`).
+     See "Claude billing and monitoring" below.
 3. Set up the database once: run `supabase/baseline.sql` (repo root), then
    every migration in order — see "New project" in `docs/DB_WORKFLOW.md`.
 4. Make sure `claude` is on `PATH` for whatever user/service runs this (or set
@@ -76,18 +79,23 @@ container starts polling.
   (`heartbeat_at`) every minute. If that stops for 10 minutes, any worker
   reclaims the job.
 - **Errors:** a failed attempt retries automatically after 2, then 10 minutes
-  (`MAX_ATTEMPTS`, default 3). Rate/usage limits wait out the limit and don't
-  use up an attempt. After the last attempt the job is marked `failed` and
+  (`MAX_ATTEMPTS`, default 3). Rate limits and "overloaded" errors wait
+  (5 minutes, doubling up to 60) and don't use up an attempt. After the last attempt the job is marked `failed` and
   the reviewer gets an email with the error.
 - **Saved progress:** each stage (audit, Arabic translation, publish, emails)
   is saved to the row's `progress` as it finishes. A retry resumes from the
   last finished stage, so a failed upload never re-runs the audit, and no
   email is ever sent twice.
-- **Claude logged out:** before claiming anything, the worker checks
-  `claude auth status`. Logged out (at startup or later), it claims nothing,
-  logs it, and emails `AUDIT_REVIEWER_EMAIL` once; requests wait in the queue
-  instead of failing. After a fresh `/login` it carries on within a minute,
-  no restart needed. Client sends and the daily digest keep running.
+- **No API key:** before claiming anything, the worker checks that
+  `ANTHROPIC_API_KEY` is set. Without it, it claims nothing, logs it, and
+  emails `AUDIT_REVIEWER_EMAIL` once; requests wait in the queue instead of
+  failing. It carries on once it starts with the key.
+- **Account errors** (no credit left, a spend limit reached, a wrong or
+  revoked key): the request keeps its place and its attempt, the worker
+  stops claiming for 15 minutes, and the reviewer gets one email per
+  outage. It then tries one audit every 15 minutes and carries on once it
+  works, no restart needed.
+- Client sends and the daily digest keep running through both.
 - **Manual retry** (after fixing the cause of a failure):
   ```bash
   npm run requeue -- <request-id>            # resume from saved progress
@@ -112,7 +120,7 @@ Anything that has to survive a rebuild lives on **one volume at `/data`**
 
 | Path | What |
 | --- | --- |
-| `/data/home` | `HOME`: the Claude login (`.claude/.credentials.json`), `.claude.json`, history |
+| `/data/home` | `HOME`: Claude's `.claude.json` and history (no login: Claude is billed to `ANTHROPIC_API_KEY`) |
 | `/data/logs` | worker daily logs, kept 30 days (`/app/logs` links here) |
 | `/data/output` | `run-metrics.jsonl`, previews (`/app/output` links here) |
 | `/data/secrets` | GA4/GTM service-account keys, once those servers are added |
@@ -131,14 +139,14 @@ docker run -d --name audit-worker --shm-size=1g \
 # add --env-file .env and drop "sleep infinity" to run the poll loop instead
 
 docker exec -it -w /workspace audit-worker bash
-docker rm -f audit-worker     # the volume, and the login on it, stay
+docker rm -f audit-worker     # the volume, and everything on it, stays
 ```
 
-**Logging in to Claude** happens once, inside the container: `claude`, then
-`/login`, open the link on your own machine and paste the code back. The
-login is saved under `/data/home` and refreshes itself, so it survives new
-containers and redeploys for as long as the volume exists. Never bake it into
-the image.
+**Claude** is billed to `ANTHROPIC_API_KEY`, set as a Railway variable (or
+in `.env` with `--env-file`). There's no `/login`: a subscription login must
+not be used for the worker, and with the key set the CLI ignores any login
+anyway. Interactive `claude` sessions opened in the container use the same
+key, so they cost API credits too. Never bake the key into the image.
 
 `/workspace` holds baked Claude config for interactive sessions: an
 `.mcp.json` that connects Chrome (with the container's flags), settings that
@@ -150,6 +158,47 @@ shows `chrome-devtools` connected.
 From **Git Bash** on Windows, prefix `docker exec -w …` and `docker cp`
 commands with `MSYS_NO_PATHCONV=1`, or Git Bash rewrites `/workspace` into a
 Windows path (`Cwd must be an absolute path`). PowerShell needs nothing.
+
+## Claude billing and monitoring
+
+Every `claude -p` call is billed to `ANTHROPIC_API_KEY` (API credits) and
+runs on `CLAUDE_MODEL`. Use one key per environment, in an Anthropic Console
+workspace with a monthly spend limit, and turn on credit auto-reload so the
+worker doesn't pause when credit runs out.
+
+Each call logs a `[claude-usage]` line: time, model, tokens, retries and
+estimated cost. If a call isn't billed to the API key, a warning says so.
+When an attempt ends, the worker prints a run summary (time per stage, every
+call, total cost), adds it to `output/run-metrics.jsonl`, and saves it as one
+row in the `audit_run_metrics` table. If that insert fails, the audit carries
+on and the worker only logs a warning.
+
+The cost is the Claude CLI's own estimate, from its price table. The Console's
+Usage page is the bill: compare the two now and then. A `costBasis` of
+`unknown` in a call's `models` means the CLI has no price for that model, so
+bump `CLAUDE_CODE_VERSION` in the `Dockerfile`.
+
+Some useful queries (Supabase SQL Editor):
+
+```sql
+-- Average cost per audit (retries included) and time per attempt, last 30 days
+select count(distinct audit_request_id) as audits,
+       round(sum(cost_usd) / count(distinct audit_request_id), 2) as avg_cost_usd,
+       round(avg(total_ms) / 60000.0, 1) as avg_minutes_per_attempt
+from audit_run_metrics
+where started_at > now() - interval '30 days' and not is_test;
+
+-- Cost by route (which tools the visitor picked)
+select r.tools, count(*) as attempts, round(avg(m.cost_usd), 2) as avg_cost_usd
+from audit_run_metrics m join audit_requests r on r.id = m.audit_request_id
+where m.outcome = 'completed'
+group by r.tools order by avg_cost_usd desc;
+
+-- Average time per stage
+select stage, round(avg(ms::bigint) / 1000.0) as avg_seconds
+from audit_run_metrics, jsonb_each_text(stages) as s(stage, ms)
+group by stage order by avg_seconds desc;
+```
 
 ## Test mode
 
