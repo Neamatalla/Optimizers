@@ -6,10 +6,7 @@ import { spawn } from "child_process";
 // 2.1.300 crashed on it (exit 0xC0000409) before the first API turn.
 // Managed settings (the Docker image's) still apply.
 const SETTING_SOURCES = ["--setting-sources", "project"];
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { recordClaudeCall, type UsageWindows } from "./run-metrics.js";
+import { recordClaudeCall, type ClaudeCallMetrics, type ModelCallUsage, type TokenCounts } from "./run-metrics.js";
 
 export interface ClaudeRunOptions {
   prompt: string;
@@ -31,97 +28,112 @@ export interface ClaudeRunOptions {
 // full stream is never held in memory — only parsed line by line.
 const STDOUT_TAIL_CHARS = 8000;
 
-function readWindows(info: any): UsageWindows | undefined {
-  const windows = info?.unifiedWindows;
-  if (!windows) return undefined;
+/** What one claude -p call's stream said about itself, filled in line by line. */
+export interface StreamInfo {
+  // From the first (system/init) event.
+  model?: string;
+  authSource?: string;
+  // system/api_retry events: API calls the CLI retried itself.
+  retries: number;
+  retryStatuses: number[];
+  // The final result event (the old --output-format json envelope).
+  result: any | null;
+}
+
+export function newStreamInfo(): StreamInfo {
+  return { retries: 0, retryStatuses: [], result: null };
+}
+
+/** Reads one parsed stream-json event into `info`. Unknown events are ignored. */
+export function readStreamEvent(info: StreamInfo, event: any): void {
+  if (event?.type === "system" && event.subtype === "init") {
+    if (typeof event.model === "string") info.model = event.model;
+    if (typeof event.apiKeySource === "string") info.authSource = event.apiKeySource;
+  } else if (event?.type === "system" && event.subtype === "api_retry") {
+    info.retries++;
+    if (typeof event.error_status === "number") info.retryStatuses.push(event.error_status);
+  } else if (event?.type === "result") {
+    info.result = event;
+  }
+}
+
+const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+const maybeNumber = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+
+/**
+ * The metrics for one finished call. Tokens come from modelUsage (per model,
+ * subagents included) when the result has it, else from usage (main loop only).
+ */
+export function callMetricsFrom(info: StreamInfo, call: { label: string; startedAt: number; endedAt: number; ok: boolean }): ClaudeCallMetrics {
+  const r = info.result;
+  let models: Record<string, ModelCallUsage> | undefined;
+  if (r?.modelUsage && typeof r.modelUsage === "object") {
+    models = {};
+    for (const [name, u] of Object.entries<any>(r.modelUsage)) {
+      models[name] = {
+        input: count(u?.inputTokens),
+        output: count(u?.outputTokens),
+        cacheRead: count(u?.cacheReadInputTokens),
+        cacheCreation: count(u?.cacheCreationInputTokens),
+        costUsd: maybeNumber(u?.costUSD),
+        costBasis: typeof u?.costBasis === "string" ? u.costBasis : undefined,
+      };
+    }
+  }
+  let tokens: TokenCounts | undefined;
+  if (models && Object.keys(models).length > 0) {
+    const all = Object.values(models);
+    tokens = {
+      input: all.reduce((s, m) => s + m.input, 0),
+      output: all.reduce((s, m) => s + m.output, 0),
+      cacheRead: all.reduce((s, m) => s + m.cacheRead, 0),
+      cacheCreation: all.reduce((s, m) => s + m.cacheCreation, 0),
+    };
+  } else if (r?.usage) {
+    tokens = {
+      input: count(r.usage.input_tokens),
+      output: count(r.usage.output_tokens),
+      cacheRead: count(r.usage.cache_read_input_tokens),
+      cacheCreation: count(r.usage.cache_creation_input_tokens),
+    };
+  }
   return {
-    fiveHour: typeof windows.five_hour?.utilization === "number" ? windows.five_hour.utilization : undefined,
-    sevenDay: typeof windows.seven_day?.utilization === "number" ? windows.seven_day.utilization : undefined,
-    fiveHourResetsAt: typeof windows.five_hour?.resetsAt === "number" ? windows.five_hour.resetsAt : undefined,
+    ...call,
+    model: info.model,
+    authSource: info.authSource,
+    retries: info.retries,
+    retryStatuses: info.retries > 0 ? info.retryStatuses : undefined,
+    apiMs: maybeNumber(r?.duration_api_ms),
+    turns: maybeNumber(r?.num_turns),
+    costUsd: maybeNumber(r?.total_cost_usd),
+    tokens,
+    models,
   };
 }
 
-/**
- * One throwaway `claude -p` call made only to read the account's current
- * 5-hour/7-day utilization. The CLI emits a single rate_limit_event per
- * call, at its start — so the last real call of a run can't report what it
- * used itself; this reading after it can. Stripped to the minimum
- * (no tools, MCP, skills or session file; low effort), measured at ~21k
- * tokens vs ~105k for a default call on this machine. --bare would be
- * smaller still, but it only accepts ANTHROPIC_API_KEY auth, not the plan
- * login the worker runs on. Never throws; undefined if it fails.
- */
-export async function readUsageWindows(): Promise<UsageWindows | undefined> {
-  const bin = process.env.CLAUDE_BIN || "claude";
-  const emptyMcp = path.join(os.tmpdir(), "audit-worker-empty-mcp.json");
-  try {
-    fs.writeFileSync(emptyMcp, JSON.stringify({ mcpServers: {} }));
-  } catch {
-    return undefined;
-  }
-  const args = [
-    "-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence", ...SETTING_SOURCES,
-    "--disable-slash-commands", "--strict-mcp-config", "--mcp-config", emptyMcp, "--tools", "", "--effort", "low",
-  ];
-  return new Promise(resolve => {
-    let pending = "";
-    let windows: UsageWindows | undefined;
-    const child = spawn(bin, args, { stdio: ["pipe", "pipe", "ignore"] });
-    const timer = setTimeout(() => child.kill("SIGKILL"), 90_000);
-    child.stdin.end("Reply with the single word ok.");
-    child.stdout.on("data", chunk => {
-      const lines = (pending + chunk.toString()).split(/\r?\n/);
-      pending = lines.pop() ?? "";
-      for (const line of lines) {
-        try {
-          const event = JSON.parse(line);
-          if (event?.type === "rate_limit_event") windows = readWindows(event.rate_limit_info) ?? windows;
-        } catch {
-          // not a JSON line
-        }
-      }
-    });
-    child.on("error", () => { clearTimeout(timer); resolve(undefined); });
-    child.on("close", () => { clearTimeout(timer); resolve(windows); });
-  });
+/** The model every claude -p call asks for (CLAUDE_MODEL), or undefined for the CLI default. */
+export function claudeModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.CLAUDE_MODEL?.trim() || undefined;
 }
 
-export interface ClaudeLoginStatus {
-  loggedIn: boolean;
-  // Who/how when logged in, or why not — for the log line and alert email.
+export interface ApiKeyStatus {
+  ok: boolean;
+  // For the log line and alert email. Never contains the key itself.
   detail: string;
 }
 
 /**
- * Whether the CLI has a usable login, from `claude auth status` (reads local
- * credentials; no model call, no plan usage). poll.ts checks it before
- * claiming work: without a login every audit fails "Not logged in", and each
- * claim would burn one of that request's attempts before anyone heard.
- * Never throws.
+ * Whether ANTHROPIC_API_KEY is set. The worker bills Claude to that key:
+ * with it set, `claude -p` always uses it, ahead of any saved subscription
+ * login. poll.ts checks it before claiming work, so a missing key pauses the
+ * worker instead of failing audits (or quietly using a subscription login).
+ * A key that is set but wrong shows up later as an account error
+ * (isAccountError). Never throws.
  */
-export async function checkClaudeLogin(): Promise<ClaudeLoginStatus> {
-  const bin = process.env.CLAUDE_BIN || "claude";
-  return new Promise(resolve => {
-    let out = "";
-    const child = spawn(bin, ["auth", "status", "--json"], { stdio: ["ignore", "pipe", "ignore"] });
-    const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
-    child.stdout.on("data", chunk => { out += chunk.toString(); });
-    child.on("error", err => {
-      clearTimeout(timer);
-      resolve({ loggedIn: false, detail: `could not run ${bin}: ${err.message}` });
-    });
-    child.on("close", () => {
-      clearTimeout(timer);
-      try {
-        const status = JSON.parse(out);
-        resolve(status?.loggedIn
-          ? { loggedIn: true, detail: `${status.authMethod ?? "logged in"}${status.email ? ` as ${status.email}` : ""}` }
-          : { loggedIn: false, detail: "`claude auth status` reports loggedIn: false" });
-      } catch {
-        resolve({ loggedIn: false, detail: `unreadable \`claude auth status\` output: ${out.slice(0, 200) || "(none)"}` });
-      }
-    });
-  });
+export function checkApiKey(env: NodeJS.ProcessEnv = process.env): ApiKeyStatus {
+  return env.ANTHROPIC_API_KEY?.trim()
+    ? { ok: true, detail: "ANTHROPIC_API_KEY is set" }
+    : { ok: false, detail: "ANTHROPIC_API_KEY is not set" };
 }
 
 // Heuristic match against whatever `claude -p` printed (runClaudeHeadless
@@ -140,6 +152,26 @@ export function isRateLimitError(err: unknown): boolean {
 }
 
 /**
+ * The Anthropic account refused the call, and every other call will be
+ * refused the same way until someone fixes it: no credit left, a spend limit
+ * reached, a wrong or revoked key, no permission (API errors 400/401/402/403
+ * and a spend-limit 429). Check this BEFORE isRateLimitError: a spend-limit
+ * 429 also matches "429" there. Same message-text heuristic, kept narrow to
+ * the API's own wording.
+ */
+export function isAccountError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /credit balance is too low|billing_error|authentication_error|permission_error|invalid (x-)?api[ -]key|api key (is )?(revoked|expired|disabled)|spend(ing)? limit|api usage limits?/i.test(message);
+}
+
+// When a claude -p call last finished with a result (0 = never). poll.ts uses
+// it to tell that an account problem is over.
+let lastSuccessAt = 0;
+export function lastClaudeSuccessAt(): number {
+  return lastSuccessAt;
+}
+
+/**
  * Runs `claude -p` (headless/non-interactive mode) with a scoped MCP config
  * and a pre-approved tool allowlist (required for headless runs — there's no
  * TTY to answer an interactive permission prompt). Resolves with the final
@@ -154,11 +186,11 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   // past that on its own, and did — spawn() failed outright with
   // ENAMETOOLONG before claude ever ran. `-p` with no following value reads
   // the prompt from stdin instead, which has no such length limit.
-  // stream-json (not json) because only the stream carries rate_limit_event
-  // lines — the account's live 5-hour/7-day window utilization, which
-  // run-metrics.ts reports per run. --verbose is required for stream-json in
-  // print mode. The final `result` line is the same envelope --output-format
-  // json used to print, and is what this function still resolves with.
+  // stream-json (not json) because only the stream carries the init event
+  // (model, billing source) and the api_retry events that run-metrics.ts
+  // reports per call. --verbose is required for stream-json in print mode.
+  // The final `result` line is the same envelope --output-format json used
+  // to print, and is what this function still resolves with.
   // --no-session-persistence: nothing ever reads these transcripts back, and
   // each one holds whole page snapshots — in the container, HOME is on the
   // persistent volume, so they'd pile up there run after run.
@@ -173,6 +205,12 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   if (opts.effort) {
     args.push("--effort", opts.effort);
   }
+  // One model for every call, chosen on purpose (e.g. claude-opus-5-5).
+  // Unset: no flag, so the CLI's own default applies.
+  const model = claudeModel();
+  if (model) {
+    args.push("--model", model);
+  }
 
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -181,11 +219,9 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
     let stdoutTail = "";
     let pendingLine = "";
     let stderr = "";
-    // The final `result` line (the old --output-format json envelope) and
-    // the usage readings, pulled out of the stream as it arrives.
-    let resultEvent: any = null;
-    let usageStart: UsageWindows | undefined;
-    let usageEnd: UsageWindows | undefined;
+    // The init, retry and final `result` events, pulled out of the stream as
+    // it arrives (readStreamEvent).
+    const info = newStreamInfo();
     // The curated checklist (checklist.ts) puts 50 detailed points in front
     // of Claude at once, each answered in two registers (types.ts's
     // FindingVoice), plus live GA4/GTM API calls and — on the routes that
@@ -211,26 +247,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
     const record = (ok: boolean) => {
       if (recorded) return;
       recorded = true;
-      const usage = resultEvent?.usage;
-      recordClaudeCall({
-        label: opts.label ?? "claude -p",
-        startedAt,
-        endedAt: Date.now(),
-        ok,
-        apiMs: typeof resultEvent?.duration_api_ms === "number" ? resultEvent.duration_api_ms : undefined,
-        turns: typeof resultEvent?.num_turns === "number" ? resultEvent.num_turns : undefined,
-        costUsd: typeof resultEvent?.total_cost_usd === "number" ? resultEvent.total_cost_usd : undefined,
-        tokens: usage
-          ? {
-              input: usage.input_tokens ?? 0,
-              output: usage.output_tokens ?? 0,
-              cacheRead: usage.cache_read_input_tokens ?? 0,
-              cacheCreation: usage.cache_creation_input_tokens ?? 0,
-            }
-          : undefined,
-        usageStart,
-        usageEnd,
-      });
+      recordClaudeCall(callMetricsFrom(info, { label: opts.label ?? "claude -p", startedAt, endedAt: Date.now(), ok }));
     };
     const handleLine = (line: string) => {
       if (!line.trim()) return;
@@ -240,19 +257,18 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       } catch {
         return;
       }
-      if (event?.type === "rate_limit_event") {
-        const windows = readWindows(event.rate_limit_info);
-        if (windows) {
-          usageStart ??= windows;
-          usageEnd = windows;
-        }
-      } else if (event?.type === "result") {
-        resultEvent = event;
+      const hadSource = info.authSource !== undefined;
+      readStreamEvent(info, event);
+      // The worker must bill the API key. With the key set, the CLI always
+      // uses it, so this only fires if something unexpected wins.
+      if (!hadSource && info.authSource !== undefined && info.authSource !== "ANTHROPIC_API_KEY") {
+        console.warn(`[claude] WARNING: ${opts.label ?? "claude -p"} is billed to "${info.authSource}", not ANTHROPIC_API_KEY`);
       }
     };
     // Everything the process printed that isn't parsed out above is only
     // kept as a short tail, for the error messages below.
     const failureDetail = () => {
+      const resultEvent = info.result;
       const resultText = typeof resultEvent?.result === "string" ? resultEvent.result : "";
       return [stderr.trim(), resultText.trim(), stdoutTail.trim()].filter(Boolean).join(" | ");
     };
@@ -293,6 +309,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       clearInterval(heartbeat);
       handleLine(pendingLine);
       pendingLine = "";
+      const resultEvent = info.result;
       record(code === 0 && resultEvent !== null);
       if (code !== 0) {
         // Both streams AND the result text, because the CLI puts its actual
@@ -313,6 +330,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       }
       // Same envelope --output-format json printed, so extractJsonPayload /
       // extractTextPayload below are unchanged.
+      if (resultEvent.is_error !== true) lastSuccessAt = Date.now();
       resolve(JSON.stringify(resultEvent));
     });
   });

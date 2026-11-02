@@ -19,6 +19,7 @@ import {
   findScheduledDeliveries,
   getLastDigestDateUtc,
   recordDigestSent,
+  saveRunMetrics,
 } from "./supabase.js";
 import { crawlWebsite } from "./crawl.js";
 import { captureSiteScreenshots } from "./screenshots.js";
@@ -35,9 +36,9 @@ import type { StoreEvidence } from "./fud/evidence.js";
 import { collectorFocus, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
 import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
-import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
-import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows, checkClaudeLogin, isRateLimitError } from "./claude.js";
+import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudePausedEmail } from "./email.js";
+import { startRunMetrics, finishRunMetrics, recordStage, type RunOutcome } from "./run-metrics.js";
+import { checkApiKey, claudeModel, isAccountError, isRateLimitError, lastClaudeSuccessAt } from "./claude.js";
 import { runWithLog } from "./log-context.js";
 import type { AuditRequestRow, JobProgress } from "./types.js";
 
@@ -98,11 +99,15 @@ function parseLimitResetAt(err: unknown): Date | null {
   return usable.length ? new Date(usable[0]) : null;
 }
 
-// Logs how long one stage of processRequest took. Stages a resumed run skips
-// never start a timer, so they log nothing.
+// Logs how long one stage of processRequest took, and adds it to the run's
+// metrics. Stages a resumed run skips never start a timer, so they log nothing.
 function stageTimer(stage: string): () => void {
   const started = Date.now();
-  return () => console.log(`[audit-worker] Stage ${stage} done in ${Math.round((Date.now() - started) / 1000)}s`);
+  return () => {
+    const ms = Date.now() - started;
+    recordStage(stage, ms);
+    console.log(`[audit-worker] Stage ${stage} done in ${Math.round(ms / 1000)}s`);
+  };
 }
 
 /**
@@ -316,36 +321,78 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
   console.log(`[audit-worker] Awaiting approval ${row.id} - overall score ${result.overallScore}/${result.possiblePoints}, report: ${reportUrl}`);
 }
 
-// The login state last seen (null until the first check), so the alert goes
+// The key state last seen (null until the first check), so the alert goes
 // out once per outage rather than on every poll.
-let claudeLoggedIn: boolean | null = null;
+let apiKeyOk: boolean | null = null;
+
+// After an account error (no credit, spend limit, bad key), how long the
+// worker waits before claiming the next audit: one failed claim every 15
+// minutes instead of failing through the whole queue.
+const ACCOUNT_PAUSE_MS = 15 * 60_000;
+let accountPausedUntil = 0;
+// When the current account outage started (null: none). The alert goes out
+// once per outage; a Claude call that succeeds after it ends the outage.
+let accountOutageSince: number | null = null;
+
+async function pauseForAccountError(message: string): Promise<void> {
+  accountPausedUntil = Date.now() + ACCOUNT_PAUSE_MS;
+  console.error(`[audit-worker] The Claude API account refused the request. Not claiming audits for ${ACCOUNT_PAUSE_MS / 60_000} minutes; requests wait in the queue: ${message.slice(0, 500)}`);
+  if (accountOutageSince !== null) return;
+  accountOutageSince = Date.now();
+  try {
+    await sendClaudePausedEmail({
+      to: REVIEWER_EMAIL,
+      workerId: WORKER_ID,
+      reason: "the Claude API account refused the request",
+      detail: message,
+      fix: "Check the Anthropic Console: the credit balance, the workspace and organization spend limits, and that the key is still active. The worker tries one audit every 15 minutes on its own and carries on once it works; no restart needed.",
+    });
+    console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the account problem`);
+  } catch (err) {
+    console.error("[audit-worker] Also failed to email the account alert:", err);
+  }
+}
+
+function noteAccountRecovered(): void {
+  if (accountOutageSince !== null && lastClaudeSuccessAt() > accountOutageSince) {
+    console.log("[audit-worker] The Claude API account works again");
+    accountOutageSince = null;
+  }
+}
 
 /**
- * Checked before claiming any audit. Logged out means every claim would fail
- * "Not logged in" and burn one of that request's attempts, so instead the
- * worker claims nothing until the login is back. On the change to logged out
- * (including at startup) it logs and emails the reviewer once; on the change
- * back it logs and carries on, no restart needed. Never throws.
+ * Checked before claiming any audit. Without ANTHROPIC_API_KEY every claim
+ * would fail (or bill a leftover subscription login), so instead the worker
+ * claims nothing until the key is there. On the change to missing (including
+ * at startup) it logs and emails the reviewer once; on the change back it
+ * logs and carries on. Never throws.
  */
 async function claudeReady(): Promise<boolean> {
-  const status = await checkClaudeLogin();
-  if (status.loggedIn) {
-    if (claudeLoggedIn !== true) {
-      console.log(`[audit-worker] Claude login OK (${status.detail})${claudeLoggedIn === false ? ", resuming audits" : ""}`);
+  const status = checkApiKey();
+  if (status.ok) {
+    if (apiKeyOk !== true) {
+      console.log(`[audit-worker] Claude API key OK (${status.detail})${apiKeyOk === false ? ", resuming audits" : ""}`);
     }
-    claudeLoggedIn = true;
-    return true;
+    apiKeyOk = true;
+    // Waiting out an account error (pauseForAccountError).
+    return Date.now() >= accountPausedUntil;
   }
-  if (claudeLoggedIn !== false) {
-    console.error(`[audit-worker] Claude isn't logged in (${status.detail}). Not claiming audits until it is; requests wait in the queue.`);
+  if (apiKeyOk !== false) {
+    console.error(`[audit-worker] ${status.detail}. Not claiming audits until it is; requests wait in the queue.`);
     try {
-      await sendClaudeLoginAlertEmail({ to: REVIEWER_EMAIL, workerId: WORKER_ID, detail: status.detail });
-      console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the missing Claude login`);
+      await sendClaudePausedEmail({
+        to: REVIEWER_EMAIL,
+        workerId: WORKER_ID,
+        reason: "the Claude API key is missing",
+        detail: status.detail,
+        fix: "Add ANTHROPIC_API_KEY to the worker's variables (Railway service > Variables, or audit-worker/.env locally). The key comes from the Anthropic Console. The worker resumes as soon as it starts with the key.",
+      });
+      console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the missing API key`);
     } catch (err) {
-      console.error("[audit-worker] Also failed to email the login alert:", err);
+      console.error("[audit-worker] Also failed to email the API key alert:", err);
     }
   }
-  claudeLoggedIn = false;
+  apiKeyOk = false;
   return false;
 }
 
@@ -364,22 +411,39 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     heartbeat(row.id, WORKER_ID).catch(err => console.warn(`[audit-worker] Heartbeat failed for ${row.id}:`, err?.message ?? err));
   }, HEARTBEAT_MS);
 
-  // Wall-clock + Claude plan usage for this attempt, from claim to end,
-  // printed and saved to output/run-metrics.jsonl in the finally below.
-  startRunMetrics(row.id, row.website, row.attempts);
-  let outcome = "completed";
+  // Time, stages and Claude API cost for this attempt, from claim to end.
+  // Printed, added to output/run-metrics.jsonl and saved to
+  // audit_run_metrics in the finally below.
+  startRunMetrics(row.id, row.website, row.attempts, { isTest: row.is_test, workerId: WORKER_ID });
+  let outcome: RunOutcome = "completed";
+  let errorMessage: string | undefined;
   try {
     await processRequest(row, WORKER_ID);
   } catch (err: any) {
     const message = err?.message ?? String(err);
-    outcome = `error: ${message.slice(0, 200)}`;
+    errorMessage = message;
 
     if (err instanceof LostLeaseError) {
+      outcome = "lost_lease";
       console.warn(`[audit-worker] ${message}; another worker owns it now, stopping without touching the row`);
       return true;
     }
 
+    // Before the rate-limit check: a spend-limit 429 matches both.
+    if (isAccountError(err)) {
+      outcome = "account_error";
+      try {
+        const retryAfter = await markRequestRateLimited(row.id, row.retry_count, row.attempts - 1, message, null);
+        console.warn(`[audit-worker] Account error on ${row.id}, retaining queue position - retrying after ${retryAfter.toISOString()}`);
+      } catch (markErr) {
+        console.error(`[audit-worker] Also failed to mark ${row.id} for a retry:`, markErr);
+      }
+      await pauseForAccountError(message);
+      return true;
+    }
+
     if (isRateLimitError(err)) {
+      outcome = "rate_limited";
       try {
         const resetAt = parseLimitResetAt(err);
         const retryAfter = await markRequestRateLimited(row.id, row.retry_count, row.attempts - 1, message, resetAt);
@@ -394,6 +458,7 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     }
 
     if (row.attempts < MAX_ATTEMPTS) {
+      outcome = "retry_scheduled";
       const minutes = RETRY_BACKOFF_MINUTES[Math.min(row.attempts - 1, RETRY_BACKOFF_MINUTES.length - 1)];
       const retryAfter = new Date(Date.now() + minutes * 60_000);
       console.error(`[audit-worker] Attempt ${row.attempts}/${MAX_ATTEMPTS} failed for ${row.id}, retrying after ${retryAfter.toISOString()}:`, err);
@@ -406,6 +471,7 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
       return true;
     }
 
+    outcome = "failed";
     console.error(`[audit-worker] Failed ${row.id} after ${row.attempts} attempts, giving up:`, err);
     try {
       await markRequestFailed(row.id, message);
@@ -428,9 +494,17 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     }
   } finally {
     clearInterval(beat);
-    // One cheap extra claude -p for the closing 5-hour reading (see
-    // readUsageWindows) — skipped when the run made no Claude calls.
-    finishRunMetrics(outcome, hasClaudeCalls() ? await readUsageWindows() : undefined);
+    noteAccountRecovered();
+    const metrics = finishRunMetrics(outcome, errorMessage);
+    // Never allowed to affect the audit: a failed insert (say, the
+    // migration isn't applied yet) is only logged.
+    if (metrics) {
+      try {
+        await saveRunMetrics(metrics);
+      } catch (err) {
+        console.warn(`[audit-worker] Could not save run metrics for ${row.id}:`, err instanceof Error ? err.message : err);
+      }
+    }
   }
   return true;
 }
@@ -491,6 +565,7 @@ async function maybeSendDailyDigest(): Promise<void> {
 async function main() {
   const pollIntervalMs = Number(process.env.POLL_INTERVAL_MS ?? 60_000);
   console.log(`[audit-worker] Starting poll loop (every ${pollIntervalMs}ms) as ${WORKER_ID}, up to ${MAX_ATTEMPTS} attempts per request`);
+  console.log(`[audit-worker] Claude model: ${claudeModel() ?? "the CLI's default (CLAUDE_MODEL not set)"}`);
 
   // Every report link this worker emails is built from PUBLIC_SITE_URL (see
   // supabase.ts's saveAuditReport), so a stale value is the one config
