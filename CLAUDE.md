@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow (read first)
+
+Before any work, follow the team workflow: branching, commits, testing, merging and migrations.
+
+@docs/WORKFLOW.md
+
 ## Project Overview
 
 React 18 + TypeScript landing page for Optimizers, a CRO/conversion optimization agency targeting e-commerce brands in the GCC/MENA region. Built with Vite, styled with Tailwind CSS v4. Deployed on Vercel.
