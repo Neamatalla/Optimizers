@@ -3,7 +3,8 @@ import type { FudRule } from "./rules.js";
 import { hasWidget, matches, nearCta, normalize, pageText, type PatternKey } from "./signals.js";
 
 /**
- * The CRO rules beyond trust and cost (added in rule set fud-2.0.0):
+ * The CRO rules beyond trust and cost (added in rule set fud-2.0.0; the
+ * landing-page framework rules H3-H6, P5-P12, K1, G1-G2 in fud-2.1.0):
  * homepage clarity, product page layout, navigation and search, buy-more
  * (order value), buy-again (repeat purchases), local-market fit and popups.
  * Same contract as rules.ts: the judge proposes, the detectors here are the
@@ -398,6 +399,317 @@ export const CRO_RULES: FudRule[] = [
       const blocking = home.popups.onLoad.filter(p => p.kind !== "cookie" || p.cover >= 30);
       if (blocking.length === 0) return "present";
       return "elsewhere";
+    },
+  },
+  // ---- the landing-page framework (fud-2.1.0) ---------------------------------------
+  // From the CRO wireframe library and ATIDFA (Attention, Transformation,
+  // Interest, Desire, FAQ, Action): what high-converting store pages put
+  // where. All opportunity rules: WARN at most.
+  {
+    id: "H3",
+    group: "homepage",
+    pageType: "home",
+    needs: ["home"],
+    crop: "fold",
+    title: { en: "An offer bar at the very top", ar: "شريط عرض في أعلى الصفحة" },
+    question: "Is there a thin bar at the very top of the page (above or inside the header) that states one concrete reason to buy now: free shipping over an amount, cash on delivery, a current offer, or delivery time?",
+    pass: "A top bar states a specific offer or promise (e.g. 'Free delivery over 1,000 EGP', 'Cash on delivery all over Egypt').",
+    warn: "No top bar, or it only says something vague ('Welcome to our store', 'Fast shipping').",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 5, I: 3,
+    funnel: null,
+    autoFail: false,
+    signal: e => {
+      const home = pageOf(e, "home");
+      if (!home) return "unknown";
+      const top = home.blocks.filter(b => b.aboveFold && b.box.y < 120);
+      const offer = (t: string) => matches("freeShipping", t) || matches("offer", t) || matches("cod", t) || matches("deliveryTime", t);
+      if (top.some(b => offer(b.text))) return "present";
+      return home.blocks.some(b => b.aboveFold && offer(b.text)) ? "elsewhere" : "unknown";
+    },
+  },
+  {
+    id: "H4",
+    group: "homepage",
+    pageType: "home",
+    needs: ["home"],
+    crop: "fold",
+    layout: true,
+    title: { en: "A rating on the first screen", ar: "تقييم ظاهر في أول شاشة" },
+    question: "Does the homepage's first phone screen show proof that real people buy here: a star rating with a count, or a line like 'Rated 4.8/5 by 12,000+ customers'?",
+    pass: "A star rating or a customer count sits in the first screen, close to the headline.",
+    warn: "Ratings or customer numbers exist on the homepage but only further down, or there are none.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 4, C: 4, T: 4, I: 4,
+    funnel: null,
+    autoFail: false,
+    signal: e => {
+      const home = pageOf(e, "home");
+      if (!home) return "unknown";
+      const proof = (t: string) => matches("ratedBy", t) || matches("reviews", t);
+      if (home.blocks.some(b => b.aboveFold && proof(b.text))) return "present";
+      return home.blocks.some(b => proof(b.text)) ? "elsewhere" : "absent";
+    },
+  },
+  {
+    id: "H5",
+    group: "homepage",
+    pageType: "home",
+    needs: ["home"],
+    crop: "fold",
+    layout: true,
+    title: { en: "Three benefits under the headline", ar: "ثلاث مزايا تحت العنوان" },
+    question: "Under the homepage headline, are there 2-4 short benefit points (with check marks or icons) that say what the shopper gets — e.g. 'Natural ingredients', 'Delivery in 48 hours', 'Free returns'?",
+    pass: "2-4 short, specific benefit points sit right under the headline on the first screen.",
+    warn: "No benefit points on the first screen, or they're generic ('High quality', 'Best prices').",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 5, I: 3,
+    funnel: null,
+    autoFail: false,
+    signal: e => {
+      const home = pageOf(e, "home");
+      if (!home) return "unknown";
+      const points = home.blocks.filter(b => b.aboveFold && b.text.length <= 60 && (b.tag === "li" || matches("checkMark", b.text)));
+      return points.length >= 2 ? "present" : "unknown";
+    },
+  },
+  {
+    id: "H6",
+    group: "homepage",
+    pageType: "home",
+    needs: ["home"],
+    crop: "fold",
+    title: { en: "The main button says what happens", ar: "الزر الرئيسي يقول هيحصل إيه" },
+    question: "Does the homepage's main button tell the visitor exactly where it goes ('Shop bestsellers', 'Shop abayas', 'Find your size'), rather than a generic 'Shop now' or 'Discover'?",
+    pass: "The main button names the destination or the benefit.",
+    warn: "The main button is generic ('Shop now', 'Discover', 'Learn more', 'تسوق الآن').",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 5, I: 2,
+    funnel: null,
+    autoFail: false,
+    applies: e => (pageOf(e, "home")?.facts?.heroButtons.length ?? 0) > 0,
+    signal: e => {
+      const labels = pageOf(e, "home")?.facts?.heroButtons ?? [];
+      if (!labels.length) return "unknown";
+      return labels.some(l => !matches("genericCta", normalize(l).trim())) ? "present" : "absent";
+    },
+  },
+  {
+    id: "P5",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "fold",
+    layout: true,
+    title: { en: "The product headline sells a benefit", ar: "عنوان المنتج بيبيع ميزة" },
+    question: "Next to the product name on the first phone screen, does the page say what the product does for the buyer: a benefit line and 2-4 check-marked points (e.g. '25g protein per serving', 'Gluten-free', 'Easy to digest'), not just the name and price?",
+    pass: "A benefit line or 2-4 short benefit points sit next to the name and price.",
+    warn: "Only the product name and price; the benefits are buried in the description.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 5, I: 4,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: e => {
+      const product = pageOf(e, "product");
+      if (!product) return "unknown";
+      const points = product.blocks.filter(b => b.aboveFold && b.text.length <= 70 && (b.tag === "li" || matches("checkMark", b.text)));
+      return points.length >= 2 ? "present" : "unknown";
+    },
+  },
+  {
+    id: "P6",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "fold",
+    title: { en: "What happens after you order, in steps", ar: "إيه اللي هيحصل بعد الطلب، خطوة بخطوة" },
+    question: "Does the product page show, in 2-4 simple steps or icons, how buying works and what the shopper ends up with (e.g. 'Order today → Delivered in 2 days → Pay at the door → Results in 4 weeks')? This 'transformation' section makes the purchase feel easy and the outcome real.",
+    pass: "A short steps section shows ordering, delivery and the result.",
+    warn: "Nothing shows how ordering works or what the result looks like.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 4, C: 3, T: 4, I: 3,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: e => {
+      const product = pageOf(e, "product");
+      if (!product) return "unknown";
+      return has(product, "howItWorks") ? "present" : "absent";
+    },
+  },
+  {
+    id: "P7",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "fold",
+    title: { en: "Benefits come before features", ar: "المزايا قبل المواصفات" },
+    question: "Reading the product page from the top, does it lead with what the buyer gains (results, feelings, problems solved) and only then list features, materials or specs that back those benefits up? Or does it open with a spec list?",
+    pass: "Benefits first, each feature tied back to a benefit.",
+    warn: "The page leads with specs, materials or a raw description, and never says what they mean for the buyer.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 4, C: 3, T: 4, I: 3,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: () => "unknown",
+  },
+  {
+    id: "P8",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "fold",
+    title: { en: "Customer photos or videos", ar: "صور أو فيديوهات من العملاء" },
+    question: "Does the product page show photos or videos made by real customers (UGC): review photos, unboxing or try-on clips, before/after, tagged social posts? These convert better than studio shots because they look real.",
+    pass: "Customer photos or videos are on the product page.",
+    warn: "Only studio photos; reviews (if any) are text only.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 3, C: 4, T: 3, I: 4,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: e => {
+      const product = pageOf(e, "product");
+      if (!product) return "unknown";
+      if (has(product, "ugc") || product.widgets.some(w => w === "loox" || w === "okendo")) return "present";
+      return "unknown";
+    },
+  },
+  {
+    id: "P9",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "fold",
+    title: { en: "A comparison with the alternative", ar: "مقارنة بالبديل" },
+    question: "Does the product page compare this product with what the shopper would otherwise buy (other brands, the cheap version, doing nothing) — e.g. a check/cross table 'Us vs Others'? This answers 'why this one?' before the shopper leaves to compare.",
+    pass: "A clear comparison (table or side-by-side) shows why this product wins.",
+    warn: "No comparison anywhere; the shopper has to leave to compare.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 3, C: 3, T: 4, I: 3,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: e => {
+      const product = pageOf(e, "product");
+      if (!product) return "unknown";
+      return has(product, "comparison") ? "present" : "absent";
+    },
+  },
+  {
+    id: "P10",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "cta",
+    title: { en: "An FAQ answers the last doubts", ar: "أسئلة شائعة بترد على آخر شك" },
+    question: "Does the product page have a short FAQ that answers the questions people ask before buying this product (delivery time, returns, sizing, how to use, is it original)? A link to a general FAQ page doesn't count.",
+    pass: "A product-page FAQ with short answers to the common objections.",
+    warn: "Only a link to a general FAQ page, or no FAQ at all.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 4, C: 4, T: 4, I: 3,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: e => {
+      const product = pageOf(e, "product");
+      if (!product) return "unknown";
+      if (has(product, "faq")) return "present";
+      return product.policyLinks.some(l => l.kind === "faq") ? "elsewhere" : "absent";
+    },
+  },
+  {
+    id: "P11",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "cta",
+    title: { en: "The page ends with a reason and a buy button", ar: "الصفحة بتخلص بسبب للشراء وزرار" },
+    question: "When a shopper scrolls to the bottom of the product page (after reviews and details), is there a closing section with one more reason to buy and a buy button — or does the page just end, so they have to scroll all the way back up?",
+    pass: "A closing headline or offer with a buy button near the end of the page (a sticky bar alone counts as WARN).",
+    warn: "Only a sticky bar, or the page ends with no way to buy without scrolling back up.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 4, C: 4, T: 4, I: 3,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: () => "unknown",
+  },
+  {
+    id: "P12",
+    group: "product",
+    pageType: "product",
+    needs: ["product"],
+    crop: "fold",
+    title: { en: "Says what's included", ar: "بيقول إيه اللي جوه العلبة" },
+    question: "Does the product page say exactly what the shopper receives (pieces in the set, size or volume, accessories, how many servings) so there's no surprise on delivery?",
+    pass: "A clear 'what's included' list or line.",
+    warn: "The shopper has to guess what's in the package or how much they get.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 5, I: 2,
+    funnel: { from: "view_item", to: "add_to_cart" },
+    autoFail: false,
+    signal: e => {
+      const product = pageOf(e, "product");
+      if (!product) return "unknown";
+      return has(product, "whatsIncluded") ? "present" : "unknown";
+    },
+  },
+  {
+    id: "K1",
+    group: "buy_more",
+    pageType: "cart",
+    needs: ["product", "cart"],
+    crop: "cart",
+    title: { en: "The cart shows what they saved", ar: "السلة بتوري العميل وفّر كام" },
+    question: "When the product is on sale or in a bundle, does the cart remind the shopper how much they're saving ('You saved 250 EGP'), right above the checkout button?",
+    pass: "A 'You saved …' line (or crossed-out prices) shows in the cart.",
+    warn: "The product was discounted on its page, but the cart shows only the final total.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 4, I: 2,
+    funnel: { from: "add_to_cart", to: "begin_checkout" },
+    autoFail: false,
+    applies: e => has(pageOf(e, "product"), "offer"),
+    signal: e => {
+      const cart = pageOf(e, "cart");
+      if (!cart || cart.cart?.empty) return "unknown";
+      return has(cart, "savings") ? "present" : "absent";
+    },
+  },
+  {
+    id: "G1",
+    group: "collection",
+    pageType: "collection",
+    needs: ["collection"],
+    crop: "fold",
+    layout: true,
+    title: { en: "The collection opens with a promise and a rating", ar: "صفحة القسم بتبدأ بوعد وتقييم" },
+    question: "Does the collection page open with a short headline that says why to buy from this range (not just the category name), with a rating or customer count next to it?",
+    pass: "A benefit headline plus a rating or customer count above the products.",
+    warn: "Only the category name ('Abayas') above the grid.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 3, T: 5, I: 2,
+    funnel: null,
+    autoFail: false,
+    signal: e => {
+      const col = pageOf(e, "collection");
+      if (!col) return "unknown";
+      return col.blocks.some(b => b.aboveFold && (matches("ratedBy", b.text) || matches("reviews", b.text))) ? "present" : "unknown";
+    },
+  },
+  {
+    id: "G2",
+    group: "collection",
+    pageType: "collection",
+    needs: ["collection"],
+    crop: "fold",
+    title: { en: "Badges help shoppers choose", ar: "الشارات بتساعد العميل يختار" },
+    question: "Do product cards on the collection page carry honest badges that help a shopper pick — 'Best seller', 'Selling fast', 'New', 'Top rated' — so the grid isn't a wall of equal choices?",
+    pass: "Some cards carry badges like Best seller / Selling fast / New.",
+    warn: "No badges: every card looks the same.",
+    fail: "(not used — this rule is WARN at most)",
+    E: 5, C: 4, T: 5, I: 2,
+    funnel: null,
+    autoFail: false,
+    signal: e => {
+      const col = pageOf(e, "collection");
+      if (!col) return "unknown";
+      return has(col, "merchBadge") ? "present" : "absent";
     },
   },
 ];

@@ -52,6 +52,6 @@ function inlineAssets(): Promise<ReportAssets> {
   return assetsCache;
 }
 
-export async function buildAuditHtmlReport(result: AuditResult): Promise<AuditHtmlReport> {
-  return { html: renderAuditReport(result, await inlineAssets()) };
+export async function buildAuditHtmlReport(result: AuditResult, opts: { sampleInputs?: boolean } = {}): Promise<AuditHtmlReport> {
+  return { html: renderAuditReport(result, { ...(await inlineAssets()), ...opts }) };
 }

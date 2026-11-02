@@ -32,7 +32,7 @@ export interface JudgeVerdict {
   T?: number;
 }
 
-function marketHint(website: string): string {
+export function marketHint(website: string): string {
   const host = (() => {
     try {
       return new URL(website).hostname;
@@ -48,7 +48,7 @@ function marketHint(website: string): string {
   return "Egypt or the GCC — infer the country and currency from the page text";
 }
 
-function pageBlock(p: PageEvidence): string {
+export function pageBlock(p: PageEvidence): string {
   if (!p.loaded) return `### ${p.pageType.toUpperCase()} — NOT AVAILABLE (${p.note ?? "did not load"})\n`;
   const near = new Set(p.cta?.nearbyBlockIds ?? []);
   const lines = p.blocks.map(b => `[${b.id}${b.aboveFold ? "|fold" : ""}${near.has(b.id) ? "|cta" : ""}${b.tag === "img" ? "|img" : ""}] ${b.text}`);
@@ -97,7 +97,7 @@ function factLines(p: PageEvidence): string[] {
 }
 
 /** Store-wide facts some rules need (menu, search test, order value). */
-function storeBlock(e: StoreEvidence): string {
+export function storeBlock(e: StoreEvidence): string {
   const lines: string[] = [];
   const dHome = e.desktop?.find(p => p.pageType === "home" && p.loaded);
   const nav = dHome?.facts?.nav ?? e.pages.find(p => p.pageType === "home")?.facts?.nav ?? [];
@@ -142,6 +142,7 @@ HOW TO DECIDE
 - Never invent facts about the store, its policies or its numbers. Never write health, medical or legal claims in example copy.
 
 WRITING
+- Every text: short sentences, one idea each, 14 words or fewer. No semicolons. Make a new sentence instead of chaining clauses with "which", "because" or a second comma.
 - Block ids are for the "blockIds" field only — never write them in any text. Describe locations in words instead ("in the cart drawer", "under the price", "in the footer").
 - technical: for the developer — what was found, where on the page, the exact wording quoted, and the mechanism. summary = one line, detail = 2-4 sentences.
 ${judgeBusinessRule(role) ?? `- business: for a busy store owner, no jargon — what the shopper experiences and what it costs or protects. summary = one line, detail = 2-4 sentences. Speak to the owner ("your cart", "your shoppers").
@@ -157,7 +158,7 @@ STORE FACTS
 ${storeBlock(evidence)}
 
 EVIDENCE
-${evidence.pages.map(pageBlock).join("\n")}
+${evidence.pages.filter(p => p.pageType !== "landing" && p.pageType !== "checkout").map(pageBlock).join("\n")}
 Add-to-cart attempt: ${evidence.addToCart.attempted ? (evidence.addToCart.ok ? "succeeded" : `failed (${evidence.addToCart.reason ?? "unknown"})`) : `not attempted (${evidence.addToCart.reason ?? "no product page"})`}.
 
 OUTPUT

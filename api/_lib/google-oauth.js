@@ -351,7 +351,7 @@ async function fetchGa4ReportData(propertyName, token) {
     runReport({
       dateRanges: [LAST_28_DAYS],
       dimensions: [{ name: "sessionDefaultChannelGroup" }, { name: "sessionSource" }, { name: "sessionMedium" }, { name: "sessionCampaignName" }],
-      metrics: [{ name: "sessions" }, { name: "engagedSessions" }, { name: "addToCarts" }, { name: "transactions" }],
+      metrics: [{ name: "sessions" }, { name: "engagedSessions" }, { name: "addToCarts" }, { name: "transactions" }, { name: "purchaseRevenue" }],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       limit: "100",
     }),

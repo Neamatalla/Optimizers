@@ -1,9 +1,10 @@
 import type { FudFinding, FudPageType, FudResult, FudStatus, Ga4Facts, Ga4Metrics, JobProgress } from "../types.js";
 import { collectStoreEvidence } from "./collect.js";
 import { buildInsights } from "./insights.js";
-import { collectorFocus } from "../ga4-facts.js";
+import { collectorFocus, collectorLanding } from "../ga4-facts.js";
 import { desktopView, pageOf, type StoreEvidence } from "./evidence.js";
 import { runJudge, type JudgeVerdict } from "./judge.js";
+import { runManualChecklist } from "./manual-checklist.js";
 import { audienceRoleOf, type AudienceRole } from "../audience.js";
 import { FUD_RULES, groupOf, RULE_SET_VERSION, type FudRule, type SignalState } from "./rules.js";
 import { GROUP_OPPORTUNITY, RULE_ACTIONS } from "./rule-actions.js";
@@ -51,6 +52,8 @@ export interface RunFudPassOptions {
   ga4Facts?: Ga4Facts | null;
   // Who the report is for (audience.ts): sets the judge's business voice.
   audienceRole?: AudienceRole | null;
+  // The ad the reader typed on the form: landing-page checkpoints compare with it.
+  adContext?: { text: string | null; coupon: string | null } | null;
 }
 
 const STEP_WORDS: Record<string, string> = {
@@ -188,7 +191,7 @@ export function assemble(e: StoreEvidence, verdicts: JudgeVerdict[], ga4: Ga4Met
 
 export async function runFudPass(opts: RunFudPassOptions): Promise<FudResult | { error: string }> {
   try {
-    const evidence = opts.evidence ?? (await collectStoreEvidence(opts.website, opts.discoveredPages, { focus: collectorFocus(opts.focus) }));
+    const evidence = opts.evidence ?? (await collectStoreEvidence(opts.website, opts.discoveredPages, { focus: collectorFocus(opts.focus), landing: collectorLanding(opts.focus) }));
     console.log(
       `[audit-worker] FUD collect: ${evidence.pages.filter(p => p.loaded).length}/${evidence.pages.length} pages, add-to-cart ${evidence.addToCart.ok ? "ok" : evidence.addToCart.reason ?? "skipped"}, cart from ${pageOf(evidence, "cart")?.cart?.source ?? "nothing"}, desktop ${evidence.desktop?.filter(p => p.loaded).length ?? 0} pages, ${evidence.blockedHits} analytics hits blocked, ${Math.round(evidence.durationMs / 1000)}s`,
     );
@@ -204,6 +207,16 @@ export async function runFudPass(opts: RunFudPassOptions): Promise<FudResult | {
     const toJudge = FUD_RULES.filter(r => (!r.applies || r.applies(evidence)) && !unassessedReason(r, evidence)).map(rule => ({ rule, signal: rule.signal(evidence) }));
     const verdicts = await runJudge(evidence, toJudge, opts.ga4Metrics, opts.jobId, opts.audienceRole);
     const result = assemble(evidence, verdicts, opts.ga4Metrics, opts.allowFail, opts.ga4Facts?.focus.page ?? null);
+    // The CRO team's full manual checklist on the same captured pages. Never
+    // fatal: a failed run only leaves the report without that section.
+    if (process.env.CRO_CHECKLIST !== "off") {
+      try {
+        result.checklist = await runManualChecklist(evidence, opts.jobId, opts.audienceRole, opts.adContext);
+        console.log(`[audit-worker] CRO checklist: ${result.checklist.ran} run, ${result.checklist.items.length} shown, ${result.checklist.items.filter(i => i.x).length} written up, ${result.checklist.failedBatches} failed calls`);
+      } catch (err) {
+        console.warn(`[audit-worker] CRO checklist skipped: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
+      }
+    }
     result.insights = insights;
     console.log(`[audit-worker] FUD result: score ${result.score ?? "n/a"}, ${result.assessed}/${result.applicable} assessed, ${result.findings.filter(f => f.status === "fail").length} fail, ${result.findings.filter(f => f.status === "warn").length} warn`);
     return result;
@@ -228,7 +241,7 @@ export function isFudResult(v: unknown): v is FudResult {
  * progress, and never throws. Returns true when it ran.
  */
 export async function runFrictionStage(
-  row: { id: string; website: string; is_test: boolean; ga4_oauth_data?: unknown; audience_role?: unknown },
+  row: { id: string; website: string; is_test: boolean; ga4_oauth_data?: unknown; audience_role?: unknown; ad_context?: { text: string | null; coupon: string | null } | null },
   progress: JobProgress,
   save: () => Promise<void>,
   run: (opts: RunFudPassOptions) => Promise<FudResult | { error: string }> = runFudPass,
@@ -250,6 +263,7 @@ export async function runFrictionStage(
       evidence: pre.evidence ?? undefined,
       focus: progress.ga4Facts?.focus ?? undefined,
       audienceRole: audienceRoleOf(row.audience_role),
+      adContext: row.ad_context ?? null,
     });
   } catch (err) {
     progress.fud = { error: err instanceof Error ? err.message.slice(0, 500) : String(err) };

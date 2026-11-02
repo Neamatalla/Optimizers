@@ -39,6 +39,20 @@ export function sampleGa4OAuth() {
       pageFunnel: rep([[["/products/best-seller", "view_item"], [6000]], [["/products/best-seller", "add_to_cart"], [150]], [["/products/cream", "view_item"], [4000]], [["/products/cream", "add_to_cart"], [500]]]),
       sourceMedium: rep([[["tabby.ai", "referral"], [40, 12]], [["google", "cpc"], [3000, 60]]]),
       countryConversion: rep([[["Egypt"], [17000, 290]], [["Germany"], [1500, 0]], [["Saudi Arabia"], [1500, 10]]]),
+      trafficSources: rep([
+        [["Paid Social", "facebook", "paid_social", "ramadan_abayas_prospecting"], [5200, 2900, 420, 52, 57200]],
+        [["Organic Search", "google", "organic", "(organic)"], [5000, 3200, 380, 130, 140000]],
+        [["Paid Social", "instagram", "paid_social", "reels_new_collection"], [2600, 700, 40, 3, 2400]],
+        [["Paid Social", "tiktok", "paid_social", "tiktok_spark_ads"], [2100, 1300, 25, 2, 1500]],
+        [["Paid Search", "google", "cpc", "brand_search"], [1800, 1300, 210, 48, 55200]],
+        [["Direct", "(direct)", "(none)", "(direct)"], [1500, 900, 80, 30, 33000]],
+        [["Paid Social", "facebook", "paid_social", "(not set)"], [1200, 600, 60, 9, 9000]],
+        [["Paid Search", "google", "cpc", "pmax_all_products"], [1200, 700, 110, 12, 7800]],
+        [["Paid Social", "facebook", "paid_social", "retargeting_cart_7d"], [900, 650, 160, 41, 49200]],
+        [["Paid Social", "snapchat", "paid_social", "snap_sale_offer"], [800, 520, 120, 2, 1800]],
+        [["Email", "klaviyo", "email", "winback"], [300, 220, 40, 15, 18000]],
+        [["Paid Social", "tiktok", "paid_social", "tt_test_ugc"], [60, 30, 3, 0, 0]],
+      ], "EGP"),
     },
   };
 }

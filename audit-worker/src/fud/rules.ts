@@ -13,7 +13,7 @@ import { CRO_RULES } from "./rules-cro.js";
  * Bump RULE_SET_VERSION whenever a rule's wording, signal or defaults change
  * — every finding carries it, so results stay comparable over time.
  */
-export const RULE_SET_VERSION = "fud-2.0.0";
+export const RULE_SET_VERSION = "fud-2.1.0";
 
 /**
  * Deterministic second opinion on one rule (score.ts's gate):

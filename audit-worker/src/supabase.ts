@@ -225,7 +225,13 @@ async function withUploadedImages(requestId: string, result: AuditResult): Promi
   const screenshots = shots
     ? { desktop: await uploadImage(requestId, "desktop", shots.desktop, version), mobile: await uploadImage(requestId, "mobile", shots.mobile, version) }
     : shots;
-  return { ...result, screenshots, fud: result.fud ? await withUploadedCrops(requestId, result.fud, version) : result.fud };
+  // Landing-page first screens (round 20) go to the bucket like every other
+  // image, so the site_checks row holds URLs, not 100 KB data URIs.
+  const sc = result.siteChecks;
+  const siteChecks = sc?.landing?.some(l => l.crop)
+    ? { ...sc, landing: await Promise.all(sc.landing.map(async (l, i) => (l.crop ? { ...l, crop: (await uploadImage(requestId, `landing-${i}`, l.crop, version)) ?? undefined } : l))) }
+    : sc;
+  return { ...result, screenshots, siteChecks, fud: result.fud ? await withUploadedCrops(requestId, result.fud, version) : result.fud };
 }
 
 async function withUploadedCrops(requestId: string, fud: FudResult, version: string): Promise<FudResult> {

@@ -650,13 +650,14 @@ const onDomain = (host: string, domains: string[]) => {
   return domains.some(d => b === d || b.endsWith(`.${d}`));
 };
 
-interface SourceRow { channel: string; source: string; medium: string; campaign: string; sessions: number; engaged: number; adds: number; sales: number }
+interface SourceRow { channel: string; source: string; medium: string; campaign: string; sessions: number; engaged: number; adds: number; sales: number; revenue: number | null }
 
 function trafficRows(ctx: Ctx): SourceRow[] | null {
   if (!got(ctx.rd.trafficSources)) return null;
   return rowsOf(ctx.rd.trafficSources).map(r => ({
     channel: r.dims[0] ?? "", source: r.dims[1] ?? "", medium: r.dims[2] ?? "", campaign: r.dims[3] ?? "",
     sessions: r.vals[0] ?? 0, engaged: r.vals[1] ?? 0, adds: r.vals[2] ?? 0, sales: r.vals[3] ?? 0,
+    revenue: r.vals.length >= 5 ? r.vals[4] ?? null : null,
   }));
 }
 
@@ -1184,7 +1185,29 @@ export function ga4Focus(oauth: unknown, website: string): Ga4Focus | null {
     productUrl: productFact(ctx).url,
     landingUrl: landingFact(ctx).url,
     campaignLandingUrl: campaignFact(ctx).url,
+    paidLandingUrls: paidLandingUrls(ctx),
   };
+}
+
+// The two pages that get the most paid visits (round 19: the store visit
+// opens them as "landing"). Falls back to the top paid campaign's page.
+function paidLandingUrls(ctx: Ctx): string[] | undefined {
+  const rows = got(ctx.rd.paidLanding) ? rowsOf(ctx.rd.paidLanding).filter(r => r.dims[0] && !r.dims[0].startsWith("(")) : [];
+  const urls = rows.sort((a, b) => b.vals[0] - a.vals[0]).map(r => urlOf(ctx, r.dims[0])).filter((u): u is string => Boolean(u));
+  const fallback = [campaignFact(ctx).url].filter((u): u is string => Boolean(u));
+  const out = [...new Set(urls.length ? urls : fallback)].slice(0, 2);
+  return out.length ? out : undefined;
+}
+
+/** The ad landing pages the store visit should open, from the GA4 focus. */
+export function collectorLanding(focus: Ga4Focus | null | undefined): Array<{ url: string; source: string }> | undefined {
+  const paid = focus?.paidLandingUrls;
+  const urls = paid ?? (focus?.campaignLandingUrl ? [focus.campaignLandingUrl] : []);
+  const out = urls.map((url, i) => ({
+    url,
+    source: paid ? (i === 0 ? "GA4: the page with the most paid visits (28 days)" : "GA4: the page with the second most paid visits (28 days)") : "GA4: the main landing page of the top paid campaign",
+  }));
+  return out.length ? out : undefined;
 }
 
 export function computeGa4Facts(oauth: unknown, website: string, evidence: StoreEvidence | null = null): Ga4Facts | null {
@@ -1196,6 +1219,7 @@ export function computeGa4Facts(oauth: unknown, website: string, evidence: Store
   const product = productFact(ctx);
   const landing = landingFact(ctx);
   const campaign = campaignFact(ctx);
+  const campaigns = trafficRows(ctx)?.filter(r => r.sessions > 0).sort((a, b) => b.sessions - a.sessions).slice(0, 40);
 
   let leak: Ga4Fact;
   if (worst) {
@@ -1268,6 +1292,7 @@ export function computeGa4Facts(oauth: unknown, website: string, evidence: Store
       campaignLandingUrl: campaign.url,
     },
     facts: Object.fromEntries(list.map(f => [f.id, f])),
+    ...(campaigns ? { campaigns } : {}),
   };
 }
 

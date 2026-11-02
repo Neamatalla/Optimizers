@@ -33,6 +33,8 @@ import { runPageSpeed } from "./pagespeed.js";
 import { translateFindingsToArabic } from "./translate-ar.js";
 import { audienceRoleOf } from "./audience.js";
 import { computeClarityFacts } from "./clarity-facts.js";
+import { signalQualityFrom } from "./signal-quality.js";
+import { pixelMapFrom, siteChecksFrom } from "./site-checks.js";
 import type { AuditResult, CategoryResult } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -400,6 +402,71 @@ async function main() {
 
   // --clarity adds a sample Clarity snapshot (shape from a real 2026-10-20
   // export) so the Clarity section renders.
+  // --site adds a sample phone visit (site-checks.ts shape): Add to Cart filled
+  // the drawer, the dataLayer and Meta sent it, GA4 didn't; one WhatsApp link
+  // has a broken number; sold-out products show up front.
+  if (process.argv.includes("--site")) {
+    result.siteChecks = {
+      platform: "Shopify",
+      addToCart: { attempted: true, ok: true, via: "drawer", method: "click", clickAdded: true },
+      atcEvents: { dataLayer: ["add_to_cart"], ga4: ["view_item"], pixels: ["meta:AddToCart", "snap:PAGE_VIEW"] },
+      contactLinks: [{ href: "https://wa.me/201000000000", kind: "whatsapp", valid: true }, { href: "https://wa.me/0100", kind: "whatsapp", valid: false }],
+      soldOutPromoted: 3,
+      heroVideoMobile: false,
+      // Page-load hits: Meta fires PageView twice on the homepage from two pixel
+      // IDs; TikTok sends no ViewContent on the product page.
+      pixelMap: {
+        pages: [
+          { pageType: "home", hits: [{ vendor: "ga4", name: "page_view", count: 1 }, { vendor: "meta", name: "PageView", count: 2 }, { vendor: "tiktok", name: "Pageview", count: 1 }] },
+          { pageType: "product", hits: [{ vendor: "ga4", name: "page_view", count: 1 }, { vendor: "ga4", name: "view_item", count: 1 }, { vendor: "meta", name: "PageView", count: 1 }, { vendor: "meta", name: "ViewContent", count: 1 }, { vendor: "tiktok", name: "Pageview", count: 1 }] },
+        ],
+        ids: { ga4: ["G-ABC123"], meta: ["1234567890", "9876543210"] },
+      },
+      pagesVisited: [{ pageType: "home", url: "https://example.com/", loaded: true }, { pageType: "product", url: "https://example.com/products/best-seller", loaded: true }, { pageType: "cart", url: "https://example.com/cart", loaded: true }],
+      // Round 19 sample signal: Meta complete; GA4 view_item twice and an
+      // add_to_cart with no value; TikTok sends no InitiateCheckout.
+      signal: signalQualityFrom({
+        website: "https://example.com", blockedHits: 40, durationMs: 1,
+        pages: (["product", "checkout"] as const).map(t => ({ pageType: t, url: `https://example.com/${t}`, loaded: true, blocks: [], widgets: [], jsonLd: { types: [] }, policyLinks: [], crops: {} })),
+        addToCart: { attempted: true, ok: true, via: "click", clickAdded: true },
+        pageHits: [
+          { page: "product", vendor: "meta", name: "ViewContent", q: { value: 1399, currency: "EGP", items: 1, eventId: true } },
+          { page: "product", vendor: "ga4", name: "view_item", q: { value: 1399, currency: "EGP", items: 1 } },
+          { page: "product", vendor: "ga4", name: "view_item" },
+          { page: "product", vendor: "tiktok", name: "ViewContent", q: { value: 1399, currency: "EGP", items: 1, eventId: true } },
+          { page: "checkout", vendor: "meta", name: "InitiateCheckout", q: { value: 1399, currency: "EGP", items: 1, eventId: true } },
+          { page: "checkout", vendor: "ga4", name: "begin_checkout", q: { value: 1399, currency: "EGP", items: 1 } },
+          { page: "checkout", vendor: "tiktok", name: "Pageview" },
+        ],
+        atcHits: [
+          { vendor: "meta", name: "AddToCart", q: { value: 1399, currency: "EGP", items: 1, eventId: true } },
+          { vendor: "ga4", name: "add_to_cart", q: { currency: "EGP" } },
+          { vendor: "tiktok", name: "AddToCart", q: { value: 1399, currency: "EGP", items: 1, eventId: true } },
+        ],
+      }, "EGP"),
+    };
+    // --signal=<fud evidence json>: the real pixel map and signal of a saved visit.
+    const signalArg = process.argv.find(a => a.startsWith("--signal="));
+    if (signalArg) {
+      const ev = JSON.parse(await readFile(signalArg.split("=").slice(1).join("="), "utf8"));
+      result.siteChecks.signal = signalQualityFrom(ev, "EGP");
+      result.siteChecks.pixelMap = pixelMapFrom(ev.pageHits);
+      const sc = siteChecksFrom(ev, "Shopify", "EGP");
+      result.siteChecks.landing = sc.landing;
+      result.siteChecks.checkout = sc.checkout;
+    }
+    // The ad a media buyer typed on the form.
+    // --ad="text|coupon" replaces the sample ad (round 20: match it to a real store).
+    const adArg = process.argv.find(x => x.startsWith("--ad="))?.slice(5);
+    if (adArg) { const [text, coupon] = adArg.split("|"); result.adContext = { text: text || null, coupon: coupon || null }; }
+    result.adContext ??= { text: "50% off all abayas today only", coupon: "SAVE50" };
+    // The GA4 numbers behind the report's funnel, matching the sample's GA4 facts.
+    result.ga4Metrics ??= {
+      periodDays: 28, currency: "EGP", sessions: 20000, conversions: 300, conversionRate: 1.5, revenue: 330000,
+      funnel: [{ event: "view_item", count: 15000 }, { event: "add_to_cart", count: 1200 }, { event: "begin_checkout", count: 492 }, { event: "purchase", count: 369 }],
+      channels: [], segments: [],
+    };
+  }
   if (process.argv.includes("--clarity")) {
     result.clarityFacts = computeClarityFacts({
       source: "clarity", fetchedAt: new Date().toISOString(), days: 3, hostMatch: true,
@@ -431,7 +498,14 @@ async function main() {
     console.log("[preview] arabic:", arabic.error ?? `${arabic.translated}/${arabic.total} findings translated`);
   }
 
-  const { html } = await buildAuditHtmlReport(result);
+  // --checklist=<file.json> attaches a CRO checklist run saved by
+  // src/checklist-run.ts (output/checklist-<host>.json) to the friction result.
+  const checklistArg = process.argv.find(a => a.startsWith("--checklist="));
+  if (checklistArg && result.fud) result.fud.checklist = JSON.parse(await readFile(checklistArg.split("=").slice(1).join("="), "utf8"));
+
+  // Dev preview: the Break-even calculator starts with sample numbers;
+  // --empty-inputs renders it the way a real audit does (empty fields).
+  const { html } = await buildAuditHtmlReport(result, { sampleInputs: !process.argv.includes("--empty-inputs") });
   const outDir = path.join(__dirname, "..", "output");
   await mkdir(outDir, { recursive: true });
   const outPath = path.join(outDir, `preview-${mode}${role ? `-${role}` : ""}.html`);
