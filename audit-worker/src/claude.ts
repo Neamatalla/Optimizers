@@ -86,6 +86,11 @@ export async function readUsageWindows(): Promise<UsageWindows | undefined> {
   });
 }
 
+/** The model every claude -p call asks for (CLAUDE_MODEL), or undefined for the CLI default. */
+export function claudeModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.CLAUDE_MODEL?.trim() || undefined;
+}
+
 export interface ApiKeyStatus {
   ok: boolean;
   // For the log line and alert email. Never contains the key itself.
@@ -154,6 +159,12 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   }
   if (opts.effort) {
     args.push("--effort", opts.effort);
+  }
+  // One model for every call, chosen on purpose (e.g. claude-opus-5-5).
+  // Unset: no flag, so the CLI's own default applies.
+  const model = claudeModel();
+  if (model) {
+    args.push("--model", model);
   }
 
   return new Promise((resolve, reject) => {

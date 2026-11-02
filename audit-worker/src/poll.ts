@@ -37,7 +37,7 @@ import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudePausedEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows, checkApiKey, isRateLimitError } from "./claude.js";
+import { readUsageWindows, checkApiKey, claudeModel, isRateLimitError } from "./claude.js";
 import { runWithLog } from "./log-context.js";
 import type { AuditRequestRow, JobProgress } from "./types.js";
 
@@ -497,6 +497,7 @@ async function maybeSendDailyDigest(): Promise<void> {
 async function main() {
   const pollIntervalMs = Number(process.env.POLL_INTERVAL_MS ?? 60_000);
   console.log(`[audit-worker] Starting poll loop (every ${pollIntervalMs}ms) as ${WORKER_ID}, up to ${MAX_ATTEMPTS} attempts per request`);
+  console.log(`[audit-worker] Claude model: ${claudeModel() ?? "the CLI's default (CLAUDE_MODEL not set)"}`);
 
   // Every report link this worker emails is built from PUBLIC_SITE_URL (see
   // supabase.ts's saveAuditReport), so a stale value is the one config
