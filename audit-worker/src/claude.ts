@@ -127,6 +127,26 @@ export function isRateLimitError(err: unknown): boolean {
 }
 
 /**
+ * The Anthropic account refused the call, and every other call will be
+ * refused the same way until someone fixes it: no credit left, a spend limit
+ * reached, a wrong or revoked key, no permission (API errors 400/401/402/403
+ * and a spend-limit 429). Check this BEFORE isRateLimitError: a spend-limit
+ * 429 also matches "429" there. Same message-text heuristic, kept narrow to
+ * the API's own wording.
+ */
+export function isAccountError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /credit balance is too low|billing_error|authentication_error|permission_error|invalid (x-)?api[ -]key|api key (is )?(revoked|expired|disabled)|spend(ing)? limit|api usage limits?/i.test(message);
+}
+
+// When a claude -p call last finished with a result (0 = never). poll.ts uses
+// it to tell that an account problem is over.
+let lastSuccessAt = 0;
+export function lastClaudeSuccessAt(): number {
+  return lastSuccessAt;
+}
+
+/**
  * Runs `claude -p` (headless/non-interactive mode) with a scoped MCP config
  * and a pre-approved tool allowlist (required for headless runs — there's no
  * TTY to answer an interactive permission prompt). Resolves with the final
@@ -306,6 +326,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       }
       // Same envelope --output-format json printed, so extractJsonPayload /
       // extractTextPayload below are unchanged.
+      if (resultEvent.is_error !== true) lastSuccessAt = Date.now();
       resolve(JSON.stringify(resultEvent));
     });
   });

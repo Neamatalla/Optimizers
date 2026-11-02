@@ -37,7 +37,7 @@ import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudePausedEmail } from "./email.js";
 import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows, checkApiKey, claudeModel, isRateLimitError } from "./claude.js";
+import { readUsageWindows, checkApiKey, claudeModel, isAccountError, isRateLimitError, lastClaudeSuccessAt } from "./claude.js";
 import { runWithLog } from "./log-context.js";
 import type { AuditRequestRow, JobProgress } from "./types.js";
 
@@ -320,6 +320,41 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
 // out once per outage rather than on every poll.
 let apiKeyOk: boolean | null = null;
 
+// After an account error (no credit, spend limit, bad key), how long the
+// worker waits before claiming the next audit: one failed claim every 15
+// minutes instead of failing through the whole queue.
+const ACCOUNT_PAUSE_MS = 15 * 60_000;
+let accountPausedUntil = 0;
+// When the current account outage started (null: none). The alert goes out
+// once per outage; a Claude call that succeeds after it ends the outage.
+let accountOutageSince: number | null = null;
+
+async function pauseForAccountError(message: string): Promise<void> {
+  accountPausedUntil = Date.now() + ACCOUNT_PAUSE_MS;
+  console.error(`[audit-worker] The Claude API account refused the request. Not claiming audits for ${ACCOUNT_PAUSE_MS / 60_000} minutes; requests wait in the queue: ${message.slice(0, 500)}`);
+  if (accountOutageSince !== null) return;
+  accountOutageSince = Date.now();
+  try {
+    await sendClaudePausedEmail({
+      to: REVIEWER_EMAIL,
+      workerId: WORKER_ID,
+      reason: "the Claude API account refused the request",
+      detail: message,
+      fix: "Check the Anthropic Console: the credit balance, the workspace and organization spend limits, and that the key is still active. The worker tries one audit every 15 minutes on its own and carries on once it works; no restart needed.",
+    });
+    console.log(`[audit-worker] Emailed ${REVIEWER_EMAIL} about the account problem`);
+  } catch (err) {
+    console.error("[audit-worker] Also failed to email the account alert:", err);
+  }
+}
+
+function noteAccountRecovered(): void {
+  if (accountOutageSince !== null && lastClaudeSuccessAt() > accountOutageSince) {
+    console.log("[audit-worker] The Claude API account works again");
+    accountOutageSince = null;
+  }
+}
+
 /**
  * Checked before claiming any audit. Without ANTHROPIC_API_KEY every claim
  * would fail (or bill a leftover subscription login), so instead the worker
@@ -334,7 +369,8 @@ async function claudeReady(): Promise<boolean> {
       console.log(`[audit-worker] Claude API key OK (${status.detail})${apiKeyOk === false ? ", resuming audits" : ""}`);
     }
     apiKeyOk = true;
-    return true;
+    // Waiting out an account error (pauseForAccountError).
+    return Date.now() >= accountPausedUntil;
   }
   if (apiKeyOk !== false) {
     console.error(`[audit-worker] ${status.detail}. Not claiming audits until it is; requests wait in the queue.`);
@@ -382,6 +418,18 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
 
     if (err instanceof LostLeaseError) {
       console.warn(`[audit-worker] ${message}; another worker owns it now, stopping without touching the row`);
+      return true;
+    }
+
+    // Before the rate-limit check: a spend-limit 429 matches both.
+    if (isAccountError(err)) {
+      try {
+        const retryAfter = await markRequestRateLimited(row.id, row.retry_count, row.attempts - 1, message, null);
+        console.warn(`[audit-worker] Account error on ${row.id}, retaining queue position - retrying after ${retryAfter.toISOString()}`);
+      } catch (markErr) {
+        console.error(`[audit-worker] Also failed to mark ${row.id} for a retry:`, markErr);
+      }
+      await pauseForAccountError(message);
       return true;
     }
 
@@ -434,6 +482,7 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     }
   } finally {
     clearInterval(beat);
+    noteAccountRecovered();
     // One cheap extra claude -p for the closing 5-hour reading (see
     // readUsageWindows) — skipped when the run made no Claude calls.
     finishRunMetrics(outcome, hasClaudeCalls() ? await readUsageWindows() : undefined);

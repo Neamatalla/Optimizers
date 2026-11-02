@@ -1,4 +1,4 @@
-import { extractJsonPayload, isRateLimitError, runClaudeHeadless } from "./claude.js";
+import { extractJsonPayload, isAccountError, isRateLimitError, runClaudeHeadless } from "./claude.js";
 import { buildMcpConfig } from "./mcp-config.js";
 import type { AuditResult, CategoryResult, FindingVoice } from "./types.js";
 import { arabicRegisterRule, type AudienceRole } from "./audience.js";
@@ -67,7 +67,8 @@ interface TranslateResult {
   missing: number;
   error?: string;
   // The full limit message (reset epoch included, for poll.ts's
-  // parseLimitResetAt) when a batch hit a usage/rate limit.
+  // parseLimitResetAt) when a batch hit a usage/rate limit, or an account
+  // error (poll.ts tells the two apart from the message).
   rateLimitError?: string;
 }
 
@@ -210,8 +211,8 @@ export async function translateFindingsToArabic(result: AuditResult, jobId: stri
 
     if (error) {
       errors.push(`${cat.category}: ${error}`);
-      // Every later batch would hit the same limit within seconds.
-      if (isRateLimitError(error)) {
+      // Every later batch would hit the same limit (or account error) within seconds.
+      if (isAccountError(error) || isRateLimitError(error)) {
         rateLimitError = error;
         break;
       }
