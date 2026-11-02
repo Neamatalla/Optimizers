@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { AuditRequestRow, AuditResult, FudResult, JobProgress } from "./types.js";
 import { frictionRows, frictionSummary, toRows, type FindingRow, type ReportRow } from "./report-rows.js";
+import type { RunMetricsRow } from "./run-metrics.js";
 
 let client: SupabaseClient | null = null;
 
@@ -316,6 +317,15 @@ export async function markRequestFailed(id: string, message: string): Promise<vo
 // in its original order once retry_after passes. Backoff doubles per hit
 // (5, 10, 20, 40, 60min...) and caps at 60min so a persistent limit doesn't
 // balloon the wait into hours.
+// One row per audit attempt in audit_run_metrics (time, stages, Claude API
+// cost), for cost analysis. See run-metrics.ts. Throws on error; poll.ts only
+// logs it, so a failed insert never affects the audit.
+export async function saveRunMetrics(row: RunMetricsRow): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase.from("audit_run_metrics").insert(row);
+  if (error) throw new Error(`Supabase saveRunMetrics error: ${error.message}`);
+}
+
 export async function markRequestRateLimited(
   id: string,
   previousRetryCount: number,

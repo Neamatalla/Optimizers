@@ -19,6 +19,7 @@ import {
   findScheduledDeliveries,
   getLastDigestDateUtc,
   recordDigestSent,
+  saveRunMetrics,
 } from "./supabase.js";
 import { crawlWebsite } from "./crawl.js";
 import { captureSiteScreenshots } from "./screenshots.js";
@@ -36,8 +37,8 @@ import { collectorFocus, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
 import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudePausedEmail } from "./email.js";
-import { startRunMetrics, finishRunMetrics, hasClaudeCalls } from "./run-metrics.js";
-import { readUsageWindows, checkApiKey, claudeModel, isAccountError, isRateLimitError, lastClaudeSuccessAt } from "./claude.js";
+import { startRunMetrics, finishRunMetrics, recordStage, type RunOutcome } from "./run-metrics.js";
+import { checkApiKey, claudeModel, isAccountError, isRateLimitError, lastClaudeSuccessAt } from "./claude.js";
 import { runWithLog } from "./log-context.js";
 import type { AuditRequestRow, JobProgress } from "./types.js";
 
@@ -98,11 +99,15 @@ function parseLimitResetAt(err: unknown): Date | null {
   return usable.length ? new Date(usable[0]) : null;
 }
 
-// Logs how long one stage of processRequest took. Stages a resumed run skips
-// never start a timer, so they log nothing.
+// Logs how long one stage of processRequest took, and adds it to the run's
+// metrics. Stages a resumed run skips never start a timer, so they log nothing.
 function stageTimer(stage: string): () => void {
   const started = Date.now();
-  return () => console.log(`[audit-worker] Stage ${stage} done in ${Math.round((Date.now() - started) / 1000)}s`);
+  return () => {
+    const ms = Date.now() - started;
+    recordStage(stage, ms);
+    console.log(`[audit-worker] Stage ${stage} done in ${Math.round(ms / 1000)}s`);
+  };
 }
 
 /**
@@ -406,23 +411,27 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     heartbeat(row.id, WORKER_ID).catch(err => console.warn(`[audit-worker] Heartbeat failed for ${row.id}:`, err?.message ?? err));
   }, HEARTBEAT_MS);
 
-  // Wall-clock + Claude plan usage for this attempt, from claim to end,
-  // printed and saved to output/run-metrics.jsonl in the finally below.
-  startRunMetrics(row.id, row.website, row.attempts);
-  let outcome = "completed";
+  // Time, stages and Claude API cost for this attempt, from claim to end.
+  // Printed, added to output/run-metrics.jsonl and saved to
+  // audit_run_metrics in the finally below.
+  startRunMetrics(row.id, row.website, row.attempts, { isTest: row.is_test, workerId: WORKER_ID });
+  let outcome: RunOutcome = "completed";
+  let errorMessage: string | undefined;
   try {
     await processRequest(row, WORKER_ID);
   } catch (err: any) {
     const message = err?.message ?? String(err);
-    outcome = `error: ${message.slice(0, 200)}`;
+    errorMessage = message;
 
     if (err instanceof LostLeaseError) {
+      outcome = "lost_lease";
       console.warn(`[audit-worker] ${message}; another worker owns it now, stopping without touching the row`);
       return true;
     }
 
     // Before the rate-limit check: a spend-limit 429 matches both.
     if (isAccountError(err)) {
+      outcome = "account_error";
       try {
         const retryAfter = await markRequestRateLimited(row.id, row.retry_count, row.attempts - 1, message, null);
         console.warn(`[audit-worker] Account error on ${row.id}, retaining queue position - retrying after ${retryAfter.toISOString()}`);
@@ -434,6 +443,7 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     }
 
     if (isRateLimitError(err)) {
+      outcome = "rate_limited";
       try {
         const resetAt = parseLimitResetAt(err);
         const retryAfter = await markRequestRateLimited(row.id, row.retry_count, row.attempts - 1, message, resetAt);
@@ -448,6 +458,7 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
     }
 
     if (row.attempts < MAX_ATTEMPTS) {
+      outcome = "retry_scheduled";
       const minutes = RETRY_BACKOFF_MINUTES[Math.min(row.attempts - 1, RETRY_BACKOFF_MINUTES.length - 1)];
       const retryAfter = new Date(Date.now() + minutes * 60_000);
       console.error(`[audit-worker] Attempt ${row.attempts}/${MAX_ATTEMPTS} failed for ${row.id}, retrying after ${retryAfter.toISOString()}:`, err);
@@ -460,6 +471,7 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
       return true;
     }
 
+    outcome = "failed";
     console.error(`[audit-worker] Failed ${row.id} after ${row.attempts} attempts, giving up:`, err);
     try {
       await markRequestFailed(row.id, message);
@@ -483,9 +495,16 @@ async function runClaimed(row: AuditRequestRow): Promise<boolean> {
   } finally {
     clearInterval(beat);
     noteAccountRecovered();
-    // One cheap extra claude -p for the closing 5-hour reading (see
-    // readUsageWindows) — skipped when the run made no Claude calls.
-    finishRunMetrics(outcome, hasClaudeCalls() ? await readUsageWindows() : undefined);
+    const metrics = finishRunMetrics(outcome, errorMessage);
+    // Never allowed to affect the audit: a failed insert (say, the
+    // migration isn't applied yet) is only logged.
+    if (metrics) {
+      try {
+        await saveRunMetrics(metrics);
+      } catch (err) {
+        console.warn(`[audit-worker] Could not save run metrics for ${row.id}:`, err instanceof Error ? err.message : err);
+      }
+    }
   }
   return true;
 }

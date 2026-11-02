@@ -2,29 +2,34 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * Per-run timing + Claude plan usage for one audit request.
+ * Per-run timing and Claude API cost for one audit attempt.
  *
- * Wall-clock time comes from Date.now() around the whole job (tick() in
- * poll.ts). Plan usage comes from the `rate_limit_event` lines `claude -p
- * --output-format stream-json` emits (see claude.ts): each carries the
- * account's current 5-hour and 7-day window utilization as a 0-1 fraction.
- * The first reading of the first call vs the last reading of the last call
- * is how much of the window this run moved.
+ * Wall-clock time comes from Date.now() around the whole job (runClaimed in
+ * poll.ts) and around each stage (poll.ts's stageTimer). Each claude -p call
+ * reports its model, billing source, retries, tokens and cost, read from its
+ * stream-json output (claude.ts).
  *
- * Caveat, stated in every summary: the window is shared by the whole
- * account, so anything else using Claude at the same time (an interactive
- * Claude Code session, claude.ai) lands in the same delta. Run nothing else
- * during a measurement run for a clean number.
+ * The cost is the CLI's own estimate, from the price table bundled with it.
+ * The Anthropic Console's Usage page is the bill: compare the two now and
+ * then.
  *
- * Every finished run is also appended to output/run-metrics.jsonl, so the
- * numbers survive the terminal (the worker has been killed mid-session
- * before, taking its console output with it).
+ * A finished run is printed, appended to output/run-metrics.jsonl (so the
+ * numbers survive the terminal) and returned as a row for the
+ * audit_run_metrics table, which poll.ts saves.
  */
 
-export interface UsageWindows {
-  fiveHour?: number;
-  sevenDay?: number;
-  fiveHourResetsAt?: number;
+export interface TokenCounts {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+}
+
+// One model's share of a call (the CLI's modelUsage). costBasis "unknown"
+// means the CLI has no price for that model, so its cost can't be trusted.
+export interface ModelCallUsage extends TokenCounts {
+  costUsd?: number;
+  costBasis?: string;
 }
 
 export interface ClaudeCallMetrics {
@@ -32,27 +37,62 @@ export interface ClaudeCallMetrics {
   startedAt: number;
   endedAt: number;
   ok: boolean;
+  // The model the call ran on, and what it was billed to ("ANTHROPIC_API_KEY"
+  // when it billed the API key, as it should).
+  model?: string;
+  authSource?: string;
+  // API calls the CLI retried itself (429/529 and the like), with their statuses.
+  retries: number;
+  retryStatuses?: number[];
   apiMs?: number;
   turns?: number;
   costUsd?: number;
-  tokens?: { input: number; output: number; cacheRead: number; cacheCreation: number };
-  // First and last rate_limit_event seen during this call.
-  usageStart?: UsageWindows;
-  usageEnd?: UsageWindows;
+  tokens?: TokenCounts;
+  models?: Record<string, ModelCallUsage>;
 }
 
-interface ActiveRun {
+export type RunOutcome = "completed" | "retry_scheduled" | "failed" | "rate_limited" | "account_error" | "lost_lease";
+
+export interface ActiveRun {
   requestId: string;
   website: string;
   attempt: number;
+  isTest: boolean;
+  workerId: string;
   startedAt: number;
   calls: ClaudeCallMetrics[];
+  // Stage name -> milliseconds, for the stages this attempt finished.
+  stages: Record<string, number>;
+}
+
+// One row of audit_run_metrics (supabase/migrations/2026-11-02-1-add-audit-run-metrics).
+export interface RunMetricsRow {
+  audit_request_id: string;
+  attempt: number;
+  worker_id: string;
+  is_test: boolean;
+  outcome: RunOutcome;
+  error: string | null;
+  model: string | null;
+  auth_source: string | null;
+  started_at: string;
+  ended_at: string;
+  total_ms: number;
+  claude_ms: number;
+  cost_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  retries: number;
+  calls: ClaudeCallMetrics[];
+  stages: Record<string, number>;
 }
 
 let active: ActiveRun | null = null;
 
-export function startRunMetrics(requestId: string, website: string, attempt: number): void {
-  active = { requestId, website, attempt, startedAt: Date.now(), calls: [] };
+export function startRunMetrics(requestId: string, website: string, attempt: number, opts: { isTest: boolean; workerId: string }): void {
+  active = { requestId, website, attempt, isTest: opts.isTest, workerId: opts.workerId, startedAt: Date.now(), calls: [], stages: {} };
 }
 
 // A call outside a tracked run (test-run.ts, preview scripts) is still
@@ -60,6 +100,10 @@ export function startRunMetrics(requestId: string, website: string, attempt: num
 export function recordClaudeCall(call: ClaudeCallMetrics): void {
   console.log(`[claude-usage] ${describeCall(call)}`);
   active?.calls.push(call);
+}
+
+export function recordStage(stage: string, ms: number): void {
+  if (active) active.stages[stage] = ms;
 }
 
 /** Exact elapsed time between two timestamps, as "1h 04m 09.312s". */
@@ -71,63 +115,84 @@ export function formatDuration(ms: number): string {
   return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m ${seconds}s` : `${minutes}m ${seconds}s`;
 }
 
-function pct(fraction: number | undefined): string {
-  return fraction === undefined ? "n/a" : `${(fraction * 100).toFixed(1)}%`;
-}
-
-function windowDelta(start?: number, end?: number): string {
-  if (start === undefined || end === undefined) return `${pct(start)} -> ${pct(end)}`;
-  const delta = (end - start) * 100;
-  return `${pct(start)} -> ${pct(end)} (${delta >= 0 ? "+" : ""}${delta.toFixed(1)} pts)`;
+function tokenText(t: TokenCounts): string {
+  return `tokens in ${t.input} / out ${t.output} / cache read ${t.cacheRead} / cache write ${t.cacheCreation}`;
 }
 
 function describeCall(c: ClaudeCallMetrics): string {
-  const t = c.tokens;
   return [
     `${c.label}${c.ok ? "" : " (FAILED)"}: ${formatDuration(c.endedAt - c.startedAt)} wall`,
     c.apiMs !== undefined ? `${formatDuration(c.apiMs)} API` : null,
     c.turns !== undefined ? `${c.turns} turns` : null,
-    t ? `tokens in ${t.input} / out ${t.output} / cache read ${t.cacheRead} / cache write ${t.cacheCreation}` : null,
-    c.costUsd !== undefined ? `$${c.costUsd.toFixed(2)} list-price equiv.` : null,
-    `5h window ${windowDelta(c.usageStart?.fiveHour, c.usageEnd?.fiveHour)}`,
+    c.model ? `model ${c.model}` : null,
+    c.tokens ? tokenText(c.tokens) : null,
+    c.costUsd !== undefined ? `$${c.costUsd.toFixed(2)} (estimate)` : null,
+    c.retries > 0 ? `${c.retries} API retries (${(c.retryStatuses ?? []).join(", ") || "status n/a"})` : null,
+    c.authSource && c.authSource !== "ANTHROPIC_API_KEY" ? `billed to ${c.authSource}, not the API key` : null,
   ].filter(Boolean).join(" · ");
 }
 
-/**
- * Logs the run summary and appends it to output/run-metrics.jsonl.
- * `endUsage` is a reading taken after the last call (readUsageWindows in
- * claude.ts) — without it the end of the window delta is the START of the
- * last call, missing whatever that call itself used.
- */
-export function hasClaudeCalls(): boolean {
-  return (active?.calls.length ?? 0) > 0;
+// The distinct non-empty values, comma-joined, or null when there are none.
+function distinct(values: (string | undefined)[]): string | null {
+  return Array.from(new Set(values.filter((v): v is string => Boolean(v)))).join(", ") || null;
 }
 
-export function finishRunMetrics(outcome: string, endUsage?: UsageWindows): void {
-  if (!active) return;
+/** The audit_run_metrics row for a finished run. Pure, so it can be tested. */
+export function buildRunMetricsRow(run: ActiveRun, endedAt: number, outcome: RunOutcome, error?: string): RunMetricsRow {
+  const sum = (pick: (c: ClaudeCallMetrics) => number | undefined) => run.calls.reduce((total, c) => total + (pick(c) ?? 0), 0);
+  return {
+    audit_request_id: run.requestId,
+    attempt: run.attempt,
+    worker_id: run.workerId,
+    is_test: run.isTest,
+    outcome,
+    error: error ? error.slice(0, 2000) : null,
+    model: distinct(run.calls.map(c => c.model)),
+    auth_source: distinct(run.calls.map(c => c.authSource)),
+    started_at: new Date(run.startedAt).toISOString(),
+    ended_at: new Date(endedAt).toISOString(),
+    total_ms: endedAt - run.startedAt,
+    claude_ms: sum(c => c.endedAt - c.startedAt),
+    // Rounded to the column's 4 decimals.
+    cost_usd: Math.round(sum(c => c.costUsd) * 10_000) / 10_000,
+    input_tokens: sum(c => c.tokens?.input),
+    output_tokens: sum(c => c.tokens?.output),
+    cache_read_tokens: sum(c => c.tokens?.cacheRead),
+    cache_write_tokens: sum(c => c.tokens?.cacheCreation),
+    retries: sum(c => c.retries),
+    calls: run.calls,
+    stages: run.stages,
+  };
+}
+
+/**
+ * Ends the run: logs the summary, appends it to output/run-metrics.jsonl and
+ * returns the row for audit_run_metrics (null when no run was started).
+ */
+export function finishRunMetrics(outcome: RunOutcome, error?: string): RunMetricsRow | null {
+  if (!active) return null;
   const run = active;
   active = null;
-  const endedAt = Date.now();
+  const row = buildRunMetricsRow(run, Date.now(), outcome, error);
 
-  const readings = [...run.calls.flatMap(c => [c.usageStart, c.usageEnd]), endUsage].filter((u): u is UsageWindows => Boolean(u));
-  const first = readings[0];
-  const last = readings[readings.length - 1];
-  const claudeMs = run.calls.reduce((sum, c) => sum + (c.endedAt - c.startedAt), 0);
-  const cost = run.calls.reduce((sum, c) => sum + (c.costUsd ?? 0), 0);
-
+  const stages = Object.entries(row.stages).map(([stage, ms]) => `${stage} ${formatDuration(ms)}`).join(" · ");
+  const offKey = row.auth_source && row.auth_source.split(", ").some(s => s !== "ANTHROPIC_API_KEY");
+  const unpriced = Array.from(new Set(run.calls.flatMap(c => Object.entries(c.models ?? {}).filter(([, u]) => u.costBasis === "unknown").map(([m]) => m))));
   const lines = [
     `===== Run metrics: ${run.requestId} (${run.website}), attempt ${run.attempt} =====`,
-    `Outcome:           ${outcome}`,
-    `Started:           ${new Date(run.startedAt).toISOString()}`,
-    `Finished:          ${new Date(endedAt).toISOString()}`,
-    `Total time:        ${formatDuration(endedAt - run.startedAt)}`,
-    `claude -p calls:   ${run.calls.length}, ${formatDuration(claudeMs)} combined`,
+    `Outcome:           ${outcome}${row.error ? `: ${row.error.slice(0, 200)}` : ""}`,
+    `Started:           ${row.started_at}`,
+    `Finished:          ${row.ended_at}`,
+    `Total time:        ${formatDuration(row.total_ms)}`,
+    `Stages:            ${stages || "none finished"}`,
+    `claude -p calls:   ${run.calls.length}, ${formatDuration(row.claude_ms)} combined`,
     ...run.calls.map(c => `  - ${describeCall(c)}`),
-    `5-hour window:     ${windowDelta(first?.fiveHour, last?.fiveHour)}` +
-      (last?.fiveHourResetsAt ? `, resets ${new Date(last.fiveHourResetsAt * 1000).toISOString()}` : ""),
-    `7-day window:      ${windowDelta(first?.sevenDay, last?.sevenDay)}`,
-    `Cost (list price): $${cost.toFixed(2)} (plan usage, not billed)`,
-    `Note: the windows are account-wide; other Claude use during this run is included in the delta.`,
+    `Model:             ${row.model ?? "n/a"}`,
+    `Tokens:            ${tokenText({ input: row.input_tokens, output: row.output_tokens, cacheRead: row.cache_read_tokens, cacheCreation: row.cache_write_tokens })}`,
+    `API retries:       ${row.retries}`,
+    `Cost (estimate):   $${row.cost_usd.toFixed(2)}, from the CLI's price table; the Anthropic Console is the bill`,
+    ...(offKey ? [`WARNING: billed to ${row.auth_source}, not only ANTHROPIC_API_KEY`] : []),
+    ...(unpriced.length ? [`WARNING: the CLI has no price for ${unpriced.join(", ")}; the cost above is incomplete`] : []),
     `=====`,
   ];
   console.log(lines.join("\n"));
@@ -135,26 +200,9 @@ export function finishRunMetrics(outcome: string, endUsage?: UsageWindows): void
   try {
     const dir = path.resolve(process.cwd(), "output");
     fs.mkdirSync(dir, { recursive: true });
-    fs.appendFileSync(
-      path.join(dir, "run-metrics.jsonl"),
-      JSON.stringify({
-        requestId: run.requestId,
-        website: run.website,
-        attempt: run.attempt,
-        outcome,
-        startedAt: new Date(run.startedAt).toISOString(),
-        endedAt: new Date(endedAt).toISOString(),
-        totalMs: endedAt - run.startedAt,
-        totalFormatted: formatDuration(endedAt - run.startedAt),
-        fiveHourStart: first?.fiveHour,
-        fiveHourEnd: last?.fiveHour,
-        sevenDayStart: first?.sevenDay,
-        sevenDayEnd: last?.sevenDay,
-        costUsd: cost,
-        calls: run.calls,
-      }) + "\n",
-    );
+    fs.appendFileSync(path.join(dir, "run-metrics.jsonl"), JSON.stringify({ ...row, website: run.website }) + "\n");
   } catch (err) {
     console.warn("[run-metrics] Could not write output/run-metrics.jsonl:", err instanceof Error ? err.message : err);
   }
+  return row;
 }
