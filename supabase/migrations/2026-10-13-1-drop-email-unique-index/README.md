@@ -7,5 +7,5 @@
 **How to run:** Run `migration.sql` once in the Supabase SQL Editor. Safe to re-run.
 
 **Applied:**
-- [ ] Staging
-- [ ] Production
+- [x] Staging
+- [x] Production
