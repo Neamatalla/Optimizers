@@ -7,5 +7,5 @@
 **How to run:** Run `migration.sql` once in the Supabase SQL Editor, before deploying the worker from this version. Safe to re-run. If the worker runs before it, audits still work; it only logs that it couldn't save the metrics.
 
 **Applied:**
-- [ ] Staging
-- [ ] Production
+- [x] Staging
+- [x] Production
