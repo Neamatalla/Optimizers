@@ -15,7 +15,7 @@ How we work on this repo. Claude reads this before starting any work.
   git pull
   git switch -c feature/short-name
   ```
-- Never work directly on `staging` or `main`.
+- Never work directly on `staging` or `main`, unless explicitly told to.
 - Never branch from `main`, unless explicitly told to.
 - Names: `feature/…`, `fix/…`, `chore/…`, plus a short description (e.g. `fix/mobile-menu-scroll`). No personal names.
 
