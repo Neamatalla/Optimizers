@@ -322,7 +322,9 @@ export interface AuditResult {
 // rule couldn't be reached — never turned into a pass or a fail).
 export type FudStatus = "pass" | "warn" | "fail" | "unassessed";
 export type FudBand = "quick_win" | "dev_task" | "test_first";
-export type FudPageType = "home" | "product" | "cart" | "collection";
+// "landing": where paid campaigns land (GA4), "checkout": its first screen only,
+// nothing typed (round 19). Older runs only have the first four.
+export type FudPageType = "home" | "product" | "cart" | "collection" | "landing" | "checkout";
 
 export interface FudPexti {
   // 0-100, from the five 1-5 factors below (src/fud/score.ts).
@@ -393,6 +395,48 @@ export interface FudResult {
   // Money and segment insights from the store's own GA4 data (fud/insights.ts).
   // Null when there was no GA4 data or too little traffic.
   insights?: FudInsights | null;
+  // The CRO team's full manual checklist, run by the tool
+  // (fud/manual-checklist.ts). Absent on runs before 2026-11-02 or when the
+  // pass was turned off (CRO_CHECKLIST=off) or failed.
+  checklist?: ManualChecklistResult;
+}
+
+// ---- The CRO manual checklist (fud/manual-checklist.ts) ----
+// The sheet's own verdict scale. "na" (doesn't apply to this store) and
+// "unknown" (the visit can't show it) exist only while judging: they are
+// dropped before the result is saved, so the report never shows them.
+export type ManualVerdict = "well" | "adequate" | "badly" | "missing" | "na" | "unknown";
+export type ManualShownVerdict = Exclude<ManualVerdict, "na" | "unknown">;
+export interface ManualText { en: string; ar: string }
+
+// The full write-up for a checkpoint the store doesn't do well.
+export interface ManualExplain {
+  // The problem on this store, as a headline.
+  title: ManualText;
+  // What the visit saw on this store, in its own words where possible.
+  found: ManualText;
+  // Why it matters: what it does to shoppers and to sales.
+  means: ManualText;
+  // The exact issue and what it costs.
+  problem: ManualText;
+  // The fix, as ordered steps.
+  fix: { en: string[]; ar: string[] };
+  // How the store can tell it's fixed.
+  done: ManualText;
+}
+
+export interface ManualChecklistResult {
+  version: string;
+  // Only checkpoints that apply to this store and could be judged.
+  // seen: one line of what the visit saw. t: the checkpoint in short Arabic.
+  // x: the full write-up (every verdict except "well").
+  items: Array<{ id: string; v: ManualShownVerdict; seen?: ManualText; t?: string; x?: ManualExplain }>;
+  // Checkpoints sent to the reviewer, and how many were dropped as
+  // "doesn't apply" or "can't tell".
+  ran: number;
+  dropped: number;
+  // Reviewer calls that failed; their checkpoints are simply missing.
+  failedBatches: number;
 }
 
 export interface FudInsightLine {
@@ -463,6 +507,8 @@ export interface Ga4Focus {
   productUrl?: string;
   landingUrl?: string;
   campaignLandingUrl?: string;
+  // Up to two pages with the most paid visits (round 19): opened as ad landing pages.
+  paidLandingUrls?: string[];
 }
 
 export interface Ga4Facts {
@@ -475,6 +521,23 @@ export interface Ga4Facts {
   aov: number | null;
   focus: Ga4Focus;
   facts: Record<string, Ga4Fact>;
+  // Visits, engaged visits, cart adds, sales and revenue per channel /
+  // source / medium / campaign (trafficSources, top 40 by visits), for the
+  // buyer's campaign cards. Optional: runs before 2026-11-02 don't have it,
+  // and revenue is null on pulls made before the report asked for it.
+  campaigns?: Ga4CampaignRow[];
+}
+
+export interface Ga4CampaignRow {
+  channel: string;
+  source: string;
+  medium: string;
+  campaign: string;
+  sessions: number;
+  engaged: number;
+  adds: number;
+  sales: number;
+  revenue: number | null;
 }
 
 // ---- browser facts from the friction collector (site-checks.ts) ----
@@ -489,6 +552,13 @@ export interface SiteChecks {
   // pixelMapFrom), and the GA4 measurement IDs and Meta pixel IDs seen.
   // Optional: runs from before 2026-11-01 don't have it.
   pixelMap?: { pages: Array<{ pageType: string; hits: Array<{ vendor: string; name: string; count: number }> }>; ids: Record<string, string[]> } | null;
+  // What each funnel step sent each platform, and what the event carried
+  // (signal-quality.ts, round 19). Absent on older runs.
+  signal?: import("./signal-quality.js").SignalQuality | null;
+  // The pages paid campaigns land on, and the first checkout screen, as the
+  // phone visit saw them (round 20, ad-match.ts). Absent on older runs.
+  landing?: import("./ad-match.js").LandingSummary[];
+  checkout?: import("./ad-match.js").CheckoutSummary | null;
   contactLinks: Array<{ href: string; kind: "whatsapp" | "tel"; valid: boolean }>;
   soldOutPromoted: number;
   heroVideoMobile: boolean;

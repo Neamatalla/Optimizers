@@ -73,6 +73,18 @@ export const PATTERNS = {
   localPayment: /\bmada\b|meeza|fawry|instapay|vodafone cash|valu|tabby|tamara|sympl|souhoola|\bknet\b|benefit ?pay|stc ?pay|apple ?pay|cash on delivery|\bcod\b|مدى|ميزة|فوري|انستاباي|فودافون كاش|فاليو|تابي|تمارا|الدفع عند الاستلام/,
   stockPhoto: /unsplash|pexels|shutterstock|istockphoto|gettyimages|depositphotos|freepik|stock-photo|adobestock/,
   priceJustification: /premium|handmade|hand.?made|made in|genuine|authentic|original|100% (?:cotton|natural|pure|silk|leather)|organic|natural|lab.?tested|dermatologist|clinically|certified|imported|quality|اصلي|أصلي|طبيعي|عضوي|صناعة|مصنوع|يدوي|جودة|مستورد|معتمد|خامة|خامات/,
+  // Round 17 (fud-2.1.0): the landing-page framework rules (ATIDFA, CRO wireframes).
+  offer: /\d+ ?% ?off|\bsale\b|discount|\boffer\b|deal|buy \d+ get|خصم|تخفيض|عرض|عروض|اوفر/,
+  ratedBy: /rated \d|\d(?:\.\d)? ?(?:\/|out of) ?5|\d[\d,.]*k?\+? (?:happy |satisfied )?(?:customers|reviews|orders|clients)|[\d,.]+\+? (?:عميل|تقييم|طلب)|★|⭐/,
+  checkMark: /^[✓✔☑✅√]|^[-•▪●]\s/,
+  genericCta: /^(?:shop now|shop|buy now|learn more|discover|discover more|explore|see more|view more|click here|order now|تسوق الان|تسوقي الان|تسوق|اكتشف|اكتشفي|اشتري الان|اطلب الان|المزيد|شاهد المزيد)$/,
+  howItWorks: /how it works|how to use|how to order|step 1|step one|\d (?:easy |simple )?steps|order today|delivered to your door|خطوات|خطوة 1|كيف (?:يعمل|تطلب|تستخدم)|طريقة (?:الاستخدام|الطلب)|يوصلك لحد/,
+  whatsIncluded: /what'?s included|what'?s in the box|in the box|package (?:includes|contents)|includes:|محتويات|العلبة تحتوي|يشمل|تحتوي العلبة/,
+  ugc: /customer photos|photos from (?:our )?customers|real customers|real results|tag us|as seen on (?:instagram|tiktok)|#[a-z]\w{2,}|صور العملاء|من عملائنا|تجارب العملاء|نتايج حقيقية|نتائج حقيقية/,
+  comparison: /\bvs\.?\b|versus|compared (?:to|with)|comparison|other brands|the others|why (?:choose|us)|مقارنة|مقابل|غيرنا|ليه تختار|لماذا تختار|المنتجات الاخري/,
+  faq: /\bfaq|frequently asked|common questions|questions\?|have questions|الاسئلة الشائعة|اسئلة متكررة|اسئلة شائعة|اسئلتكم/,
+  savings: /you sav(?:e|ed)|savings?|\bsaved\b|you'?re saving|وفرت|توفير|بتوفر|خصمك|وفّرت/,
+  merchBadge: /best ?sellers?|selling fast|top rated|most popular|new arrival|limited edition|back in stock|الاكثر مبيعا|الاكثر طلبا|الاكثر مبيع|وصل حديثا|كمية محدودة|بينفد|ينفد بسرعة/,
 };
 
 export type PatternKey = keyof typeof PATTERNS;

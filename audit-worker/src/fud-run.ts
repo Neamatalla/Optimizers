@@ -57,7 +57,10 @@ async function main() {
     const crawl = await crawlWebsite(url);
     const pages = await discoverPages(url, crawl.html);
     console.log(`[fud-run] discovered ${pages.length} pages:\n  ${pages.join("\n  ")}`);
-    evidence = await collectStoreEvidence(url, pages);
+    // --landing=<url> (repeatable): open it as an ad landing page, as GA4's
+    // paid landing report would in a real audit.
+    const landing = args.filter(a => a.startsWith("--landing=")).map(a => ({ url: a.slice("--landing=".length), source: "given on the command line" }));
+    evidence = await collectStoreEvidence(url, pages, landing.length ? { landing } : {});
   }
 
   const host = new URL(url!).hostname.replace(/^www\./, "");

@@ -160,7 +160,12 @@ export function buildPrompt(input: AuditPromptInput): string {
   const categories = countedCategories(input.tools);
   const ga4Candidates = dedupeUpper([...input.crawl.ids.ga4MeasurementIds, input.userProvidedGa4Id]);
   const gtmCandidates = dedupeUpper([...input.crawl.ids.gtmContainerIds, input.userProvidedGtmId]);
-
+  // Example ids for the instructions, taken from THIS reader's checklist: a
+  // fixed "GA4-03" taught the model the base ids, which don't exist on the
+  // store-owner and media-buyer lists (MB-GA4-03).
+  const exampleIds = categories.map(c => checklistFor(c, input.tools, input.audienceRole)[2]?.id ?? checklistFor(c, input.tools, input.audienceRole)[0]?.id).filter((x): x is string => Boolean(x));
+  const exampleA = exampleIds[0] ?? "GA4-03";
+  const exampleB = exampleIds[1] ?? exampleIds[0] ?? "W-22";
 
   const brief = readerBrief(input.audienceRole);
   // The reader's own questions (reader-questions.ts, from their ICP card).
@@ -352,7 +357,7 @@ never opened GA4 or GTM. Write it at about a grade 6-8 reading level:
    is wrong with real evidence, and what it costs.
 
 In both cases: "checklistId" is that point's EXACT id from the list below
-(e.g. "GA4-03", "W-22") — never invent an id that isn't in the checklist,
+(e.g. "${exampleA}", "${exampleB}") — never invent an id that isn't in the checklist,
 never cite the same id twice, and never split one point across multiple
 findings. Every checklistId you cite must come verbatim from the checklists
 below.
@@ -523,7 +528,7 @@ shape exactly:
       "category": "<one of: ${categories.join(" | ")}>",
       "findings": [
         {
-          "checklistId": "<the EXACT id of the checklist point this finding is about, e.g. GA4-15 — must be copied verbatim from that category's checklist above, and every point gets exactly one of these, pass or fail>",
+          "checklistId": "<the EXACT id of the checklist point this finding is about, e.g. ${exampleA} — must be copied verbatim from that category's checklist above, and every point gets exactly one of these, pass or fail>",
           "status": "<pass|fail>",
           "technical": {
             "summary": "<one line, engineer register: the literal state found, with the real value/name/number that proves it. Never a restatement of the checklist point's own title/expectedState>",
@@ -678,6 +683,15 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
 
   const byId = new Map<string, RawCategoryFinding>();
   for (const f of raw.findings ?? []) {
+    // A reader's own checklist renames the points (MB-GA4-07 for the media
+    // buyer); the model sometimes answers with the base id (GA4-07). That is
+    // the same point, so map it instead of dropping it: on 2026-11-02 a
+    // media-buyer run lost all 50 GA4/GTM answers this way and every one
+    // became a generic pass.
+    if (!validIds.has(f.checklistId) && typeof f.checklistId === "string") {
+      const alias = [...validIds].filter(id => id.endsWith(`-${f.checklistId}`));
+      if (alias.length === 1) f.checklistId = alias[0];
+    }
     if (!validIds.has(f.checklistId)) {
       console.warn(`[audit-prompt] ${raw.category}: a finding cited unknown checklist id "${f.checklistId}", dropped`);
       continue;

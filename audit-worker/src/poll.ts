@@ -32,7 +32,7 @@ import { translateFindingsToArabic } from "./translate-ar.js";
 import { fudPassEnabled, isFudResult, runFrictionStage } from "./fud/index.js";
 import { collectStoreEvidence } from "./fud/collect.js";
 import type { StoreEvidence } from "./fud/evidence.js";
-import { collectorFocus, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
+import { collectorFocus, collectorLanding, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
 import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudeLoginAlertEmail } from "./email.js";
@@ -119,7 +119,7 @@ function stageTimer(stage: string): () => void {
  *
  * Emails are recorded the moment they succeed, so none is ever sent twice.
  */
-async function processRequest(row: AuditRequestRow, workerId: string): Promise<void> {
+export async function processRequest(row: AuditRequestRow, workerId: string): Promise<void> {
   const progress: JobProgress = { ...(row.progress ?? {}) };
   const done = [progress.categories && "audit", progress.translated && "translate", progress.reportUrl && "publish"].filter(Boolean);
   console.log(
@@ -165,13 +165,13 @@ async function processRequest(row: AuditRequestRow, workerId: string): Promise<v
     const focus = ga4Focus(row.ga4_oauth_data, row.website);
     if (fudPassEnabled(row)) {
       try {
-        evidence = await collectStoreEvidence(row.website, discoveredPages, { focus: collectorFocus(focus) });
+        evidence = await collectStoreEvidence(row.website, discoveredPages, { focus: collectorFocus(focus), landing: collectorLanding(focus) });
       } catch (err) {
         console.warn(`[audit-worker] Store visit failed for ${row.id}: ${err instanceof Error ? err.message : err}`);
       }
     }
     const ga4Facts = computeGa4Facts(row.ga4_oauth_data, row.website, evidence);
-    const siteChecks = evidence ? siteChecksFrom(evidence, crawl.structuralSignals.cmsPlatformGuess) : null;
+    const siteChecks = evidence ? siteChecksFrom(evidence, crawl.structuralSignals.cmsPlatformGuess, ga4Facts?.currency) : null;
     const clarityFacts = computeClarityFacts(row.clarity_data);
     if (clarityFacts) {
       console.log(`[audit-worker] Clarity: ${clarityFacts.sessions} sessions in ${clarityFacts.days} days, ${clarityFacts.hotPages?.length ?? "no"} page outliers`);
@@ -543,7 +543,11 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error("[audit-worker] Fatal error:", err);
-  process.exit(1);
-});
+// AUDIT_WORKER_NO_POLL=1: imported by the local pipeline runner
+// (local-pipeline.ts), which calls processRequest itself. Never set in production.
+if (process.env.AUDIT_WORKER_NO_POLL !== "1") {
+  main().catch(err => {
+    console.error("[audit-worker] Fatal error:", err);
+    process.exit(1);
+  });
+}

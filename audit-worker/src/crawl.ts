@@ -150,14 +150,22 @@ function extractUnique(html: string, pattern: RegExp): string[] {
   return Array.from(found);
 }
 
+// Store platforms (Zid, Salla and others) don't print Google's snippet: they
+// keep the ID in a JSON settings object and build the gtm.js / gtag.js URL in
+// script at runtime (regal-honey.com on Zid, 2026-11-02:
+// "google_tag_manager": "GTM-KVB5RD5L", no literal ?id=GTM-…). These match a
+// quoted settings key and a quoted, exactly-shaped ID only, so CSS classes
+// and free text still can't pass as IDs.
 const GA4_PATTERNS = [
   /googletagmanager\.com\/gtag\/js\?id=(G-[A-Z0-9]+)/gi,
   /gtag\(\s*['"]config['"]\s*,\s*['"](G-[A-Z0-9]+)['"]/gi,
+  /["'](?:google_analytics(?:_4)?(?:_id)?|ga4(?:_id|_measurement_id)?|google_measurement_id|measurement_id)["']\s*:\s*["'](G-[A-Z0-9]{6,12})["']/gi,
 ];
 
 const GTM_PATTERNS = [
   /googletagmanager\.com\/ns\.html\?id=(GTM-[A-Z0-9]+)/gi,
   /googletagmanager\.com\/gtm\.js\?id=(GTM-[A-Z0-9]+)/gi,
+  /["'](?:google_tag_manager(?:_id)?|gtm(?:_id|_container_id)?|google_tag_manager_container)["']\s*:\s*["'](GTM-[A-Z0-9]{4,10})["']/gi,
 ];
 
 /**
@@ -170,10 +178,12 @@ const GTM_PATTERNS = [
 export async function crawlWebsite(url: string): Promise<CrawlFindings> {
   // Bounded so a stalled connection (seen in practice — no error, no socket
   // ever showing in netstat, just an unresolved promise) fails fast instead
-  // of hanging the whole run indefinitely.
+  // of hanging the whole run indefinitely. 45s, not 20s: some real stores
+  // take over 20s to send their homepage (regal-honey.com: ~22s,
+  // 2026-11-02), and a 20s limit failed the whole audit at the first step.
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; OptimizersAuditBot/1.0; +https://optimizers.example)" },
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);

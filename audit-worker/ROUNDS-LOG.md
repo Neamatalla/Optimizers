@@ -17,11 +17,18 @@ under **Changed later**, so each entry still matches what's live.
 - **Pre-existing test failures:** 29 of the API tests in `tests/api`
   (audit-request and contact handlers) fail with or without these rounds.
   Not investigated.
-- **Review tooling (not in the repo):** the before/after screenshots
-  (`shot2.mjs`, `shot3.mjs`), section dumps (`sections.mjs`) and the duplicate
-  audit (`dupes.mjs`, `dupes2.mjs`) live in the session scratchpad, with each
-  round's patch (`round1-icp2-full.patch` … `round4-icp2.patch`). The "after"
-  pages are `output/roundN-icp2-after.html`; `output/` is gitignored.
+- **Review tooling (not in the repo):** in the session scratchpad.
+  - Screenshots: `shot2.mjs`, `shot3.mjs`; section dumps `sections.mjs`,
+    `blocks.mjs` (section → child blocks with heights).
+  - Audits: duplicates `dupes.mjs`, `dupes2.mjs`; grade `grade.mjs`; numbers
+    `numbers.mjs`; sentence length `sentences.mjs` (round 12); links and nav
+    order `nav11.mjs` (round 11); phone section bar `jump.mjs` (round 11);
+    motion `motion10.mjs` (round 10); carousels `car13.mjs` (round 12).
+  - Every round's patch: `round1-icp2-full.patch` … `round11b-icp2.patch`,
+    `round12-icp2.patch`, `round12b-carousel.patch`; edit scripts in `code/`.
+  - The "after" pages are `output/roundN-icp2-after.html`; `output/` is
+    gitignored. With store screenshots: `round11-icp2-shots.html` (preview
+    with `--shots=https://tharaa.shop`).
 - **Not tested on a live run:** re-rendering a real buyer run from Supabase
   was blocked as a production read. Tested on the preview fixture
   (`npm run preview-report -- --path=tracking --fud --clarity --site --role=media_buyer --no-ar`)
@@ -29,13 +36,732 @@ under **Changed later**, so each entry still matches what's live.
 
 ---
 
+## Round 20 — Where your ads land: the landing page against the ad
+
+**Status:** 🟡 staged, waiting for review. Builds on rounds 1–19.
+**Reader:** media buyer. It replaces the "Your ad, as you told us" box at the top of "After the click" (#friction), and the guide gets an "Ad landing" stop.
+**Files:**
+- `src/ad-match.ts` (new): the matcher. `src/ad-match.test.ts` (new, 7 tests).
+- `src/site-checks.ts`, `src/types.ts`: `SiteChecks.landing` (per landing page: first-screen text, page text, price and buy button on the first screen, H1, first-screen crop) and `SiteChecks.checkout` (coupon field on the first screen).
+- `src/html-report.ts`: `yourAdHtml` rewritten as "Where your ads land" (#ad-landing), `landingCardHtml`, CSS, guide stop.
+- `src/fud/manual-checklist.ts`, `src/fud/index.ts`: the typed ad goes to the landing-page checkpoints, as a parameter.
+- `src/poll.ts`: **round-19 fix**, see below.
+- `src/preview-report.ts`: `--signal=` also fills landing and checkout; `--ad="text|coupon"`.
+
+### Round-19 bug found and fixed
+Production collects the store visit in `poll.ts`, not in `runFudPass`, and that call didn't pass the GA4 landing URLs. Real audits would never have opened an ad landing page; only the dev runner did. `poll.ts` now passes `collectorLanding(focus)`. Signal quality also gets the store currency from GA4 there, so the currency check runs in real audits.
+
+### What changed
+For each page GA4 says paid traffic lands on (up to two), a card shows:
+- the **first phone screen** as the visit saw it (390×844 crop);
+- where it came from ("Most paid visits in GA4"), the path, the H1;
+- ✓/✗ **price in the first screen**, ✓/✗ **buy button in the first screen** (with its label).
+
+When the reader typed the ad on the form, the card also scores how much of the ad the first screen repeats. Plain text maths, no AI:
+- each **offer** in the ad (30%, "4 for 3", 1399) is found in the first screen, lower on the page, or not on the page. Arabic digits, ٪, thousands separators and "N … بسعر M" are handled;
+- each **ad word** (filler, offer and currency words dropped) is found in the first screen or not. Arabic prefixes match (لتساقط = تساقط);
+- the **coupon**: on the page or not, and whether checkout's first screen has a field to type it.
+
+Score: an offer in the first screen counts 2 (lower down 1), ad words 2 in total, coupon 1. The footnote says it matches words and numbers, not meaning, and to look at the screenshot.
+
+With no ad typed, the cards still show the first screen and the two facts, and the lead asks for the ad next time. With no landing page (no GA4), the old ad box text stays.
+
+The landing-page checklist prompt now includes the typed ad ("THE AD THAT SENDS TRAFFIC…"). Other tabs don't get it.
+
+### Verification
+- Tests 132/132 (7 new). `tsc` clean.
+- On the real tharaa.shop visit (run 4) with an ad written like Tharaa's November offer ("٤ منتجات بسعر ٣ على زيت الروزماري لتساقط الشعر", coupon NOV30):
+  - hair-loss collection: 73%. The 4-for-3 offer is in the first screen; NOV30 is not on the page; checkout has a coupon field; "الشعر" is missing from the first screen;
+  - product page: 60%. The buy button is only after scrolling.
+- The preview's sample abaya ad against Tharaa scores 0%, as it should.
+- Checked at 1440px (EN) and 390px (AR): no sideways scroll.
+
+### How to check
+`npm run preview-report -- --path=tracking --fud --clarity --site --role=media_buyer --no-ar --signal=output/fud-tharaa.shop-evidence.run4.json "--ad=عروض نوفمبر: ٤ منتجات بسعر ٣ على زيت الروزماري لتساقط الشعر|NOV30"`, then "After the click" → "Where your ads land".
+
+### Known limits
+- Word and number matching, not meaning: a synonym on the page counts as missing.
+- Only the first checkout screen is read for the coupon field.
+- A real audit opens landing pages only with GA4 connected.
+
+---
+
+## Round 19 — Pixel signal quality, ad landing pages and the first checkout screen
+
+**Status:** ✅ approved (by moving on to round 20), staged, not committed. Builds on rounds 1–18.
+**Reader:** media buyer first (signal quality sits in "Can you trust the numbers?"); the two new checklist tabs serve every reader.
+**Files:**
+- `src/fud/collect.ts`: hit parameters, retry dedupe, landing + checkout capture, waits for late pixels.
+- `src/fud/evidence.ts`: `HitParams`, `PageEvidence.landing`, `StoreEvidence.atcHits`, `pageHits[].q`.
+- `src/signal-quality.ts` (new): the grader. `src/signal-quality.test.ts` (new, 9 tests).
+- `src/site-checks.ts`, `src/types.ts`: `SiteChecks.signal`; `FudPageType` gains `landing` and `checkout`; `Ga4Focus.paidLandingUrls`.
+- `src/ga4-facts.ts`: `paidLandingUrls`, `collectorLanding`. `src/fud/index.ts`: passes them to the visit.
+- `src/fud/manual-checklist-score.ts`: Checkout and Landing Pages tabs now run.
+- `src/fud/judge.ts`: the rule judge still only reads home, product, cart, collection.
+- `src/html-report.ts`: `signalQualityHtml` (#signal), guide stop, page labels, CSS.
+- `src/checklist-run.ts`: `--pages=` and `--merge=`. `src/fud-run.ts`: `--landing=`. `src/preview-report.ts`: `--signal=` and a sample signal for `--site`.
+
+### What changed
+
+**(b) Pixel signal quality.** Before, the visit kept only each hit's event name. Now it reads what each hit carried:
+- value, currency, number of products, event ID (Meta `eid`, TikTok `event_id`), and whether customer data was sent (never the data itself);
+- from GA4 batches (one event per body line), Meta query/form/multipart bodies, and TikTok JSON.
+
+The new section "What your pixels tell the ad platforms" grades each platform at three steps:
+- viewed a product (product-page load);
+- added to cart (our tap);
+- started checkout (checkout load).
+
+Each cell shows:
+- Sent / Sent ×N / Missing / Not tested;
+- the event, its value and currency;
+- pills for value, currency, product IDs and event ID (a struck-through red pill means missing).
+
+Around the table:
+- a score per platform and overall;
+- one card per problem, worst first: missing event, double fire, value mismatch, no value, currency mismatch, no product IDs, no currency, no event ID. Each card is bilingual fixed copy saying what it breaks for the buyer (optimization, retargeting, value bidding, catalog ads, CAPI dedup) and how to fix it;
+- "Bought" is a row that says plainly it is never tested: we place no orders.
+
+**(a) New pages.**
+- *Ad landing pages:* the two pages with the most paid visits, from GA4's paid landing report (or the top paid campaign's page). A URL already visited is reused, not reloaded.
+- *First checkout screen:* opened from the cart's checkout link (or Shopify's `/checkout`). Nothing typed, chosen or submitted. A log-in wall is noted.
+- The checklist's Checkout tab (16 points) and Landing Pages tab (106 points) now run on these pages. Thank-you pages still never run.
+
+### Accuracy work (found on 4 live visits to tharaa.shop)
+1. **Big request bodies were invisible.** Chrome leaves large bodies out of the request. GA4 batches looked empty: "no value, no currency, no items". Fixed: the body is fetched before the hit is blocked.
+2. **Blocked hits get retried.** When we block a GA4 hit, gtag resends it, so one event looked like two. Fixed: a retry has the same sequence number (`_s`) or event ID and the same payload, and is counted once. Two tags that send different payloads still count as two.
+3. **Shopify app pixels fire late.** The full `view_item` arrived after the Add-to-Cart tap. `add_to_cart` and `begin_checkout` arrived on the next page. Fixed:
+   - a step's own events count for it even when they arrive during a later step;
+   - waits added: product page 3s, after the tap 2s, checkout 6s.
+4. **A pixel that hasn't loaded is not a missing event.** In one visit Meta sent nothing at all on home and product. That step is now "Not tested" for that platform ("sent nothing during our visit here"), never "Missing".
+
+### Verification
+- Tests: 125/125 (9 new). `tsc` clean.
+- Live tharaa.shop visits with the final grader: runs 1, 2 and 4 give the same result, 92%:
+  - Meta 100%: all three events with value, currency, IDs and event ID;
+  - GA4 83%: `view_item` and `add_to_cart` reach GA4 twice, one full and one bare (a second tag);
+  - TikTok 92%: ViewContent and AddToCart carry no value.
+- Run 3 was captured before the waits existed. It shows no false claim, but it misses the GA4 double fire.
+- 466–495 hits blocked per visit, 0 leaked. Checkout opened every time on the first screen (Shopify, `ar-eg`). Nothing was typed.
+- Report checked at 1440px (EN) and 390px (AR):
+  - no sideways page scroll;
+  - on phones the table stacks per platform.
+- New copy passes the 14-word sentence check.
+- Checklist on the new pages (`checklist-run --pages=checkout,landing --merge=…`, 193s, 0 failed calls):
+  - 122 points ran: Checkout 16, Landing Pages 106;
+  - 27 shown, all failing ones written up: **Checkout 76%** (11 judged: 6 to fix, 5 done well), **Landing Pages 52%** (16 judged, 1 critical failing);
+  - 95 dropped as "doesn't apply" or "can't tell" (most landing points need the ad itself to compare).
+  - Whole checklist now 60% over 193 points.
+  - Sample cards: no one-tap payment buttons at the top of checkout; address form has no building number or landmark field; free shipping shown with no delivery time or courier.
+- Note: `checklist-run` names its file after the evidence host, so a `www.` capture writes `checklist-www.<host>.json`.
+
+### How to check
+- `npm run preview-report -- --path=tracking --fud --clarity --site --role=media_buyer --no-ar --signal=output/fud-tharaa.shop-evidence.run4.json`
+- Open "Can you trust the numbers?", then go below the pixel map.
+- Live: `npx tsx src/fud-run.ts <store> --collect-only --landing=<url>`
+
+### Known limits
+- Purchase is never tested (no orders).
+- A pixel that fires more than ~6s after checkout opens, and before the next page, can still be missed. It shows as "Missing" only if that platform sent something else at that step.
+- Two tags with an identical payload and the same sequence number count once (conservative).
+- Snap is graded on event names only.
+- Landing pages need GA4. Without it, no landing page is opened and that tab shows no cards.
+
+---
+
+## Round 18 — The full CRO checklist: all 377 points of the agency's manual audit, as checks (redo)
+
+**Status:** ✅ approved (by moving on to round 19), staged, not committed. Builds on rounds 1–17.
+**Reader:** every reader. A new section right after the CRO findings.
+**Files:**
+- New: `src/fud/manual-checklist-data.ts` (all 377 checkpoints, word for word
+  from "Optimizers - CRO Manual Audit Checklist.xlsx": ID, tab, section,
+  checkpoint, why, how, pass, reference, importance).
+- New: `src/fud/manual-checklist-score.ts` (page mapping, the sheet's
+  scoring; no Node, so the report page can use it).
+- New: `src/fud/manual-checklist.ts` (the two reviewer passes).
+- New: `src/fud/manual-checklist.test.ts` (7 tests).
+- New: `src/checklist-run.ts` (dev runner on saved evidence).
+- `src/fud/index.ts`: runs after the rule review, never fatal,
+  `CRO_CHECKLIST=off` turns it off.
+- `src/fud/judge.ts`: exports the page and store text helpers.
+- `src/types.ts`: `FudResult.checklist`, `ManualChecklistResult`,
+  `ManualExplain`.
+- `src/html-report.ts`: the section, nav, guide stop, styles.
+- `src/preview-report.ts`: `--checklist=<file>`.
+- `package.json`: test list.
+
+### The ask (after rewinding the first round 18)
+"Implement them all as checks for the CRO section. If a check wasn't
+applicable for the website, don't add the point as a card at all. The
+explanation and description of each point must be long, so the user
+understands what it says, what it means, what the issue is and how to fix
+it."
+
+### What changed from the rewound version
+| Rewound round 18 | This one |
+|---|---|
+| "Can't tell" items shown as cards with no reason | **"Doesn't apply" and "can't tell" are dropped before saving.** They never become a card and never count in the score. |
+| One-line notes (18 words or fewer) | **A full write-up for every point not done well**, in EN and AR: headline, What we found, What this means, The problem, How to fix it (3–6 steps), Done when. Plus the sheet's own "Check it yourself". |
+| Screenshot "spots" | Left out (not asked for). |
+
+### How it works
+1. **Scope:**
+   - All 377 checkpoints are in the engine.
+   - A checkpoint runs when its tab's page was captured: Sitewide (any
+     page), Homepage, Collection, Product, Cart, Mobile, Trust, Pricing, Copy.
+   - Checkout (16), Thank-you (6) and Landing pages (106) have no captured
+     page today, so they produce no cards rather than "couldn't check" ones.
+2. **Pass 1 (verdicts):**
+   - About 40 checkpoints per AI call, 3 calls at a time.
+   - The verdict codes: W well / A adequately / B badly / N not implemented
+     / X doesn't apply / U can't tell.
+   - Each comes with a one-line note (EN and AR) and a short Arabic title.
+   - The prompt tells the reviewer to use X freely when a point makes no
+     sense for this store, and U rather than guessing.
+3. **Pass 2 (write-ups):** every A, B and N, 6 per call, 3 at a time.
+   - The prompt carries the agency's why / how / pass / reference and the
+     captured pages.
+   - It asks for plain words, short sentences, terms explained on first
+     use, the store's own words quoted, no invented facts.
+   - The Arabic follows the reader's register rule (Egyptian for buyers,
+     Gulf for owners…).
+   - A write-up is kept only if every field is there. If a call fails, the
+     point shows its one-line note, the sheet's "why" and "pass" instead.
+4. **Score:** the sheet's own, well 3 / adequately 2 / badly 1 / missing 0,
+   over judged points only.
+
+### The section
+- **Title:** "The full CRO checklist". It says how many of the 377 points
+  apply to this store.
+- **Scorecard:** total score, "points to fix", "critical points failing",
+  "points done well", and one bar per area linking to its group.
+- **Filter:** All / Critical / High / Medium / Low.
+- **Per area:** cards for the points to fix, Critical first and then the
+  worst verdict. Critical cards open by default. "Done well (N)" is folded
+  underneath.
+- Bilingual. Restyled by the round 16 panel layer for the buyer.
+
+### How to check it
+- Preview with a real run:
+  `npm run preview-report -- --path=tracking --fud --clarity --site --role=media_buyer --no-ar --checklist=output/checklist-tharaa.shop.json`
+- Real run on saved evidence:
+  `npx tsx src/checklist-run.ts output/fud-tharaa.shop-evidence.json media_buyer`
+
+### Verification
+- `tsc --noEmit` clean; worker tests 116/116 (7 new):
+  - 377 unique checkpoints with text and importance;
+  - scope (no checkout/landing without pages);
+  - verdict parsing, and n/a and can't-tell dropped and not scored;
+  - write-ups all-or-nothing, long fields kept;
+  - the sheet's scoring, critical count;
+  - batching.
+- Root `npm run build` passes.
+- Layout checked with a hand-made result (EN desktop, AR phone, an open
+  card, the importance filter).
+- **Bug fixed during the round:** the Arabic steps showed in English mode.
+
+### Known limits
+- **Cost and time:** about 7 verdict calls plus about 1 write-up call per 6
+  failing points, 3 at a time. That adds several minutes and a real share of
+  the account's usage to each audit. `CRO_CHECKLIST=off` disables it.
+- **Overlap:** some checklist points overlap the 48 CRO rules above (e.g.
+  shipping cost in the cart). The rules stay the prioritized summary; the
+  checklist is the complete list.
+- **The sheet's own text is English only.** Arabic readers get the AI's
+  Arabic headline, findings and steps, with the sheet's checkpoint and
+  "check it yourself" in English.
+
+### Decision
+Pending review.
+
+---
+
+## Round 17 — CRO engine: 15 new rules from the landing-page framework (fud-2.1.0)
+
+**Status:** ✅ approved 2026-11-02 (by moving on to round 18), staged, not committed. Builds on rounds 1–16.
+**Reader:** every reader. The conversion review engine is shared, so all
+reports get the new rules. In the buyer report they also slot into the
+paid-visitor stages.
+**Files:**
+- `src/fud/rules-cro.ts`: 15 rules.
+- `src/fud/signals.ts`: 11 text patterns, EN and Egyptian/Gulf AR.
+- `src/fud/rule-actions.ts`: owner and "done when" for each rule.
+- `src/fud/rules.ts`: `RULE_SET_VERSION` fud-2.0.0 → **fud-2.1.0**.
+- `src/fud/sample.ts`: 6 preview findings.
+- `src/fud/fud4.test.ts`: new tests.
+- `package.json`: test list.
+- `src/html-report.ts`: buyer stages.
+
+### Reference material (user-supplied)
+- **Wireframes zip:**
+  - mobile and desktop wireframes for homepage, product page, collection,
+    sales, listicle, top-X, advertorial, quiz, lead-gen, webinar, SaaS,
+    service and single-product homepage;
+  - a "Page layouts" deck (AIDA → ATIDCOA: Attention, Transformation,
+    Interest, Desire, Comparison, Objections, Action);
+  - a landing-page case study (2% → 7% CVR);
+  - before/after examples for home, product page and cart.
+- **Assets zip:**
+  - the ATIDFA framework (Attention, Transformation, Interest, Desire, FAQ,
+    Action);
+  - high-converting homepage layouts.
+- Read with PDF.js installed in the session scratchpad, outside the repo,
+  since no PDF renderer was installed. Wireframes were rendered to images
+  and read section by section.
+
+### Coverage before → after
+The 33 rules covered trust and cost (shipping, COD, returns, size, stock,
+reviews, badges, contact), homepage clarity, product page basics,
+navigation, collection cards, order value, repeat buying, Arabic and
+popups. Missing were most of the framework's page structure. Added:
+
+| ID | Page | Rule | Framework source |
+|---|---|---|---|
+| H3 | Home | An offer bar at the very top | Before/after #1 (free-shipping bar) |
+| H4 | Home | A rating on the first screen | "Rated 5/5 by 15,000+", homepage wireframe |
+| H5 | Home | Three benefits under the headline | Hero ✓ points |
+| H6 | Home | The main button says what happens | "Shop bestsellers" vs "Shop now" |
+| P5 | Product | The product headline sells a benefit | "Value proposition featuring benefit" + ✓ points |
+| P6 | Product | What happens after you order, in steps | Transformation |
+| P7 | Product | Benefits come before features | Interest: benefits, then features |
+| P8 | Product | Customer photos or videos | Desire: UGC and social proof |
+| P9 | Product | A comparison with the alternative | Comparison table (ATIDCOA) |
+| P10 | Product | An FAQ answers the last doubts | FAQ (ATIDFA) / Objections |
+| P11 | Product | The page ends with a reason and a buy button | Repeated action |
+| P12 | Product | Says what's included | "What's included?" |
+| K1 | Cart | The cart shows what they saved | Cart before/after #4 "You saved" |
+| G1 | Collection | Opens with a promise and a rating | Collection wireframe header |
+| G2 | Collection | Badges help shoppers choose | "Selling fast" badges |
+
+**33 → 48 rules.** All new rules are WARN at most (`autoFail: false`):
+they're opportunities, so a store is never failed on them.
+
+### Full change list
+1. **Rules** have a judge question, pass/warn definitions, PEXTI defaults,
+   funnel step and layout flag. Each gets a deterministic second opinion from
+   page evidence:
+   - text near the top of the page (offer bar);
+   - first-screen ratings and check-marked points;
+   - generic hero button labels;
+   - how-it-works / FAQ / comparison / UGC / what's-included text;
+   - a FAQ link only (gives "elsewhere");
+   - photo-review apps (Loox, Okendo);
+   - a "You saved" line in the cart, checked only when the product is
+     discounted;
+   - collection badges.
+   P7 and P11 are judgement only.
+2. **Patterns:** `offer`, `ratedBy`, `checkMark`, `genericCta`, `howItWorks`,
+   `whatsIncluded`, `ugc`, `comparison`, `faq`, `savings`, `merchBadge`.
+   They use the normalized Arabic spelling.
+3. **Actions:** owner and "done when" in EN/AR for all 15.
+4. **Buyer report stages:**
+   - H3–H6 → "The first screen after the click";
+   - G1–G2 → "Finding the product";
+   - K1 → "In the cart";
+   - product rules → "At the buy button".
+5. **AI cost:** the judge reviews 16 rules per call, so 33 rules took 3 calls
+   and 48 still take 3 calls, each fuller.
+6. **Version:** bumped to fud-2.1.0, so new findings are told apart from
+   older runs.
+
+### How to check it
+`http://localhost:5173/audit-reports/local/round17-icp2-after.html#friction`
+(before: `round17-icp2-before.html`). New stage "The first screen after the
+click" (H5). "At the buy button" now holds 7 problems (P6, P8, P9, P10
+added); "In the cart" has the "You saved" tab (K1).
+
+### Verification
+- `tsc --noEmit` clean; worker tests **109/109** (5 new in `fud4.test.ts`):
+  - 48 unique rules, version fud-2.1.0;
+  - every rule has an action, and every new rule is WARN at most;
+  - patterns read EN and Egyptian AR;
+  - each detector flags the good case and the bare case (incl. FAQ link-only
+    → elsewhere, K1 only for discounted products, H6 generic "تسوقي الآن").
+- The preview renders with no errors.
+
+### Known limits
+- **Not run against a live store in this round.** The judge's wording for
+  the new rules comes from a real AI call. The preview findings are written
+  samples.
+- Detectors read text and layout; they can't see images. The AI judge sees
+  the screenshots and decides; the detectors are the second opinion.
+- The 'sales', 'listicle', 'advertorial', 'quiz', 'lead-gen', 'webinar' and
+  'SaaS' wireframes describe page types the audit doesn't visit (it visits
+  home, a collection, a product and the cart). They're kept for a later
+  landing-page audit.
+
+### Follow-ups
+- **Round 18 rewound by the user** (`/rewind`). The rewind restored files changed with the file-edit tools but left round 18 staged in git, plus files it created or changed by script: `manual-checklist*.ts`, `spot*.ts`, `checklist-run.ts`, and edits in `fud/index.ts`, `judge.ts`, `supabase.ts`, `evidence.ts`, `preview-report.ts` and `package.json`.
+  - Put back to the round 17 state: the four fud/supabase files from the last commit; only round 18's lines taken out of `preview-report.ts` and `package.json`; created files moved out and unstaged.
+  - Every version (staged and on disk) is kept in the session scratchpad under `round18-backup/`.
+  - Checked: no round 18 trace left; staged files match the end of round 17; tsc clean; 109/109.
+- **Scroll guide stopped early (user report), a round 12 regression.** The guide draws its rail only with ~190px free right of the text (`measure()`). Round 12 widened the page to 1280px and the text to 960px, leaving ~168px at 1440px, so it fell back to the small dot.
+  - Page is now 1240px and text 860px: rail back at 1440px and 1366px.
+  - It also re-measures when the content changes height (a `ResizeObserver` on `.content`). Carousels settling, results opening and tiles sizing had left the path ending ~175px short.
+  - Path now ends at 29,858 against the button at 29,861.
+  - Carousels and Budget check maths re-checked.
+
+### Decision
+Approved 2026-11-02: the user moved on to round 18.
+
+---
+
+## Round 16 — Media buyer (ICP2): design overhaul, "the media buyer's instrument panel"
+
+**Status:** ✅ approved 2026-11-02 (by moving on to round 17), staged, not committed. Builds on rounds 1–15.
+**Reader:** ICP2, media buyer only. Everything sits under `body.is-buyer`; the
+store owner and other readers are unchanged (checked).
+**Files:** `src/html-report.ts`.
+
+### The ask
+"A new overhaul with the design. Don't remove anything, but overhaul
+everything: curves, radii for containers, more animations, things that dazzle,
+based on the ICP. Massive."
+
+### Design plan
+- **Concept: an instrument panel for a media buyer.** The modules they work
+  with (click to cash, scoreboard, Break-even, Budget check, learning phase,
+  carousels, dev pack, owner handover, the ad box) are panels. Findings,
+  campaigns, tiles and equation parts are cards inside them.
+- **Radius hierarchy, not one radius everywhere:**
+  - panels 28px (22px on phones);
+  - cards 20px;
+  - inputs and buttons 12px;
+  - chips fully round.
+- **Surfaces:**
+  - smoked glass (a faint top-down gradient);
+  - a hairline top highlight and a deep soft shadow;
+  - status edges on cards are thin glowing rails: mint for winners, coral
+    for leaks, amber to watch.
+- **Brand kept:** black page, mint #6AE499 = profit/signal, coral #FF6B57 =
+  leak/loss, amber = watch; Sora headings, Inter body, Noto Sans Arabic. Solid
+  white headings (gradient text was tried and dropped as decoration).
+- **One memorable element: the break-even dial** (below). Motion elsewhere is
+  only for data moving or the reader's input changing something, not
+  fade-ups on every section.
+
+### Full change list
+1. **Break-even dial** in the calculator, under the break-even number:
+   - **Arc:** coral below break-even, mint above, with a glowing white
+     notch at the store's break-even ROAS.
+   - **Needle:** swings to the ROAS the buyer types and settles with a small
+     overshoot, like a real gauge. It glows coral or mint.
+   - **Readout:** "Your 2.50× is 0.59× under break-even." / "Your 4.20× is
+     1.11× above break-even." (EN/AR).
+   - **The scale fits the numbers** (e.g. 0–7×).
+   - **Empty states:** "Fill in your margin and COD rates to draw your
+     break-even." / "Type your Ads Manager ROAS to place the needle."
+   - The calculator now also publishes the typed ROAS (`window.__beUser`).
+2. **ROAS meter on every campaign card** once spend is typed: a bar to the
+   campaign's ROAS with a "break-even" notch. Mint glowing when profitable,
+   coral when losing. It fills from the right in Arabic.
+3. **Panels and cards:** every module above restyled with the radius scale
+   and glass surfaces.
+   - **Scoreboard:** rows on a panel; verdicts become tinted pills; numbers
+     glow by status; arrows nudge on hover.
+   - **Campaign cards:** a glowing side rail. The winner's pill shimmers, the
+     leaking pill breathes, and the winner card has a mint under-glow.
+   - **Budget check:** a mint-lit panel.
+   - **"Your ad" box:** a warm highlight.
+   - **ROAS equation:** the result tile glows.
+4. **Tables** (what the tap sent, pixel map, unpaid traffic): rounded
+   containers, header band, hover rows.
+5. **Controls:** 44px inputs with a mint focus ring; presets light up when
+   chosen; 12px buttons.
+6. **Hero:**
+   - the date and site line and the "what we checked" line become pill chips
+     with status dots (grey for "Checkout: not observed");
+   - a faint chart-paper grid behind the headline;
+   - grain over the page;
+   - a bigger, tighter headline.
+7. **Section heads:** larger (up to 42px) with a short mint signal line that
+   draws in when the section arrives. Lane numbers become glowing mint discs.
+8. **Data motion** (only when motion is allowed): speed, learning-phase and
+   ledger bars grow from zero in sequence; big figures count up to their exact
+   value; the ROAS equation assembles tile by tile; a live result slides open
+   when spend is typed; profit figures flash when the buyer's input changes
+   them.
+
+### How to check it
+`http://localhost:5173/audit-reports/local/round16-icp2-after.html` (before:
+`round16-icp2-before.html`).
+- Scroll slowly from the top.
+- In Break-even, type a ROAS (2.5, then 4.2) and watch the dial.
+- In Your campaigns, type spends.
+- Switch to عربي, and try a phone width.
+
+### Verification
+- `tsc --noEmit` clean; worker tests 104/104.
+- **Motion on, scrolled with the mouse wheel**, desktop and phone, EN and AR
+  (`r16test.mjs`):
+  - all 30 counted figures end on their exact text;
+  - no bar or tile left hidden;
+  - every section reached on desktop;
+  - no page errors, no sideways scroll.
+- **Dial:** 2.5 → coral, "0.59× under"; 4.2 → mint, "1.11× above".
+- **Meter:** 87% fill, notch at 27%.
+- **Still passing:** carousels (`car13.mjs`), Budget check maths
+  (`cp15.mjs`: −5,224 / −1,513), and the empty-fields real audit (dial empty
+  state, then 3.09× / 81% / −1,513 once typed).
+- The store-owner report has no buyer class, dial or new script.
+- **Bug fixed during the round:** section triggers first needed 5% of a
+  section visible, which a phone section taller than 20 screens can never
+  show. Now any part counts.
+- **A test artifact, not a site bug:** repeated programmatic smooth-scrolls
+  stall in headless phone emulation. Real wheel/touch scrolling passes
+  through the whole page.
+- Shots: `shots/branch/r16-*.jpg`, section set in `r16after/`.
+
+### Known limits
+- **Design hook findings:** gradient text was removed and the meter now
+  animates with transforms. **The needle's overshoot easing was kept on
+  purpose:** an analog gauge settling is the motion being drawn.
+- Grain and glass add a little paint cost. Grain is one fixed layer; there is
+  no blur on scroll.
+- Print hides the grain and the grid; bars print full.
+
+### Decision
+Approved 2026-11-02: the user moved on to round 17.
+
+---
+
+## Round 15 — Media buyer (ICP2): spend in, real money out (per-campaign profit and budget moves)
+
+**Status:** ✅ approved 2026-11-02 (by moving on to round 16), staged, not committed. Builds on rounds 1–14.
+**Reader:** ICP2, media buyer only.
+**Files:** `src/html-report.ts`.
+
+### What it yielded
+Round 14 showed what each campaign brings (GA4 revenue, sales, visits). The
+buyer knows the other half: what each one cost. Now they type it in, and the
+report answers the question they're paid to answer: **is this campaign making
+or losing money, and where should the budget go?**
+- **On every campaign card, a spend box.** Live result:
+  - **Figures:** GA4 ROAS, CPA, the CPC they actually pay, and profit after
+    ads.
+  - **A plain verdict.** Example (reels, spend EGP 6,000): "Losing about EGP
+    5,224 at this spend. ROAS 0.40× is under break-even 3.09×. You pay EGP
+    2.31 a click. A click is worth EGP 0.30 to you. Fix the leak above, or cut
+    the budget."
+- **"Budget check" panel at the top of the section:**
+  - **Totals:** spend entered, GA4 revenue, blended ROAS, profit after ads.
+  - **Moves, ranked:** each losing campaign with what it loses, then the best
+    return with "move part of the EGP X there, in steps: ROAS drops as you
+    scale".
+- **One break-even for everything.** The Break-even calculator now publishes
+  its break-even ROAS (`window.__beRoas`, event `be:change`). The campaign
+  cards use the same number, so margin, COD confirmation, delivery and
+  shipping all flow in. Changing the margin from 40% to 60% moved break-even
+  from 3.09× to 2.06× and flipped a campaign from loss to profit, live.
+- **Break-even CPC changed definition:** it was RPV × margin (round 14), and is
+  now RPV ÷ break-even ROAS. That includes COD losses and shipping, so it's
+  stricter and more honest.
+- **The GA4-vs-Ads-Manager point:** GA4 credits the last click and Ads Manager
+  counts views and older clicks, so Ads Manager shows a higher ROAS. A gap
+  over 2× usually means a counting problem, with a link to the tracking
+  section (this ties the money back to the tracking/CRO findings).
+
+### Full change list
+1. **Calculator:** `be` is hoisted, exposed as `window.__beRoas`, and fires a
+   `be:change` event on every recalculation.
+2. **Campaign card:**
+   - It now carries data attributes (key, name, revenue, sales, visits,
+     verdict).
+   - New spend input and live block: ROAS (GA4), CPA, CPC you pay, profit
+     after ads, and the verdict sentence (EN/AR).
+3. **Section:** new "Budget check" panel with an empty state, totals, ranked
+   moves and the last-click note. The lead now invites typing the spend.
+4. **`CAMPAIGN_SCRIPT`:**
+   - Maths: profit after ads = GA4 revenue ÷ break-even ROAS − spend.
+   - Spend is saved per report in this browser only.
+   - Re-runs on typing, on `be:change`, and on a language switch.
+   - Campaign names are inserted as text, never HTML.
+5. **Arabic fix:** metric values align under their labels in RTL.
+6. **Follow-up (user: "how is that a losing when the budget is 20k and the revenue is 57k?"):** the maths was right but invisible. Revenue is sales, not money kept: with the calculator's sample 40% margin and COD rates, only 81% of orders are paid and 40% of that is left, so EGP 57,200 leaves EGP 18,487 before ads. Each card and the Budget check panel now show the waterfall: "Sales EGP 57,200 → paid after COD returns EGP 46,218 (81%) → after product cost EGP 18,487 (40% margin) → after EGP 20,000 of ads: −EGP 1,513", plus "Margin and COD rates come from the Break-even calculator above. Put in your own." The calculator now also publishes its inputs (`window.__beParts`). Each campaign's profit uses its own order count for shipping, and its own break-even ROAS (equal to the store's when shipping is 0).
+7. **Follow-up (user: keep them empty in actual audits, keep numbers for the one we test):** the Break-even calculator's margin, COD share, confirmed, delivered and shipping fields used to start pre-filled with sample numbers I chose in round 1 (40 / 60 / 85 / 80 / 0). Those gave the 81% paid share and the 3.09× break-even. **Real audits now start with these fields empty.** Only AOV comes from GA4. Until the reader types them, no profit or loss shows anywhere: cards and the Budget check say "Fill in the Break-even calculator above…", and ROAS (revenue ÷ spend) still shows. The note under the fields reads "Type the store's margin and COD rates. Only the order value comes from GA4." **The dev preview keeps the sample numbers.** New `ReportAssets.sampleInputs`, set only by `preview-report.ts` through `buildAuditHtmlReport(result, { sampleInputs: true })`. `--empty-inputs` renders the preview the way a real audit looks (`output/round15-icp2-real.html`). Files: `src/html-report.ts`, `src/html-report-node.ts`, `src/preview-report.ts`. Checked headless: empty → no numbers invented; after typing 40/60/85/80 → 3.09×, 81%, −EGP 1,513, no errors.
+
+### How to check it
+`http://localhost:5173/audit-reports/local/round15-icp2-after.html#campaigns`.
+Type spends: ramadan 20000, reels 6000, retargeting 5000. Then change the
+margin in Break-even and watch the cards and the panel move.
+
+### Verification
+- `tsc --noEmit` clean; worker tests 104/104.
+- Headless (`cp15.mjs`), desktop and phone, EN and AR. The maths matches a
+  hand check:
+  - reels −5,224;
+  - ramadan CPA 385, CPC 3.85, −1,513;
+  - panel +4,164;
+  - margin 60 → break-even 2.06×.
+- Spend survives a reload; no errors; no sideways scroll. Carousels still
+  pass.
+- Shots: `shots/branch/r15-{plan,card}-{desktop,mobile}-{en,ar}.jpg`.
+
+### Known limits
+- GA4 last-click revenue undercounts what Ads Manager credits, so the profit
+  figure is conservative. Said on the page.
+- Spend is typed by hand. The audit never sees ad accounts.
+- The "move budget" line assumes the best campaign's ROAS holds. The page
+  says ROAS drops as you scale.
+
+### Decision
+Approved 2026-11-02: the user moved on to round 16.
+
+---
+
+## Round 14 — Media buyer (ICP2): "Your campaigns, one by one"
+
+**Status:** ✅ approved 2026-11-02 (by moving on to round 15), staged, not committed. Builds on rounds 1–13.
+**Reader:** ICP2, media buyer. Other readers don't see the section; the extra
+GA4 metric is pulled for every audit.
+**Files:**
+- `api/_lib/google-oauth.js`: `purchaseRevenue` added to the trafficSources report.
+- `src/types.ts`: new `Ga4CampaignRow`, optional `Ga4Facts.campaigns`.
+- `src/ga4-facts.ts`: rows carried into the facts, top 40 by visits.
+- `src/preview-actions.ts`: sample campaigns, dev only.
+- `src/html-report.ts`: the section.
+
+### The ask
+One section with every campaign type, its UTMs, numbers, RPV, AOV and CVR, and
+a comment per campaign in the buyer's terms ("that's why your ads are
+leaking"). Edit an existing section if one exists. **None did:** the only
+campaign view was one finding row (GA4-07, the single worst campaign), and the
+unpaid channel chart was removed from the buyer report in round 11. So it's
+new, placed right after Break-even ROAS.
+
+### Full change list
+1. **Data:**
+   - The GA4 trafficSources report now also asks for `purchaseRevenue`. It's
+     appended last, so every existing reader of that report is unchanged.
+   - `computeGa4Facts` saves the rows (channel, source, medium, campaign,
+     visits, engaged visits, cart adds, sales, revenue) in `ga4Facts.campaigns`.
+     They're stored with every report, so `report-rows`/Supabase needed no
+     change.
+2. **Section `#campaigns`:**
+   - **Top tiles:** store CVR, AOV and RPV. "X% of paid visits go to N leaking
+     campaigns."
+   - **Tracking warning:** shown when sales are counted twice ("every CVR here
+     may be too high").
+   - **Paid groups:** grouped by type (Paid Social, Paid Search, Shopping,
+     Video, Display…), each with its totals. One card per campaign, with:
+     - platform chip (Meta, TikTok, Snapchat, Google…), name, and the three
+       UTM tags;
+     - Visits, Add to cart, CVR, Sales, Revenue, AOV, RPV and Break-even CPC;
+       green ↑ / red ↓ against the store;
+     - a verdict: Winner / Average / Below average / Leaking / Too early /
+       No name.
+   - **"That's why it leaks":** follows the step where the campaign breaks:
+     - low engagement → landing page, speed, ad match;
+     - low add-to-cart → offer, price, product page;
+     - carts that don't buy → checkout, shipping, COD, trust;
+     - else → audience.
+   - **Winners:** "scale this one first". Warm/retargeting names get "judge it
+     on new buyers".
+   - **Order size:** a small/big-order note on AOV.
+   - **Untagged campaigns:** "add utm_campaign".
+   - **Under 100 visits:** "too early to judge".
+   - **Break-even CPC** = RPV × gross margin, live from the Break-even
+     calculator's margin field.
+   - **Unpaid traffic** (organic, direct, email…) in one comparison table.
+   - Top 8 campaigns per type; the rest fold under "N more campaigns".
+3. Contents list, phone bar and guide stop added. EN and Egyptian AR, short
+   sentences.
+
+### How to check it
+`http://localhost:5173/audit-reports/local/round14-icp2-after.html#campaigns`
+(before: `round14-icp2-before.html`). Change the margin in Break-even and
+watch every Break-even CPC update.
+
+### Verification
+- `tsc --noEmit` clean; worker tests 104/104. Root tests 137 pass / 29 fail,
+  the same 29 as before the rounds.
+- Headless: no page errors, no broken links. Shots:
+  `shots/branch/r14-after-{en,ar}-{desktop,mobile}.jpg`.
+
+### Known limits
+- **The per-campaign comments are written by rules from the numbers, not by
+  the AI.** They're consistent and checkable. An AI-written note per campaign
+  would need a new step in the audit run (not built).
+- Only new audits have campaign data. Saved reports, and audits through the
+  shared GA4 account rather than the OAuth popup, don't show the section.
+- GA4 last-click attribution. Ads Manager will credit campaigns differently.
+- Platform comes from `utm_source`; an unusual source shows as itself.
+
+### Decision
+Approved 2026-11-02: the user moved on to round 15.
+
+---
+
+## Round 13 — Media buyer (ICP2): "What your numbers can run" (learning phase and audiences)
+
+**Status:** ✅ approved 2026-11-02 (by moving on to round 14), staged, not committed. Builds on rounds 1–12.
+**Reader:** ICP2, media buyer only. Other readers unchanged.
+**Files:** `src/html-report.ts`.
+
+### What it yielded
+The report diagnosed, but didn't say what to set up in Ads Manager. Two
+answers an expert buyer checks first can be worked out from the store's own GA4
+funnel, so a new section now gives them, right after Break-even ROAS:
+- **Learning phase.** Meta and TikTok need about 50 optimization events per ad
+  set in 7 days to leave learning. Weekly events ÷ 50 = how many ad sets each
+  event can feed. On the preview: Purchase 92/week → 1 ad set; InitiateCheckout
+  123 → 2; AddToCart 300 → 6; ViewContent is marked "traffic signal only".
+  Our call: "Optimize for Purchase. 92 a week feeds 1 ad set. … keep the
+  structure tight." With too few purchases, it names the deepest event that
+  can still learn.
+- **Audiences you can build today.** Up to 13,800 viewed a product with no cart;
+  831 carted without buying; 123 started checkout without buying; 369
+  bought. Each tile has one line on how to use the pool. Buyers get "big
+  enough to seed a lookalike (100+)" when they are.
+- **Tied to the tracking verdict** (the CRO/tracking identity): "Careful: 3
+  tracking problems count extra sales. Real numbers are lower, so plan for
+  fewer ad sets. See the count ↑". Missed sales say the numbers go up after
+  the fix.
+
+### Full change list
+1. New `adSetupHtml` (`#ad-setup`):
+   - Learning-phase bars on a log scale, with a marker at 50 a week.
+   - Weekly count per event, the ad sets it can feed (10+ caps), and a
+     highlighted pick.
+   - "Our call" line and a tracking-trust warning linking to lane 1.
+   - Audience tiles, labelled "up to", with the event maths under each
+     (e.g. `AddToCart − Purchase`).
+2. Placed after Break-even in the page, the contents list, the phone bar ("Ad
+   setup") and the guide stops.
+3. EN and Egyptian AR; short sentences (round 12 rule).
+
+### How to check it
+`http://localhost:5173/audit-reports/local/round13-icp2-after.html#ad-setup`
+(before: `round13-icp2-before.html`). Switch to عربي; phone width.
+
+### Verification
+- `tsc --noEmit` clean; worker tests 104/104.
+- Headless: no page errors, no broken links, no sideways scroll; carousels
+  still pass (`car13.mjs`, desktop/phone × EN/AR).
+- Shots: `shots/branch/r13-after-{en,ar}-{desktop,mobile}.jpg`.
+
+### Known limits
+- GA4 funnel counts are events. Meta optimizes on events too, so the
+  learning maths fits. Audiences are people, so the tiles say "up to", and Meta
+  will match fewer.
+- The 50-a-week rule is Meta's and TikTok's published guide. Google Ads bidding
+  isn't modelled.
+- Needs the GA4 funnel; without GA4 the section doesn't show.
+
+### Decision
+Approved 2026-11-02: the user moved on to round 14.
+
+---
+
 ## Round 12 — Media buyer (ICP2): visualize, breathe, carousels, margins, short sentences
 
-**Status:** 🟡 staged, waiting for review. Builds on rounds 1–11.
+**Status:** ✅ approved 2026-11-02 (by moving on to round 13), staged, not committed. Builds on rounds 1–11.
 **Reader:** ICP2, media buyer for the layout and visuals. The short-sentence
 rule (5) also reaches every reader: shared checklist defaults and the AI prompts.
 **Files:** `src/html-report.ts`, `src/buyer-verify.ts`, `src/checklist.ts`,
 `src/audit-prompt.ts`, `src/translate-ar.ts`, `src/fud/judge.ts`.
+**Patches (scratchpad):** `round12-icp2.patch` (first pass), `round12b-carousel.patch` (with the redesign).
 
 ### The brief (the user's five points)
 1. Visualize what can be visualized. 2. Room to breathe. 3. Group relevant
@@ -55,7 +781,7 @@ sentences with a simple structure, everywhere (not just intros).
      owns and which part the ads own (`roasEquationHtml`).
    - Phone visit: the three facts (Add to Cart, WhatsApp, sold-out) became
      tiles with a coloured edge.
-2. **Carousels** (`carouselHtml` + `CAROUSEL_SCRIPT`): each "After the click"
+2. **Carousels, first version** (replaced by item 7) (`carouselHtml` + `CAROUSEL_SCRIPT`): each "After the click"
    stage and "Already working" is one swipeable row of full problem cards
    (all open, next card peeks in). The row has a counter ("1 / 3") and
    previous/next buttons. The Clarity tiles and phone-visit tiles swipe on
@@ -102,6 +828,10 @@ sentences with a simple structure, everywhere (not just intros).
 - Headless, desktop and phone, EN and AR: every carousel steps 1 → last and
   disables Next at the end; no page errors; no sideways scroll; text column
   is the full 366px on a 390px phone.
+- Redesigned carousels (`car13.mjs`): Next steps 1 → 2 → 3, the card on show
+  is fully in view, the panel height matches the card, tab 1 jumps back to
+  card 1, Next disables at the end. All four (desktop/phone × EN/AR) pass.
+- Screenshots: `shots/branch/r12-car2-{desktop,mobile}-{en,ar}.jpg`.
 - Store owner report: same section order. It doesn't get the buyer class,
   carousels or carousel script; only the shared CSS is present.
 - Sentence audit script: `sentences.mjs` (scratchpad).
@@ -111,8 +841,11 @@ sentences with a simple structure, everywhere (not just intros).
   reports keep their old wording.
 - The generated persona checklist still has long defaults (source file not
   in the repo).
-- Problem cards in a carousel are all open, so the row is as tall as its
-  tallest card.
+- In a carousel, a card with a tall screenshot pushes the footer arrows
+  below the screenshot. The tabs on top stay in reach.
+
+### Decision
+Approved 2026-11-02: the user moved on to round 13 after the carousel redesign (item 7).
 
 ---
 
@@ -121,6 +854,9 @@ sentences with a simple structure, everywhere (not just intros).
 **Status:** ✅ approved 2026-11-01 (by moving on to round 12), staged, not committed. Builds on rounds 1–10.
 **Reader:** ICP2, media buyer only. Store owner and marketing manager orders checked unchanged.
 **Files:** `src/html-report.ts` only.
+
+**Changed later:**
+- Round 12: the ROAS formula lead became equation tiles with the store's numbers; the "moved up" note and All-checks intro were shortened. Section order unchanged.
 
 ### The wow-factor scores
 Each block was scored 1–10 on what a media buyer wants to see first: is it
@@ -185,6 +921,9 @@ scoreboard row; switch to عربي on a phone width.
 - Lane 3 now sits two sections after lanes 1–2; the numbers still match the
   scoreboard, so the gap reads as intended, but it's a judgement call.
 - Wow scores are judgement from the ICP2 card, not tested with buyers.
+
+### Decision
+Approved 2026-11-01: the user moved on to round 12. Two follow-ups were asked and done inside this round (items 8 and 9: mockups under the headline, one-row phone section bar).
 
 ---
 
@@ -264,6 +1003,9 @@ row 7.
 **Changed earlier rounds:** replaces round 5's three-zone layout and round 7's
 horizontal money track (see those entries).
 
+### Decision
+Approved 2026-11-01: the user moved on to round 11 without changes.
+
 ---
 
 ## Round 9 — Media buyer (ICP2): what the audit collects but doesn't use, and what it misses
@@ -276,6 +1018,9 @@ horizontal money track (see those entries).
   `src/site-checks.test.ts`), `src/types.ts`, `src/report-rows.ts`,
   `src/html-report.ts`, `src/preview-report.ts`, `package.json` (test list)
 - `api/_lib/report-data.js`, `tests/api/report-access.test.js`
+
+**Changed later:**
+- Round 12: the Clarity page-errors line is now one of the stat tiles.
 
 ### The gap audit
 The ICP2 card (`icp/media-buyer-full.md`) was compared against every field
@@ -377,6 +1122,7 @@ the audit collects and every field the buyer report renders.
 
 **Changed later:**
 - Round 10: the money dot runs down the ledger rail (`.pl`) instead of the horizontal track (`.pf::after`); drops at rows marked `data-leak`. Count-ups, scoreboard ping and bias meter unchanged.
+- Round 12: each stage's problems are a tabbed carousel (one card at a time) instead of a vertical list. The stage grouping, the leak marker and the cause line are unchanged.
 
 ### The question
 Does "After the click" (the conversion review) give a media buyer relevant
@@ -763,6 +1509,10 @@ chart and KPIs kept.
 **Reader:** ICP2, media buyer only. Other readers verified unchanged.
 **Files:** `src/html-report.ts` (net −25 lines).
 
+**Changed later:**
+- Round 11: the "moved up" notes link to whichever section holds each problem (the count or the site), since "What's holding your ROAS back" was split.
+- Round 12: the "moved up" note and the All-checks intro were shortened.
+
 ### What it yielded
 Every finding now appears in exactly one place. Anywhere else, it's a link, not a copy.
 - Exact duplicated texts on the page went from **17 to 1**; the one left is
@@ -860,6 +1610,10 @@ chips kept, nothing folded, no scoreboard.
 **Status:** ✅ approved 2026-11-01, staged, not committed. Builds on rounds 1–2.
 **Reader:** ICP2, media buyer. One small fix applies to every reader (see 3).
 **Files:** `src/html-report.ts`.
+
+**Changed later:**
+- Round 11: speed moved after Clarity in the buyer report.
+- Round 12: the speed gauge cards became one bar chart; the "Google scores each page…" line became the chart's legend. The buyer's Clarity list became stat tiles.
 
 ### What it yielded
 The sections rounds 1–2 hadn't touched now speak to a media buyer:
@@ -963,6 +1717,7 @@ only the "Not confirmed" naming fix reaches them.
 - Round 4: the verdict strip was merged into the hero scoreboard.
 - Round 4: folding now covers passed checks too, not only failed ones.
 - Round 4: the store-visit panel and "Copy the tracking fixes" are unchanged.
+- Round 12: the phone-visit facts (Add to Cart, WhatsApp, sold-out) are tiles instead of a list, and their sentences are shorter. The events table and the developer pack are unchanged.
 
 ### What it yielded
 The report now shows the buyer proof from our own visit to the store: whether
@@ -1062,6 +1817,7 @@ owner, marketing manager and agency reports render none of the new parts.
 - **Unchanged since round 1:** the answers section is still removed for the
   buyer, the one honest count, the Egyptian Arabic, the break-even calculator,
   and "Check it yourself" (`buyer-verify.ts`).
+- Round 12: every "Check it yourself" step (`buyer-verify.ts`) rewritten as short sentences, one action or one expectation each, EN and AR.
 
 ### What it yielded
 The media buyer report now opens by answering the buyer's actual question, "is
@@ -1164,3 +1920,5 @@ session scratchpad (`shots/branch/R1-*`).
   focus; the agency view and the "30-minute call" wording weren't checked.
 - **Attempt B — media buyer: break-even ROAS calculator alone.** ⏪ Reverted
   on that branch, then re-applied as part of Round 1 here.
+
+**Real run (tharaa.shop, media_buyer, 2026-11-02):** 249 run, 166 shown, 83 dropped, 128 written up, score 59%. No "doesn't apply"/"can't tell" cards. EN write-ups average: found 45 words, means 50, problem 37, fix 76, done 18. 2 write-up calls timed out at 8 min. Fix: EXPLAIN_BATCH 6 to 4, TIMEOUT_MS 8 to 12 min. The 9 missing write-ups were then filled by a dev-only script (output/fill-explains.ts, gitignored): 3 calls of about 75s each, 9 of 9 written. Now all 137 failing cards have a full write-up. Checked at 1440px: no sideways scroll; EN and AR both render. Tests 116/116.

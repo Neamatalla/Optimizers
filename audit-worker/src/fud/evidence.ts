@@ -25,6 +25,24 @@ export interface TextBlock {
   aboveFold: boolean;
 }
 
+/**
+ * What one pixel/analytics hit carried, read off the blocked request (round
+ * 19). Never values that identify a person: only whether user data was sent.
+ */
+export interface HitParams {
+  // The event's money value, when sent (GA4 epn.value, Meta cd[value], TikTok properties.value).
+  value?: number;
+  currency?: string;
+  // Products named in the event (GA4 pr1…, Meta content_ids / contents, TikTok contents).
+  items?: number;
+  // Meta eid / TikTok event_id: lets the platform drop the server (CAPI) copy.
+  eventId?: boolean;
+  // Hashed customer data sent with the event (Meta ud[…], TikTok context.user).
+  userData?: boolean;
+  // Meta cd[content_type] ("product" / "product_group").
+  contentType?: string;
+}
+
 export interface PageEvidence {
   pageType: FudPageType;
   url: string;
@@ -66,6 +84,9 @@ export interface PageEvidence {
   // Product pages: label of a buy button still on screen after scrolling
   // well past the main one (sticky add-to-cart), or null.
   sticky?: string | null;
+  // Landing pages only: why we opened it (the GA4 campaign or landing report)
+  // and, when the same URL was already visited as another page, which one.
+  landing?: { source: string; sameAs?: FudPageType };
   // Region crops, JPEG data URIs: "fold" (first screen), "cta", "cart".
   crops: Partial<Record<"fold" | "cta" | "cart", string>>;
 }
@@ -112,9 +133,11 @@ export interface StoreEvidence {
   // Event names the click produced: new dataLayer entries, and the GA4 /
   // pixel hits we blocked (W-22, GTM-24). Absent when nothing was clicked.
   atcEvents?: { dataLayer: string[]; ga4: string[]; pixels: string[] };
+  // The same click's pixel hits with what each carried (round 19).
+  atcHits?: Array<{ vendor: string; name: string; id?: string; q?: HitParams }>;
   // Every analytics/pixel hit seen while a page loaded (before any tap),
   // with the page and, for GA4 and Meta, the measurement / pixel ID.
-  pageHits?: Array<{ page: string; vendor: string; name: string; id?: string }>;
+  pageHits?: Array<{ page: string; vendor: string; name: string; id?: string; q?: HitParams }>;
   // Pages the collector was pointed at by GA4 (ga4-facts.ts focus) instead
   // of the first ones discovery found.
   focusUrls?: { product?: string; collection?: string };
