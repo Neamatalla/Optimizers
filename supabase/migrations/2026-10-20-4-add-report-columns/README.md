@@ -10,4 +10,4 @@
 
 **Applied:**
 - [x] Staging
-- [ ] Production
+- [x] Production
