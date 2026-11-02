@@ -33,7 +33,7 @@ How we work on this repo. Claude reads this before starting any work.
 ## 5. Merging
 
 - Changes reach `staging` through a pull request, or through `/git-sync <branch> <staging|main>` (`.claude/skills/git-sync/`), which previews the merge and asks about every conflict.
-- Only Adham merges `staging` into `main`. Claude never pushes to `main`.
+- Only Adham merges `staging` into `main`. Claude never pushes to `main`, except when Adham runs `/git-sync` into `main` and confirms.
 
 ## 6. Database migrations
 
