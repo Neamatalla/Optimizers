@@ -8,7 +8,7 @@ import { log } from "./log.js";
 // What both endpoints read from report_pages: where the report lives, plus
 // the request fields the page needs and the status that decides visibility.
 export const REPORT_PAGE_COLUMNS =
-  "audit_request_id, bucket, storage_path, audit_requests(status, scheduled_send_at, website, business_name, audience_role)";
+  "audit_request_id, bucket, storage_path, audit_requests(status, scheduled_send_at, website, business_name, audience_role, ad_context)";
 
 export async function loadReportData({ supabase, slug, page, defaultBucket }) {
   if (page) {
@@ -33,7 +33,8 @@ export async function loadReportData({ supabase, slug, page, defaultBucket }) {
       return {
         status: 200,
         body: {
-          request: { website: request.website, business_name: request.business_name ?? null, audience_role: request.audience_role ?? null },
+          // ad_context: the ad headline/coupon a media buyer typed on the form, shown back on their report.
+          request: { website: request.website, business_name: request.business_name ?? null, audience_role: request.audience_role ?? null, ad_context: request.ad_context ?? null },
           report,
           findings: findings ?? [],
         },

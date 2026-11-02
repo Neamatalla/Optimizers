@@ -18,6 +18,28 @@ function contactValid(href: string): boolean {
   return digits.length >= 8 && digits.length <= 15;
 }
 
+// Page-load hits grouped per page and platform, with how many times each
+// event fired on that one load (two PageViews on one load = a duplicate tag).
+export function pixelMapFrom(hits: StoreEvidence["pageHits"]): SiteChecks["pixelMap"] {
+  if (!hits?.length) return null;
+  const order = ["home", "collection", "product"];
+  const pages = new Map<string, Map<string, number>>();
+  const ids: Record<string, Set<string>> = {};
+  for (const h of hits) {
+    const key = `${h.vendor}\u0000${h.name}`;
+    if (!pages.has(h.page)) pages.set(h.page, new Map());
+    const m = pages.get(h.page)!;
+    m.set(key, (m.get(key) ?? 0) + 1);
+    if (h.id) (ids[h.vendor] ??= new Set()).add(h.id);
+  }
+  return {
+    pages: [...pages.entries()]
+      .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
+      .map(([pageType, m]) => ({ pageType, hits: [...m.entries()].map(([k, count]) => { const [vendor, name] = k.split("\u0000"); return { vendor, name, count }; }) })),
+    ids: Object.fromEntries(Object.entries(ids).map(([v, set]) => [v, [...set]])),
+  };
+}
+
 export function siteChecksFrom(e: StoreEvidence, platform: string | null): SiteChecks {
   const links = new Map<string, SiteChecks["contactLinks"][number]>();
   for (const p of e.pages) {
@@ -37,6 +59,7 @@ export function siteChecksFrom(e: StoreEvidence, platform: string | null): SiteC
     soldOutPromoted: e.pages.filter(p => p.pageType === "home" || p.pageType === "collection").reduce((s, p) => s + (p.facts?.soldOutTop ?? 0), 0),
     heroVideoMobile: home?.facts?.hero?.kind === "video" && (home.facts.hero.coverPct ?? 0) >= 30,
     pagesVisited: e.pages.map(p => ({ pageType: p.pageType, url: p.url, loaded: p.loaded })),
+    pixelMap: pixelMapFrom(e.pageHits),
   };
 }
 
@@ -61,5 +84,9 @@ export function siteChecksPromptBlock(s: SiteChecks): string {
     `- "Sold out" badges in the first screens of home/collection: ${s.soldOutPromoted}`,
     `- Autoplay video filling the phone first screen: ${s.heroVideoMobile ? "yes" : "no"}`,
     `- Pages visited: ${s.pagesVisited.map(p => `${p.pageType} ${p.url}${p.loaded ? "" : " (did not load)"}`).join(", ")}`,
+    ...(s.pixelMap ? [
+      `- Hits sent while each page loaded (before any tap): ${s.pixelMap.pages.map(p => `${p.pageType}: ${p.hits.map(h => `${h.vendor}:${h.name}${h.count > 1 ? ` x${h.count}` : ""}`).join(", ")}`).join("; ")}`,
+      `- IDs seen: ${Object.entries(s.pixelMap.ids).map(([v, ids]) => `${v} ${ids.join(", ")}`).join("; ") || "none"}`,
+    ] : []),
   ].join("\n");
 }

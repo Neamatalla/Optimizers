@@ -400,6 +400,37 @@ async function main() {
 
   // --clarity adds a sample Clarity snapshot (shape from a real 2026-10-20
   // export) so the Clarity section renders.
+  // --site adds a sample phone visit (site-checks.ts shape): Add to Cart filled
+  // the drawer, the dataLayer and Meta sent it, GA4 didn't; one WhatsApp link
+  // has a broken number; sold-out products show up front.
+  if (process.argv.includes("--site")) {
+    result.siteChecks = {
+      platform: "Shopify",
+      addToCart: { attempted: true, ok: true, via: "drawer", method: "click", clickAdded: true },
+      atcEvents: { dataLayer: ["add_to_cart"], ga4: ["view_item"], pixels: ["meta:AddToCart", "snap:PAGE_VIEW"] },
+      contactLinks: [{ href: "https://wa.me/201000000000", kind: "whatsapp", valid: true }, { href: "https://wa.me/0100", kind: "whatsapp", valid: false }],
+      soldOutPromoted: 3,
+      heroVideoMobile: false,
+      // Page-load hits: Meta fires PageView twice on the homepage from two pixel
+      // IDs; TikTok sends no ViewContent on the product page.
+      pixelMap: {
+        pages: [
+          { pageType: "home", hits: [{ vendor: "ga4", name: "page_view", count: 1 }, { vendor: "meta", name: "PageView", count: 2 }, { vendor: "tiktok", name: "Pageview", count: 1 }] },
+          { pageType: "product", hits: [{ vendor: "ga4", name: "page_view", count: 1 }, { vendor: "ga4", name: "view_item", count: 1 }, { vendor: "meta", name: "PageView", count: 1 }, { vendor: "meta", name: "ViewContent", count: 1 }, { vendor: "tiktok", name: "Pageview", count: 1 }] },
+        ],
+        ids: { ga4: ["G-ABC123"], meta: ["1234567890", "9876543210"] },
+      },
+      pagesVisited: [{ pageType: "home", url: "https://example.com/", loaded: true }, { pageType: "product", url: "https://example.com/products/best-seller", loaded: true }, { pageType: "cart", url: "https://example.com/cart", loaded: true }],
+    };
+    // The ad a media buyer typed on the form.
+    result.adContext ??= { text: "50% off all abayas today only", coupon: "SAVE50" };
+    // The GA4 numbers behind the report's funnel, matching the sample's GA4 facts.
+    result.ga4Metrics ??= {
+      periodDays: 28, currency: "EGP", sessions: 20000, conversions: 300, conversionRate: 1.5, revenue: 330000,
+      funnel: [{ event: "view_item", count: 15000 }, { event: "add_to_cart", count: 1200 }, { event: "begin_checkout", count: 492 }, { event: "purchase", count: 369 }],
+      channels: [], segments: [],
+    };
+  }
   if (process.argv.includes("--clarity")) {
     result.clarityFacts = computeClarityFacts({
       source: "clarity", fetchedAt: new Date().toISOString(), days: 3, hostMatch: true,

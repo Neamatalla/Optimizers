@@ -112,6 +112,9 @@ export interface StoreEvidence {
   // Event names the click produced: new dataLayer entries, and the GA4 /
   // pixel hits we blocked (W-22, GTM-24). Absent when nothing was clicked.
   atcEvents?: { dataLayer: string[]; ga4: string[]; pixels: string[] };
+  // Every analytics/pixel hit seen while a page loaded (before any tap),
+  // with the page and, for GA4 and Meta, the measurement / pixel ID.
+  pageHits?: Array<{ page: string; vendor: string; name: string; id?: string }>;
   // Pages the collector was pointed at by GA4 (ga4-facts.ts focus) instead
   // of the first ones discovery found.
   focusUrls?: { product?: string; collection?: string };

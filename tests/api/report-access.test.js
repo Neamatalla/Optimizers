@@ -8,7 +8,8 @@ offlineAndQuiet();
 const SECRET = "preview-secret";
 const SLUG = "tharaa-shop";
 const HOUR = 60 * 60 * 1000;
-const REQUEST = { website: "https://tharaa.shop", business_name: "Tharaa", audience_role: "media_buyer" };
+// ad_context: the ad a media buyer typed on the form, passed through to the report page.
+const REQUEST = { website: "https://tharaa.shop", business_name: "Tharaa", audience_role: "media_buyer", ad_context: { text: "50% off all abayas today", coupon: "SAVE50" } };
 const REPORT = { audit_request_id: "r1", generated_at: "2026-10-20T10:00:00Z", discovered_pages: [] };
 const FINDINGS = [{ id: "f1", kind: "check", point_id: "GA4-01", status: "fail" }];
 const ROWS_BODY = { request: REQUEST, report: REPORT, findings: FINDINGS };

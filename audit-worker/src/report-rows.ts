@@ -29,6 +29,7 @@ export interface ReportRequest {
   website: string;
   business_name: string | null;
   audience_role?: string | null;
+  ad_context?: { text: string | null; coupon: string | null } | null;
 }
 
 // FudResult without its findings and scores.
@@ -207,6 +208,7 @@ export function fromRows(request: ReportRequest, report: ReportRow, findings: Fi
     ga4Facts: report.ga4_facts ?? null,
     siteChecks: report.site_checks ?? null,
     clarityFacts: report.clarity_facts ?? null,
+    ...(request.ad_context ? { adContext: request.ad_context } : {}),
     generatedAt: report.generated_at,
   };
 }
@@ -249,7 +251,7 @@ function frictionFinding(r: FindingRow): FudFinding {
  * The AuditResult the worker saved in progress, with the request's own
  * fields. Shared by poll.ts, fud-override.ts and backfill-report-rows.ts.
  */
-export function auditResultFrom(row: Pick<AuditRequestRow, "website" | "business_name" | "audience_role">, progress: JobProgress, fud: FudResult | null): AuditResult {
+export function auditResultFrom(row: Pick<AuditRequestRow, "website" | "business_name" | "audience_role" | "ad_context">, progress: JobProgress, fud: FudResult | null): AuditResult {
   const categories = progress.categories ?? [];
   const { earned, possible } = computeOverallPoints(categories);
   return {
@@ -267,5 +269,6 @@ export function auditResultFrom(row: Pick<AuditRequestRow, "website" | "business
     ga4Facts: progress.ga4Facts ?? null,
     siteChecks: progress.siteChecks ?? null,
     clarityFacts: progress.clarityFacts ?? null,
+    ...(row.ad_context ? { adContext: row.ad_context } : {}),
   };
 }

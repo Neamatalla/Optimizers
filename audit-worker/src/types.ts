@@ -307,6 +307,9 @@ export interface AuditResult {
   siteChecks?: SiteChecks | null;
   // See JobProgress. Absent when Clarity wasn't connected or on older results.
   clarityFacts?: import("./clarity-facts.js").ClarityFacts | null;
+  // The ad headline/offer and coupon the reader typed on the form (media
+  // buyer only), shown back next to the landing-page checks.
+  adContext?: { text: string | null; coupon: string | null } | null;
   // ISO date the report was published (audit_reports.generated_at), shown on
   // the report. Absent before publishing: the report shows today's date.
   generatedAt?: string;
@@ -482,6 +485,10 @@ export interface SiteChecks {
   // Event names seen right after our Add-to-Cart click: from the page's own
   // dataLayer, and from the (blocked) analytics/pixel requests.
   atcEvents: { dataLayer: string[]; ga4: string[]; pixels: string[] } | null;
+  // Which events each platform sent while each page loaded (site-checks.ts
+  // pixelMapFrom), and the GA4 measurement IDs and Meta pixel IDs seen.
+  // Optional: runs from before 2026-11-01 don't have it.
+  pixelMap?: { pages: Array<{ pageType: string; hits: Array<{ vendor: string; name: string; count: number }> }>; ids: Record<string, string[]> } | null;
   contactLinks: Array<{ href: string; kind: "whatsapp" | "tel"; valid: boolean }>;
   soldOutPromoted: number;
   heroVideoMobile: boolean;

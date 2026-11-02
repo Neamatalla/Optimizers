@@ -149,7 +149,10 @@ template:
   all follow the same "X is set up, so Y can be trusted" shape.
 - Never use: delve, leverage, utilize, robust, seamless, streamline,
   empower, crucial, pivotal, testament, game changer.
-- Short sentences, one idea each, in the active voice.
+- Short sentences, one idea each, in the active voice. Aim for 14 words or
+  fewer. Split anything over 20. No semicolons. Don't chain clauses with
+  "which", "because", "so that" or a second comma: make a new sentence.
+  Lists of names or values are fine.
 - The technical voice keeps the real names, values and identifiers, but
   also uses short sentences and plain connecting words.`;
 
@@ -312,7 +315,8 @@ wrote it, not a template:
 
 READING LEVEL — the business voice is read by a busy store owner who has
 never opened GA4 or GTM. Write it at about a grade 6-8 reading level:
-- Short sentences: one idea each, under 20 words. Split anything longer.
+- Short sentences: one idea each, 14 words or fewer. Split anything over 20.
+  No semicolons, and no clauses chained with "which" or "because".
 - Everyday words: "use" not "utilize", "about" not "approximately", "find
   out" not "determine", "show" not "indicate", "set up" not "implement",
   "help" not "facilitate", "before" not "prior to", "so" not

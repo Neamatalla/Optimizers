@@ -1,4 +1,4 @@
-import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingAction, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4FunnelEvent, Handoff, Opportunity } from "./types.js";
+import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingAction, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4FunnelEvent, Handoff, Opportunity, SiteChecks } from "./types.js";
 import { CHECK_GROUP_LABELS, GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type BaseChecklistPoint, type ChecklistPoint as ActionChecklistPoint } from "./checklist.js";
 import { LEGACY_GA4_CHECKLIST, LEGACY_GTM_CHECKLIST, LEGACY_WEBSITE_CHECKLIST, LEGACY_WEBSITE_CODE_CHECKLIST } from "./checklist-legacy.js";
 import { personaChecklistFor, personaOf, personaOfFindings } from "./persona-checklist.js";
@@ -11,6 +11,7 @@ type ChecklistPoint = BaseChecklistPoint & Partial<Pick<ActionChecklistPoint, "g
 import { groupOf, ruleById, type FudGroup } from "./fud/rules.js";
 import { formatMoney, STEP_BENCHMARKS } from "./fud/insights.js";
 import { READER_QUESTIONS } from "./reader-questions.js";
+import { verifyFor } from "./buyer-verify.js";
 import { mediaBuyerLane, mediaBuyerRank, roleSeverity, type AudienceRole } from "./audience.js";
 import { AD_EFFECT_CHIP, AD_EFFECT_ROLES, AD_EFFECT_SIZE_LABEL, adEffectOf, adEffectSize } from "./ad-impact.js";
 
@@ -54,8 +55,8 @@ const CATEGORY_SHORT: Record<CategoryKey, [string, string]> = {
 // Worded as "checking your setup", not "reviewing your account": GA4/GTM can
 // also be audited from public detection when no Google access was granted.
 const CATEGORY_CAPTION: Record<CategoryKey, string> = {
-  GA4: "Google Analytics 4 is the tool that counts your visitors and sales. We checked what it records, which actions it counts as sales, and whether its numbers add up.",
-  GTM: "Google Tag Manager loads the tracking codes on your site. We checked which codes it loads and whether each one runs at the right moment.",
+  GA4: "Google Analytics 4 is the tool that counts your visitors and sales. We checked what it records. We checked which actions count as sales. We checked that its numbers add up.",
+  GTM: "Google Tag Manager loads the tracking codes on your site. We checked which codes it loads. We checked that each one runs at the right moment.",
   Website: "We visited your site the way a customer would. We checked its tracking, how fast its pages load, and how easy it is to buy.",
 };
 
@@ -578,20 +579,46 @@ function storeOwnerFirstHtml(result: AuditResult): string {
       </section>`;
 }
 
-// The ROAS line under the heading: the store's own conversion rate when GA4
-// gave one (purchases / visits, never key events), else the plain formula.
+// The ROAS line under the heading, with the store's own conversion rate and
+// AOV when GA4 gave them (purchases / visits, never key events).
+// Media buyer: ROAS = CVR × AOV ÷ CPC drawn as tiles with this store's
+// numbers, marking which part the site owns and which part the ads own.
+function roasEquationHtml(result: AuditResult): string {
+  const cr = result.ga4Metrics?.conversionRate;
+  const aov = result.ga4Facts?.aov ?? null;
+  const currency = result.ga4Facts?.currency ?? result.ga4Metrics?.currency ?? null;
+  const has = typeof cr === "number" && cr > 0 && cr <= 100;
+  const tile = (k: Bi2, v: string, who: Bi2, cls = "") => `<div class="eq-t${cls}"><span class="eq-k">${bi(...k)}</span><b class="eq-v" dir="ltr">${v}</b><span class="eq-who">${bi(...who)}</span></div>`;
+  const site: Bi2 = ["The site", "الموقع"];
+  return `
+        <p class="section-lead">${bi("You control the cost per click. The site controls the other two.", "إنت متحكم في تكلفة الكليك. الموقع متحكم في الاتنين التانيين.")}</p>
+        <div class="eq" role="img" aria-label="ROAS = CVR × AOV ÷ CPC">
+          ${tile(["CVR: visits that buy", "CVR: الزيارات اللي بتشتري"], has ? `${escapeHtml(fmtPct(cr!))}%` : "CVR", site, " eq-t--site")}
+          <span class="eq-op" aria-hidden="true">×</span>
+          ${tile(["AOV: average order", "AOV: متوسط الأوردر"], aov ? escapeHtml(formatMoney(aov, currency)) : "AOV", site, " eq-t--site")}
+          <span class="eq-op" aria-hidden="true">÷</span>
+          ${tile(["CPC: cost per click", "CPC: تكلفة الكليك"], "CPC", ["Your ads", "إعلاناتك"], " eq-t--ads")}
+          <span class="eq-op" aria-hidden="true">=</span>
+          ${tile(["Your return on ad spend", "العائد على الإعلانات"], "ROAS", ["Both", "الاتنين"], " eq-t--out")}
+        </div>
+        <p class="eq-note">${bi("20% more buyers means about 20% more ROAS. Each sale costs about 17% less. Same budget, same ads.", "شرا أكتر بـ 20% يعني ROAS أعلى بحوالي 20%. وكل بيعة تتكلف حوالي 17% أقل. نفس الميزانية ونفس الإعلانات.")}</p>`;
+}
+
 function roasMathHtml(result: AuditResult): string {
   const cr = result.ga4Metrics?.conversionRate;
+  const aov = result.ga4Facts?.aov ?? null;
+  const currency = result.ga4Facts?.currency ?? result.ga4Metrics?.currency ?? null;
   if (typeof cr === "number" && cr > 0 && cr <= 100) {
-    const up = cr * 1.2;
-    return bi(
-      `ROAS = conversion rate × AOV ÷ CPC. The store converts ${fmtPct(cr)}% of visits today. Lifting that to ${fmtPct(up)}% lifts ROAS by about 20% and cuts CPA by about 17% on the same spend and the same ads.`,
-      `ROAS = معدل التحويل × AOV ÷ CPC. يحوّل المتجر اليوم ${fmtPct(cr)}% من الزيارات. رفعه إلى ${fmtPct(up)}% يرفع ROAS بنحو 20% ويخفض CPA بنحو 17% بنفس الإنفاق ونفس الإعلانات.`,
+    const aovEn = aov ? `, and the average order is ${formatMoney(aov, currency)}` : "";
+    const aovAr = aov ? `، ومتوسط الأوردر ${formatMoney(aov, currency)}` : "";
+    return biHtml(
+      `<b dir="ltr">ROAS = CVR × AOV ÷ CPC.</b> You control the cost per click. The site controls the other two: ${escapeHtml(fmtPct(cr))}% of visits buy${escapeHtml(aovEn)}. Get 20% more visits to buy, and ROAS goes up about 20%. Each sale costs about 17% less. Same budget, same ads.`,
+      `<b dir="ltr">ROAS = CVR × AOV ÷ CPC.</b> إنت متحكم في تكلفة الكليك. الموقع متحكم في الاتنين التانيين: ${escapeHtml(fmtPct(cr))}% من الزيارات بتشتري${escapeHtml(aovAr)}. خلّي الشرا يزيد 20%، والـ ROAS يزيد حوالي 20%. وكل بيعة تتكلف حوالي 17% أقل. نفس الميزانية ونفس الإعلانات.`,
     );
   }
-  return bi(
-    "ROAS = conversion rate × AOV ÷ CPC. Two of the three live on the site, so every leak fixed after the click raises ROAS on the same spend.",
-    "ROAS = معدل التحويل × AOV ÷ CPC. اثنان من الثلاثة على الموقع، لذلك كل تسريب يُصلَح بعد الضغط على الإعلان يرفع ROAS بنفس الإنفاق.",
+  return biHtml(
+    `<b dir="ltr">ROAS = CVR × AOV ÷ CPC.</b> You control CPC. The site controls the other two, so every leak fixed after the click raises ROAS on the same spend.`,
+    `<b dir="ltr">ROAS = CVR × AOV ÷ CPC.</b> إنت متحكم في الـ CPC. الموقع متحكم في الاتنين التانيين، فكل تسريب يتصلح بعد الضغطة بيرفع الـ ROAS بنفس الصرف.`,
   );
 }
 
@@ -627,43 +654,449 @@ function roasVerdictHtml(result: AuditResult): string {
   return `<p class="verdict">${bi(en, ar)}</p>`;
 }
 
-function mediaBuyerFirstHtml(result: AuditResult): string {
-  const rows = failedRows(result).sort((a, b) => mediaBuyerRank(a.f.checklistId, SEVERITY_RANK[a.f.severity]) - mediaBuyerRank(b.f.checklistId, SEVERITY_RANK[b.f.severity]));
-  const signal = rows.filter(r => mediaBuyerLane(r.f.checklistId) === "signal").slice(0, 3);
-  const postClick = dedupeFunnel(rows.filter(r => mediaBuyerLane(r.f.checklistId) === "post_click"), result).slice(0, 3);
-  if (signal.length === 0 && postClick.length === 0) return "";
+// Media buyer: what our own phone visit saw (site-checks.ts), shown as proof.
+// The Add-to-Cart click and the events it sent are the event-failure library
+// cases the buyer hunts for (icp/media-buyer-full.md §8 #6, #7): an add_to_cart
+// that fires with an empty cart, or a cart that fills with nothing sent. A
+// click that didn't fill the cart is marked unconfirmed (it can be our
+// automated browser), and its events are not judged, as in the audit prompt.
+const ATC_EXPECTED: Array<{ key: string; label: Bi2; want: string[] }> = [
+  { key: "dataLayer", label: ["The store's dataLayer", "الـ dataLayer بتاع المتجر"], want: ["add_to_cart", "addToCart", "addtocart"] },
+  { key: "ga4", label: ["GA4", "GA4"], want: ["add_to_cart"] },
+  { key: "meta", label: ["Meta pixel", "Meta Pixel"], want: ["AddToCart"] },
+  { key: "tiktok", label: ["TikTok pixel", "TikTok Pixel"], want: ["AddToCart"] },
+  { key: "snap", label: ["Snap pixel", "Snap Pixel"], want: ["ADD_CART"] },
+];
+
+const PAGE_NAME: Record<string, Bi2> = {
+  home: ["home", "الرئيسية"], product: ["product", "المنتج"], collection: ["collection", "التصنيف"], cart: ["cart", "السلة"], checkout: ["checkout", "الدفع"],
+};
+
+// Media buyer: what each platform sent while each page loaded (site-checks.ts
+// pixelMapFrom), from hits our visit blocked so it wasn't counted. Flags: an
+// event sent twice on one load, a product page with no "viewed a product"
+// event on a platform the store uses, and more than one Meta pixel or GA4 ID.
+// Pixels that sent nothing at all aren't listed: we see hits, not installs.
+const PIXEL_VENDORS: Array<{ key: string; label: string; view: string }> = [
+  { key: "ga4", label: "GA4", view: "view_item" },
+  { key: "meta", label: "Meta", view: "ViewContent" },
+  { key: "tiktok", label: "TikTok", view: "ViewContent" },
+  { key: "snap", label: "Snap", view: "VIEW_CONTENT" },
+];
+const PIXEL_PAGE: Record<string, Bi2> = { home: ["Homepage", "الرئيسية"], collection: ["Collection", "التصنيف"], product: ["Product page", "صفحة المنتج"] };
+
+function pixelMapHtml(map: NonNullable<SiteChecks["pixelMap"]>): string {
+  const vendors = PIXEL_VENDORS.filter(v => map.pages.some(pg => pg.hits.some(h => h.vendor === v.key)));
+  if (!vendors.length) return "";
+  const flags: Bi2[] = [];
+  const cell = (pageType: string, hits: Array<{ vendor: string; name: string; count: number }>, v: typeof PIXEL_VENDORS[number]) => {
+    const mine = hits.filter(h => h.vendor === v.key);
+    const missingView = pageType === "product" && !mine.some(h => h.name === v.view);
+    if (missingView) flags.push([`${v.label} sent no ${v.view} on the product page. It can't tell which products people looked at.`, `${v.label} مبعتش ${v.view} في صفحة المنتج. مش هيعرف الناس شافت أنهي منتجات.`]);
+    const twice = mine.filter(h => h.count > 1 && /page_?view/i.test(h.name));
+    for (const h of twice) flags.push([`${v.label} sent ${h.name} ${h.count} times on one load of the ${(PIXEL_PAGE[pageType] ?? [pageType])[0].toLowerCase()}. One page should send it once.`, `${v.label} بعت ${h.name} ${h.count} مرات في فتحة واحدة لـ${(PIXEL_PAGE[pageType] ?? [pageType, pageType])[1]}. الصفحة المفروض تبعته مرة واحدة.`]);
+    const names = mine.map(h => `<span class="pm-ev${h.count > 1 && /page_?view/i.test(h.name) ? " pm-ev--bad" : ""}">${escapeHtml(h.name)}${h.count > 1 ? ` ×${h.count}` : ""}</span>`).join("");
+    return `<td dir="ltr" data-k="${v.label}">${names || `<span class="pm-none">${bi("nothing", "ولا حاجة")}</span>`}${missingView ? ` <span class="pm-ev pm-ev--bad">${bi(`no ${v.view}`, `مفيش ${v.view}`)}</span>` : ""}</td>`;
+  };
+  const rows = map.pages.map(pg => `
+            <tr><th scope="row">${bi(...(PIXEL_PAGE[pg.pageType] ?? [pg.pageType, pg.pageType]))}</th>${vendors.map(v => cell(pg.pageType, pg.hits, v)).join("")}</tr>`).join("");
+  for (const v of vendors) {
+    const ids = map.ids[v.key] ?? [];
+    if (ids.length > 1) flags.push([`${ids.length} different ${v.label} IDs are on the store (${ids.join(", ")}). Two setups usually count each sale twice.`, `فيه ${ids.length} ${v.label} IDs مختلفين على المتجر (${ids.join("، ")}). وجود اتنين غالبًا بيعدّ كل بيعة مرتين.`]);
+  }
   return `
-      <section class="doc-section" id="fix-first">
-        <h2>${bi("What's holding your ROAS back", "ما الذي يحدّ من ROAS")}</h2>
-        <p class="section-lead">${roasMathHtml(result)}</p>
-        ${kpisHtml(storeKpis(result, ["cr", "aov", "step"]))}
-        ${funnelStripHtml(result)}
-        ${roasVerdictHtml(result)}
-        ${laneHtml(
-          "1. Is the number real?",
-          "1. هل الرقم حقيقي؟",
-          "What the ad platforms and GA4 see. A sale missed or counted twice makes the algorithm learn from the wrong data, and ROAS in Ads Manager stops matching real orders.",
-          "ما تراه منصات الإعلانات وGA4. أي عملية شراء لا تُسجَّل أو تُسجَّل مرتين تجعل الخوارزمية تتعلم من بيانات خاطئة، فلا يطابق ROAS في Ads Manager الطلبات الحقيقية.",
-          signal,
-          "No tracking problems found. The ad platforms and GA4 get each sale as it happens.",
-          "لم نجد مشكلات في التتبع. تستقبل منصات الإعلانات وGA4 كل عملية شراء كما تحدث.",
-          r => `${adEffectChip(result, r.f)}${ownerTag(r)}`,
-        )}
-        ${laneHtml(
-          "2. Does paid traffic convert?",
-          "2. هل تتحوّل الزيارات المدفوعة؟",
-          "What happens after the click: the steps, pages and speed that lose shoppers you already paid for.",
-          "ما يحدث بعد الضغط على الإعلان: الخطوات والصفحات والسرعة التي تُضيّع متسوقين دفعت ثمن وصولهم.",
-          postClick,
-          "No post-click leaks found in the steps we could measure.",
-          "لم نجد تسريبات بعد الضغط على الإعلان في الخطوات التي أمكن قياسها.",
-          r => `${adEffectChip(result, r.f)}${ownerTag(r)}`,
-        )}
-        ${ownerHandoverHtml(result)}
-        <p class="lane-note">${bi(
-          "Every point names who has to fix it, so you can forward it to the store owner or developer as proof.",
-          "كل بند يحدد مين لازم يصلحه، فتقدر تبعته لصاحب المتجر أو المطوّر كدليل.",
+        <table class="sv-trace pm">
+          <caption>${bi("What each pixel sent while the page loaded", "كل Pixel بعت إيه وهي الصفحة بتفتح")}</caption>
+          <thead><tr><th scope="col">${bi("Page", "الصفحة")}</th>${vendors.map(v => `<th scope="col">${v.label}</th>`).join("")}</tr></thead>
+          <tbody>${rows}
+          </tbody>
+        </table>
+        ${flags.length ? `<ul class="pm-flags">${flags.map(f => `<li>${bi(...f)}</li>`).join("")}</ul>` : `<p class="sv-foot">${bi("Nothing fired twice, and every platform sent its product-view event.", "مفيش حاجة اتبعتت مرتين، وكل منصة بعتت حدث مشاهدة المنتج.")}</p>`}
+        <p class="sv-foot">${bi("Our visit blocked these hits, so it wasn't counted in your data. A pixel that sent nothing isn't listed: we see what fires, not what's installed.", "زيارتنا وقّفت الإشارات دي، فمتحسبتش في داتاك. الـ Pixel اللي مبعتش حاجة مش مكتوب: إحنا بنشوف اللي بيتبعت، مش اللي متركّب.")}</p>`;
+}
+
+function storeVisitHtml(result: AuditResult): string {
+  const s = result.siteChecks;
+  if (!s) return "";
+  const rows: string[] = [];
+  const row = (cls: "bad" | "ok" | "na", label: Bi2, word: Bi2, noteEn: string, noteAr: string) => `
+          <div class="sv-tile sv--${cls}">
+            <p class="sv-k">${bi(...label)}</p>
+            <p class="sv-word">${bi(...word)}</p>
+            ${noteEn ? `<p class="sv-note">${biHtml(noteEn, noteAr)}</p>` : ""}
+          </div>`;
+
+  const a = s.addToCart;
+  const clickFailed = a.attempted && (a.clickAdded === false || a.method === "api" || !a.ok);
+  rows.push(!a.attempted
+    ? row("na", ["Did Add to Cart fill the cart?", "الـ Add to Cart ملا السلة؟"], ["Not tested", "متجرّبش"], escapeHtml(a.reason ?? "We couldn't reach a product page."), escapeHtml(a.reason ?? "موصلناش لصفحة منتج."))
+    : clickFailed
+      ? row("bad", ["Did Add to Cart fill the cart?", "الـ Add to Cart ملا السلة؟"], ["No", "لأ"], "Our tap left the cart empty. Unconfirmed: it can be our automated browser, so try it on your own phone before you escalate.", "الضغطة بتاعتنا سابت السلة فاضية. مش مؤكد: ممكن يكون من المتصفح الآلي بتاعنا، فجرّبها من موبايلك قبل ما تصعّد.")
+      : row("ok", ["Did Add to Cart fill the cart?", "الـ Add to Cart ملا السلة؟"], ["Yes", "أيوه"], a.via ? `The item reached the ${a.via === "drawer" ? "cart drawer" : "cart page"}.` : "", a.via ? `المنتج وصل ${a.via === "drawer" ? "للـ cart drawer" : "لصفحة السلة"}.` : ""));
+
+  // The events the tap sent, only when the tap really filled the cart.
+  let trace = "";
+  const ev = s.atcEvents;
+  if (a.attempted && !clickFailed && ev) {
+    const sent = (key: string): string[] => key === "dataLayer" ? ev.dataLayer : key === "ga4" ? ev.ga4 : ev.pixels.filter(p => p.startsWith(`${key}:`)).map(p => p.slice(key.length + 1));
+    const vendors = ATC_EXPECTED.filter(x => x.key === "dataLayer" || x.key === "ga4" || sent(x.key).length);
+    trace = `
+        <table class="sv-trace">
+          <caption>${bi("What the tap sent", "الضغطة بعتت إيه")}</caption>
+          <thead><tr><th scope="col">${bi("Where", "فين")}</th><th scope="col">${bi("Add to cart event", "حدث الإضافة للسلة")}</th><th scope="col">${bi("Everything sent", "كل اللي اتبعت")}</th></tr></thead>
+          <tbody>${vendors.map(x => {
+            const names = sent(x.key);
+            const hit = names.some(n => x.want.includes(n));
+            return `
+            <tr class="${hit ? "sv--ok" : "sv--bad"}">
+              <th scope="row">${bi(...x.label)}</th>
+              <td><span class="sv-word">${hit ? bi("Sent", "اتبعت") : bi("Missing", "مش موجود")}</span></td>
+              <td dir="ltr"><code>${escapeHtml(names.join(", ") || "nothing")}</code></td>
+            </tr>`;
+          }).join("")}
+          </tbody>
+        </table>
+        <p class="sv-foot">${bi(
+          `We only see what the tap sent. A pixel that sent nothing isn't listed. Expected names: ${[...new Set(ATC_EXPECTED.map(x => x.want[0]))].join(", ")}.`,
+          `إحنا بنشوف اللي الضغطة بعتته بس. الـ Pixel اللي مبعتش حاجة مش مكتوب هنا. الأسماء المتوقعة: ${[...new Set(ATC_EXPECTED.map(x => x.want[0]))].join("، ")}.`,
+        )}</p>`;
+  } else if (a.attempted && clickFailed) {
+    trace = `<p class="sv-foot">${bi("Events aren't judged from a tap that didn't fill the cart. The GTM and GA4 checks above cover add_to_cart instead.", "الأحداث مش بتتحكم من ضغطة مملتش السلة. بنود GTM وGA4 فوق بتغطي الـ add_to_cart بدالها.")}</p>`;
+  }
+
+  const wa = s.contactLinks.filter(c => c.kind === "whatsapp");
+  const badWa = wa.filter(c => !c.valid).length;
+  if (wa.length) rows.push(badWa
+    ? row("bad", ["WhatsApp links", "لينكات الواتساب"], [`${badWa} of ${wa.length} broken`, `${badWa} من ${wa.length} بايظين`], "The number in the link isn't a real phone number. Shoppers who tap it can't reach the store.", "الرقم اللي في اللينك مش رقم صحيح. اللي بيدوس عليه مش هيوصل للمتجر.")
+    : row("ok", ["WhatsApp links", "لينكات الواتساب"], [`${wa.length} working`, `${wa.length} شغالين`], "", ""));
+  if (s.soldOutPromoted > 0) rows.push(row("bad", ["Sold-out products up front", "منتجات خلصانة في الأول"], [`${s.soldOutPromoted} ${s.soldOutPromoted === 1 ? "product" : "products"}`, `${s.soldOutPromoted} منتجات`],
+    "Shown in the first screens of the homepage and collections. Ads that land there spend clicks on products nobody can buy.",
+    "ظاهرين في أول شاشات الرئيسية والتصنيفات. الإعلانات اللي بتنزل هناك بتصرف كليكات على منتجات محدش يقدر يشتريها."));
+  if (s.heroVideoMobile) rows.push(row("bad", ["Autoplay video on the first phone screen", "فيديو شغال لوحده في أول شاشة موبايل"], ["Yes", "أيوه"],
+    "It fills most of the first screen, so a paid visitor sees a video before a product or a price.",
+    "واخد معظم أول شاشة، فالعميل الجاي من إعلان بيشوف فيديو قبل ما يشوف منتج أو سعر."));
+
+  const pages = s.pagesVisited.map(p => {
+    const [en, ar] = PAGE_NAME[p.pageType] ?? [p.pageType, p.pageType];
+    return p.loaded ? [en, ar] : [`${en} (didn't load)`, `${ar} (مفتحتش)`];
+  });
+  const pixels = s.pixelMap ? pixelMapHtml(s.pixelMap) : "";
+  return `
+      <div class="sv" id="store-visit">
+        <h3 class="lane-head">${bi("What our phone visit saw", "زيارتنا من الموبايل شافت إيه")}</h3>
+        <p class="lane-lead">${bi(
+          `We opened the store${s.platform ? ` (${s.platform})` : ""} on a phone, like a visitor from an ad. We tapped Add to Cart. You can show these results to anyone as they are.`,
+          `فتحنا المتجر${s.platform ? ` (${s.platform})` : ""} من موبايل، زي عميل جاي من إعلان. دوسنا Add to Cart. تقدر تعرض النتايج دي لأي حد زي ما هي.`,
         )}</p>
+        <div class="tiles tiles--3">${rows.join("")}</div>
+        ${trace}
+        ${pixels}
+        ${pages.length ? `<p class="sv-foot">${bi(`Pages visited: ${pages.map(p => p[0]).join(", ")}.`, `الصفحات اللي زرناها: ${pages.map(p => p[1]).join("، ")}.`)}</p>` : ""}
+      </div>`;
+}
+
+// Media buyer: related problems, one at a time (round 12). A row of tabs
+// names every problem in the group (status dot + short title), the view shows
+// one full-width card, and a footer attached to it steps through them. The
+// view takes the height of the card on show. Swipe works too (scroll-snap).
+// One item renders as a plain card: there is nothing to step through.
+type CarItem = { html: string; title: Bi2; tone: "bad" | "warn" | "ok" };
+function carouselHtml(label: Bi2, items: CarItem[]): string {
+  if (items.length < 2) return items.map(i => `<div class="car-one">${i.html}</div>`).join("");
+  return `
+        <div class="car" data-car>
+          <div class="car-tabs" role="tablist" aria-label="${escapeHtml(label[0])}">${items.map((it, i) => `<button type="button" role="tab" class="car-tab" data-i="${i}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}"><i class="car-dot car-dot--${it.tone}" aria-hidden="true"></i><span class="car-tab-t">${bi(...it.title)}</span></button>`).join("")}</div>
+          <div class="car-view">
+            <div class="car-track">${items.map((it, i) => `<div class="car-item" role="tabpanel" data-i="${i}">${it.html}</div>`).join("")}</div>
+          </div>
+          <div class="car-foot">
+            <button type="button" class="car-btn" data-dir="-1" disabled><span class="sr">${bi("Previous", "اللي قبله")}</span><span class="car-arrow" aria-hidden="true">←</span></button>
+            <span class="car-prog" aria-hidden="true">${items.map((_, i) => `<span class="car-seg${i === 0 ? " is-on" : ""}" data-i="${i}"></span>`).join("")}</span>
+            <span class="car-count">${biHtml(`<b class="car-i">1</b> of ${items.length}`, `<b class="car-i">1</b> من ${items.length}`)}</span>
+            <button type="button" class="car-btn" data-dir="1"><span class="sr">${bi("Next", "اللي بعده")}</span><span class="car-arrow" aria-hidden="true">→</span></button>
+          </div>
+        </div>`;
+}
+
+const CAROUSEL_SCRIPT = `
+(function(){
+  var still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-car]"), function(car){
+    var view = car.querySelector(".car-view"), track = car.querySelector(".car-track");
+    var items = Array.prototype.slice.call(track.children);
+    var tabs = Array.prototype.slice.call(car.querySelectorAll(".car-tab"));
+    var segs = Array.prototype.slice.call(car.querySelectorAll(".car-seg"));
+    var idx = car.querySelectorAll(".car-i"), prev = car.querySelector('[data-dir="-1"]'), next = car.querySelector('[data-dir="1"]');
+    var cur = -1;
+    function rtl(){ return getComputedStyle(track).direction === "rtl"; }
+    function offset(el){ var t = track.getBoundingClientRect(), r = el.getBoundingClientRect(); return rtl() ? t.right - r.right : r.left - t.left; }
+    function nearest(){ var best = 0, d = Infinity; items.forEach(function(it, i){ var x = Math.abs(offset(it)); if (x < d) { d = x; best = i; } }); return best; }
+    function fit(){ if (cur >= 0) view.style.height = items[cur].offsetHeight + "px"; }
+    function show(i){
+      if (i === cur) { fit(); return; }
+      cur = i;
+      tabs.forEach(function(t, k){ var on = k === i; t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1; });
+      segs.forEach(function(sg, k){ sg.classList.toggle("is-on", k <= i); });
+      items.forEach(function(it, k){ it.setAttribute("aria-hidden", String(k !== i)); it.inert = k !== i; });
+      Array.prototype.forEach.call(idx, function(el){ el.textContent = String(i + 1); });
+      prev.disabled = i === 0; next.disabled = i === items.length - 1;
+      var tab = tabs[i], rail = tab.parentNode, rr = rail.getBoundingClientRect(), tr = tab.getBoundingClientRect();
+      if (tr.left < rr.left || tr.right > rr.right) rail.scrollBy({ left: tr.left < rr.left ? tr.left - rr.left - 16 : tr.right - rr.right + 16, behavior: still ? "auto" : "smooth" });
+      fit();
+    }
+    function go(i){
+      i = Math.max(0, Math.min(items.length - 1, i));
+      var x = offset(items[i]);
+      track.scrollBy({ left: rtl() ? -x : x, behavior: still ? "auto" : "smooth" });
+      show(i);
+    }
+    prev.addEventListener("click", function(){ go(cur - 1); });
+    next.addEventListener("click", function(){ go(cur + 1); });
+    tabs.forEach(function(t, k){
+      t.addEventListener("click", function(){ go(k); });
+      t.addEventListener("keydown", function(e){
+        var fwd = rtl() ? "ArrowLeft" : "ArrowRight", back = rtl() ? "ArrowRight" : "ArrowLeft";
+        if (e.key === fwd || e.key === back || e.key === "Home" || e.key === "End") {
+          e.preventDefault();
+          var n = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : cur + (e.key === fwd ? 1 : -1);
+          go(n); tabs[Math.max(0, Math.min(items.length - 1, n))].focus();
+        }
+      });
+    });
+    segs.forEach(function(sg, k){ sg.addEventListener("click", function(){ go(k); }); });
+    var raf = 0;
+    track.addEventListener("scroll", function(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(function(){ show(nearest()); }); }, { passive: true });
+    if (window.ResizeObserver) { var ro = new ResizeObserver(fit); items.forEach(function(it){ ro.observe(it); }); }
+    window.addEventListener("resize", fit);
+    Array.prototype.forEach.call(document.querySelectorAll("input[name=report-i18n]"), function(r){ r.addEventListener("change", function(){ track.scrollLeft = 0; cur = -1; show(0); }); });
+    show(0);
+  });
+})();
+`;
+
+// Media buyer: the tracking fixes as plain-text tickets for the developer,
+// in the developer's words (the technical voice), with how to check each.
+function devPackHtml(rows: FailedRow[]): string {
+  if (!rows.length) return "";
+  const ticket = (r: FailedRow, i: number, ar: boolean) => {
+    const f = r.f;
+    const t = ar ? (f.ar?.technical ?? f.technical) : f.technical;
+    const act = ar ? (f.ar?.action ?? f.action) : f.action;
+    const v = verifyFor(f.checklistId);
+    return [
+      `${i + 1}. [${f.checklistId}] ${t.summary}`,
+      act?.step ? `   ${ar ? "المطلوب" : "Change"}: ${decodePaths(act.step)}` : "",
+      act?.doneWhen ? `   ${ar ? "يخلص لما" : "Done when"}: ${act.doneWhen}` : "",
+      v ? `   ${ar ? "اتأكد" : "Check"}: ${ar ? v.ar : v.en}` : "",
+    ].filter(Boolean).join("\n");
+  };
+  const pack = (ar: boolean) => rows.map((r, i) => ticket(r, i, ar)).join("\n\n");
+  return `
+        <div class="devpack">
+          <p class="devpack-lead">${bi(
+            `${rows.length} tracking ${rows.length === 1 ? "fix" : "fixes"} for the developer. Each says what to change, when it's done and how to check it. Paste them into the ticket or the chat as they are.`,
+            `${rows.length} ${rows.length === 1 ? "إصلاح" : "إصلاحات"} تتبع للمطوّر. كل واحد فيه المطلوب، وإمتى يخلص، وإزاي يتأكد. الصقهم في الـ ticket أو الشات زي ما هم.`,
+          )}</p>
+          <button type="button" class="btn btn--sm devpack-copy">${bi("Copy the tracking fixes", "انسخ إصلاحات التتبع")}</button>
+          <textarea class="devpack-text" data-lang="en" hidden readonly>${escapeHtml(pack(false))}</textarea>
+          <textarea class="devpack-text" data-lang="ar" hidden readonly>${escapeHtml(pack(true))}</textarea>
+          <script>(function(){
+            var box=document.currentScript.parentNode, btn=box.querySelector(".devpack-copy");
+            btn.addEventListener("click", function(){
+              var r=document.getElementById("i18n-ar"), t=box.querySelector('.devpack-text[data-lang="'+(r&&r.checked?"ar":"en")+'"]').value;
+              var done=function(){ btn.classList.add("is-done"); setTimeout(function(){ btn.classList.remove("is-done"); }, 1600); };
+              if(navigator.clipboard) navigator.clipboard.writeText(t).then(done, function(){});
+            });
+          })();</script>
+        </div>`;
+}
+
+// Media buyer: the lanes are the one home of every failed point that moves
+// ROAS or CAC. Each is the full check row (business and technical voice,
+// change, done when, how to check it yourself); "All 50 checks" keeps the
+// passed points and the fixes with no ROAS effect, so nothing shows twice.
+function laneRowHtml(r: FailedRow, result: AuditResult, open: boolean): string {
+  const point = checklistForDisplay(r.cat.category, r.cat.checklistTally.total, r.cat.findings.map(f => f.checklistId)).find(p => p.id === r.f.checklistId);
+  return point ? checkRowHtml(r.cat, point, r.f, result, open) : "";
+}
+
+// The buyer reads in the order of the opening scoreboard, most wanted first:
+// is the count real (here), what break-even is (next section), then what the
+// site does to ROAS (buyerSiteHtml). Each lane is the full check rows.
+function buyerLaneHtml(result: AuditResult, id: string, n: string, en: string, ar: string, leadEn: string, leadAr: string, list: FailedRow[], emptyEn: string, emptyAr: string, extra = ""): string {
+  return `
+        <div class="mb-lane" id="${id}">
+          <h3 class="lane-head"><span class="mb-lane-n" aria-hidden="true">${n}</span>${bi(en, ar)}${list.length ? ` <span class="mb-lane-c">${bi(`${list.length} to fix`, `${list.length} محتاجين إصلاح`)}</span>` : ""}</h3>
+          <p class="lane-lead">${bi(leadEn, leadAr)}</p>
+          ${extra}
+          ${list.length
+            ? `<div class="check-list mb-checks">${list.map((r, i) => laneRowHtml(r, result, i === 0)).join("")}</div>`
+            : `<p class="lane-empty">${bi(emptyEn, emptyAr)}</p>`}
+        </div>`;
+}
+
+function mediaBuyerFirstHtml(result: AuditResult): string {
+  const s = buyerSteps(result);
+  if (!s.real.length && !s.learn.length && !s.convert.length && !s.waste.length) return "";
+  const up = s.real.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
+  const lane = (id: string, n: string, en: string, ar: string, leadEn: string, leadAr: string, list: FailedRow[], emptyEn: string, emptyAr: string, extra = "") => buyerLaneHtml(result, id, n, en, ar, leadEn, leadAr, list, emptyEn, emptyAr, extra);
+  return `
+      <section class="doc-section mb-roas" id="fix-first">
+        <h2>${bi("Can you trust the numbers?", "تقدر تثق في الأرقام؟")}</h2>
+        <p class="section-lead">${bi(
+          "Every ad is judged by the sales it gets credit for. Check that count before you change a budget. We read how GA4 and your pixels count each sale. Then we watched them fire on a phone.",
+          "كل إعلان بيتحكم عليه بالمبيعات اللي بتتحسب له. اتأكد من العدّ ده قبل ما تغيّر أي ميزانية. قرينا GA4 والـ Pixels بيعدّوا كل بيعة إزاي. وبعدين شفناهم بيشتغلوا من الموبايل.",
+        )}</p>
+        ${lane("lane-real", "1", "Is the number real?", "الرقم حقيقي؟",
+          "Ads Manager and GA4 count your sales. Here we check if that count is right. Too many sales: you may spend more on a losing ad. Too few: you may stop a winning ad. Don't change budgets until this is fixed.",
+          "Ads Manager وGA4 بيعدّوا مبيعاتك. هنا بنشوف العدّ ده صح ولا لأ. مبيعات زيادة: ممكن تصرف أكتر على إعلان خسران. مبيعات ناقصة: ممكن توقف إعلان كسبان. متغيّرش الميزانية لحد ما ده يتصلح.",
+          s.real, "No counting problem found: each sale reaches GA4 and the pixels once, with its value.", "مفيش مشكلة في العدّ: كل بيعة بتوصل GA4 والـ Pixels مرة واحدة بقيمتها.",
+          biasMeterHtml(up, s.real.length - up))}
+        ${storeVisitHtml(result)}
+        ${lane("lane-learn", "2", "Can the algorithm learn from your sales?", "الخوارزمية بتتعلم من مبيعاتك؟",
+          "Meta and Google learn from your sales data. Missing data means worse targeting. Each sale then slowly costs more.",
+          "Meta وGoogle بيتعلموا من داتا مبيعاتك. الداتا الناقصة معناها استهداف أسوأ. وكل بيعة بتتكلف أكتر مع الوقت.",
+          s.learn, "No gap found in the signal the platforms learn from.", "مفيش ثغرة في الإشارة اللي المنصات بتتعلم منها.")}
+        ${devPackHtml([...s.real, ...s.learn])}
+      </section>`;
+}
+
+function buyerSiteHtml(result: AuditResult): string {
+  const s = buyerSteps(result);
+  const convert = [...s.convert, ...s.waste];
+  if (!s.real.length && !s.learn.length && !convert.length) return "";
+  return `
+      <section class="doc-section mb-roas" id="roas-leaks">
+        <h2>${bi("What's holding your ROAS back", "إيه اللي ماسك الـ ROAS بتاعك")}</h2>
+        ${roasEquationHtml(result)}
+        ${buyerLaneHtml(result, "lane-convert", "3", "Does paid traffic convert after the click?", "الترافيك المدفوع بيحوّل بعد الضغطة؟",
+          "These lose people after they click your ad. Each one makes every sale cost more.",
+          "دول بيضيّعوا الناس بعد ما يدوسوا على إعلانك. كل واحدة منهم بتخلي كل بيعة تتكلف أكتر.",
+          convert, "No post-click leak found in the steps we could measure.", "مفيش تسريب بعد الضغطة في الخطوات اللي قدرنا نقيسها.")}
+        ${ownerHandoverHtml(result)}
+      </section>`;
+}
+
+// Media buyer: break-even ROAS and delivered-order CPA (ICP2's most-asked
+// sheet, ICP-PLAYBOOK §4/§7 #6). Runs in the page and stores nothing on our
+// side. Only AOV is the store's own (GA4); margin and the COD rates are the
+// buyer's to enter, so the defaults are labelled as sample values. The
+// audit never sees ad accounts, so ROAS is only compared when they type it.
+function breakEvenHtml(result: AuditResult): string {
+  const aov = result.ga4Facts?.aov ?? null;
+  const currency = result.ga4Facts?.currency ?? result.ga4Metrics?.currency ?? "";
+  const cr = result.ga4Metrics?.conversionRate;
+  const rows = failedRows(result);
+  const inflated = rows.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
+  const deflated = rows.filter(r => adEffectOf(r.f.checklistId) === "deflated").length;
+  const field = (id: string, en: string, ar: string, value: string, unit: string, hintEn = "", hintAr = "") => `
+          <div class="be-row">
+            <label for="be-${id}">${bi(en, ar)}${hintEn ? `<span class="be-hint">${bi(hintEn, hintAr)}</span>` : ""}</label>
+            <span class="be-input" dir="ltr"><input id="be-${id}" data-k="${id}" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(value)}" />${unit ? `<span class="be-unit">${escapeHtml(unit)}</span>` : ""}</span>
+          </div>`;
+  const cfg = JSON.stringify({ host: hostOf(result.websiteUrl), currency, cr: typeof cr === "number" && cr > 0 && cr <= 100 ? cr : null, inflated, deflated }).replace(/</g, "\\u003c");
+  return `
+      <section class="doc-section be" id="breakeven">
+        <h2>${bi("Your break-even ROAS", "ROAS نقطة التعادل بتاعتك")}</h2>
+        <p class="section-lead">${bi(
+          "The ROAS in Ads Manager counts orders when they're placed. With cash on delivery, some are never confirmed and some come back. This finds the ROAS and CPA where the store stops losing money. It uses your own numbers.",
+          "ROAS في Ads Manager بيحسب الطلب أول ما يتعمل. مع الدفع عند الاستلام، فيه طلبات مش بتتأكد وفيه طلبات بترجع. هنا بنحسب ROAS وCPA اللي المتجر بيبطّل عنده يخسر. بأرقامك إنت.",
+        )}</p>
+        <div class="be-grid">
+          <div class="be-form">
+            <div class="be-presets" role="group" aria-label="Starting points by market">
+              <span class="be-presets-k">${bi("Start from", "ابدأ من")}</span>
+              <button type="button" class="be-preset" data-c="85" data-d="82">${bi("Egypt", "مصر")}</button>
+              <button type="button" class="be-preset" data-c="90" data-d="89">${bi("Saudi", "السعودية")}</button>
+              <button type="button" class="be-preset" data-c="93" data-d="92">${bi("UAE", "الإمارات")}</button>
+            </div>
+            <p class="be-note be-note--top">${bi("Fills in typical rates for that country. Then put in your own. COD orders that come back (shipping companies, 2026): Egypt 25–35%. Saudi 15–25%. UAE 10–18%.", "بيحط نسب عادية للبلد دي. وبعدين حط أرقامك. أوردرات الدفع عند الاستلام اللي بترجع (شركات الشحن، 2026): مصر 25–35%. السعودية 15–25%. الإمارات 10–18%.")}</p>
+            ${field("aov", "Average order value", "متوسط قيمة الطلب", aov ? String(Math.round(aov)) : "", currency, aov ? `From this store's GA4, last ${periodOf(result)} days` : "From your store admin", aov ? `من GA4 بتاع المتجر، آخر ${periodOf(result)} يوم` : "من لوحة تحكم المتجر")}
+            ${field("margin", "Gross margin", "هامش الربح", "40", "%", "After product cost, before ads", "بعد تكلفة المنتج، قبل الإعلانات")}
+            ${field("cod", "Orders paid on delivery", "طلبات الدفع عند الاستلام", "60", "%")}
+            ${field("confirm", "COD orders confirmed", "طلبات الاستلام اللي بتتأكد", "85", "%")}
+            ${field("deliver", "Confirmed orders delivered", "الطلبات المؤكدة اللي بتتسلّم", "80", "%")}
+            ${field("ship", "Shipping you pay per shipped order", "الشحن اللي بتدفعه لكل طلب بيتشحن", "0", currency)}
+            ${field("roas", "Your ROAS in Ads Manager (optional)", "ROAS بتاعك في Ads Manager (اختياري)", "", "×")}
+            <p class="be-note">${bi("Margin and COD rates are sample values: change them to the store's. Saved in this browser only.", "هامش الربح ونسب الاستلام أرقام مثال: غيّرها لأرقام المتجر. بتتحفظ في المتصفح ده بس.")}</p>
+          </div>
+          <div class="be-out" aria-live="polite">
+            <p class="be-k">${bi("Break-even ROAS in Ads Manager", "ROAS التعادل في Ads Manager")}</p>
+            <p class="be-big" id="beo-roas" dir="ltr">–</p>
+            <dl class="be-dl">
+              <div><dt>${bi("Highest CPA per purchase in Ads Manager", "أعلى CPA لكل شراء في Ads Manager")}</dt><dd id="beo-cpa" dir="ltr">–</dd></div>
+              <div><dt>${bi("Highest cost per delivered order", "أعلى تكلفة لكل طلب متسلّم")}</dt><dd id="beo-dcpa" dir="ltr">–</dd></div>
+              <div><dt>${bi("Orders that turn into cash", "الطلبات اللي بتتحوّل فلوس")}</dt><dd id="beo-del" dir="ltr">–</dd></div>
+              <div><dt>${bi("Your real ROAS after COD losses", "الـ ROAS الحقيقي بعد خسارة الاستلام")}</dt><dd id="beo-real" dir="ltr">–</dd></div>
+            </dl>
+            <p class="be-verdict" id="be-verdict" hidden></p>
+            <p class="be-lift" id="be-lift" hidden></p>
+            ${inflated ? `<p class="be-warn">${bi(
+              `We found ${inflated} tracking ${inflated === 1 ? "problem" : "problems"} that count extra sales. So the ROAS in Ads Manager is probably too high. Keep that in mind when you compare it to break-even.`,
+              `لقينا ${inflated} مشاكل تتبع بتعدّ مبيعات زيادة. فالـ ROAS في Ads Manager غالبًا أعلى من الحقيقي. خلّي ده في بالك وإنت بتقارنه بالتعادل.`,
+            )}</p>` : ""}
+            <button type="button" class="btn btn--sm be-copy" id="be-copy">${bi("Copy for the store owner", "انسخها لصاحب المتجر")}</button>
+          </div>
+        </div>
+        <script>(function(){
+          var C=${cfg}, box=document.getElementById("breakeven"); if(!box) return;
+          var ins=box.querySelectorAll("input[data-k]"), key="be:"+C.host;
+          try{ var s=JSON.parse(localStorage.getItem(key)||"null"); if(s) ins.forEach(function(i){ if(s[i.dataset.k]!=null) i.value=s[i.dataset.k]; }); }catch(e){}
+          function ar(){ var r=document.getElementById("i18n-ar"); return !!(r&&r.checked); }
+          function num(k){ var el=box.querySelector('[data-k="'+k+'"]'); var v=parseFloat(String(el.value).replace(/,/g,"")); return isFinite(v)?v:null; }
+          function money(v){ return Math.round(v).toLocaleString("en-US")+(C.currency?" "+C.currency:""); }
+          function x(v){ return (Math.round(v*100)/100).toFixed(2)+"×"; }
+          var last="";
+          function calc(){
+            var aov=num("aov"), m=num("margin"), cod=num("cod"), cf=num("confirm"), dl=num("deliver"), ship=num("ship")||0, roas=num("roas"), A=ar();
+            var save={}; ins.forEach(function(i){ save[i.dataset.k]=i.value; }); try{ localStorage.setItem(key, JSON.stringify(save)); }catch(e){}
+            var out={roas:"–",cpa:"–",dcpa:"–",del:"–",real:"–"}, verdict="", lift="";
+            var V=document.getElementById("be-verdict"), L=document.getElementById("be-lift");
+            if(aov>0 && m!=null && cod!=null && cf!=null && dl!=null){
+              var c=Math.min(Math.max(cod,0),100)/100, shipped=(1-c)+c*cf/100, delivered=(1-c)+c*(cf/100)*(dl/100);
+              var profit=aov*delivered*(m/100)-ship*shipped;
+              out.del=Math.round(delivered*100)+"%"; if(roas>0) out.real=x(roas*delivered);
+              if(profit<=0){
+                out.roas=A?"مفيش":"None";
+                verdict=A?"بالأرقام دي كل طلب بيخسر قبل ما تصرف على الإعلانات. مفيش ROAS يغطّي ده: الحل في الهامش أو نسبة الاستلام، مش في الإعلانات.":"At these numbers every order loses money before any ad spend. No ROAS covers that: the fix is margin or delivery rate, not the ads.";
+              } else {
+                var be=aov/profit; out.roas=x(be); out.cpa=money(profit); out.dcpa=money(profit/delivered);
+                if(roas>0){
+                  var per=profit-aov/roas;
+                  verdict = roas>=be
+                    ? (A?"عند ROAS "+x(roas)+" المتجر بيكسب نحو "+money(per)+" في كل طلب بعد الإعلانات.":"At "+x(roas)+" the store keeps about "+money(per)+" per order after ads.")
+                    : (A?"عند ROAS "+x(roas)+" المتجر بيخسر نحو "+money(-per)+" في كل طلب، حتى لو الحملة شكلها ناجح.":"At "+x(roas)+" the store loses about "+money(-per)+" on every order, even if the campaign looks like a winner.");
+                  var up=roas*1.2;
+                  lift = A
+                    ? "لو معدل التحويل على الموقع"+(C.cr?" ("+C.cr.toFixed(1)+"%)":"")+" زاد 20% بإصلاحات بعد الضغط في التقرير ده، نفس الإنفاق يدّي ROAS نحو "+x(up)+(up>=be&&roas<be?": فوق نقطة التعادل.":".")
+                    : "If the site's conversion rate"+(C.cr?" ("+C.cr.toFixed(1)+"%)":"")+" rises 20% from the post-click fixes in this report, the same spend gives about "+x(up)+" ROAS"+(up>=be&&roas<be?": above break-even.":".");
+                }
+              }
+            }
+            // The pipeline's last stage follows the calculator (one number, two views of it).
+            var cash=document.getElementById("pz-cash");
+            if(cash && out.del!=="–"){ var cb=cash.querySelector(".pl-cash"); window.__rollText ? window.__rollText(cb, out.del) : (cb.textContent=out.del); cash.querySelector(".pl-cash-note").textContent=A?"من الأوردرات بتتحوّل فلوس، بنسب الاستلام اللي في التعادل ↓":"of orders turn into cash, at the COD rates in Break-even ↓"; }
+            ["roas","cpa","dcpa","del","real"].forEach(function(k){ var el=document.getElementById("beo-"+k); window.__rollText ? window.__rollText(el, out[k]) : (el.textContent=out[k]); });
+            V.hidden=!verdict; V.textContent=verdict; V.classList.toggle("is-loss", /loses|بيخسر/.test(verdict));
+            L.hidden=!lift; L.textContent=lift;
+            last=(A?"ROAS التعادل: ":"Break-even ROAS: ")+out.roas+" · "+(A?"أعلى CPA: ":"Highest CPA: ")+out.cpa+" · "+(A?"أعلى تكلفة لكل طلب متسلّم: ":"Highest cost per delivered order: ")+out.dcpa+(verdict?"\\n"+verdict:"")+(lift?"\\n"+lift:"");
+          }
+          ins.forEach(function(i){ i.addEventListener("input", calc); });
+          box.querySelectorAll(".be-preset").forEach(function(b){ b.addEventListener("click", function(){
+            box.querySelector('[data-k="confirm"]').value=b.getAttribute("data-c");
+            box.querySelector('[data-k="deliver"]').value=b.getAttribute("data-d");
+            box.querySelectorAll(".be-preset").forEach(function(x){ x.setAttribute("aria-pressed", String(x===b)); });
+            calc();
+          }); });
+          document.querySelectorAll("input[name=report-i18n]").forEach(function(r){ r.addEventListener("change", calc); });
+          var btn=document.getElementById("be-copy");
+          btn.addEventListener("click", function(){
+            var t=last+"\\n"+location.href.split("#")[0]+"#breakeven";
+            var done=function(){ btn.classList.add("is-done"); setTimeout(function(){ btn.classList.remove("is-done"); }, 1600); };
+            if(navigator.clipboard) navigator.clipboard.writeText(t).then(done, function(){});
+          });
+          calc();
+        })();</script>
       </section>`;
 }
 
@@ -886,8 +1319,8 @@ function ownerHandoverHtml(result: AuditResult): string {
   return `
         <div class="handover" id="handover">
           <h3 class="lane-head">${bi("Send this to the store owner", "ابعت ده لصاحب المتجر")}</h3>
-          <p class="lane-lead">${bi("The three fixes worth most, in plain words, with who does each one. Copy it as it is.", "أهم تلات إصلاحات بكلام بسيط، ومين بيعمل كل واحد. انسخه زي ما هو.")}</p>
-          <ol class="ho-list">${items}</ol>
+          <p class="lane-lead">${bi("The three fixes worth most, in plain words. Each one says who does it. Copy it as it is.", "أهم تلات إصلاحات بكلام بسيط. كل واحد مكتوب مين يعمله. انسخه زي ما هو.")}</p>
+          <details class="ho-preview"><summary>${bi("Preview what gets copied", "شوف اللي هيتنسخ")}</summary><ol class="ho-list">${items}</ol></details>
           <button type="button" class="btn btn--primary btn--sm ho-copy" hidden><span class="ho-copy-idle">${bi("Copy the three fixes", "انسخ التلات إصلاحات")}</span><span class="ho-copy-done" hidden>${bi("Copied. Paste it to the store owner.", "اتنسخ. ابعته لصاحب المتجر.")}</span></button>
         </div>`;
 }
@@ -966,7 +1399,14 @@ function planItemHtml(r: FailedRow, buyer: boolean, result?: AuditResult): strin
             ${whoEn ? `<p class="plan-who">${bi(whoEn, whoAr)}</p>` : ""}
             ${step ? `<p class="plan-step">${biHtml(`<b>Change:</b> ${escapeHtml(step)}`, `<b>${buyer ? "المطلوب" : "وش تغيّر"}:</b> ${escapeHtml(stepAr)}`)}</p>` : ""}
             ${done ? `<p class="plan-done">${biHtml(`<b>Done when:</b> ${escapeHtml(done)}`, `<b>${buyer ? "يخلص لما" : "تعرف إنه انحل لما"}:</b> ${escapeHtml(doneAr)}`)}</p>` : ""}
+            ${buyer ? verifyLineHtml(f.checklistId) : ""}
           </li>`;
+}
+
+// Media buyer: how to confirm a tracking finding with their own tools.
+function verifyLineHtml(checklistId: string): string {
+  const v = verifyFor(checklistId);
+  return v ? `<p class="plan-verify">${biHtml(`<b>Check it yourself:</b> ${escapeHtml(v.en)}`, `<b>اتأكد بنفسك:</b> ${escapeHtml(v.ar)}`)}</p>` : "";
 }
 
 // Store owner opening (#31 primacy, #9 framing, #51 uncertainty reduction,
@@ -1067,51 +1507,338 @@ function keepItHtml(result: AuditResult): string {
 // Media buyer opening (#31 a verdict first, #49 say so when the site is
 // clean, #56 what the scan saw, #23 the two questions, #9 direction only,
 // #53 forwardable proof).
-function buyerHeroHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, generatedAt: string, generatedAtAr: string, contactUrl: string, shots = ""): string {
-  const rows = failedRows(result).sort((a, b) => mediaBuyerRank(a.f.checklistId, SEVERITY_RANK[a.f.severity]) - mediaBuyerRank(b.f.checklistId, SEVERITY_RANK[b.f.severity]));
-  const signal = rows.filter(r => mediaBuyerLane(r.f.checklistId) === "signal");
-  const postClick = dedupeFunnel(rows.filter(r => mediaBuyerLane(r.f.checklistId) === "post_click"), result);
-  const up = rows.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
-  const down = rows.filter(r => adEffectOf(r.f.checklistId) === "deflated").length;
+// ---- Media buyer (ICP2): the ads-or-site check ----
+// The buyer's job in their words: "tell me if it's the ads or the site, and
+// give me proof the owner will accept" (icp/media-buyer.md). The opening runs
+// the diagnosis from icp/media-buyer-full.md §13 on this store: is the number
+// real, can the algorithm learn, does paid traffic convert, is budget buying
+// clicks that can't buy, and only then the ads, which this audit can't see.
+// Every failed point with an ad effect (ad-impact.ts) lands in one step.
+// Points with no honest effect on ROAS or CAC (privacy, security, team
+// filters) stay out of the diagnosis and live in the checks below.
 
-  const [h1En, h1Ar]: Bi2 = up && down
-    ? ["Reported ROAS is off in both directions", "ROAS المُبلَّغ منحرف في الاتجاهين"]
-    : up ? ["Reported ROAS likely reads higher than real", "ROAS المُبلَّغ غالبًا أعلى من الحقيقي"]
-    : down ? ["Reported ROAS likely reads lower than real", "ROAS المُبلَّغ غالبًا أقل من الحقيقي"]
-    : signal.length ? ["The ad platforms get a weak signal from this store", "منصات الإعلانات بتستقبل إشارة ضعيفة من المتجر ده"]
-    : postClick.length ? ["Tracking is clean. The leak is after the click.", "التتبع سليم. التسريب بعد الضغط على الإعلان."]
-    : ["Tracking and the site passed: look at targeting and creative", "التتبع والموقع سليمين: راجع الاستهداف والكريتيف"];
-  const [leadEn, leadAr]: Bi2 = postClick.length && (up || down || signal.length)
-    ? [`After the click: ${postClick[0].f.business.summary}`, `بعد الضغط على الإعلان: ${(postClick[0].f.ar?.business ?? postClick[0].f.business).summary}`]
-    : signal.length ? [signal[0].f.business.summary, (signal[0].f.ar?.business ?? signal[0].f.business).summary]
-    : postClick.length ? [postClick[0].f.business.summary, (postClick[0].f.ar?.business ?? postClick[0].f.business).summary]
-    : ["Nothing on the site or in the tracking explains weak results. The problem, if there is one, is in the account.", "مفيش حاجة في الموقع أو التتبع تفسّر ضعف النتايج. لو فيه مشكلة، فهي في الحساب نفسه."];
+type BuyerStep = "real" | "learn" | "convert" | "waste";
+
+function buyerStepOf(id: string): BuyerStep | null {
+  const e = adEffectOf(id);
+  if (e === "inflated" || e === "deflated") return "real";
+  if (e === "optimization") return "learn";
+  if (e === "cost") return "waste";
+  if (e === "performance" || e === "aov") return "convert";
+  return null;
+}
+
+function buyerSteps(result: AuditResult): Record<BuyerStep, FailedRow[]> {
+  const rows = failedRows(result).sort((a, b) => mediaBuyerRank(a.f.checklistId, SEVERITY_RANK[a.f.severity]) - mediaBuyerRank(b.f.checklistId, SEVERITY_RANK[b.f.severity]));
+  const out: Record<BuyerStep, FailedRow[]> = { real: [], learn: [], convert: [], waste: [] };
+  for (const r of rows) {
+    const step = buyerStepOf(r.f.checklistId);
+    if (step) out[step].push(r);
+  }
+  // Over-counting first: scaling into a loss is the costlier mistake.
+  const over = (r: FailedRow) => (adEffectOf(r.f.checklistId) === "inflated" ? 0 : 1);
+  out.real.sort((a, b) => over(a) - over(b) || SEVERITY_RANK[a.f.severity] - SEVERITY_RANK[b.f.severity]);
+  out.convert = dedupeFunnel(out.convert, result);
+  return out;
+}
+
+// Reported ROAS bias as counted points, never a size: one mark per point
+// that over-counts (left) and per point that under-counts (right).
+function biasMeterHtml(up: number, down: number): string {
+  if (!up && !down) return "";
+  const marks = (n: number, cls: string) => Array.from({ length: n }, () => `<i class="${cls}"></i>`).join("");
+  return `
+            <div class="bias" role="img" aria-label="${up} problems count extra sales, ${down} miss real sales">
+              <span class="bias-side bias-side--up">${bi("Count extra sales", "بتعدّ مبيعات زيادة")} <b dir="ltr">${up}</b></span>
+              <span class="bias-track" dir="ltr"><span class="bias-l">${marks(up, "b-up")}</span><span class="bias-mid"></span><span class="bias-r">${marks(down, "b-down")}</span></span>
+              <span class="bias-side bias-side--down"><b dir="ltr">${down}</b> ${bi("Miss real sales", "بتفوّت مبيعات حقيقية")}</span>
+            </div>`;
+}
+
+// Media buyer motion (round 7). Runs only when the report's motion layer is on
+// (js-motion: GSAP + ScrollTrigger loaded, prefers-reduced-motion not set),
+// so a reader who asked for less motion, or a failed script, gets the plain
+// page with every number already in place. It never changes what a number
+// says; it only shows how it got there.
+const BUYER_MOTION = `
+(function(){
+  "use strict";
+  var root = document.documentElement, gsap = window.gsap, ST = window.ScrollTrigger;
+  if (!root.classList.contains("js-motion") || !gsap || !ST) return;
+  try {
+    function q(sel, ctx){ return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
+    function once(el, fn, start){ if (el) ST.create({ trigger: el, start: start || "top 82%", once: true, onEnter: fn }); }
+    function fmt(v, dec){ return dec ? v.toFixed(dec) : Math.round(v).toLocaleString("en-US"); }
+    // Rolls a number from 0 (or from its current value) to its target.
+    function roll(el, to, dec, suf, from, dur){
+      var o = { v: from || 0 };
+      gsap.to(o, { v: to, duration: dur || 1.4, ease: "power3.out",
+        onUpdate: function(){ el.textContent = fmt(o.v, dec) + (suf || ""); },
+        onComplete: function(){ el.textContent = fmt(to, dec) + (suf || ""); } });
+    }
+    // Same, for text like "3.09×", "356 EGP", "81%": the first number moves, the rest stays.
+    window.__rollText = function(el, text){
+      var m = /^([^0-9-]*)(-?[0-9][0-9,]*\\.?[0-9]*)(.*)$/.exec(text), old = /(-?[0-9][0-9,]*\\.?[0-9]*)/.exec(el.textContent || "");
+      if (!m || !old || el.getAttribute("data-rolling")) { el.textContent = text; return; }
+      var to = parseFloat(m[2].replace(/,/g, "")), from = parseFloat(old[1].replace(/,/g, "")), dec = (m[2].split(".")[1] || "").length;
+      if (!isFinite(to) || !isFinite(from) || to === from) { el.textContent = text; return; }
+      var o = { v: from }; el.setAttribute("data-rolling", "1");
+      gsap.to(o, { v: to, duration: .6, ease: "power2.out",
+        onUpdate: function(){ el.textContent = m[1] + (dec ? o.v.toFixed(dec) : Math.round(o.v).toLocaleString("en-US")) + m[3]; },
+        onComplete: function(){ el.textContent = text; el.removeAttribute("data-rolling"); } });
+    };
+
+    // ---- From click to cash ----
+    var pipe = document.querySelector(".pipe");
+    if (pipe) {
+      var lines = q(".pl-row, .pl-zone", pipe), nums = q("[data-n]", pipe);
+      gsap.set(lines, { opacity: 0, y: 12 });
+      once(pipe, function(){
+        gsap.to(lines, { opacity: 1, y: 0, duration: .6, ease: "expo.out", stagger: .07, clearProps: "transform" });
+        nums.forEach(function(el, i){ roll(el, parseFloat(el.getAttribute("data-n")), parseInt(el.getAttribute("data-dec") || "0", 10), el.getAttribute("data-suf") || "", 0, 1.3 + i * .04); });
+        setTimeout(flow, 900);
+      });
+      // The money: a dot runs down the number rail and loses red drops at each leak.
+      var pl = pipe.querySelector(".pl"), loop = null;
+      function flow(){
+        if (!pl) return;
+        var marks = q(".pl-row .pl-n", pl);
+        if (marks.length < 2) return;
+        var dot = document.createElement("span"); dot.className = "pl-dot"; pl.appendChild(dot);
+        function center(el){ var r = el.getBoundingClientRect(), b = pl.getBoundingClientRect(); return { x: r.left - b.left + r.width / 2, y: r.top - b.top + r.height / 2 }; }
+        function run(){
+          if (!document.body.contains(dot)) return;
+          var pts = marks.map(center);
+          var tl = gsap.timeline({ onComplete: function(){ loop = setTimeout(run, 2600); } });
+          tl.set(dot, { x: pts[0].x, y: pts[0].y, opacity: 0, scale: .6 })
+            .to(dot, { opacity: 1, scale: 1, duration: .25 });
+          if (marks[0].parentNode.hasAttribute("data-leak")) tl.add(drip(pts[0]));
+          for (var i = 1; i < pts.length; i++) {
+            tl.to(dot, { x: pts[i].x, y: pts[i].y, duration: .5, ease: "none" });
+            if (marks[i].parentNode.hasAttribute("data-leak")) tl.add(drip(pts[i])).to({}, { duration: .25 });
+          }
+          tl.to(dot, { opacity: 0, scale: .4, duration: .3 });
+        }
+        function drip(p){
+          return function(){
+            var side = document.documentElement.dir === "rtl" || document.getElementById("i18n-ar") && document.getElementById("i18n-ar").checked ? 1 : -1;
+            for (var k = 0; k < 3; k++) {
+              var d = document.createElement("span"); d.className = "pl-drop"; pl.appendChild(d);
+              gsap.fromTo(d, { x: p.x, y: p.y, opacity: 1, scale: 1 },
+                { x: p.x + side * (10 + k * 6), y: p.y + 18 + k * 8, opacity: 0, scale: .5, duration: .8 + k * .15, ease: "power2.in", delay: k * .08,
+                  onComplete: (function(el){ return function(){ el.remove(); }; })(d) });
+            }
+          };
+        }
+        ST.create({ trigger: pl, start: "top bottom", end: "bottom top", onToggle: function(self){ clearTimeout(loop); if (self.isActive) run(); } });
+        run();
+      }
+    }
+
+    // ---- Scoreboard: rows in turn, each verdict dot pings once ----
+    var board = document.querySelector(".dx-board");
+    if (board) {
+      var rows = q(".dx-row", board);
+      gsap.set(rows, { opacity: 0, x: -16 });
+      once(board, function(){
+        gsap.to(rows, { opacity: 1, x: 0, duration: .6, ease: "expo.out", stagger: .09, clearProps: "transform",
+          onComplete: function(){ rows.forEach(function(r, i){ setTimeout(function(){ r.classList.add("is-ping"); }, i * 90); }); } });
+      });
+    }
+
+    // ---- Bias meter: one mark per problem, dropping in ----
+    q(".bias").forEach(function(b){
+      var marks = q(".b-up", b).concat(q(".b-down", b).reverse());
+      gsap.set(marks, { opacity: 0, y: -14 });
+      once(b, function(){ gsap.to(marks, { opacity: 1, y: 0, duration: .45, ease: "back.out(2)", stagger: .09, clearProps: "transform" }); });
+    });
+  } catch (e) {
+    // Never leave anything hidden: put every start state back.
+    Array.prototype.forEach.call(document.querySelectorAll(".pl-row, .pl-zone, .dx-row, .bias i"), function(el){ el.style.opacity = ""; el.style.transform = ""; });
+  }
+})();
+`;
+
+// ---- Media buyer: "From click to cash" ----
+// The buyer's whole question as one picture (icp/media-buyer-full.md §13):
+// the click has to load, the site has to convert it, and the sale has to be
+// counted (and, with COD, collected). One ordered ledger: every row has the
+// same five columns (# / step / number / what it means / status), grouped
+// under thin zone labels, with a link to the one place that holds the detail.
+// This is the home of the funnel numbers in the buyer report.
+// The count-up target for a percentage, matching how fmtPct writes it.
+function rollAttrs(pct: number): string {
+  const text = fmtPct(pct);
+  return `data-n="${text.replace(/,/g, "")}" data-dec="${text.includes(".") ? 1 : 0}" data-suf="%"`;
+}
+
+function clickToCashHtml(result: AuditResult): string {
+  const s = buyerSteps(result);
+  const up = s.real.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
+  const down = s.real.length - up;
+  const funnel = result.ga4Metrics?.funnel ?? [];
+  const order: Ga4FunnelEvent[] = ["view_item", "add_to_cart", "begin_checkout", "purchase"];
+  const steps = order.map(e => funnel.find(x => x.event === e)).filter((x): x is NonNullable<typeof x> => Boolean(x && x.count > 0));
+  const speed = result.pageSpeed?.pages.filter(p => p.mobile !== null).sort((a, b) => a.mobile! - b.mobile!)[0];
+  if (steps.length < 3 && !speed && !s.real.length) return "";
+
+  // One row shape for every step: number, what it means, one status word.
+  type Status = "bad" | "warn" | "ok" | "na";
+  type Row = { zone: Bi2 | null; label: Bi2; value: string; meaning: string; status: Status; word: Bi2; href?: string; bar?: number; id?: string; leak?: boolean };
+  const rows: Row[] = [];
+  const statusWord: Record<Status, Bi2> = { bad: ["Leak", "تسريب"], warn: ["Okay", "مقبول"], ok: ["OK", "تمام"], na: ["Check", "اتأكد"] };
+
+  // 1. The click
+  if (speed) {
+    const [pe, pa] = SPEED_PAGE_LABEL[speed.type] ?? [speed.type, speed.type];
+    const st: Status = speed.mobile! < 50 ? "bad" : speed.mobile! < 90 ? "warn" : "ok";
+    rows.push({ zone: ["The click", "الكليك"], label: ["Page loads on a phone", "الصفحة بتحمّل على الموبايل"], href: "#speed",
+      value: `<span><span data-n="${speed.mobile}">${speed.mobile}</span><small> / 100</small></span>`,
+      meaning: bi(`Google speed score. ${pe}, your slowest page.`, `درجة سرعة Google. ${pa}، أبطأ صفحة عندك.`),
+      status: st, leak: st === "bad", word: st === "bad" ? ["Slow", "بطيئة"] : st === "warn" ? ["Okay", "مقبولة"] : ["Fast", "سريعة"] });
+  }
+
+  // 2. The site: each rate sits on the step it leads to.
+  const first = steps[0]?.count ?? 0;
+  const PREV_EN: Record<string, string> = { view_item: "product viewers", add_to_cart: "carts", begin_checkout: "checkouts" };
+  const PREV_AR: Record<string, string> = { view_item: "اللي شافوا المنتج", add_to_cart: "السلات", begin_checkout: "اللي بدأوا الدفع" };
+  steps.forEach((st, i) => {
+    const [en, ar] = STRIP_LABEL[st.event] ?? [st.event, st.event];
+    const bar = first ? Math.max(4, Math.pow(st.count / first, 0.35) * 100) : undefined;
+    const base = { zone: i === 0 ? (["The site", "الموقع"] as Bi2) : null, label: [en, ar] as Bi2, value: `<span data-n="${st.count}">${fmtInt(st.count)}</span>`, bar, id: st.event };
+    if (i === 0) {
+      rows.push({ ...base, meaning: bi("Visits that opened a product.", "زيارات فتحت صفحة منتج."), status: "na", word: ["Start", "البداية"] });
+      return;
+    }
+    const prev = steps[i - 1];
+    const rate = st.count / prev.count;
+    const bench = STEP_BENCHMARKS[`${prev.event}>${st.event}`];
+    const low = bench !== undefined && rate < bench;
+    const r = `<b dir="ltr" ${rollAttrs(rate * 100)}>${fmtPct(rate * 100)}%</b>`;
+    const n = bench !== undefined ? fmtPct(bench * 100) : null;
+    rows.push({ ...base,
+      meaning: biHtml(`${r} of ${PREV_EN[prev.event] ?? "the step before"}${n ? ` <span class="pl-norm">· normal <span dir="ltr">${n}%</span></span>` : ""}`, `${r} من ${PREV_AR[prev.event] ?? "الخطوة اللي قبلها"}${n ? ` <span class="pl-norm">· الطبيعي <span dir="ltr">${n}%</span></span>` : ""}`),
+      leak: low, status: low ? "bad" : bench === undefined ? "na" : "ok", word: low ? statusWord.bad : bench === undefined ? ["—", "—"] : statusWord.ok, href: low ? "#friction" : undefined });
+  });
+
+  // 3. The count
+  const countParts: Bi2[] = [
+    ...(up ? [[`${up} count extra sales`, `${up} بتعدّ مبيعات زيادة`] as Bi2] : []),
+    ...(down ? [[`${down} miss real sales`, `${down} بتفوّت مبيعات حقيقية`] as Bi2] : []),
+    ...(s.learn.length ? [[`${s.learn.length} make ads learn less`, `${s.learn.length} بتخلي الإعلانات تتعلم أقل`] as Bi2] : []),
+  ];
+  rows.push({ zone: ["The count", "العدّ"], label: ["Sales counted in Ads Manager", "المبيعات في Ads Manager"], href: "#lane-real",
+    value: s.real.length ? bi("Not right", "مش مظبوط") : bi("Right", "مظبوط"),
+    meaning: countParts.length ? biHtml(countParts.map(p => escapeHtml(p[0])).join("<br>"), countParts.map(p => escapeHtml(p[1])).join("<br>")) : bi("Each sale is counted once, with its value.", "كل بيعة بتتحسب مرة واحدة بقيمتها."),
+    status: s.real.length ? "bad" : "ok", word: s.real.length ? ["Problem", "مشكلة"] : statusWord.ok });
+  rows.push({ zone: null, label: ["Turns into cash", "بيتحوّل فلوس"], href: "#breakeven", id: "cash",
+    value: `<span class="pl-cash">${bi("–", "–")}</span>`,
+    meaning: `<span class="pl-cash-note">${bi("Of orders, at your COD rates. Set them in Break-even ↓", "من الأوردرات، بنسب الاستلام بتاعتك. ظبّطها في التعادل ↓")}</span>`,
+    status: "na", word: statusWord.na });
+
+  const leak = rows.find(r => r.leak && r.id);
+  // Visits and sales: the totals behind the steps (the buyer has no numbers section).
+  const m = result.ga4Metrics;
+  const money = m?.revenue != null ? compactMoney(m.revenue) : null;
+  const moneyText = money ? `${m!.currency ? `${escapeHtml(m!.currency)} ` : ""}${money.value.toLocaleString("en-US", { maximumFractionDigits: money.dec })}${money.en}` : "";
+  const totals: Bi2 | null = m?.sessions != null || money
+    ? [[m?.sessions != null ? `<b dir="ltr">${fmtInt(m.sessions)}</b> visits` : "", money ? `<b dir="ltr">${moneyText}</b> in sales` : ""].filter(Boolean).join(", "),
+       [m?.sessions != null ? `<b dir="ltr">${fmtInt(m.sessions)}</b> زيارة` : "", money ? `<b dir="ltr">${moneyText}</b> مبيعات` : ""].filter(Boolean).join("، ")]
+    : null;
+  return `
+        <figure class="pipe" aria-labelledby="pipe-title">
+          <figcaption class="pipe-head">
+            <span id="pipe-title" class="pipe-title">${bi("From click to cash", "من الكليك للفلوس")}</span>
+            <span class="pipe-sub">${biHtml(`Your store, last ${periodOf(result)} days${totals ? `: ${totals[0]}` : ""}. Red means money leaks there.`, `متجرك، آخر ${periodOf(result)} يوم${totals ? `: ${totals[1]}` : ""}. الأحمر معناه إن فيه فلوس بتضيع هنا.`)}</span>
+          </figcaption>
+          <div class="pl-head" aria-hidden="true"><span></span><span>${bi("Step", "الخطوة")}</span><span>${bi("Number", "الرقم")}</span><span>${bi("What it means", "معناه")}</span><span>${bi("Status", "الحالة")}</span></div>
+          <ol class="pl">${rows.map((r, i) => `
+            ${r.zone ? `<li class="pl-zone" aria-hidden="true">${bi(...r.zone)}</li>` : ""}
+            <li class="pl-row pl--${r.status}"${r.leak ? " data-leak" : ""}${r.id === "cash" ? ` id="pz-cash"` : ""}>
+              <span class="pl-n" aria-hidden="true">${i + 1}</span>
+              <span class="pl-label">${r.href ? `<a href="${r.href}">${bi(...r.label)}</a>` : bi(...r.label)}</span>
+              <span class="pl-value" dir="ltr">${r.value}${r.bar ? `<i class="pl-bar" style="--w:${r.bar.toFixed(1)}%"></i>` : ""}</span>
+              <span class="pl-meaning">${r.meaning}</span>
+              <span class="pl-status"><span class="pl-word">${bi(...r.word)}</span></span>
+            </li>`).join("")}
+          </ol>
+          ${leak ? `<p class="pl-foot">${biHtml(`<b>Biggest leak:</b> ${escapeHtml(leak.label[0])}. <a href="#friction">See why ↓</a>`, `<b>أكبر تسريب:</b> ${escapeHtml(leak.label[1])}. <a href="#friction">شوف السبب ↓</a>`)}</p>` : ""}
+        </figure>`;
+}
+
+// The opening is a scoreboard: each question, its verdict and its count, and
+// a link to the one place that holds the detail (the lanes, break-even).
+// Nothing here repeats a finding, a number or a sentence from below.
+function buyerHeroHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, generatedAt: string, generatedAtAr: string, _contactUrl: string, shots = ""): string {
+  const s = buyerSteps(result);
+  const up = s.real.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
+  const down = s.real.length - up;
+  const off = s.real.length > 0;
+  const leaks = s.convert.length > 0;
+
+  const [h1En, h1Ar]: Bi2 = off && leaks
+    ? ["It's not only your ads. The numbers are off. The site leaks.", "المشكلة مش في الإعلانات بس. الأرقام مش مظبوطة. والموقع بيسرّب."]
+    : off ? ["Fix the numbers before you judge the ads", "ظبّط الأرقام الأول قبل ما تحكم على الإعلانات"]
+    : leaks ? ["Your tracking holds. The leak is after the click.", "التتبع سليم. التسريب بعد الضغطة."]
+    : s.learn.length ? ["The numbers hold, but the platforms learn from a weak signal", "الأرقام سليمة، بس المنصات بتتعلم من إشارة ضعيفة"]
+    : s.waste.length ? ["Part of your budget pays for clicks that can't buy", "جزء من الميزانية بيروح على كليكات مش ممكن تشتري"]
+    : ["Tracking and the site hold up: look at the account", "التتبع والموقع سليمين: بُص على الحساب نفسه"];
 
   const ga4 = result.ga4Facts || result.ga4Metrics ? [`GA4: last ${periodOf(result)} days`, `GA4: آخر ${periodOf(result)} يوم`] : ["GA4: not connected", "GA4: مش مربوط"];
   const gtm = result.categories.some(c => c.category === "GTM") ? ["GTM container read", "اتقرت حاوية GTM"] : ["GTM: not shared", "GTM: مش متشارك"];
-  const visit = result.siteChecks || result.fud ? ["Store visit with Add to Cart", "زيارة للمتجر مع Add to Cart"] : ["Store visit: not run", "زيارة المتجر: متعملتش"];
+  const visit = result.siteChecks || result.fud ? ["Store visited from a phone", "زرنا المتجر من موبايل"] : ["Store visit: not run", "زيارة المتجر: متعملتش"];
   const clarity = result.clarityFacts ? [`Clarity: last ${result.clarityFacts.days} days`, `Clarity: آخر ${result.clarityFacts.days} أيام`] : null;
-  const status = [ga4, gtm, visit, ...(clarity ? [clarity] : []), ["Checkout: not observed", "Checkout: متشافش"]];
+  const status = [ga4, gtm, visit, ...(clarity ? [clarity] : []), ["Checkout: not observed", "الـ Checkout: متشافش"]];
 
-  const col = (en: string, ar: string, list: FailedRow[], emptyEn: string, emptyAr: string) => `
-          <div class="q-col">
-            <h2 class="hero-h2">${bi(en, ar)}</h2>
-            ${list.length ? `<ol class="plan-list plan-list--hero">${list.slice(0, 2).map(r => planItemHtml(r, true, result)).join("")}</ol>` : `<p class="lane-empty">${bi(emptyEn, emptyAr)}</p>`}
-          </div>`;
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  type Row = { cls: "bad" | "ok" | "na"; q: Bi2; v: Bi2; note: Bi2; href: string };
+  const rows: Row[] = [
+    off
+      ? { cls: "bad", q: ["Is the number real?", "الرقم حقيقي؟"], v: ["No", "لأ"], href: "#lane-real",
+        note: [[up ? `${n(up, "problem counts", "problems count")} extra sales` : "", down ? `${n(down, "problem misses", "problems miss")} real sales` : ""].filter(Boolean).join(". ") + ".",
+               [up ? `${up} مشاكل بتعدّ مبيعات زيادة` : "", down ? `${down} مشاكل بتفوّت مبيعات حقيقية` : ""].filter(Boolean).join(". ") + "."] }
+      : { cls: "ok", q: ["Is the number real?", "الرقم حقيقي؟"], v: ["Yes", "أيوه"], href: "#lane-real", note: ["Each sale is counted once, with its value.", "كل بيعة بتتحسب مرة واحدة بقيمتها."] },
+    s.learn.length
+      ? { cls: "bad", q: ["Can the algorithm learn from your sales?", "الخوارزمية بتتعلم من مبيعاتك؟"], v: ["Partly", "جزئيًا"], href: "#lane-learn", note: [`${n(s.learn.length, "problem makes", "problems make")} your ads learn less.`, `${s.learn.length} مشاكل بتخلي إعلاناتك تتعلم أقل.`] }
+      : { cls: "ok", q: ["Can the algorithm learn from your sales?", "الخوارزمية بتتعلم من مبيعاتك؟"], v: ["Yes", "أيوه"], href: "#lane-learn", note: ["Your ads get the data they need.", "إعلاناتك بيوصلها الداتا اللي محتاجاها."] },
+    leaks
+      ? { cls: "bad", q: ["Does paid traffic convert after the click?", "الترافيك المدفوع بيحوّل بعد الضغطة؟"], v: ["It leaks", "فيه تسريب"], href: "#lane-convert", note: [`${n(s.convert.length, "thing loses", "things lose")} buyers after the click.`, `${s.convert.length} حاجات بتضيّع مشترين بعد الضغطة.`] }
+      : { cls: "ok", q: ["Does paid traffic convert after the click?", "الترافيك المدفوع بيحوّل بعد الضغطة؟"], v: ["Yes", "أيوه"], href: "#lane-convert", note: ["In the steps we could measure.", "في الخطوات اللي قدرنا نقيسها."] },
+    ...(s.waste.length ? [{ cls: "bad" as const, q: ["Is budget buying clicks that can't buy?", "الميزانية بتشتري كليكات مش هتشتري؟"] as Bi2, v: ["Yes", "أيوه"] as Bi2, href: "#lane-convert", note: [`${n(s.waste.length, "place sends", "places send")} visits that can't buy.`, `${s.waste.length} أماكن بتجيب زيارات مش هتشتري.`] as Bi2 }] : []),
+    { cls: "na", q: ["Is it the ads?", "المشكلة في الإعلانات؟"], v: ["Can't tell from here", "مش باين من هنا"], href: "#breakeven",
+      note: off || leaks || s.learn.length
+        ? ["We can't see your ad account. Fix rows 1 to 4 first. Then check Break-even.", "إحنا مش شايفين حساب الإعلانات. صلّح من 1 لـ 4 الأول. وبعدين بُص على التعادل."]
+        : ["Nothing above explains weak results. Look at your ad account, then Break-even.", "مفيش حاجة فوق تفسّر ضعف النتايج. بُص على حساب الإعلانات، وبعدين التعادل."] },
+  ];
+
+  const fud = (result.fud?.findings ?? []).map(f => f.override?.to ?? f.status).filter(x => x === "pass" || x === "warn" || x === "fail");
+  const fudPassed = fud.filter(x => x === "pass").length;
   return `
-      <section class="doc-section summary persona-hero" id="overview">
+      <section class="doc-section summary persona-hero mb-hero" id="overview">
         <div class="hero-fx" aria-hidden="true"><span class="glow glow--a"></span><span class="glow glow--b"></span><span class="gate gate--l"></span><span class="gate gate--r"></span></div>
         <p class="crumbs">${bi("Free tracking and site audit", "تدقيق مجاني للتتبع والموقع")}<span aria-hidden="true">/</span><span dir="ltr">${escapeHtml(hostOf(result.websiteUrl))}</span><span aria-hidden="true">/</span>${biHtml(escapeHtml(generatedAt), escapeHtml(generatedAtAr))}</p>
         <h1>${bi(h1En, h1Ar)}</h1>
-        ${shots}
-        <p class="lead">${bi(leadEn, leadAr)}</p>
+        <p class="lead">${bi(
+          "Is it the ads or the site? We checked GA4 and GTM. We also visited the site on a phone. Read this before you change a bid or a budget.",
+          "المشكلة في الإعلانات ولا في الموقع؟ فحصنا GA4 وGTM. وزرنا الموقع من الموبايل. اقرا ده قبل ما تغيّر أي bid أو ميزانية.",
+        )}</p>
         <p class="status-line">${status.map(([en, ar]) => `<span>${bi(en, ar)}</span>`).join(`<span aria-hidden="true">·</span>`)}</p>
-        <div class="q-cols">
-          ${col("Is the number real?", "هل الرقم حقيقي؟", signal, "No tracking problem found: each sale reaches GA4 and the pixels once.", "مفيش مشكلة تتبع: كل عملية شراء بتوصل GA4 والبيكسلات مرة واحدة.")}
-          ${col("Does paid traffic convert?", "هل الزيارات المدفوعة بتتحوّل؟", postClick, "No post-click leak found in the steps we could measure.", "مفيش تسريب بعد الضغط في الخطوات اللي قدرنا نقيسها.")}
-        </div>
-        <p class="hero-src">${bi("ROAS and CAC effects are directions, never numbers: this audit doesn't see your ad accounts.", "تأثير ROAS وCAC اتجاه بس، مش أرقام: التدقيق ده مش بيشوف حسابات الإعلانات.")}</p>
-        ${scoreLineHtml(result, counts, (p, t) => `نجح ${p} من ${t} بند`)}
+        ${shots}
+        ${clickToCashHtml(result)}
+        <ol class="dx-board">${rows.map((r, i) => `
+          <li class="dx-row dx--${r.cls}">
+            <a href="${r.href}">
+              <span class="dx-n" aria-hidden="true">${i + 1}</span>
+              <span class="dx-q">${bi(...r.q)}</span>
+              <span class="dx-v"><span class="dx-word">${bi(...r.v)}</span><span class="dx-note">${bi(...r.note)}</span></span>
+              <span class="dx-go" aria-hidden="true">${biHtml("→", "←")}</span>
+            </a>
+          </li>`).join("")}
+        </ol>
+        <p class="score-line"><a href="#checks">${bi(
+          `${counts.passed} of ${counts.total} checks passed${fud.length ? ` · ${fudPassed} of ${fud.length} site rules passed` : ""} ↓`,
+          `${counts.passed} من ${counts.total} بند نجحوا${fud.length ? ` · ${fudPassed} من ${fud.length} قواعد الموقع نجحت` : ""} ↓`,
+        )}</a></p>
       </section>`;
 }
 
@@ -1139,12 +1866,8 @@ function claritySectionHtml(result: AuditResult, buyer: boolean): string {
     if (h) return { flag: true, en: `${enName}: ${pct(h.pageRate)} of sessions on ${pathOf(h.url)} against ${site} across your store (${fmtInt(h.sessions)} sessions).`, ar: `${BEHAVIOUR_AR[key]}: ${pct(h.pageRate)} من الجلسات في ${pathOf(h.url)} مقابل ${site} في متجرك كامل (${fmtInt(h.sessions)} جلسة).` };
     return { flag: false, en: `${enName}: ${site} of sessions across your store${unavailable ? ". Clarity didn't give a per-page split this time." : ", no page far above that."}`, ar: `${BEHAVIOUR_AR[key]}: ${site} من الجلسات في متجرك${unavailable ? ". Clarity ما أعطى تفصيل لكل صفحة هالمرة." : "، وما فيه صفحة أعلى منها بكثير."}` };
   };
-  if (buyer) {
-    if (c.inAppShare) items.push({ flag: c.inAppShare >= 25, en: `${pct(c.inAppShare)} of sessions open inside the Facebook, Instagram or TikTok app browser (${c.inAppBrowsers.map(b => b.name).join(", ")}). That's where paid social lands: test the cart and checkout there, not only in Chrome.`, ar: `${pct(c.inAppShare)} من الجلسات بتفتح جوه متصفح تطبيق فيسبوك أو انستجرام أو تيك توك (${c.inAppBrowsers.map(b => b.name).join(", ")}). ده المكان اللي الإعلانات بتنزل فيه: جرّب السلة والدفع هناك، مش في كروم بس.` });
-    const q = pageLine("quickbacks", "Quick-backs (left a page within seconds)");
-    if (q) items.push(q);
-    if (c.botShare !== null) items.push({ flag: c.botShare >= 15, en: `Clarity filtered ${pct(c.botShare)} of sessions as bots. Bot clicks can inflate paid sessions in GA4 and make conversion rate look worse than it is.`, ar: `Clarity استبعد ${pct(c.botShare)} من الجلسات على إنها بوتات. ضغطات البوتات ممكن تنفخ الجلسات المدفوعة في GA4 وتخلي معدل التحويل يبان أوحش من الحقيقي.` });
-  } else {
+  if (buyer) return buyerClarityHtml(result);
+  {
     const d = pageLine("deadClicks", "Taps on things that do nothing");
     if (d) items.push(d);
     const e = pageLine("scriptErrors", "Errors on your pages");
@@ -1154,14 +1877,58 @@ function claritySectionHtml(result: AuditResult, buyer: boolean): string {
   if (!items.length) return "";
   return `
       <section class="doc-section" id="clarity">
-        <h2>${bi(buyer ? "What paid visitors did (Clarity)" : "What your shoppers did (Clarity)", buyer ? "الزوار عملوا إيه (Clarity)" : "وش سوّوا المتسوقين (Clarity)")}</h2>
+        <h2>${bi(buyer ? "What your visitors did (Clarity)" : "What your shoppers did (Clarity)", buyer ? "الزوار عملوا إيه (Clarity)" : "وش سوّوا المتسوقين (Clarity)")}</h2>
         <p class="section-lead">${bi(
-          `From your own Microsoft Clarity, last ${c.days} days, ${fmtInt(c.sessions)} sessions${c.mobileShare !== null ? `, ${pct(c.mobileShare)} on phones` : ""}. Compared only with your own store.`,
+          buyer ? `From your Microsoft Clarity, last ${c.days} days: ${fmtInt(c.sessions)} visits${c.mobileShare !== null ? `, ${pct(c.mobileShare)} on phones` : ""}. We compare your store only with itself.` : `From your own Microsoft Clarity, last ${c.days} days, ${fmtInt(c.sessions)} sessions${c.mobileShare !== null ? `, ${pct(c.mobileShare)} on phones` : ""}. Compared only with your own store.`,
           buyer
-            ? `من Microsoft Clarity بتاعك، آخر ${c.days} أيام، ${fmtInt(c.sessions)} جلسة${c.mobileShare !== null ? `، ${pct(c.mobileShare)} منها موبايل` : ""}. المقارنة مع متجرك نفسه بس.`
+            ? `من Microsoft Clarity بتاعك، آخر ${c.days} أيام: ${fmtInt(c.sessions)} زيارة${c.mobileShare !== null ? `، ${pct(c.mobileShare)} منها موبايل` : ""}. بنقارن متجرك بنفسه بس.`
             : `من Microsoft Clarity الخاص بمتجرك، آخر ${c.days} أيام، ${fmtInt(c.sessions)} جلسة${c.mobileShare !== null ? `، ${pct(c.mobileShare)} منها من الجوال` : ""}. المقارنة مع متجرك نفسه بس.`,
         )}</p>
-        <ul class="clarity-list">${items.map(i => `<li${i.flag ? ' class="is-flag"' : ""}>${i.flag ? `<span class="fix-tag">${bi("Worth a look", buyer ? "يستاهل نظرة" : "يستاهل تشوفه")}</span>` : ""}${bi(i.en, i.ar)}</li>`).join("")}</ul>
+        <ul class="clarity-list">${items.map(i => `<li${i.flag ? ' class="is-flag"' : ""}>${i.flag ? `<span class="fix-tag">${bi("Worth a look", buyer ? "يستاهل نظرة" : "يستاهل تشوفه")}</span> ` : ""}${bi(i.en, i.ar)}</li>`).join("")}</ul>
+      </section>`;
+}
+
+// Media buyer: Clarity as stat tiles. One number, what it counts, what it means.
+function buyerClarityHtml(result: AuditResult): string {
+  const c = result.clarityFacts;
+  if (!c) return "";
+  const pct = (n: number | null | undefined) => (n === null || n === undefined ? null : `${fmtPct(n)}%`);
+  const pathOf = (url: string) => { try { return decodeURIComponent(new URL(url).pathname); } catch { return url; } };
+  type Tile = { v: string; flag: boolean; k: Bi2; m: Bi2 };
+  const tiles: Tile[] = [];
+  if (c.inAppShare) tiles.push({ v: pct(c.inAppShare)!, flag: c.inAppShare >= 25,
+    k: ["of visits open inside the Facebook, Instagram or TikTok app", "من الزيارات بتفتح جوه تطبيق فيسبوك أو انستجرام أو تيك توك"],
+    m: ["Your ads land there. Test the cart inside those apps.", "إعلاناتك بتنزل هناك. جرّب السلة جوه التطبيقات دي."] });
+  const hot = c.hotPages?.find(h => h.behaviour === "quickbacks") ?? null;
+  const quick = pct(c.sitewide.quickbacks);
+  if (hot && quick) tiles.push({ v: pct(hot.pageRate)!, flag: true,
+    k: [`of visits to ${pathOf(hot.url)} leave within seconds`, `من زيارات ${pathOf(hot.url)} بتمشي في ثواني`],
+    m: [`Your store average is ${quick}.`, `المتوسط في متجرك ${quick}.`] });
+  else if (quick) tiles.push({ v: quick, flag: false,
+    k: ["of visits leave a page within seconds", "من الزيارات بتسيب الصفحة في ثواني"],
+    m: ["No page is far above that.", "مفيش صفحة أعلى من كده بكتير."] });
+  const errs = pct(c.sitewide.scriptErrors);
+  if (errs) tiles.push({ v: errs, flag: (c.sitewide.scriptErrors ?? 0) >= 5,
+    k: ["of visits hit an error on the page", "من الزيارات قابلت error في الصفحة"],
+    m: ["An error can stop the pixel or the checkout.", "الـ error ممكن يوقّف الـ Pixel أو الدفع."] });
+  if (c.botShare !== null) tiles.push({ v: pct(c.botShare)!, flag: c.botShare >= 15,
+    k: ["of visits were bots", "من الزيارات كانت بوتات"],
+    m: ["Bots add fake visits to GA4. Your conversion rate looks lower than it is.", "البوتات بتزوّد زيارات وهمية في GA4. معدل التحويل بيبان أقل من الحقيقي."] });
+  if (!tiles.length) return "";
+  return `
+      <section class="doc-section" id="clarity">
+        <h2>${bi("What your visitors did (Clarity)", "الزوار عملوا إيه (Clarity)")}</h2>
+        <p class="section-lead">${bi(
+          `From your Microsoft Clarity, last ${c.days} days. ${fmtInt(c.sessions)} visits${c.mobileShare !== null ? `, ${pct(c.mobileShare)} on phones` : ""}.`,
+          `من Microsoft Clarity بتاعك، آخر ${c.days} أيام. ${fmtInt(c.sessions)} زيارة${c.mobileShare !== null ? `، ${pct(c.mobileShare)} منها موبايل` : ""}.`,
+        )}</p>
+        <div class="tiles tiles--4">${tiles.map(t => `
+          <div class="stat${t.flag ? " stat--flag" : ""}">
+            ${t.flag ? `<span class="fix-tag">${bi("Worth a look", "يستاهل نظرة")}</span>` : ""}
+            <b class="stat-v" dir="ltr">${escapeHtml(t.v)}</b>
+            <p class="stat-k">${bi(...t.k)}</p>
+            <p class="stat-m">${bi(...t.m)}</p>
+          </div>`).join("")}</div>
       </section>`;
 }
 
@@ -1169,13 +1936,23 @@ function claritySectionHtml(result: AuditResult, buyer: boolean): string {
 // sources, what "estimated" means, what we can't see.
 function methodHtml(result: AuditResult, buyer: boolean, generatedAt: string, generatedAtAr: string): string {
   const { checked } = scopeOf(result);
+  // The buyer's report lists every source right below, so here it's only how
+  // things were judged and ranked (ICP playbook §1: say how you prioritised).
   const lines: Bi2[] = [
-    ...checked.map(([en, ar]): Bi2 => [`Source: ${en}.`, `المصدر: ${ar}.`]),
+    ...(buyer ? [] : checked.map(([en, ar]): Bi2 => [`Source: ${en}.`, `المصدر: ${ar}.`])),
+    ...(buyer ? [[
+      "How we sorted the problems. First: counting sales. Extra counts come first. They make you spend more on losing ads. Then: the data your ads learn from. Then: what loses people after the click. Last: clicks that can't buy. Privacy and security problems that don't change ROAS are only in the full list.",
+      "رتّبنا المشاكل كده. الأول: عدّ المبيعات (العدّ الزيادة الأول، لأنه بيخليك تصرف أكتر على إعلانات خسرانة). بعدين: الداتا اللي إعلاناتك بتتعلم منها. بعدين: اللي بيضيّع الناس بعد الضغطة. وفي الآخر: الكليكات اللي مش هتشتري. مشاكل الخصوصية والأمان اللي مش بتغيّر الـ ROAS موجودة في القائمة الكاملة بس.",
+    ] as Bi2] : []),
     ["Money figures come only from your Google Analytics: the gap between a funnel step and its benchmark, turned into sales for that step. They are estimates, shown as a range, and never added together, so the same sale is never counted twice.", "أرقام المبيعات من Google Analytics فقط: الفرق بين خطوة في مسار الشراء ومعيارها، محسوب كمبيعات لهذي الخطوة. هي تقديرات، تظهر كنطاق، وما نجمعها مع بعض عشان ما تنحسب نفس المبيعات مرتين."],
     buyer
-      ? ["We never see your ad accounts, so ROAS, CPA and spend appear as directions only. Confirm tracking findings yourself in Events Manager, Test Events or Tag Assistant.", "إحنا مش بنشوف حسابات الإعلانات، فـ ROAS وCPA والإنفاق بيظهروا كاتجاهات بس. اتأكد من نتايج التتبع بنفسك في Events Manager أو Test Events أو Tag Assistant."]
+      ? ["We never see your ad accounts. So ROAS, CPA and spend show only as up or down. You can check each tracking problem yourself: every one says how.", "إحنا مش بنشوف حسابات الإعلانات. فالـ ROAS والـ CPA والصرف بيظهروا طالع أو نازل بس. تقدر تتأكد من كل مشكلة تتبع بنفسك: كل واحدة مكتوب جنبها إزاي."]
       : ["Points that depend on settings inside your store admin say so. Check those yourself before changing anything.", "البنود اللي تعتمد على إعدادات داخل لوحة تحكم متجرك مكتوب عليها هذا. تأكد منها بنفسك قبل ما تغيّر شي."],
   ];
+  if (buyer) lines.splice(lines.findIndex(l => l[0].startsWith("Money figures come only")), 1, [
+    "Money numbers come only from your Google Analytics. They are estimates, shown as a range. We never add them up, so no sale is counted twice.",
+    "أرقام الفلوس جاية من Google Analytics بتاعك بس. هي تقديرات، ظاهرة كنطاق. عمرنا ما بنجمعها، عشان مفيش بيعة تتحسب مرتين.",
+  ]);
   return `
       <section class="doc-section" id="method">
         <h2>${bi("How this audit works", buyer ? "التدقيق ده اتعمل إزاي" : "كيف سوّينا هالتدقيق")}</h2>
@@ -1256,30 +2033,31 @@ const ROLE_COPY: Record<AudienceRole, RoleCopy> = {
   media_buyer: {
     ...DEFAULT_COPY,
     lead: (c, result) => {
-      const lanes = laneCounts(result);
+      const s = buyerSteps(result);
+      const convert = s.convert.length + s.waste.length;
       return [
-        `${c.failed} ${checksWord(c.failed)} need work. ${lanes.signal} change what the ad platforms and GA4 see, ${lanes.postClick} lose paid traffic after the click. Each point says what it does to ROAS or CAC, who has to fix it and how to check it's done.`,
-        `${c.failed} ${arChecksNoun(c.failed)} تحتاج إلى إصلاح. ${lanes.signal} منها تغيّر ما تراه منصات الإعلانات وGA4، و${lanes.postClick} تُضيّع الزيارات المدفوعة بعد الضغط على الإعلان. يوضح كل بند أثره على ROAS أو CAC، ومن يجب أن يصلحه، وكيف تتأكد من إصلاحه.`,
+        `${c.failed} ${checksWord(c.failed)} need work: ${s.real.length} change what Ads Manager and GA4 count, ${s.learn.length} weaken the signal the platforms learn from, ${convert} lose paid traffic after the click. Each one says what it does to ROAS or CAC, who has to fix it and how to check it's done.`,
+        `${c.failed} ${arChecksNoun(c.failed)} محتاجة شغل: ${s.real.length} بتغيّر اللي Ads Manager وGA4 بيعدّوه، و${s.learn.length} بتضعّف الإشارة اللي المنصات بتتعلم منها، و${convert} بتضيّع الترافيك المدفوع بعد الضغطة. كل بند بيقولك أثره على ROAS أو CAC، ومين يصلحه، وإزاي تتأكد إنه اتصلح.`,
       ];
     },
     leadPass: [
       "Every check passed. The ad platforms and GA4 get clean data, and nothing we tested loses paid traffic after the click.",
-      "اجتاز المتجر جميع البنود. منصات الإعلانات وGA4 تستقبل بيانات سليمة، ولم نجد ما يُضيّع الزيارات المدفوعة بعد الضغط على الإعلان.",
+      "المتجر عدّى كل البنود. منصات الإعلانات وGA4 بيوصلهم داتا سليمة، ومفيش حاجة جرّبناها بتضيّع الترافيك المدفوع بعد الضغطة.",
     ],
-    fixLink: ["See what's holding ROAS back", "ما الذي يحدّ من ROAS"],
-    toc: ["What holds ROAS back", "ما يحدّ من ROAS"],
-    jump: ["ROAS", "ROAS"],
-    guide: ["ROAS blockers", "ما يحدّ من ROAS"],
+    fixLink: ["See if the numbers are real", "شوف الأرقام حقيقية ولا لأ"],
+    toc: ["Can you trust the numbers?", "تثق في الأرقام؟"],
+    jump: ["Numbers real?", "الأرقام حقيقية؟"],
+    guide: ["Trust the numbers?", "تثق في الأرقام؟"],
     checksIntro: [
-      "Each check says what it does to ROAS, CAC or the data your campaigns learn from. Turn on Technical details for the exact events, tags and values to forward to the developer.",
-      "يوضح كل بند أثره على ROAS أو CAC أو على البيانات التي تتعلم منها حملاتك. فعِّل «التفاصيل التقنية» لترى الأحداث والوسوم والقيم الدقيقة لإرسالها إلى المطوّر.",
+      "Problems that change ROAS are up top. Here is everything else: what passed, and the other fixes. Tap any square to jump to its check.",
+      "المشاكل اللي بتغيّر الـ ROAS موجودة فوق. هنا كل الباقي: اللي نجح، وباقي الإصلاحات. دوس على أي مربع يوديك للبند بتاعه.",
     ],
     cta: {
       ...DEFAULT_COPY.cta,
       title: ["Want the site side fixed?", "عايز جانب الموقع يتصلح؟"],
       body: [
-        "Book a free call. We'll go through the tracking and funnel findings with you and show which fixes move ROAS fastest. You keep the account; we handle the store side.",
-        "احجز مكالمة مجانية. هنراجع معاك نتائج التتبع ومسار التحويل ونوضح أي إصلاحات بترفع ROAS أسرع. الحساب يفضل معاك، واحنا نشتغل على جانب المتجر.",
+        "Book a free call. We go through the findings with you. We show which fixes move ROAS fastest. You keep the account. We handle the store side.",
+        "احجز مكالمة مجانية. هنراجع النتايج معاك. هنوريك أنهي إصلاحات بترفع الـ ROAS أسرع. الحساب يفضل معاك. وإحنا نشتغل على جانب المتجر.",
       ],
     },
   },
@@ -1369,7 +2147,8 @@ function handoffLink(h: Handoff | undefined, result: AuditResult): string {
   if (h.kind === "cro") {
     if (!result.fud || result.fud.assessed === 0) return "";
     const [pageEn, pageAr] = FUD_PAGE_LABEL[h.page];
-    const href = result.ga4Facts?.focus.page === h.page ? "#ga4-followup" : "#friction";
+    // The buyer has no GA4 follow-up box (round 8): their page detail is "After the click".
+    const href = result.audienceRole !== "media_buyer" && result.ga4Facts?.focus.page === h.page ? "#ga4-followup" : "#friction";
     return `<a class="act-handoff" href="${href}">${bi(`Next: see what we found on your ${pageEn}`, `الخطوة التالية: ما وجدناه في ${pageAr}`)}</a>`;
   }
   const cat = categoryOfId(h.id);
@@ -1437,6 +2216,23 @@ function ga4FollowUpHtml(result: AuditResult): string {
   const leadAr = `أكبر تسرب في مسار الشراء لديك: ${stepAr}، ${pct(focus.step.rate)} مقابل معدل معتاد ${pct(focus.step.benchmark)} (فقدان ${pct(1 - focus.step.rate)}). لذلك فحصنا ${pageAr} أولًا.`;
   const issues = list.filter(f => f.status === "fail" || f.status === "warn");
   const crop = list.find(f => f.evidence.crop)?.evidence.crop;
+  // Media buyer: the box says where to look and points to the rows below,
+  // instead of listing the same findings twice.
+  if (result.audienceRole === "media_buyer") {
+    const pA = BUYER_PAGE_AR[focus.page] ?? pageAr;
+    return `
+        <div class="followup" id="ga4-followup">
+          <p class="followup-kicker">${bi("From your GA4 funnel", "من الـ funnel بتاع GA4")}</p>
+          <h3>${bi(`Paid visitors drop most at your ${pageEn}`, `العملاء المدفوعين بيقعوا أكتر عند ${pA}`)}</h3>
+          <p class="followup-lead">${biHtml(`This is the weakest step in your funnel. The numbers are at the top, in <a href="#overview">↑ From click to cash</a>. So we checked your ${escapeHtml(pageEn)} first.`, `دي أضعف خطوة في الـ funnel. الأرقام فوق في <a href="#overview">↑ من الكليك للفلوس</a>. عشان كده فحصنا ${escapeHtml(pA)} الأول.`)}</p>
+          ${stepFinding?.action ? `<p class="act-step followup-why">${biHtml(`<b>Most likely cause and what to change:</b> ${escapeHtml(stepFinding.action.step)}`, `<b>السبب الأرجح والمطلوب:</b> ${escapeHtml(stepFinding.ar?.action?.step ?? stepFinding.action.step)}`)}</p>` : ""}
+          <p class="fud-note">${bi(`On your ${pageEn}: ${issues.length} to fix, ${list.length - issues.length} working. They're the first rows below.`, `في ${pA}: ${issues.length} محتاجين إصلاح و${list.length - issues.length} شغالين. هم أول بنود تحت.`)}</p>
+          ${notChecked.length ? `<p class="fud-note followup-gap">${bi(
+            `Not checked this time: ${notChecked.map(f => ruleById(f.ruleId)?.title.en ?? f.ruleId).join(", ")}. Check by hand before you act on this step.`,
+            `متفحصش المرة دي: ${notChecked.map(f => ruleById(f.ruleId)?.title.ar ?? f.ruleId).join("، ")}. افحصه بإيدك قبل ما تشتغل على الخطوة دي.`,
+          )}</p>` : ""}
+        </div>`;
+  }
   const rows = list
     .map(f => {
       const tone = f.status === "fail" ? "critical" : f.status === "warn" ? "medium" : "pass";
@@ -1474,7 +2270,7 @@ function techSwitchHtml(id: string): string {
 // text per field when translate-ar.ts missed a finding, never a blank row.
 // The .tech-toggle checkbox must stay the row's first child: the CSS-only
 // business/technical switch reaches the voices through it (~ * selectors).
-function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: CategoryResult["findings"][number] | undefined, result?: AuditResult): string {
+function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: CategoryResult["findings"][number] | undefined, result?: AuditResult, forceOpen = false): string {
   const id = techToggleId(cat, point);
   const failed = finding?.status === "fail";
   const fallbackEn = `${point.title}: no specific finding was reported for this check this run.`;
@@ -1489,20 +2285,24 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
     ? `<span class="check-meta"><code>${escapeHtml(point.id)}</code>${bi(DATA_SOURCE_LABEL[finding.dataSource] ?? finding.dataSource, DATA_SOURCE_LABEL_AR[finding.dataSource] ?? finding.dataSource)}</span>`
     : "";
   const detail = (text: string, cls: string, ar: boolean) => (text ? `<p class="voice ${cls} ${ar ? "i18n-ar" : "i18n-en"}"${ar ? ' dir="rtl"' : ""}>${escapeHtml(text)}</p>` : "");
+  // The media buyer scans the list as titles with their ROAS effect and
+  // opens the ones they act on; the opening and the lanes carry the detail.
+  // Media buyer: every row starts as one line (title and tags) and opens on tap.
+  const folded = Boolean(finding) && result?.audienceRole === "media_buyer" && !forceOpen;
 
   return `
-          <article class="check check--${status}" id="${rowId(cat, point)}" data-status="${status}">
+          <article class="check check--${status}${folded ? " is-collapsed" : ""}" id="${rowId(cat, point)}" data-status="${status}">
             ${finding ? `<input type="checkbox" class="tech-toggle" id="${id}" />` : ""}
             <div class="check-main">
               <div class="check-side">${side}</div>
               <div class="check-body">
-                <button type="button" class="check-head" aria-expanded="true">
+                <button type="button" class="check-head" aria-expanded="${folded ? "false" : "true"}">
                   <span class="check-titles">
                     <h3 class="voice voice-business i18n-en">${escapeHtml(business.summary)}</h3>
                     <h3 class="voice voice-business i18n-ar" dir="rtl">${escapeHtml(businessAr.summary)}</h3>
                     <h3 class="voice voice-technical i18n-en">${escapeHtml(technical.summary)}</h3>
                     <h3 class="voice voice-technical i18n-ar" dir="rtl">${escapeHtml(technicalAr.summary)}</h3>
-                    ${finding?.opportunity || (failed && finding) ? `<span class="check-tags">${oppChip(finding!.opportunity)}${failed && finding ? adEffectChip(result, finding) : ""}</span>` : ""}
+                    ${finding?.opportunity || (failed && finding) ? `<span class="check-tags">${result?.audienceRole === "media_buyer" ? "" : oppChip(finding!.opportunity)}${failed && finding ? adEffectChip(result, finding) : ""}</span>` : ""}
                   </span>
                   <span class="chevron">${CHEVRON}</span>
                 </button>
@@ -1513,6 +2313,7 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
                   ${detail(technicalAr.detail, "voice-technical", true)}
                   ${criteriaHtml(point, finding, result)}
                   ${failed && finding?.action && result ? actionBlockHtml(finding.action, finding.ar?.action, result) : ""}
+                  ${failed && result?.audienceRole === "media_buyer" ? verifyLineHtml(point.id) : ""}
                   ${!failed && finding?.protect ? protectHtml(finding.protect, finding.ar?.protect) : ""}
                   ${finding ? `<div class="check-foot">${techSwitchHtml(id)}${meta}</div>` : ""}
                 </div>
@@ -1543,9 +2344,13 @@ function checkGroupsHtml(cat: CategoryResult, result?: AuditResult): string {
     const f = findingsById.get(point.id);
     return f?.status === "fail" ? SEVERITY_RANK[f.severity] : 3;
   };
+  // Media buyer: a failed point that moves ROAS lives in its lane above.
+  const laneIds = result?.audienceRole === "media_buyer" ? buyerLaneIds(result) : null;
+  const inLane = (point: ChecklistPoint) => Boolean(laneIds?.has(point.id));
   return groupChecklist(cat.category, checklist)
     .map(g => {
-      const points = [...g.points].sort((a, b) => rank(a) - rank(b));
+      const points = [...g.points].filter(p => !inLane(p)).sort((a, b) => rank(a) - rank(b));
+      if (!points.length) return "";
       const issues = points.filter(p => rank(p) < 3);
       const passed = points.filter(p => rank(p) === 3);
       const rows = (list: ChecklistPoint[]) => list.map(p => checkRowHtml(cat, p, findingsById.get(p.id), result)).join("");
@@ -1574,19 +2379,22 @@ function checkGroupsHtml(cat: CategoryResult, result?: AuditResult): string {
 function checksIntroHtml(counts: ReturnType<typeof resultCounts>, result: AuditResult): string {
   const tab = (filter: string, en: string, ar: string, n: number, active = false) =>
     `<button type="button" class="chip${active ? " is-active" : ""}" data-filter="${filter}" aria-pressed="${active}">${bi(en, ar)} <span class="chip-n">${n}</span></button>`;
+  // The media buyer's failed checks live in the lanes, so the status chips
+  // would count rows that aren't here: search and technical details stay.
+  const buyer = result.audienceRole === "media_buyer";
   return `
       <section class="doc-section checks-intro" id="checks">
         <h2>${biHtml(`All ${counts.total} checks`, `جميع البنود (${counts.total})`)}</h2>
         <p class="section-lead">${bi(...copyFor(result).checksIntro)}</p>
         ${checkMapHtml(result, counts)}
         <div class="controls">
-          <div class="chips" role="group" aria-label="Filter checks">
+          ${buyer ? "" : `<div class="chips" role="group" aria-label="Filter checks">
             <span class="chip-ink" aria-hidden="true"></span>
             ${tab("all", "All", "الكل", counts.total, true)}
             ${tab("fail", "Need work", "تحتاج إصلاحًا", counts.failed)}
             ${counts.critical ? tab("critical", "Critical", "حرجة", counts.critical) : ""}
             ${tab("pass", "Passed", "ناجحة", counts.passed)}
-          </div>
+          </div>`}
           <div class="controls-end">
             <input type="search" class="search i18n-en" placeholder="Search checks" aria-label="Search checks" />
             <input type="search" class="search i18n-ar" dir="rtl" placeholder="ابحث في البنود" aria-label="ابحث في البنود" />
@@ -1611,8 +2419,37 @@ function categorySectionHtml(cat: CategoryResult, result: AuditResult, _assets: 
           <p class="cat-score">${ringSvg(percent, color)}<span><b class="count" data-to="${passed}" style="color:${color}">${passed}</b> / ${total} ${bi("passed", "ناجح")}</span></p>
         </header>
         <p class="section-lead">${biHtml(escapeHtml(CATEGORY_CAPTION[key]), escapeHtml(CATEGORY_CAPTION_AR[key]))}</p>
+        ${movedNoteHtml(cat, result)}
         ${checkGroupsHtml(cat, result)}
       </section>`;
+}
+
+// The failed points the lanes show (after their funnel de-duplication): a
+// point dropped there as a repeat of another stays in "All 50 checks".
+function buyerLaneIds(result: AuditResult): Set<string> {
+  const s = buyerSteps(result);
+  return new Set([...s.real, ...s.learn, ...s.convert, ...s.waste].map(r => r.f.checklistId));
+}
+
+// Media buyer: where this tool's failed checks went, as a link, not a copy.
+function movedNoteHtml(cat: CategoryResult, result: AuditResult): string {
+  if (result.audienceRole !== "media_buyer") return "";
+  const lanes = buyerLaneIds(result);
+  const moved = cat.findings.filter(f => lanes.has(f.checklistId)).length;
+  if (!moved) return "";
+  const rest = cat.findings.some(f => f.status === "fail" && !lanes.has(f.checklistId));
+  const s = buyerSteps(result);
+  const count = new Set([...s.real, ...s.learn].map(r => r.f.checklistId));
+  const inCount = cat.findings.some(f => count.has(f.checklistId));
+  const inSite = cat.findings.some(f => lanes.has(f.checklistId) && !count.has(f.checklistId));
+  const where = [
+    ...(inCount ? [[`<a href="#fix-first">↑ Can you trust the numbers?</a>`, `<a href="#fix-first">↑ تقدر تثق في الأرقام؟</a>`]] : []),
+    ...(inSite ? [[`<a href="#roas-leaks">↑ What's holding your ROAS back</a>`, `<a href="#roas-leaks">↑ إيه اللي ماسك الـ ROAS</a>`]] : []),
+  ];
+  return `<p class="moved-note">${biHtml(
+    `${moved} ${moved === 1 ? "problem" : "problems"} from this list ${moved === 1 ? "is" : "are"} up top: ${where.map(w => w[0]).join(" ")}. Below: what passed${rest ? ", and the other fixes" : ""}.`,
+    `${moved} مشاكل من القائمة دي موجودة فوق: ${where.map(w => w[1]).join(" ")}. تحت: اللي نجح${rest ? "، وباقي الإصلاحات" : ""}.`,
+  )}</p>`;
 }
 
 const SPEED_PAGE_LABEL: Record<string, [string, string]> = {
@@ -1626,7 +2463,7 @@ function speedValue(score: number | null): string {
   return score === null ? `<span class="na">—</span>` : `<span class="count" data-to="${score}" style="color:${speedColor(score)}">${score}</span>`;
 }
 
-function speedSectionHtml(ps: NonNullable<AuditResult["pageSpeed"]>): string {
+function speedSectionHtml(ps: NonNullable<AuditResult["pageSpeed"]>, buyer = false): string {
   const card = (titleHtml: string, url: string | null, mobile: number | null, desktop: number | null, avg = false) => `
           <div class="speed-card${avg ? " speed-card--avg" : ""}">
             <h3>${titleHtml}</h3>
@@ -1641,16 +2478,86 @@ function speedSectionHtml(ps: NonNullable<AuditResult["pageSpeed"]>): string {
     .join("");
   return `
       <section class="doc-section" id="speed">
-        <h2>${bi("Page speed", "سرعة الصفحات")}</h2>
-        <p class="section-lead">${bi(
+        <h2>${buyer ? bi("Page speed: paid clicks that never see the page", "سرعة الصفحات: كليكات مدفوعة مش بتشوف الصفحة") : bi("Page speed", "سرعة الصفحات")}</h2>
+        ${buyer ? buyerSpeedLeadHtml(ps) : `<p class="section-lead">${bi(
           "Google's own speed test scores each page out of 100, on mobile and on desktop. 90 or more is fast, 50 to 89 needs work, and under 50 is slow. Slow pages make shoppers wait, and many leave before they see a product. This score is separate from your 50 checks.",
           "اختبار السرعة من Google يعطي كل صفحة درجة من 100 على الموبايل والكمبيوتر. 90 فأكثر سريعة، ومن 50 إلى 89 تحتاج إلى تحسين، وأقل من 50 بطيئة. الصفحة البطيئة تجعل العميل ينتظر، وكثيرون يغادرون قبل أن يروا المنتج. هذه الدرجة منفصلة عن البنود الخمسين.",
-        )}</p>
-        <div class="speed-grid">
+        )}</p>`}
+        ${buyer ? speedBarsHtml(ps) : `<div class="speed-grid">
           ${card(bi("Average", "المتوسط"), null, ps.average.mobile, ps.average.desktop, true)}
           ${pages}
-        </div>
+        </div>`}
       </section>`;
+}
+
+// Media buyer: the ad they typed on the form, shown back next to the pages
+// it sends people to, with a link to the message-match check when the run
+// has it (MB-CRO-02: top campaigns' landing page against what the ad says).
+function yourAdHtml(result: AuditResult): string {
+  const ad = result.adContext;
+  if (!ad || (!ad.text && !ad.coupon)) return "";
+  const match = result.categories.flatMap(cat => cat.findings.map(f => ({ cat, f }))).find(({ f }) => f.checklistId === "MB-CRO-02");
+  return `
+        <div class="your-ad">
+          <p class="your-ad-k">${bi("Your ad, as you told us", "إعلانك، زي ما قلتلنا")}</p>
+          ${ad.text ? `<p class="your-ad-text">“${escapeHtml(ad.text)}”</p>` : ""}
+          ${ad.coupon ? `<p class="your-ad-coupon">${bi("Coupon in the ad:", "الكوبون في الإعلان:")} <code dir="ltr">${escapeHtml(ad.coupon)}</code></p>` : ""}
+          <p class="your-ad-note">${bi(
+            "Does the ad's page say the same thing in its first screen? Check the offer, the price and the coupon. If one is missing, people leave. Try the coupon in the cart before you scale.",
+            "صفحة الإعلان بتقول نفس الكلام في أول شاشة؟ بُص على العرض والسعر والكوبون. لو حاجة منهم ناقصة، الناس بتمشي. جرّب الكوبون في السلة قبل ما تكبّر الميزانية.",
+          )}${match ? ` <a href="#${rowId(match.cat, { id: "MB-CRO-02" })}">${biHtml("See what we found ↓", "شوف لقينا إيه ↓")}</a>` : ""}</p>
+        </div>`;
+}
+
+// The lever a conversion rule moves, for the buyer's chip.
+function croLeverHtml(ruleId: string): string {
+  const st = croStageOf(ruleId);
+  return st === "aov"
+    ? biHtml(`Fixing: <bdi dir="ltr">AOV ↑ → ROAS ↑</bdi>, same CAC`, `لما يتصلح: <bdi dir="ltr">AOV ↑ → ROAS ↑</bdi>، بنفس الـ CAC`)
+    : st === "back"
+      ? biHtml(`Fixing: repeat buyers ↑ → <bdi dir="ltr">CAC ↓</bdi> over time`, `لما يتصلح: مشترين بيرجعوا أكتر ← <bdi dir="ltr">CAC ↓</bdi> مع الوقت`)
+      : biHtml(`Fixing: <bdi dir="ltr">CVR ↑ → ROAS ↑ · CAC ↓</bdi>`, `لما يتصلح: <bdi dir="ltr">CVR ↑ → ROAS ↑ · CAC ↓</bdi>`);
+}
+
+// Media buyer: speed as paid clicks lost before the page (and the pixel)
+// loads. The link-click to landing-page-view check is from the ICP card's
+// event-failure library (icp/media-buyer-full.md §8 #16).
+// Media buyer: every page's phone and desktop score as bars on one 0-100
+// scale, slowest phone page first. The track is tinted by zone (slow, okay,
+// fast), so the colour of the bar and where it ends say the same thing.
+function speedBarsHtml(ps: NonNullable<AuditResult["pageSpeed"]>): string {
+  const zone = (v: number | null) => v === null ? "na" : v < 50 ? "bad" : v < 90 ? "warn" : "ok";
+  const bar = (v: number | null, en: string, ar: string) => `<div class="sb-line"><span class="sb-k">${bi(en, ar)}</span><span class="sb-track"><i class="sb-fill sb--${zone(v)}" style="--v:${v ?? 0}%"></i></span><b class="sb-v sb--${zone(v)}" dir="ltr">${v ?? "–"}</b></div>`;
+  const path = (u: string) => { try { return decodeURIComponent(new URL(u).pathname); } catch { return u; } };
+  const row = (name: string, sub: string, m: number | null, d: number | null, avg = false) => `
+          <li class="sb-row${avg ? " sb-row--avg" : ""}"><div class="sb-name">${name}${sub ? `<small dir="ltr">${escapeHtml(sub)}</small>` : ""}</div><div class="sb-bars">${bar(m, "Phone", "موبايل")}${bar(d, "Desktop", "كمبيوتر")}</div></li>`;
+  const pages = [...ps.pages].sort((a, b) => (a.mobile ?? 101) - (b.mobile ?? 101));
+  return `
+        <figure class="sb">
+          <ol class="sb-list">${row(bi("All pages (average)", "كل الصفحات (المتوسط)"), "", ps.average.mobile, ps.average.desktop, true)}${pages.map(pg => {
+            const [en, ar] = SPEED_PAGE_LABEL[pg.type] ?? [pg.type, pg.type];
+            return row(bi(en, ar), path(pg.url), pg.mobile, pg.desktop);
+          }).join("")}
+          </ol>
+          <figcaption class="sb-legend"><span class="sb-key sb--bad">${bi("Under 50: slow", "أقل من 50: بطيئة")}</span><span class="sb-key sb--warn">${bi("50 to 89: okay", "50 لـ 89: مقبولة")}</span><span class="sb-key sb--ok">${bi("90 or more: fast", "90 أو أكتر: سريعة")}</span></figcaption>
+        </figure>`;
+}
+
+function buyerSpeedLeadHtml(ps: NonNullable<AuditResult["pageSpeed"]>): string {
+  const slow = ps.pages.filter(p => p.mobile !== null).sort((a, b) => a.mobile! - b.mobile!)[0];
+  const [en, ar] = slow ? (SPEED_PAGE_LABEL[slow.type] ?? [slow.type, slow.type]) : ["", ""];
+  const lead = slow
+    ? bi(
+      `Most ad clicks happen on phones. Your slowest page is the ${en.toLowerCase()}. Google gives it ${slow.mobile} out of 100 on phones. Under 50 is slow. On a slow page, people leave before it opens. You pay for the click, but they never see the page.`,
+      `أغلب كليكات الإعلانات من الموبايل. أبطأ صفحة عندك هي ${ar}. Google بيديها ${slow.mobile} من 100 على الموبايل. أقل من 50 يبقى بطيء. في الصفحة البطيئة، الناس بتمشي قبل ما تفتح. إنت بتدفع تمن الكليك، بس هم مش بيشوفوا الصفحة.`,
+    )
+    : bi("Paid clicks land on phones. A visitor who leaves before the page and the pixel load never counts as a landing page view: you paid for the click, and it never had a chance to convert.", "الكليكات المدفوعة بتنزل على الموبايل. اللي بيمشي قبل ما الصفحة والـ Pixel يحمّلوا مش بيتحسب landing page view: إنت دفعت تمن الكليك، وهو ملحقش يشتري.");
+  return `
+        <p class="section-lead">${lead}</p>
+        <p class="plan-verify">${biHtml(
+          "<b>Check it yourself:</b> Open Ads Manager. Add the Landing page views column next to Link clicks. Usually 70–90% of clicks become page views. Less than that? The page is the problem, not the ad.",
+          "<b>اتأكد بنفسك:</b> في Ads Manager ضيف عمود Landing page views جنب Link clicks. عادةً 70–90% من الكليكات بتبقى page views. أقل من كده؟ يبقى المشكلة في الصفحة، مش في الإعلان.",
+        )}</p>`;
 }
 
 // Every source this run drew on. GA4/GTM wording depends on whether any
@@ -1681,7 +2588,7 @@ function sourcesHtml(result: AuditResult): string {
   if (result.fud) {
     const loaded = result.fud.pagesSampled.filter(p => p.loaded).length;
     sources.push(bi(
-      `A phone visit to ${loaded} of your pages, adding one product to the cart (our visit was kept out of your analytics). Purchase-friction rules ${result.fud.ruleSetVersion}.`,
+      `A phone visit to ${loaded} of your pages. We added one product to the cart. Our visit was kept out of your analytics. Purchase-friction rules ${result.fud.ruleSetVersion}.`,
       `زيارة من هاتف لعدد ${loaded} من صفحاتك مع إضافة منتج واحد إلى السلة (استبعدنا زيارتنا من بيانات التحليلات لديك). قواعد عوائق الشراء ${result.fud.ruleSetVersion}.`,
     ));
   }
@@ -1712,6 +2619,47 @@ const FUD_BAND_LABEL: Record<FudBand, [string, string]> = {
   dev_task: ["Needs a developer", "يحتاج إلى مطوّر"],
   test_first: ["Test first", "اختبره أولًا"],
 };
+// ---- Media buyer: the conversion review by where the paid visitor is ----
+// The same 33 rules every reader gets, grouped in the order a paid visitor
+// meets them, each stage saying why it costs paid traffic money, and each
+// rule tagged with the ROAS lever it moves (icp/media-buyer-full.md §10:
+// conversion rate, order value, repeat buyers). A rule not listed falls in
+// "At the buy button".
+type CroStage = "land" | "find" | "buy" | "cart" | "aov" | "back";
+const CRO_STAGE: Record<string, CroStage> = {
+  H1: "land", H2: "land", U1: "land", C1: "land", L1: "land",
+  C6: "find", D4: "find", D5: "find", N1: "find", N2: "find",
+  A1: "cart", A3: "cart", D2: "cart", L2: "cart",
+  M1: "aov", M2: "aov", M3: "aov",
+  R1: "back", R2: "back",
+};
+const croStageOf = (ruleId: string): CroStage => CRO_STAGE[ruleId] ?? "buy";
+// The GA4 focus page (worst funnel step) lands on the stage it belongs to.
+const FOCUS_STAGE: Partial<Record<FudPageType, CroStage>> = { home: "land", collection: "find", product: "buy", cart: "cart" };
+const CRO_STAGES: Array<{ id: CroStage; en: string; ar: string; leadEn: string; leadAr: string }> = [
+  { id: "land", en: "The first screen after the click", ar: "أول شاشة بعد الضغطة",
+    leadEn: "Your ad clicks land here. If people don't get it in 3 seconds, they leave. Meta sees that quick exit too, and it can make your clicks cost more.",
+    leadAr: "كليكات إعلانك بتنزل هنا. لو الناس مفهمتش في 3 ثواني، بتمشي. وMeta بيشوف الخروج السريع ده، وده ممكن يغلّي تمن الكليك." },
+  { id: "find", en: "Finding the product", ar: "الوصول للمنتج",
+    leadEn: "Broad ads send people who still need to pick. If they can't find the right product fast, the click is wasted.",
+    leadAr: "الإعلانات الواسعة بتجيب ناس لسه بتختار. لو ملقوش المنتج الصح بسرعة، الكليك بيضيع." },
+  { id: "buy", en: "At the buy button", ar: "عند زرار الشراء",
+    leadEn: "This is where a paid visitor decides. Any doubt here loses a sale you already paid for.",
+    leadAr: "هنا العميل الجاي من إعلان بيقرر. أي شك هنا بيضيّع بيعة إنت دفعت تمنها خلاص." },
+  { id: "cart", en: "In the cart", ar: "في السلة",
+    leadEn: "People in the cart are your warmest paid traffic. A surprise cost here is the top reason they leave.",
+    leadAr: "اللي في السلة هم أسخن ترافيك مدفوع عندك. تكلفة مفاجئة هنا هي أكبر سبب إنهم يمشوا." },
+  { id: "aov", en: "Bigger orders", ar: "أوردرات أكبر",
+    leadEn: "A bigger order means more ROAS from the same click. AOV goes up, ROAS goes up, CAC stays the same.",
+    leadAr: "أوردر أكبر يعني ROAS أعلى من نفس الكليك. الـ AOV يزيد، الـ ROAS يزيد، والـ CAC زي ما هو." },
+  { id: "back", en: "Coming back", ar: "إنهم يرجعوا",
+    leadEn: "A buyer who comes back costs you no new click. More repeat buyers means a lower blended CAC.",
+    leadAr: "المشتري اللي بيرجع مش بيكلفك كليك جديد. مشترين بيرجعوا أكتر يعني CAC إجمالي أقل." },
+];
+
+// The media buyer's Arabic is everyday Egyptian (icp/media-buyer.md).
+const BUYER_BAND_AR: Partial<Record<FudBand, string>> = { quick_win: "مكسب سريع", dev_task: "محتاج مطوّر", test_first: "جرّبه الأول" };
+const BUYER_PAGE_AR: Partial<Record<FudPageType, string>> = { home: "الصفحة الرئيسية", product: "صفحة المنتج", cart: "السلة", collection: "صفحة التصنيف" };
 const FUD_PAGE_LABEL: Record<FudPageType, [string, string]> = {
   home: ["homepage", "الصفحة الرئيسية"],
   product: ["product page", "صفحة المنتج"],
@@ -1757,10 +2705,11 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null, res
   const id = `tech-FUD-${f.ruleId}`.replace(/[^A-Za-z0-9_-]/g, "-");
   const issue = f.status === "fail" || f.status === "warn";
   const tone = f.status === "fail" ? "critical" : f.status === "warn" ? "medium" : "pass";
+  const buyer = result?.audienceRole === "media_buyer";
   const side =
-    f.status === "fail" ? `<span class="sev sev--critical">${bi("Missing", "غير موجود")}</span>`
-    : f.status === "warn" ? `<span class="sev sev--medium">${bi("Needs work", "يحتاج تحسينًا")}</span>`
-    : `<span class="sev sev--pass">${bi("Working", "يعمل")}</span>`;
+    f.status === "fail" ? `<span class="sev sev--critical">${bi("Missing", buyer ? "مش موجود" : "غير موجود")}</span>`
+    : f.status === "warn" ? `<span class="sev sev--medium">${bi("Needs work", buyer ? "محتاج تحسين" : "يحتاج تحسينًا")}</span>`
+    : `<span class="sev sev--pass">${bi("Working", buyer ? "شغال" : "يعمل")}</span>`;
   const ar = f.ar ?? { technical: f.technical, business: f.business, recommendation: f.recommendation };
   const voice = (text: string, cls: string, isAr: boolean) => (text ? `<p class="voice ${cls} ${isAr ? "i18n-ar" : "i18n-en"}"${isAr ? ' dir="rtl"' : ""}>${escapeHtml(text)}</p>` : "");
   const [pageEn, pageAr] = FUD_PAGE_LABEL[f.pageType];
@@ -1769,7 +2718,7 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null, res
   const pct = f.funnel ? Math.round(f.funnel.rate * 100) : 0;
   const days = periodDays ?? 28;
   const funnel = f.funnel && step
-    ? `<p class="fud-funnel">${bi(`Your GA4: only ${pct}% ${step[0]} in the last ${days} days.`, `بيانات GA4 لديك: ${pct}% فقط ${step[1]} خلال آخر ${days} يومًا.`)}</p>`
+    ? `<p class="fud-funnel">${bi(`Your GA4: only ${pct}% ${step[0]} in the last ${days} days.`, buyer ? `GA4 بتاعك: ${pct}% بس ${step[1]} في آخر ${days} يوم.` : `بيانات GA4 لديك: ${pct}% فقط ${step[1]} خلال آخر ${days} يومًا.`)}</p>`
     : "";
   const desktopText = f.desktop ? FUD_DESKTOP_NOTE[issue ? "issue" : "pass"][f.desktop] : undefined;
   const desktopNote = desktopText ? `<p class="fud-desktop">${bi(desktopText[0], desktopText[1])}</p>` : "";
@@ -1779,7 +2728,7 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null, res
   const copy = issue && f.exampleCopy
     ? `
                   <div class="fud-copy">
-                    <span class="fud-copy-label">${bi("Copy you can use", "نص يمكنك استخدامه")}</span>
+                    <span class="fud-copy-label">${bi("Copy you can use", buyer ? "نص تقدر تستخدمه" : "نص يمكنك استخدامه")}</span>
                     <p dir="ltr" lang="en">${escapeHtml(f.exampleCopy.en)}</p>
                     <p dir="rtl" lang="ar">${escapeHtml(f.exampleCopy.ar)}</p>
                   </div>`
@@ -1793,7 +2742,12 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null, res
     : "";
   const meta = `<span class="check-meta"><code>${escapeHtml(f.ruleId)}</code>${f.band && f.pexti ? `${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}<span>PEXTI ${f.pexti.score}</span>` : ""}${bi(pageEn, pageAr)}</span>`;
   const [groupEn, groupAr] = fudGroupLabel(f.ruleId);
-  const bandTag = `<span class="fud-tags">${oppChip(f.opportunity)}${issue && f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}</span>` : ""}<span class="fud-group-tag">${bi(groupEn, groupAr)}</span></span>`;
+  // Media buyer: what the fix does to ROAS (every conversion-review leak is
+  // post-click) and how hard it is; a working row needs no tags.
+  const buyerTag = issue
+    ? `<span class="fud-tags"><span class="adfx adfx--${croStageOf(f.ruleId) === "aov" ? "aov" : "performance"}">${croLeverHtml(f.ruleId)}</span>${f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], BUYER_BAND_AR[f.band] ?? FUD_BAND_LABEL[f.band][1])}</span>` : ""}</span>`
+    : "";
+  const bandTag = buyer ? buyerTag : `<span class="fud-tags">${oppChip(f.opportunity)}${issue && f.band ? `<span class="fud-band fud-band--${f.band}">${bi(FUD_BAND_LABEL[f.band][0], FUD_BAND_LABEL[f.band][1])}</span>` : ""}<span class="fud-group-tag">${bi(groupEn, groupAr)}</span></span>`;
   const act = issue && f.action && result ? actionBlockHtml(f.action, { step: ar.recommendation, doneWhen: f.ar?.doneWhen }, result) : "";
 
   return `
@@ -1865,6 +2819,17 @@ function insightsHtml(fud: NonNullable<AuditResult["fud"]>): string {
         </div>`;
 }
 
+// A conversion-review finding as a carousel item: its card, its rule's short
+// title for the tab, and its status for the tab's dot.
+function carItemOf(f: FudFinding, periodDays: number | null, result: AuditResult): CarItem {
+  const rule = ruleById(f.ruleId);
+  return {
+    html: fudRowHtml(f, true, periodDays, result),
+    title: rule ? [rule.title.en, rule.title.ar] : [f.business.summary, (f.ar ?? f).business.summary],
+    tone: f.status === "fail" ? "bad" : f.status === "warn" ? "warn" : "ok",
+  };
+}
+
 function frictionSectionHtml(result: AuditResult): string {
   const fud = result.fud;
   if (!fud || fud.assessed === 0) return "";
@@ -1908,8 +2873,8 @@ function frictionSectionHtml(result: AuditResult): string {
 
   const notChecked = unassessed.length
     ? `<p class="fud-note">${bi(
-        `Not confirmed this time: ${unassessed.map(f => f.ruleId).join(", ")} — we couldn't reach the page, or couldn't tell with enough certainty.`,
-        `لم يتم تأكيدها هذه المرة: ${unassessed.map(f => f.ruleId).join("، ")} — تعذّر الوصول إلى الصفحة أو لم نتمكن من التأكد بدرجة كافية.`,
+        `Not confirmed this time: ${unassessed.map(f => ruleById(f.ruleId)?.title.en ?? f.ruleId).join(", ")}. We couldn't reach the page, or couldn't tell with enough certainty.`,
+        `لم يتم تأكيدها هذه المرة: ${unassessed.map(f => ruleById(f.ruleId)?.title.ar ?? f.ruleId).join("، ")}. تعذّر الوصول إلى الصفحة أو لم نتمكن من التأكد بدرجة كافية.`,
       )}</p>`
     : "";
 
@@ -1928,10 +2893,45 @@ function frictionSectionHtml(result: AuditResult): string {
       ? ["After the click: what loses paid visitors", "بعد الضغط: إيه اللي بيضيّع الزوار المدفوعين"]
       : ["What stops your shoppers buying", "وش يوقّف المتسوقين عن الشراء"];
     const [pLeadEn, pLeadAr] = buyer
-      ? [`We visited your ${scannedEn} on a phone, the way a paid visitor lands. Every leak here converts fewer of the clicks you pay for, so fixing it raises ROAS on the same spend.${fud.score !== null ? ` Conversion score ${fud.score}/100.` : ""}`,
-         `زرنا ${scannedAr} من الموبايل بنفس الطريقة اللي الزائر المدفوع بيوصل بيها. كل تسريب هنا بيحوّل كليكات أقل من اللي بتدفع فيها، وإصلاحه بيرفع ROAS بنفس الإنفاق.${fud.score !== null ? ` مؤشر التحويل ${fud.score}/100.` : ""}`]
+      ? [`Ads Manager can't show you these. We visited your ${scannedEn} on a phone, like someone who clicked your ad. We looked for what makes people stop or leave. They're in the order a visitor meets them. Fix them, and more paid clicks become sales.${fud.score !== null ? ` Score: ${fud.score} out of 100, from the ${fud.assessed} rules we could check.` : ""}`,
+         `Ads Manager مش بيوريك دول. زرنا ${scannedAr} من الموبايل، زي حد داس على إعلانك. دوّرنا على اللي بيخلي الناس توقف أو تمشي. مترتبين بنفس ترتيب ما العميل بيقابلهم. صلّحهم، وكليكات مدفوعة أكتر هتبقى مبيعات.${fud.score !== null ? ` الدرجة: ${fud.score} من 100، من ${fud.assessed} قاعدة قدرنا نفحصها.` : ""}`]
       : [`We visited your ${scannedEn} on a phone, like your customers do, and noted what makes them hesitate or leave.${fud.score !== null ? ` Conversion score ${fud.score}/100.` : ""}`,
          `زرنا ${scannedAr} من الجوال مثل ما يسوي عملاؤك، وسجّلنا وش يخليهم يترددون أو يطلعون.${fud.score !== null ? ` مؤشر التحويل ${fud.score}/100.` : ""}`];
+    if (buyer) {
+      const focus = result.ga4Facts?.focus;
+      const leakStage = focus?.page && focus.step && focus.step.rate < focus.step.benchmark ? FOCUS_STAGE[focus.page] : undefined;
+      const stepId = focus?.step ? (`${focus.step.from}>${focus.step.to}` === "view_item>add_to_cart" ? "GA4-02" : /purchase$/.test(focus.step.to) ? "GA4-04" : "GA4-03") : null;
+      const cause = stepId ? result.categories.find(c => c.category === "GA4")?.findings.find(f => f.checklistId === stepId)?.action : undefined;
+      const causeAr = stepId ? result.categories.find(c => c.category === "GA4")?.findings.find(f => f.checklistId === stepId)?.ar?.action?.step : undefined;
+      const stages = CRO_STAGES.map(st => {
+        const list = byScore(issues.filter(f => croStageOf(f.ruleId) === st.id));
+        if (!list.length) return "";
+        const leak = st.id === leakStage;
+        return `
+        <div class="fud-group cro-stage${leak ? " cro-stage--leak" : ""}">
+          <div class="group-head"><h3>${bi(st.en, st.ar)}</h3><span>${bi(`${list.length} to fix`, `${list.length} محتاجين إصلاح`)}</span></div>
+          ${leak ? `<p class="cro-leak"><a href="#overview">${bi("↑ Your biggest funnel leak is here", "↑ أكبر تسريب في الـ funnel هنا")}</a></p>` : ""}
+          <p class="cro-lead">${bi(st.leadEn, st.leadAr)}</p>
+          ${leak && cause ? `<p class="act-step followup-why">${biHtml(`<b>Most likely cause:</b> ${escapeHtml(cause.step)}`, `<b>السبب الأرجح:</b> ${escapeHtml(causeAr ?? cause.step)}`)}</p>` : ""}
+          ${carouselHtml([st.en, st.ar], list.map(f => carItemOf(f, periodDays, result)))}
+        </div>`;
+      }).join("");
+      return `
+      <section class="doc-section fud" id="friction">
+        <h2>${bi(titleEn, titleAr)}</h2>
+        <p class="section-lead">${bi(pLeadEn, pLeadAr)}</p>
+        ${yourAdHtml(result)}
+        ${insightsHtml(fud)}
+        ${stages}
+        ${!issues.length ? `<p class="fud-note">${bi("Nothing stood out on the pages we checked.", "مفيش حاجة لفتت النظر في الصفحات اللي فحصناها.")}</p>` : ""}
+        ${working.length ? `
+        <div class="passed-block fud-group">
+          <h4 class="passed-head">${bi(`Already working (${working.length})`, `شغال كويس (${working.length})`)}</h4>
+          ${carouselHtml(["Already working", "شغال كويس"], working.map(f => carItemOf(f, periodDays, result)))}
+        </div>` : ""}
+        ${notChecked}
+      </section>`;
+    }
     return `
       <section class="doc-section fud" id="friction">
         <h2>${bi(titleEn, titleAr)}</h2>
@@ -1940,7 +2940,7 @@ function frictionSectionHtml(result: AuditResult): string {
         ${ga4FollowUpHtml(result)}
         ${group(buyer ? "Fix before you scale spend" : "You can do these yourself", buyer ? "صلّحها قبل ما تزوّد الميزانية" : "تقدر تسويها بنفسك", bands.quick, true)}
         ${group(buyer ? "Send to the developer" : "Needs your developer", buyer ? "ابعتها للمطوّر" : "تحتاج المطوّر حقك", bands.dev, !bands.quick.length)}
-        ${group("Test before you change it", buyer ? "جرّبها قبل ما تغيّرها" : "جرّبها قبل ما تغيّرها", bands.test, false)}
+        ${group(buyer ? "A/B test before you change it" : "Test before you change it", "جرّبها قبل ما تغيّرها", bands.test, false)}
         ${!issues.length ? `<p class="fud-note">${bi("Nothing stood out on the pages we checked.", buyer ? "مفيش حاجة لفتت النظر في الصفحات اللي فحصناها." : "ما فيه شي لفت النظر في الصفحات اللي فحصناها.")}</p>` : ""}
         ${workingFold}
         ${notChecked}
@@ -1974,6 +2974,12 @@ function ctaHtml(counts: ReturnType<typeof resultCounts>, contactUrl: string, re
         <div>
           <h2>${counts.failed > 0 ? bi(...cta.title) : bi(...cta.titlePass)}</h2>
           <p>${bi(...cta.body)}</p>
+          ${result.audienceRole === "media_buyer" && counts.failed > 0 ? `
+          <ol class="cta-steps">
+            <li>${bi("We go through the tracking issues with you. We confirm which ones are real on your account.", "بنراجع معاك مشاكل التتبع. ونتأكد أنهي منها حقيقي على حسابك.")}</li>
+            <li>${bi("We size the post-click leaks against your spend and your break-even ROAS.", "بنحسب تسريبات ما بعد الضغطة قصاد صرفك والـ ROAS التعادل بتاعك.")}</li>
+            <li>${bi("You leave with a fix order the store owner can approve. You keep the account and the credit.", "بتخرج بترتيب إصلاحات صاحب المتجر يقدر يوافق عليه. الحساب والنجاح بيفضلوا باسمك.")}</li>
+          </ol>` : ""}
         </div>
         <a class="btn btn--primary btn--lg magnetic" href="${contactUrl}">${bi(...cta.button)}</a>
        </div>
@@ -2030,13 +3036,15 @@ function footerHtml(assets: ReportAssets, attributedTo: string, generatedAt: str
 
 // Phone-width section bar: the contents list is hidden below 1024px, so a
 // sticky row of section links takes its place on a long single-column page.
-type NavExtra = { before: Array<[string, string, string]>; after: Array<[string, string, string]> };
+// afterFix: sections that sit right under the reader's first section.
+type NavExtra = { before: Array<[string, string, string]>; after: Array<[string, string, string]>; afterFix?: Array<[string, string, string]> };
 
 function jumpBarHtml(result: AuditResult, hasFixFirst: boolean, hasSpeed: boolean, hasNumbers = false, hasFriction = false, extra: NavExtra = { before: [], after: [] }): string {
   const links: Array<[string, string, string]> = [["overview", "Summary", "الملخص"]];
   if (hasFixFirst) links.push(["fix-first", ...copyFor(result).jump]);
+  links.push(...(extra.afterFix ?? []));
   if (hasNumbers) links.push(["numbers", "Numbers", "الأرقام"]);
-  if (hasFriction) links.push(["friction", "Conversion", "التحويل"]);
+  if (hasFriction) links.push(result.audienceRole === "media_buyer" ? ["friction", "After the click", "بعد الضغطة"] : ["friction", "Conversion", "التحويل"]);
   links.push(...extra.before);
   for (const cat of result.categories) {
     const [en, ar] = CATEGORY_SHORT[cat.category];
@@ -2054,13 +3062,14 @@ function tocHtml(result: AuditResult, hasFixFirst: boolean, hasScreens: boolean,
   const link = (id: string, en: string, ar: string, sub = false) =>
     `<li${sub ? ' class="toc-sub"' : ""}><a href="#${id}" data-spy="${id}">${bi(en, ar)}</a></li>`;
   const items: string[] = [link("overview", "Summary", "الملخص")];
-  if (result.audienceRole) items.push(link("answers", "Your questions", "أسئلتك"));
+  if (result.audienceRole && result.audienceRole !== "media_buyer") items.push(link("answers", "Your questions", "أسئلتك"));
   if (hasFixFirst) items.push(link("fix-first", ...copyFor(result).toc));
+  for (const [id, en, ar] of extra.afterFix ?? []) items.push(link(id, en, ar));
   if (hasScreens) items.push(link("screens", "Your store", "متجرك"));
   if (hasNumbers) items.push(link("numbers", "Your numbers", "أرقامك"));
   if (hasFriction) {
     const score = result.fud?.score;
-    items.push(`<li><a href="#friction" data-spy="friction">${bi("Conversion review", "مراجعة التحويل")}${score !== null && score !== undefined ? `<span class="toc-n">${score}/100</span>` : ""}</a></li>`);
+    items.push(`<li><a href="#friction" data-spy="friction">${result.audienceRole === "media_buyer" ? bi("After the click", "بعد الضغطة") : bi("Conversion review", "مراجعة التحويل")}${score !== null && score !== undefined ? `<span class="toc-n">${score}/100</span>` : ""}</a></li>`);
   }
   for (const [id, en, ar] of extra.before) items.push(link(id, en, ar));
   for (const cat of result.categories) {
@@ -2134,7 +3143,7 @@ function countHtml(value: number, decimals = 0, suffix = ""): string {
 
 function compactMoney(n: number): { value: number; dec: number; en: string; ar: string } {
   if (n >= 1_000_000) return { value: Math.round(n / 10_000) / 100, dec: 2, en: "M", ar: " مليون" };
-  if (n >= 10_000) return { value: Math.round(n / 100) / 10, dec: 1, en: "K", ar: " ألف" };
+  if (n >= 10_000) { const v = Math.round(n / 100) / 10; return { value: v, dec: v % 1 ? 1 : 0, en: "K", ar: " ألف" }; }
   return { value: Math.round(n), dec: 0, en: "", ar: "" };
 }
 
@@ -2146,6 +3155,9 @@ function ratioText(a: number, b: number): string {
 function numbersSectionHtml(result: AuditResult): string {
   const m = result.ga4Metrics;
   if (!m) return "";
+  // Media buyer: the funnel, purchases and conversion rate live in "From
+  // click to cash" and the ROAS line, so this section keeps what's only here.
+  const buyer = result.audienceRole === "media_buyer";
   const name = escapeHtml(result.businessName || hostOf(result.websiteUrl));
   const days = m.periodDays;
 
@@ -2155,9 +3167,10 @@ function numbersSectionHtml(result: AuditResult): string {
   const kpi = (valueEn: string, valueAr: string, labelEn: string, labelAr: string) =>
     `<div class="kpi"><dt>${bi(labelEn, labelAr)}</dt><dd>${biHtml(valueEn, valueAr)}</dd></div>`;
   if (m.sessions !== null) kpis.push(kpi(countHtml(m.sessions), countHtml(m.sessions), "Visits", "الزيارات"));
-  if (purchases !== null) kpis.push(kpi(countHtml(purchases), countHtml(purchases), "Purchases", "عمليات الشراء"));
+  if (buyer) { /* purchases and conversion rate: see click to cash */ }
+  else if (purchases !== null) kpis.push(kpi(countHtml(purchases), countHtml(purchases), "Purchases", "عمليات الشراء"));
   else if (m.conversions !== null) kpis.push(kpi(countHtml(m.conversions), countHtml(m.conversions), "Conversions", "التحويلات"));
-  if (m.conversionRate !== null) {
+  if (m.conversionRate !== null && !buyer) {
     const cr = countHtml(m.conversionRate, 2, "%");
     kpis.push(kpi(cr, cr, "Conversion rate", "معدل التحويل"));
   }
@@ -2176,7 +3189,7 @@ function numbersSectionHtml(result: AuditResult): string {
   const steps: typeof m.funnel = [];
   for (const step of m.funnel) if (!steps.length || step.count <= steps[steps.length - 1].count) steps.push(step);
   let funnel = "";
-  if (steps.length >= 2) {
+  if (steps.length >= 2 && !buyer) {
     const first = steps[0].count;
     const rows = steps.map((step, i) => {
       const w = Math.max(6, Math.pow(step.count / first, 0.35) * 100);
@@ -2341,6 +3354,7 @@ function gaugeHtml(score: number | null, en: string, ar: string): string {
 // the whole thing hidden when motion is off.
 function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, has: { fixFirst: boolean; screens: boolean; numbers: boolean; speed: boolean; friction?: boolean }): string {
   const stops: Array<[string, string, string, "ok" | "bad"]> = [];
+  if (result.audienceRole === "media_buyer") return guideMarkup(buyerGuideStops(result, counts, has));
   stops.push(["overview", `${counts.passed}/${counts.total} passed`, `${counts.passed}/${counts.total} ناجح`, counts.critical > 0 ? "bad" : "ok"]);
   if (has.fixFirst) {
     const n = Math.min(3, counts.failed);
@@ -2372,6 +3386,34 @@ function guideHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>,
   }
   stops.push(["sources", "Sources", "المصادر", "ok"]);
   stops.push(["end", "Let's fix it", "لنصلحها معًا", "ok"]);
+  return guideMarkup(stops);
+}
+
+// Media buyer: the logo mark's stops follow their story (round 7), in the
+// order the report reads: the question, the fixes, the money, after the
+// click, the page, then the rest.
+function buyerGuideStops(result: AuditResult, counts: ReturnType<typeof resultCounts>, has: { speed: boolean; friction?: boolean }): Array<[string, string, string, "ok" | "bad"]> {
+  const s = buyerSteps(result);
+  const toFix = s.real.length + s.learn.length + s.convert.length + s.waste.length;
+  const stops: Array<[string, string, string, "ok" | "bad"]> = [["overview", "Ads or site?", "إعلانات ولا موقع؟", toFix ? "bad" : "ok"]];
+  const countN = s.real.length + s.learn.length, siteN = s.convert.length + s.waste.length;
+  if (toFix) stops.push(["fix-first", countN ? `Count: ${countN} to fix` : "Count holds", countN ? `العدّ: ${countN} تتصلح` : "العدّ سليم", countN ? "bad" : "ok"]);
+  stops.push(["breakeven", "Break-even", "التعادل", "ok"]);
+  if (toFix) stops.push(["roas-leaks", siteN ? `Site: ${siteN} leaks` : "Site holds", siteN ? `الموقع: ${siteN} تسريب` : "الموقع سليم", siteN ? "bad" : "ok"]);
+  if (has.friction && result.fud) {
+    const n = result.fud.findings.filter(f => f.override?.to !== "hidden" && (f.status === "fail" || f.status === "warn")).length;
+    stops.push(["friction", `${n} after the click`, `${n} بعد الضغطة`, n ? "bad" : "ok"]);
+  }
+  if (result.clarityFacts) stops.push(["clarity", "Clarity", "Clarity", "ok"]);
+  const slow = result.pageSpeed?.pages.filter(p => p.mobile !== null).sort((a, b) => a.mobile! - b.mobile!)[0];
+  if (has.speed && slow) stops.push(["speed", `Phone speed ${slow.mobile}/100`, `سرعة الموبايل ${slow.mobile}/100`, slow.mobile! < 50 ? "bad" : "ok"]);
+  stops.push(["checks", `${counts.passed} passed`, `${counts.passed} نجحوا`, "ok"]);
+  stops.push(["sources", "Sources", "المصادر", "ok"]);
+  stops.push(["end", "Let's fix it", "يلا نصلّحها", "ok"]);
+  return stops;
+}
+
+function guideMarkup(stops: Array<[string, string, string, "ok" | "bad"]>): string {
   return `
   <div class="guide" aria-hidden="true" hidden>
     <svg class="g-path" aria-hidden="true"><path class="gp-base"/><path class="gp-glow"/><path class="gp-fill"/><path class="gp-probe"/></svg>
@@ -2475,6 +3517,355 @@ p{margin:0; text-wrap:pretty}
 .btn--lg{padding:15px 26px; font-size:16px}
 .btn--link{padding:12px 4px; color:var(--green-ink)}
 .btn--link:hover{color:var(--ink)}
+
+/* ---- Media buyer: "From click to cash" ----
+   Three zones read left to right (right to left in Arabic): the click, the
+   site, the count. Status is a word, a number and an edge colour, never
+   colour alone. Spacing on the 4/8 grid; type at 12/14/16 plus one display
+   size for the numbers. */
+.pipe{margin:32px 0 0; padding:24px; border:1px solid var(--line-strong); border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0))}
+.pipe-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; margin-bottom:16px}
+.pipe-title{font-family:var(--display); font-size:16px; font-weight:700; color:var(--ink)}
+.pipe-sub{font-size:14px; color:var(--ink-3)}
+.pl-head, .pl-row{display:grid; grid-template-columns:32px minmax(160px,1.1fr) minmax(112px,.8fr) minmax(0,2fr) 88px; gap:0 16px; align-items:center}
+.pl-head{padding:0 12px 8px; font-size:12px; font-weight:600; color:var(--ink-3); border-bottom:1px solid var(--line)}
+.pl-head span:last-child, .pl-status{text-align:end}
+.pl{list-style:none; margin:0; padding:0; position:relative}
+/* The rail: the line through the step numbers that the money dot runs on. */
+.pl::before{content:""; position:absolute; inset-inline-start:27px; top:40px; bottom:28px; width:2px; border-radius:2px; background:linear-gradient(180deg, rgba(106,228,153,.35), rgba(106,228,153,.08))}
+.pl-zone{padding-block:16px 4px; padding-inline:60px 12px; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-3)}
+.pl-row{position:relative; padding:12px; border-radius:12px; border:1px solid transparent; border-inline-start:3px solid transparent; transition:background .15s var(--ease)}
+.pl-row + .pl-row{border-top-color:var(--line)}
+.pl-row:hover{background:var(--bg-soft)}
+.pl-n{position:relative; z-index:3; width:24px; height:24px; display:grid; place-items:center; border-radius:999px; font-size:12px; font-weight:700; color:var(--ink-2); background:var(--bg); border:1px solid var(--line-strong); font-variant-numeric:tabular-nums}
+.pl-label{font-size:14px; font-weight:600; color:var(--ink); line-height:1.3}
+.pl-label a{color:inherit; text-decoration:none; border-bottom:1px dashed var(--line-strong)}
+.pl-label a:hover{border-bottom-color:var(--ink-2)}
+.pl-label a:focus-visible{outline:2px solid var(--green); outline-offset:2px; border-radius:4px}
+.pl-value{font-family:var(--display); font-size:20px; font-weight:700; line-height:1.1; color:var(--ink); font-variant-numeric:tabular-nums; display:flex; flex-direction:column; gap:6px; text-align:start}
+#i18n-ar:checked ~ main .pl-value{align-items:flex-end}
+.pl-value small{font-size:12px; font-weight:600; color:var(--ink-3)}
+.pl-bar{display:block; height:4px; width:var(--w); max-width:100%; border-radius:4px; background:rgba(106,228,153,.45)}
+.pl-meaning{font-size:14px; color:var(--ink-2); line-height:1.4}
+.pl-meaning b{color:var(--ink); font-variant-numeric:tabular-nums}
+.pl-norm{color:var(--ink-3); white-space:nowrap}
+.pl-word{display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:700; border:1px solid var(--line-strong); color:var(--ink-3)}
+.pl--bad{border-inline-start-color:var(--red-ink); background:var(--red-tint)}
+.pl--bad:hover{background:var(--red-tint)}
+.pl--bad .pl-n{border-color:var(--red-ink); color:var(--red-ink)}
+.pl--bad .pl-word{border-color:rgba(255,107,87,.5); color:var(--red-ink)}
+.pl--bad .pl-meaning b{color:var(--red-ink)}
+.pl--bad .pl-bar{background:var(--red-ink)}
+.pl--warn .pl-word{border-color:rgba(255,190,92,.5); color:var(--amber-ink)}
+.pl--ok .pl-word{border-color:rgba(106,228,153,.5); color:var(--green-ink)}
+.pl--bad .pl-value:not(:has(.pl-cash)) > :first-child{color:var(--red-ink)}
+.pl-value:has(> .i18n-en){font-size:16px}
+.pl-foot{margin:12px 0 0; padding:12px; border-radius:12px; background:var(--red-tint); font-size:14px; color:var(--ink-2)}
+.pl-foot b{color:var(--red-ink)}
+.pl-foot a{color:var(--green-ink)}
+.pl-dot{position:absolute; left:0; top:0; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:999px; background:var(--green); box-shadow:0 0 12px var(--green), 0 0 28px rgba(106,228,153,.55); pointer-events:none; opacity:0; z-index:2}
+.pl-drop{position:absolute; left:0; top:0; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:999px; background:var(--red-ink); box-shadow:0 0 10px rgba(255,107,87,.75); pointer-events:none; z-index:2}
+@media (prefers-reduced-motion: no-preference){
+  .pl--bad .pl-word{animation:leak-pulse 2.2s ease-in-out infinite}
+  .dx-row.is-ping .dx-word::before{animation:dx-ping .9s ease-out}
+}
+@keyframes leak-pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px rgba(255,107,87,.6)}}
+@keyframes dx-ping{0%{box-shadow:0 0 0 0 currentColor}100%{box-shadow:0 0 0 10px transparent}}
+@media print{ .pl-dot, .pl-drop{display:none} }
+@media (max-width:767px){
+  .pipe{padding:16px}
+  .pl-head{display:none}
+  .pl::before{top:24px}
+  .pl-row{grid-template-columns:24px minmax(0,1fr) auto; gap:4px 12px; align-items:start; padding:12px 8px}
+  .pl-n{grid-row:1 / span 3; align-self:start}
+  .pl-label{grid-column:2}
+  .pl-status{grid-column:3; grid-row:1}
+  .pl-value{grid-column:2 / span 2}
+  .pl-meaning{grid-column:2 / span 2}
+  .pl-zone{padding-inline-start:44px}
+}
+/* ---- Round 12 (media buyer): carousels, tiles, speed bars, ROAS equation ---- */
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.car{margin-top:24px; border:1px solid var(--line-strong); border-radius:16px; background:var(--bg-soft); overflow:hidden}
+.car-tabs{display:flex; gap:8px; padding:12px; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--line); scroll-padding-inline:12px}
+.car-tabs::-webkit-scrollbar{display:none}
+.car-tab{flex:0 0 auto; max-width:280px; display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--ink-3); font:500 14px/1.3 var(--body); text-align:start; cursor:pointer; transition:color .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease)}
+.car-tab:hover{color:var(--ink); border-color:var(--line-strong)}
+.car-tab[aria-selected="true"]{color:var(--ink); border-color:var(--green); background:var(--green-tint); font-weight:600}
+.car-tab:focus-visible{outline:2px solid var(--green); outline-offset:2px}
+.car-tab-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.car-dot{flex:0 0 auto; width:8px; height:8px; border-radius:999px; background:var(--ink-3)}
+.car-dot--bad{background:var(--red-ink)} .car-dot--warn{background:var(--amber-ink)} .car-dot--ok{background:var(--green-ink)}
+.car-view{transition:height .3s var(--ease); overflow:hidden}
+.car-track{display:flex; overflow-x:auto; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; scrollbar-width:none; align-items:flex-start}
+.car-track::-webkit-scrollbar{display:none}
+.car-item{flex:0 0 100%; min-width:0; scroll-snap-align:start; padding:16px}
+.car-item > .check{margin:0; box-shadow:none}
+.car-foot{display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line)}
+.car-prog{flex:1; display:flex; gap:4px}
+.car-seg{flex:1; height:4px; border-radius:999px; background:var(--line-strong); cursor:pointer; transition:background .2s var(--ease)}
+.car-seg.is-on{background:var(--green)}
+.car-count{font-size:14px; color:var(--ink-3); white-space:nowrap; font-variant-numeric:tabular-nums}
+.car-count b{color:var(--ink)}
+.car-btn{flex:0 0 auto; width:40px; height:40px; display:grid; place-items:center; border-radius:999px; border:1px solid var(--line-strong); background:var(--bg); color:var(--ink); font-size:16px; cursor:pointer; transition:border-color .15s var(--ease), background .15s var(--ease)}
+.car-btn:hover:not(:disabled){border-color:var(--green); background:var(--green-tint)}
+.car-btn:active:not(:disabled){transform:scale(.96)}
+.car-btn:focus-visible{outline:2px solid var(--green); outline-offset:2px}
+.car-btn:disabled{opacity:.4; cursor:default}
+#i18n-ar:checked ~ main .car-arrow{display:inline-block; transform:scaleX(-1)}
+.car-one{margin-top:24px}
+@media (prefers-reduced-motion: reduce){ .car-view{transition:none} }
+@media (max-width:767px){
+  .car-item{padding:12px}
+  .car-tab{max-width:220px}
+}
+@media print{
+  .car-tabs, .car-foot{display:none}
+  .car-view{height:auto !important}
+  .car-track{display:block; overflow:visible}
+  .car-item{padding:0 0 16px}
+}
+.tiles{display:grid; gap:12px; margin-top:24px}
+.tiles--3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.tiles--4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+@media (max-width:767px){ .tiles--4{grid-template-columns:1fr 1fr} .tiles--4 .stat{padding:16px} .tiles--4 .stat-v{font-size:32px} }
+.sv-tile, .stat{height:100%; display:flex; flex-direction:column; gap:8px; padding:20px; border-radius:16px; border:1px solid var(--line); background:var(--bg-soft); border-top:3px solid var(--line-strong)}
+.sv-tile.sv--bad, .stat--flag{border-top-color:var(--red-ink)}
+.sv-tile.sv--ok{border-top-color:var(--green-ink)}
+.sv-k{font-size:14px; color:var(--ink-2); line-height:1.4}
+.sv-tile .sv-word{font-family:var(--display); font-size:20px; font-weight:700; line-height:1.2}
+.sv-tile.sv--bad .sv-word{color:var(--red-ink)}
+.sv-tile.sv--ok .sv-word{color:var(--green-ink)}
+.sv-tile .sv-note{font-size:14px; color:var(--ink-2); line-height:1.5}
+.stat .fix-tag{align-self:flex-start}
+.stat-v{font-family:var(--display); font-size:40px; font-weight:700; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums}
+.stat--flag .stat-v{color:var(--red-ink)}
+#i18n-ar:checked ~ main .stat-v{text-align:right}
+.stat-k{font-size:16px; font-weight:600; color:var(--ink); line-height:1.4}
+.stat-m{font-size:14px; color:var(--ink-2); line-height:1.5}
+.sb{margin:24px 0 0}
+.sb-list{list-style:none; margin:0; padding:0; display:grid; gap:4px}
+.sb-row{display:grid; grid-template-columns:200px minmax(0,1fr); gap:8px 24px; align-items:center; padding:16px 0; border-bottom:1px solid var(--line)}
+.sb-row--avg{border-bottom-color:var(--line-strong)}
+.sb-row--avg .sb-name{color:var(--ink)}
+.sb-name{display:flex; flex-direction:column; gap:4px; font-size:16px; font-weight:600; color:var(--ink-2)}
+.sb-name small{font-size:12px; font-weight:400; color:var(--ink-3); overflow-wrap:anywhere}
+.sb-bars{display:grid; gap:8px}
+.sb-line{display:grid; grid-template-columns:72px minmax(0,1fr) 40px; gap:12px; align-items:center}
+.sb-k{font-size:12px; color:var(--ink-3)}
+.sb-track{position:relative; height:12px; border-radius:999px; background:linear-gradient(90deg, rgba(255,107,87,.12) 0 50%, rgba(255,190,92,.12) 50% 90%, rgba(106,228,153,.12) 90%)}
+#i18n-ar:checked ~ main .sb-track{background:linear-gradient(270deg, rgba(255,107,87,.12) 0 50%, rgba(255,190,92,.12) 50% 90%, rgba(106,228,153,.12) 90%)}
+.sb-fill{position:absolute; inset-block:0; inset-inline-start:0; width:var(--v); border-radius:999px}
+.sb-fill.sb--bad{background:var(--red-ink)} .sb-fill.sb--warn{background:var(--amber-ink)} .sb-fill.sb--ok{background:var(--green-ink)}
+.sb-v{font-family:var(--display); font-size:16px; font-weight:700; text-align:end; font-variant-numeric:tabular-nums}
+.sb-v.sb--bad{color:var(--red-ink)} .sb-v.sb--warn{color:var(--amber-ink)} .sb-v.sb--ok{color:var(--green-ink)}
+.sb-legend{display:flex; flex-wrap:wrap; gap:8px 24px; margin-top:16px; font-size:14px; color:var(--ink-3)}
+.sb-key::before{content:""; display:inline-block; width:10px; height:10px; border-radius:999px; margin-inline-end:8px; vertical-align:middle}
+.sb-key.sb--bad::before{background:var(--red-ink)} .sb-key.sb--warn::before{background:var(--amber-ink)} .sb-key.sb--ok::before{background:var(--green-ink)}
+.eq{display:flex; flex-wrap:wrap; align-items:stretch; gap:12px; margin-top:24px}
+.eq-t{flex:1 1 150px; display:flex; flex-direction:column; gap:8px; padding:16px 20px; border-radius:16px; border:1px solid var(--line); background:var(--bg-soft)}
+.eq-t--site{border-top:3px solid var(--green-ink)}
+.eq-t--ads{border-top:3px solid var(--line-strong)}
+.eq-t--out{border:1px solid var(--green); background:var(--green-tint)}
+.eq-k{font-size:12px; color:var(--ink-3); line-height:1.4}
+.eq-v{font-family:var(--display); font-size:28px; font-weight:700; line-height:1.1; color:var(--ink); font-variant-numeric:tabular-nums}
+.eq-who{font-size:12px; font-weight:600; color:var(--green-ink)}
+.eq-t--ads .eq-who{color:var(--ink-3)}
+.eq-op{align-self:center; font-family:var(--display); font-size:24px; color:var(--ink-3)}
+.eq-note{margin-top:16px; font-size:16px; color:var(--ink-2); max-width:64ch; line-height:1.6}
+@media (max-width:767px){
+  .sb-row{grid-template-columns:1fr; gap:12px}
+  .eq-op{flex:0 0 100%; text-align:center; line-height:1}
+  .eq-t{flex-basis:100%}
+}
+/* Room to breathe and less side margin, for the buyer report only. */
+.is-buyer .wrap{width:min(1280px,calc(100% - 40px))}
+.is-buyer .layout{gap:48px}
+@media (min-width:1024px){ .is-buyer .layout{grid-template-columns:184px minmax(0,1fr)} }
+.is-buyer .content{max-width:960px}
+.is-buyer .doc-section{padding-top:80px}
+.is-buyer .doc-section + .doc-section{margin-top:80px}
+.is-buyer .section-lead{margin-top:16px; line-height:1.65}
+.is-buyer .lane-lead{margin-top:12px; line-height:1.65}
+.is-buyer .mb-lane{margin-top:72px}
+.is-buyer .check-list{gap:16px}
+.is-buyer .fud-group{margin-top:64px}
+.is-buyer .sv{margin-top:72px; padding-top:48px}
+.is-buyer .pipe, .is-buyer .dx-board{margin-top:48px}
+@media (max-width:767px){
+  .is-buyer .wrap{width:calc(100% - 24px)}
+  .is-buyer .doc-section{padding-top:56px}
+  .is-buyer .doc-section + .doc-section{margin-top:56px}
+  .is-buyer .mb-lane{margin-top:56px}
+  .is-buyer .fud-group{margin-top:48px}
+  .is-buyer .check-main{padding:16px 14px}
+}
+.be-presets{display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line)}
+.be-presets-k{font-size:14px; color:var(--ink-2); margin-inline-end:4px}
+.be-preset{padding:6px 12px; border-radius:999px; border:1px solid var(--line-strong); background:transparent; color:var(--ink-2); font:500 14px/1.2 var(--body); cursor:pointer; transition:border-color .15s var(--ease), color .15s var(--ease)}
+.be-preset:hover{border-color:var(--green-ink); color:var(--ink)}
+.be-preset[aria-pressed="true"]{border-color:var(--green-ink); color:var(--green-ink)}
+#i18n-ar:checked ~ main .be-preset{font-family:var(--arabic)}
+.be-note--top{margin:8px 0 4px}
+
+/* ---- Media buyer opening: the ads-or-site scoreboard ----
+   One row per question: verdict word (never colour alone), its count, and
+   a link to the one place that holds the detail. */
+.mb-hero h1{max-width:22ch}
+.dx-board{list-style:none; margin:28px 0 0; padding:0; border-top:1px solid var(--line)}
+.dx-row a{display:grid; grid-template-columns:32px minmax(0,1.1fr) minmax(0,1fr) 20px; align-items:center; gap:4px 16px; padding:16px 4px; border-bottom:1px solid var(--line); text-decoration:none; transition:background .15s var(--ease)}
+.dx-row a:hover{background:var(--bg-soft)}
+.dx-n{width:28px; height:28px; border-radius:999px; border:1px solid var(--line-strong); display:grid; place-items:center; font:600 13px/1 var(--display); color:var(--ink-3); font-variant-numeric:tabular-nums}
+.dx--bad .dx-n{border-color:rgba(255,107,87,.45); color:var(--red-ink)}
+.dx--ok .dx-n{border-color:rgba(106,228,153,.4); color:var(--green-ink)}
+.dx-q{font-family:var(--display); font-size:16.5px; font-weight:700; line-height:1.35; color:var(--ink)}
+.dx-v{display:flex; flex-direction:column; gap:2px}
+.dx-word{display:inline-flex; align-items:center; gap:8px; font-family:var(--display); font-size:15px; font-weight:700}
+.dx-word::before{content:""; width:8px; height:8px; border-radius:999px; background:currentColor; flex:none}
+.dx--bad .dx-word{color:var(--red-ink)}
+.dx--ok .dx-word{color:var(--green-ink)}
+.dx--na .dx-word{color:var(--ink-3)}
+.dx-note{font-size:14px; line-height:1.45; color:var(--ink-2)}
+.dx-go{color:var(--ink-3); font-size:15px; text-align:end}
+.dx-row a:hover .dx-go{color:var(--green-ink)}
+@media (max-width:767px){
+  .dx-row a{grid-template-columns:26px minmax(0,1fr) 16px; gap:6px 12px}
+  .dx-n{width:24px; height:24px; font-size:12px; grid-row:span 2; align-self:start}
+  .dx-v{grid-column:2}
+  .dx-go{grid-row:1 / span 2; grid-column:3}
+}
+.mb-lane .bias{margin:4px 0 12px}
+.moved-note{margin-top:14px; padding:12px 14px; border:1px solid var(--line-strong); border-radius:10px; font-size:14.5px; color:var(--ink-2)}
+.moved-note a, .followup-lead a, .cro-leak a{color:var(--green-ink)}
+.cro-lead{margin:4px 0 12px; font-size:15px; color:var(--ink-2); max-width:68ch}
+.cro-leak{margin:8px 0 0; font-size:14px; font-weight:600}
+.cro-leak a{text-decoration:none; border-bottom:1px solid rgba(255,107,87,.4); color:var(--red-ink)}
+.cro-stage--leak{padding:16px; margin-inline:-16px; border-radius:12px; background:rgba(255,107,87,.05); border:1px solid rgba(255,107,87,.22)}
+.mb-checks{margin-top:14px}
+.ho-preview{margin-top:12px}
+.ho-preview summary{cursor:pointer; font-size:14px; color:var(--ink-2)}
+
+/* Reported-ROAS bias: one mark per counted point, never a size. Fixed
+   left-to-right so "too high" marks sit beside their label in Arabic too. */
+.bias{direction:ltr; margin-top:12px; display:grid; grid-template-columns:auto minmax(96px,1fr) auto; align-items:center; gap:12px; max-width:560px; font-size:13px; color:var(--ink-3)}
+.bias-side b{font-weight:700; font-variant-numeric:tabular-nums}
+.bias-side--up b{color:var(--amber-ink)}
+.bias-side--down b{color:var(--blue-ink)}
+.bias-track{display:grid; grid-template-columns:1fr 2px 1fr; align-items:center; gap:6px}
+.bias-l{display:flex; justify-content:flex-end; gap:4px}
+.bias-r{display:flex; gap:4px}
+.bias-mid{height:20px; background:var(--line-strong); border-radius:1px}
+.bias i{display:block; width:14px; height:10px; border-radius:2px}
+.bias .b-up{background:var(--amber-ink)}
+.bias .b-down{background:var(--blue-ink)}
+
+/* ---- Media buyer: what our phone visit saw ---- */
+.sv{margin-top:44px; padding-top:28px; border-top:1px solid var(--line)}
+.sv-list{margin:16px 0 0; border-top:1px solid var(--line)}
+.sv-row{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr); gap:6px 24px; padding:12px 0; border-bottom:1px solid var(--line)}
+.sv-row dt{font-size:15px; color:var(--ink)}
+.sv-row dd{margin:0; display:flex; flex-direction:column; gap:4px; font-size:14px; color:var(--ink-2)}
+.sv-word{display:inline-flex; align-items:center; gap:8px; font-family:var(--display); font-weight:700; font-size:14px}
+.sv-word::before{content:""; width:8px; height:8px; border-radius:999px; background:currentColor; flex:none}
+.sv--bad .sv-word{color:var(--red-ink)}
+.sv--ok .sv-word{color:var(--green-ink)}
+.sv--na .sv-word{color:var(--ink-3)}
+.sv-trace{width:100%; margin-top:20px; border-collapse:collapse; font-size:14px}
+.sv-trace caption{caption-side:top; text-align:start; padding-bottom:8px; font-family:var(--display); font-weight:600; color:var(--ink)}
+.sv-trace th, .sv-trace td{padding:10px 12px 10px 0; text-align:start; border-bottom:1px solid var(--line); vertical-align:top}
+.sv-trace thead th{font-size:12.5px; font-weight:500; color:var(--ink-3)}
+.sv-trace tbody th{font-weight:500; color:var(--ink)}
+.sv-trace code{font-size:13px; color:var(--ink-2); overflow-wrap:anywhere}
+#i18n-ar:checked ~ main .sv-trace :is(th, td){padding:10px 0 10px 12px}
+.pm{margin-top:28px}
+.pm td{font-size:13px}
+@media (max-width:767px){
+  .sv-trace.pm tr{grid-template-columns:1fr; gap:10px}
+  .sv-trace.pm td{justify-self:stretch}
+  .pm td::before{content:attr(data-k); display:block; margin-bottom:4px; font:600 12px/1.2 var(--body); color:var(--ink-3)}
+}
+.pm-ev{display:inline-block; margin:0 6px 4px 0; padding:2px 8px; border-radius:6px; background:var(--bg-soft); border:1px solid var(--line); font-family:ui-monospace, Menlo, Consolas, monospace; color:var(--ink-2)}
+.pm-ev--bad{border-color:rgba(255,107,87,.5); color:var(--red-ink); background:var(--red-tint)}
+.pm-none{color:var(--ink-3)}
+.pm-flags{margin:12px 0 0; padding-inline-start:20px; display:grid; gap:6px; font-size:14px; color:var(--red-ink)}
+.your-ad{margin:20px 0 8px; padding:16px 20px; border-radius:12px; border:1px solid var(--line-strong); background:var(--bg-soft)}
+.your-ad-k{font-size:12px; font-weight:600; color:var(--ink-3)}
+.your-ad-text{margin-top:6px; font-family:var(--display); font-size:20px; font-weight:700; line-height:1.3; color:var(--ink)}
+.your-ad-coupon{margin-top:8px; font-size:14px; color:var(--ink-2)}
+.your-ad-coupon code{padding:2px 8px; border-radius:6px; border:1px dashed var(--green-ink); color:var(--green-ink)}
+.your-ad-note{margin-top:10px; font-size:14.5px; color:var(--ink-2); max-width:68ch}
+.your-ad-note a{color:var(--green-ink)}
+.sv-foot{margin-top:10px; font-size:13px; color:var(--ink-3); max-width:72ch}
+@media (max-width:767px){
+  .sv-row{grid-template-columns:1fr}
+  .sv-trace thead{display:none}
+  .sv-trace tr{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px; padding:10px 0; border-bottom:1px solid var(--line)}
+  .sv-trace :is(th, td), #i18n-ar:checked ~ main .sv-trace :is(th, td){padding:0; border:0}
+  .sv-trace td:last-child{grid-column:1 / -1}
+}
+
+/* ---- Media buyer: tracking fixes to paste to the developer ---- */
+.devpack{margin-top:24px; display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; padding:16px 18px; border:1px solid var(--line-strong); border-radius:12px}
+.devpack-lead{flex:1 1 320px; margin:0; font-size:14.5px; color:var(--ink-2)}
+.devpack-copy{background:transparent; color:var(--ink); border:1px solid var(--line-strong); cursor:pointer}
+.devpack-copy:hover{border-color:var(--green-ink)}
+.devpack-copy.is-done{border-color:var(--green-ink); color:var(--green-ink)}
+@media print{ .devpack{display:none} }
+
+/* ---- Media buyer: page speed lead and the call steps ---- */
+#speed .plan-verify{margin-top:14px}
+.speed-scale{margin-top:10px; font-size:13px; color:var(--ink-3)}
+.cta-steps{margin:18px 0 0; padding-inline-start:20px; display:grid; gap:8px; color:rgba(255,255,255,.78); font-size:15.5px; max-width:60ch}
+.cta-steps li::marker{color:var(--green-ink); font-weight:700}
+
+/* ---- Media buyer ROAS section: three ruled lanes ---- */
+.mb-lane{margin-top:44px}
+.mb-lane .lane-head{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px}
+.mb-lane-n{width:26px; height:26px; border-radius:999px; border:1px solid var(--line-strong); display:grid; place-items:center; font:600 13px/1 var(--display); color:var(--ink-3)}
+.mb-lane-c{font-family:var(--body); font-size:13px; font-weight:500; color:var(--ink-3)}
+.mb-list{margin-top:14px}
+.plan-verify{margin-top:10px; padding:10px 14px; border-radius:8px; background:var(--blue-tint); font-size:14px; line-height:1.55; color:var(--ink-2); max-width:72ch}
+.plan-verify b{color:var(--blue-ink); font-weight:600}
+@media (max-width:767px){
+  .dx-step{grid-template-columns:26px minmax(0,1fr); gap:0 12px}
+  .dx-n{width:24px; height:24px; font-size:12px}
+  .bias{grid-template-columns:1fr 1fr; gap:8px}
+  .bias-track{grid-column:1 / -1; grid-row:1}
+  .bias-side--down{justify-self:end}
+}
+
+/* ---- Break-even ROAS (media buyer) ----
+   Inputs as ruled rows on the left, the answer set in type on the right. */
+.be-grid{margin-top:28px; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:40px; align-items:start}
+.be-form{border-top:1px solid var(--line)}
+.be-row{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:16px; padding:12px 0; border-bottom:1px solid var(--line)}
+.be-row label{font-size:15px; color:var(--ink-2); line-height:1.35}
+.be-hint{display:block; margin-top:2px; font-size:12.5px; color:var(--ink-3)}
+.be-input{display:inline-flex; align-items:center; justify-content:flex-end; gap:6px; width:136px; padding:0 10px; border:1px solid var(--line-strong); border-radius:8px; background:var(--bg-soft); transition:border-color .15s var(--ease)}
+.be-input:focus-within{border-color:var(--green-ink)}
+.be-input input{flex:1; min-width:0; width:auto; padding:8px 0; border:0; outline:0; background:transparent; color:var(--ink); font:600 15px/1.2 var(--body); font-variant-numeric:tabular-nums; text-align:right}
+.be-unit{font-size:13px; color:var(--ink-3); white-space:nowrap}
+.be-note{margin-top:12px; font-size:13px; color:var(--ink-3)}
+.be-out{position:sticky; top:132px; padding-top:4px}
+.be-k{font-size:14px; color:var(--ink-3)}
+.be-big{margin-top:4px; font-family:var(--display); font-size:clamp(44px,5vw,60px); font-weight:700; line-height:1.05; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums}
+.be-dl{margin:20px 0 0; border-top:1px solid var(--line)}
+.be-dl div{display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px}
+.be-dl dt{color:var(--ink-2)}
+.be-dl dd{margin:0; color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap}
+.be-verdict{margin-top:18px; font-size:16px; line-height:1.5; color:var(--ink)}
+.be-verdict.is-loss{color:var(--red-ink)}
+.be-lift{margin-top:8px; font-size:14px; color:var(--ink-2)}
+.be-warn{margin-top:14px; font-size:13.5px; color:var(--amber-ink)}
+.be-copy{margin-top:18px; background:transparent; color:var(--ink); border:1px solid var(--line-strong); cursor:pointer}
+.be-copy:hover{border-color:var(--green-ink)}
+.be-copy.is-done{border-color:var(--green-ink); color:var(--green-ink)}
+#i18n-ar:checked ~ main .be-input input{font-family:var(--body)}
+@media (max-width:767px){
+  .be-grid{grid-template-columns:1fr; gap:28px}
+  .be-out{position:static}
+}
+@media print{ .be-copy{display:none} .be-input{border:0} }
 .btn--link .arrow{transition:transform .2s var(--ease)}
 .btn--link:hover .arrow{transform:translateX(3px)}
 #i18n-ar:checked ~ main .arrow{transform:scaleX(-1)}
@@ -3130,9 +4521,11 @@ body{position:relative}
   .cta-band{padding:56px 0}
   .cta-band .btn{width:100%}
   .footer-grid{grid-template-columns:1fr}
-  /* RTL: content pushed past the left edge can't be scrolled to, so on phones
-     the nav chips wrap instead of scrolling and the tags/chips wrap their text. */
-  .jump{flex-wrap:wrap; overflow:visible}
+  /* Nav chips: one row that scrolls sideways (wrapping took a third of a
+     phone screen). It scrolls in RTL too: the row starts at the right edge.
+     The fade at the far end says there is more. Tags/chips wrap their text. */
+  .jump{flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; -webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 32px), transparent); mask-image:linear-gradient(90deg, #000 calc(100% - 32px), transparent)}
+  #i18n-ar:checked ~ main .jump{-webkit-mask-image:linear-gradient(270deg, #000 calc(100% - 32px), transparent); mask-image:linear-gradient(270deg, #000 calc(100% - 32px), transparent)}
   .fix-list a{grid-template-columns:minmax(0,1fr)}
   .fix-meta{flex-wrap:wrap; row-gap:6px}
   .fix-list a > *{min-width:0; overflow-wrap:anywhere}
@@ -3312,7 +4705,11 @@ function scriptBlock(): string {
     btn.hidden = false;
     var idle = btn.querySelector(".ho-copy-idle"), done = btn.querySelector(".ho-copy-done"), t = null;
     btn.addEventListener("click", function(){
+      // innerText only reads rendered text (one language), so open a folded preview while reading.
+      var fold = list.closest("details"), was = fold ? fold.open : true;
+      if (fold) fold.open = true;
       var lines = Array.prototype.map.call(list.querySelectorAll("li"), function(li, i){ return (i + 1) + ". " + li.innerText.replace(/\\s+/g, " ").trim(); });
+      if (fold) fold.open = was;
       navigator.clipboard.writeText(lines.join("\\n\\n")).then(function(){
         idle.hidden = true; done.hidden = false;
         clearTimeout(t); t = setTimeout(function(){ idle.hidden = false; done.hidden = true; }, 2600);
@@ -3337,7 +4734,9 @@ function scriptBlock(): string {
   var searches = Array.prototype.slice.call(document.querySelectorAll(".search"));
   var groups = Array.prototype.slice.call(document.querySelectorAll(".check-group"));
   var empty = document.querySelector(".filter-empty");
-  var filter = "all";
+  // The active chip in the markup sets the starting filter (the media buyer
+  // opens on "Need work"); in-page links still open filtered-out rows.
+  var filter = (chips.filter(function(c){ return c.classList.contains("is-active"); })[0] || { getAttribute: function(){ return "all"; } }).getAttribute("data-filter");
   function apply(){
     var q = (searches.map(function(el){ return (el.value || "").trim(); }).filter(Boolean)[0] || "").toLowerCase();
     var shown = 0;
@@ -3368,6 +4767,7 @@ function scriptBlock(): string {
     });
   });
   searches.forEach(function(el){ el.addEventListener("input", apply); });
+  if (filter !== "all") apply();
 
   // Highlight the section in view in the top nav.
   var spyLinks = Array.prototype.slice.call(document.querySelectorAll("[data-spy]"));
@@ -4190,9 +5590,10 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
   // everyone else keeps the shared layout.
   const persona = personaOf(result.audienceRole);
   const buyer = persona === "media_buyer";
+  const siteLeaks = buyer ? buyerSiteHtml(result) : "";
   const fixFirst = persona === "store_owner" ? ownerPlanHtml(result) : fixFirstHtml(result);
   const screens = screenshotsHtml(result);
-  const numbers = numbersSectionHtml(result);
+  const numbers = buyer ? "" : numbersSectionHtml(result);
   const friction = frictionSectionHtml(result);
   const clarity = persona ? claritySectionHtml(result, buyer) : "";
   const keep = persona === "store_owner" ? keepItHtml(result) : "";
@@ -4203,15 +5604,31 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
       ? buyerHeroHtml(result, counts, generatedAt, generatedAtAr, contactUrl, screens)
       : summaryHtml(result, counts, generatedAt, generatedAtAr, contactUrl, screens);
   const checks = `${checksIntroHtml(counts, result)}${result.categories.map(cat => categorySectionHtml(cat, result, assets)).join("")}`;
-  const speedHtml = speed ? speedSectionHtml(speed) : "";
+  const speedHtml = speed ? speedSectionHtml(speed, buyer) : "";
   // Section order per reader: the owner reads money and fixes before the
   // detail; the buyer reads the tracking verdict, then behaviour, then pages.
   // Same order as the table of contents (tocHtml): Clarity and "keep it"
   // before the full checks, "how it works" at the end.
-  const body = [hero, questionsHtml(result), fixFirst, numbers, friction, clarity, keep, checks, speedHtml, method, sourcesHtml(result)];
+  const breakEven = buyer ? breakEvenHtml(result) : "";
+  // The media buyer reads by what they want first (ROUNDS-LOG round 11):
+  // the verdict and click-to-cash, is the count real, break-even, what the
+  // site does to ROAS, what loses the click on the page, what visitors did
+  // (Clarity), speed, then the reference (every check, method, sources).
+  // Their GA4 totals sit in click-to-cash, so they get no numbers section.
+  const body = buyer
+    ? [hero, fixFirst, breakEven, siteLeaks, friction, clarity, speedHtml, checks, method, sourcesHtml(result)]
+    : [hero, questionsHtml(result), fixFirst, breakEven, numbers, friction, clarity, keep, checks, speedHtml, method, sourcesHtml(result)];
+  const speedUp = buyer && Boolean(speedHtml);
+  const afterFix: Array<[string, string, string]> = [
+    ...(breakEven ? [["breakeven", "Break-even ROAS", "ROAS التعادل"] as [string, string, string]] : []),
+    ...(siteLeaks ? [["roas-leaks", "What holds ROAS back", "اللي ماسك الـ ROAS"] as [string, string, string]] : []),
+  ];
   const extraNav = {
+    afterFix,
     before: [
-      ...(clarity ? [["clarity", "Clarity", "Clarity"] as [string, string, string]] : []),
+      ...(buyer && clarity ? [["clarity", "Clarity", "Clarity"] as [string, string, string]] : []),
+      ...(speedUp ? [["speed", "Page speed", "سرعة الصفحات"] as [string, string, string]] : []),
+      ...(clarity && !buyer ? [["clarity", "Clarity", "Clarity"] as [string, string, string]] : []),
       ...(keep ? [["keep", "Keep it", "خلّه زي ما هو"] as [string, string, string]] : []),
     ],
     after: method ? [["method", "How it works", buyer ? "اتعمل إزاي" : "كيف سوّيناه"] as [string, string, string]] : [],
@@ -4227,7 +5644,7 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
 <style>${styles(assets)}</style>
 <script>try{if(!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("js-motion");setTimeout(function(){if(!window.__motion)document.documentElement.classList.remove("js-motion")},3000)}}catch(e){}</script>
 </head>
-<body>
+<body${buyer ? ' class="is-buyer"' : ""}>
   <input type="radio" name="report-i18n" id="i18n-en" class="lang-radio" />
   <input type="radio" name="report-i18n" id="i18n-ar" class="lang-radio" checked />
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -4245,9 +5662,9 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
     </div>
   </header>
   <main>
-    ${jumpBarHtml(result, Boolean(fixFirst), Boolean(speed), Boolean(numbers), Boolean(friction))}
+    ${jumpBarHtml(result, Boolean(fixFirst), Boolean(speed) && !speedUp, Boolean(numbers), Boolean(friction), { before: [...(buyer && clarity ? [["clarity", "Clarity", "Clarity"] as [string, string, string]] : []), ...(speedUp ? [["speed", "Speed", "السرعة"] as [string, string, string]] : [])], after: [], afterFix: buyer ? afterFix.map(([id, en, ar]) => id === "roas-leaks" ? [id, "ROAS", "ROAS"] as [string, string, string] : [id, en, ar] as [string, string, string]) : afterFix })}
     <div class="wrap layout">
-      ${tocHtml(result, Boolean(fixFirst), false, Boolean(speed), Boolean(numbers), Boolean(friction), extraNav)}
+      ${tocHtml(result, Boolean(fixFirst), false, Boolean(speed) && !speedUp, Boolean(numbers), Boolean(friction), extraNav)}
       <div class="content">
         ${body.join("\n")}
       </div>
@@ -4259,6 +5676,7 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
 ${motion}
 <script>${scriptBlock()}</script>
 <script>${revealFallbackScript}</script>
+${buyer ? `<script>${CAROUSEL_SCRIPT}</script><script>${BUYER_MOTION}</script>` : ""}
 </body>
 </html>`;
 }

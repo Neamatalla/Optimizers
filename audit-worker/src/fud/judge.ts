@@ -142,6 +142,7 @@ HOW TO DECIDE
 - Never invent facts about the store, its policies or its numbers. Never write health, medical or legal claims in example copy.
 
 WRITING
+- Every text: short sentences, one idea each, 14 words or fewer. No semicolons. Make a new sentence instead of chaining clauses with "which", "because" or a second comma.
 - Block ids are for the "blockIds" field only — never write them in any text. Describe locations in words instead ("in the cart drawer", "under the price", "in the footer").
 - technical: for the developer — what was found, where on the page, the exact wording quoted, and the mechanism. summary = one line, detail = 2-4 sentences.
 ${judgeBusinessRule(role) ?? `- business: for a busy store owner, no jargon — what the shopper experiences and what it costs or protects. summary = one line, detail = 2-4 sentences. Speak to the owner ("your cart", "your shoppers").

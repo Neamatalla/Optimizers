@@ -505,23 +505,32 @@ interface HitCounter {
   // Event names read off the hits we block (GA4 en=, Meta ev=, TikTok
   // event) with the time they were sent, so the Add-to-Cart click's own
   // events can be picked out (W-22, GTM-24).
-  events: Array<{ t: number; vendor: string; name: string }>;
+  events: Array<{ t: number; vendor: string; name: string; id?: string; page?: string }>;
+  // The page being loaded while a hit fires ("home", "product",
+  // "collection"); unset during taps, the cart and the desktop pass, so
+  // pageHits holds page-load hits only (the buyer's pixel map).
+  page?: string;
 }
 
-export function hitEvents(url: string, body: string | undefined): Array<{ vendor: string; name: string }> {
-  const out: Array<{ vendor: string; name: string }> = [];
+export function hitEvents(url: string, body: string | undefined): Array<{ vendor: string; name: string; id?: string }> {
+  const out: Array<{ vendor: string; name: string; id?: string }> = [];
   const all = `${url}\n${body ?? ""}`;
   if (/google-analytics\.com|analytics\.google\.com|\/g\/collect/.test(url)) {
+    // tid= is the measurement ID (G-…): two on one store means two GA4 setups.
+    const tid = /[?&]tid=(G-[A-Z0-9]+)/i.exec(url)?.[1];
     for (const m of all.matchAll(/(?:^|[?&\n])en=([^&\s]+)/g)) {
       try {
-        out.push({ vendor: "ga4", name: decodeURIComponent(m[1]) });
+        out.push({ vendor: "ga4", name: decodeURIComponent(m[1]), ...(tid && { id: tid }) });
       } catch {
-        out.push({ vendor: "ga4", name: m[1] });
+        out.push({ vendor: "ga4", name: m[1], ...(tid && { id: tid }) });
       }
     }
   } else if (/facebook\.com\/tr|facebook\.net\/tr/.test(url)) {
-    const m = /[?&]ev=([^&]+)/.exec(all);
-    if (m) out.push({ vendor: "meta", name: m[1] });
+    // Stop at whitespace too: the URL and the POST body are joined with a newline.
+    const m = /[?&]ev=([^&\s]+)/.exec(all);
+    // id= is the pixel ID: two on one store usually means double counting.
+    const id = /[?&]id=(\d{6,20})/.exec(all)?.[1];
+    if (m) out.push({ vendor: "meta", name: m[1], ...(id && { id }) });
   } else if (/tiktok/.test(url)) {
     const m = /"event"\s*:\s*"([^"]+)"/.exec(all);
     if (m) out.push({ vendor: "tiktok", name: m[1] });
@@ -549,7 +558,7 @@ async function preparePage(browserContext: Awaited<ReturnType<Browser["createBro
         } catch {
           body = undefined;
         }
-        for (const ev of hitEvents(url, body)) counter.events.push({ t: Date.now(), ...ev });
+        for (const ev of hitEvents(url, body)) counter.events.push({ t: Date.now(), ...ev, ...(counter.page && { page: counter.page }) });
       }
       req.abort("blockedbyclient").catch(() => {});
       return;
@@ -799,7 +808,9 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     const findLinks = async (): Promise<{ product: string | null; collection: string | null }> =>
       ((await page.evaluate(FIND_LINKS_JS).catch(() => null)) as { product: string | null; collection: string | null } | null) ?? { product: null, collection: null };
 
+    counter.page = "home";
     pages.push(await visit(page, "home", homepage, "h"));
+    counter.page = undefined;
     // Discovery found no product or listing URL (non-Shopify URL shapes):
     // look for them in the store's own links, home first, then the listing.
     let collection: PageEvidence | undefined;
@@ -808,18 +819,24 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       collectionUrl = collectionUrl ?? fromHome.collection ?? undefined;
       productUrl = productUrl ?? fromHome.product ?? undefined;
       if (!productUrl && collectionUrl) {
+        counter.page = "collection";
         collection = await visit(page, "collection", collectionUrl, "l");
+        counter.page = undefined;
         if (collection.loaded) productUrl = (await findLinks()).product ?? undefined;
       }
     }
+    counter.page = "product";
     const product = productUrl ? await visit(page, "product", productUrl, "p") : failed("product", homepage, "no product page found on the site");
+    counter.page = undefined;
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
     const { cart, atc, atcEvents } = await addToCartAndCapture(page, product, cartUrl!, counter);
     pages.push(cart);
     // After the cart, so a slow listing page can never cost the cart rules
     // (unless it was already needed above to find a product).
+    if (!collection && collectionUrl) counter.page = "collection";
     pages.push(collection ?? (collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site")));
+    counter.page = undefined;
 
     // Search test (rule N2): search for a word from the product's name and
     // count product links on the results page.
@@ -862,7 +879,8 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     }
 
     const focusUrls = opts.focus?.productUrl || opts.focus?.collectionUrl ? { product: opts.focus.productUrl, collection: opts.focus.collectionUrl } : undefined;
-    return { website, pages, desktop, addToCart: atc, atcEvents, focusUrls, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id }) => ({ page: p!, vendor, name, ...(id && { id }) }));
+    return { website, pages, desktop, addToCart: atc, atcEvents, pageHits, focusUrls, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.
