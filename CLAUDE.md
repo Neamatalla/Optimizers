@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow (read first)
+
+Before any work, follow the team workflow: branching, commits, testing, merging and migrations.
+
+@docs/WORKFLOW.md
+
+Before any database work (migrations, schema changes), follow the database workflow:
+
+@docs/DB_WORKFLOW.md
+
 ## Project Overview
 
 React 18 + TypeScript landing page for Optimizers, a CRO/conversion optimization agency targeting e-commerce brands in the GCC/MENA region. Built with Vite, styled with Tailwind CSS v4. Deployed on Vercel.
@@ -33,7 +43,7 @@ HeaderNav (persistent) → HeaderSection → Services (mobile/desktop variants) 
 - `src/app/contexts/LanguageContext.tsx` — i18n provider (English/Arabic) with RTL support and MutationObserver-based DOM translation
 - `src/app/translations/ar.ts` — Arabic translation dictionary
 - `api/` — Vercel serverless functions; shared code in `api/_lib/`, tests in `tests/api/`
-- `supabase/` — database schema and migrations for the audit system
+- `supabase/` — the audit system's database: a frozen baseline plus numbered migrations (see `docs/DB_WORKFLOW.md`)
 - `audit-worker/` — separate worker that runs the free audits (Docker on Railway, not deployed to Vercel); see its README
 - `src/hooks/` — Custom hooks (`useScrollReveal`, `use-toast`)
 - `src/lib/` — `queryClient.ts` (API request utility with TanStack React Query), `animations.ts`, `scrollToSection.ts`

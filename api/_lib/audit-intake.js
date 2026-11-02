@@ -12,7 +12,7 @@
 //   1. A lookup here, before the insert, so the visitor gets a real
 //      explanation instead of a database error.
 //   2. A unique index on audit_requests.website_hostname
-//      (supabase/schema.sql), which is what actually makes it airtight —
+//      (supabase/baseline.sql), which is what actually makes it airtight —
 //      two submissions racing each other both pass the lookup, and the
 //      loser's insert is rejected by Postgres. Callers turn that rejection
 //      into the same 409 (see isUniqueViolation below).
@@ -82,16 +82,16 @@ export const ROLE_LABELS = { store_owner: "E-commerce store owner", media_buyer:
 
 /**
  * Inserts the request row, and if the table has no audience_role column yet
- * (the migration supabase/migrations/2026-10-14-3-add-audience-role.sql not run),
+ * (the migration supabase/migrations/2026-10-14-3-add-audience-role/ not run),
  * retries without it, so a missing migration costs the role, never the
  * visitor's submission. Same { data, error } shape as supabase-js.
  */
 // Columns added by recent migrations. If one isn't on the table yet, the
 // request is saved without it instead of failing the visitor's submission.
 const OPTIONAL_COLUMNS = {
-  audience_role: "supabase/migrations/*audience-role*.sql",
-  clarity_data: "supabase/migrations/2026-10-20-add-clarity-data.sql",
-  ad_context: "supabase/migrations/2026-10-20-2-add-ad-context.sql",
+  audience_role: "supabase/migrations/*audience-role*/",
+  clarity_data: "supabase/migrations/2026-10-20-2-add-clarity-data/",
+  ad_context: "supabase/migrations/2026-10-20-3-add-ad-context/",
 };
 
 /**

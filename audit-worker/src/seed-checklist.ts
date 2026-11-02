@@ -6,7 +6,7 @@ import type { CategoryKey } from "./types.js";
 
 /**
  * Mirrors checklist.ts's three canonical arrays into Supabase's
- * checklist_points table (see supabase/schema.sql) — a
+ * checklist_points table (see supabase/baseline.sql) — a
  * reference/display copy, NOT the live source the audit pipeline reads
  * from. audit-prompt.ts and scoring.ts still import checklist.ts directly
  * at runtime, unchanged by this. Run after any checklist.ts edit:

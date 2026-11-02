@@ -1,6 +1,4 @@
--- Audit findings as rows (2026-10-20). Run once in the Supabase SQL editor
--- BEFORE deploying the API and worker from this version. Safe to re-run.
--- Also folded into supabase/schema.sql for fresh projects.
+-- Audit findings as rows. See README.md in this folder.
 --
 -- Until now each report was one rendered HTML file in the audit-reports
 -- bucket. From this version the worker writes the final result as rows, and

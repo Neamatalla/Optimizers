@@ -1,7 +1,4 @@
--- "Your role" on the free-audit form (2026-10-14). Run once in the Supabase
--- SQL editor BEFORE deploying the form/API from this version: the API writes
--- this column on every insert, so an older table rejects new submissions.
--- Safe to re-run. Also folded into supabase/schema.sql for fresh projects.
+-- "Your role" on the free-audit form. See README.md in this folder.
 --
 --   audience_role  Who the report is written for: media_buyer,
 --                  marketing_manager or store_owner. Same 50 checks for every
