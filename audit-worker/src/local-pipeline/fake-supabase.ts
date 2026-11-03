@@ -15,7 +15,8 @@ import type { AuditRequestRow, AuditResult, JobProgress } from "../types.js";
 const OUT = path.join(process.cwd(), "output");
 console.log("[local-pipeline] fake supabase in use: nothing goes to a database");
 const row = (): AuditRequestRow => (globalThis as any).__pipelineRow;
-const host = () => new URL(row().website).hostname.replace(/^www\./, "");
+// No dots: the dev server only serves [a-zA-Z0-9_-]+.html from output/.
+const host = () => new URL(row().website).hostname.replace(/^www\./, "").replace(/\./g, "-");
 
 export const LEASE_MS = 10 * 60_000;
 export const HEARTBEAT_MS = 60_000;
