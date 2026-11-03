@@ -1,8 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import { InlineWidget } from "react-calendly";
+import { InlineWidget, useCalendlyEventListener } from "react-calendly";
 import { useLanguage } from "../app/contexts/LanguageContext";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -266,17 +266,59 @@ export default function StrategySession() {
     email: "",
   });
 
-  // Mock mutation for demonstration if no backend is present
+  // Tracks whether the step-5 contact email went through; if not, we retry after the Calendly booking.
+  const contactSentRef = useRef(false);
+  const fallbackSentRef = useRef(false);
+
+  const buildContactPayload = () => ({
+    firstName: formData.firstName,
+    email: formData.email,
+    website: normalizeWebsiteUrl(formData.website),
+    traffic: formData.traffic,
+    monthlyConversions: formData.conversionVolume,
+    challenge: formData.primaryObjective === "Other" ? formData.customObjective : formData.primaryObjective,
+  });
+
+  // Fallback: if the form email failed, send the data again once the user books in Calendly,
+  // attaching the Calendly event/invitee URIs so the server can pull the booking details.
+  useCalendlyEventListener({
+    onEventScheduled: (e) => {
+      if (contactSentRef.current || fallbackSentRef.current) return;
+      fallbackSentRef.current = true;
+      apiRequest("POST", "/api/contact", {
+        ...buildContactPayload(),
+        source: "calendly-fallback",
+        calendlyEventUri: e.data.payload.event.uri,
+        calendlyInviteeUri: e.data.payload.invitee.uri,
+      })
+        .then(() => { contactSentRef.current = true; })
+        .catch((error) => console.error("Calendly fallback contact submission failed:", error));
+    },
+  });
+
+  // Contact email is best-effort: success or failure, the user always proceeds to Calendly.
+  const goToCalendlyStep = () => {
+    setCurrentStep(prev => (prev === 5 ? 6 : prev));
+    setMaxStepReached(prev => Math.max(prev, 6));
+  };
+
   const submitContactMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/contact", data);
+      // Cap the wait so a slow/hung email request never blocks booking.
+      return await Promise.race([
+        apiRequest("POST", "/api/contact", data),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Contact request timed out")), 8000)),
+      ]);
     },
     onSuccess: () => {
+      contactSentRef.current = true;
       toast({ title: "Success!", description: "Information captured! Please choose a slot for our meeting." });
-      setCurrentStep(prev => (prev === 5 ? 6 : prev));
-      setMaxStepReached(prev => Math.max(prev, 6));
+      goToCalendlyStep();
     },
-    onError: (error: any) => toast({ title: "Error", description: error.message || "Failed to submit form.", variant: "destructive" }),
+    onError: (error: any) => {
+      console.error("Contact submission failed, continuing to Calendly:", error);
+      goToCalendlyStep();
+    },
   });
 
   const validateCurrentStep = () => {
@@ -329,14 +371,7 @@ export default function StrategySession() {
       if (currentStep === 5) {
         if (!validateFullSubmission()) return;
 
-        submitContactMutation.mutate({
-          firstName: formData.firstName,
-          email: formData.email,
-          website: normalizeWebsiteUrl(formData.website),
-          traffic: formData.traffic,
-          monthlyConversions: formData.conversionVolume,
-          challenge: formData.primaryObjective === "Other" ? formData.customObjective : formData.primaryObjective,
-        });
+        submitContactMutation.mutate(buildContactPayload());
       } else {
         const nextStep = currentStep + 1;
         setCurrentStep(nextStep);

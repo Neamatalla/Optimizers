@@ -1,3 +1,42 @@
+const CALENDLY_API_PREFIX = "https://api.calendly.com/";
+
+// Best-effort lookup of the booking details from Calendly (needs CALENDLY_API_TOKEN).
+// Returns null on any problem so the email still goes out with the form data.
+async function fetchCalendlyDetails(eventUri, inviteeUri) {
+  const token = process.env.CALENDLY_API_TOKEN;
+  if (!token) return null;
+
+  const get = async (uri) => {
+    // Only call Calendly's own API; never fetch arbitrary client-supplied URLs.
+    if (typeof uri !== "string" || !uri.startsWith(CALENDLY_API_PREFIX)) return null;
+    const r = await fetch(uri, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    const body = await r.json();
+    return body.resource || null;
+  };
+
+  try {
+    const [event, invitee] = await Promise.all([get(eventUri), get(inviteeUri)]);
+    if (!event && !invitee) return null;
+    return {
+      inviteeName: invitee?.name,
+      inviteeEmail: invitee?.email,
+      eventName: event?.name,
+      startTime: event?.start_time,
+    };
+  } catch (err) {
+    console.error("Calendly lookup failed:", err);
+    return null;
+  }
+}
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== "POST") {
@@ -16,7 +55,11 @@ export default async function handler(req, res) {
     const { Resend } = await import("resend");
     const resend = new Resend(apiKey);
 
-    const { firstName, email, website, traffic, monthlyConversions, challenge } = req.body || {};
+    const {
+      firstName, email, website, traffic, monthlyConversions, challenge,
+      source, calendlyEventUri, calendlyInviteeUri,
+    } = req.body || {};
+    const isCalendlyFallback = source === "calendly-fallback";
     const requiredFields = { firstName, email, website, traffic, monthlyConversions, challenge };
     const missingFields = Object.entries(requiredFields)
       .filter(([, value]) => !String(value || "").trim())
@@ -43,10 +86,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Please enter a valid website URL." });
     }
 
+    let calendlyRows = "";
+    if (isCalendlyFallback) {
+      const details = await fetchCalendlyDetails(calendlyEventUri, calendlyInviteeUri);
+      const rows = [
+        ["Calendly Invitee Name", details?.inviteeName],
+        ["Calendly Invitee Email", details?.inviteeEmail],
+        ["Meeting", details?.eventName],
+        ["Meeting Start (UTC)", details?.startTime],
+        ["Calendly Event URI", calendlyEventUri],
+        ["Calendly Invitee URI", calendlyInviteeUri],
+      ].filter(([, value]) => value);
+      calendlyRows = rows
+        .map(([label, value]) => `
+            <tr>
+              <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${escapeHtml(label)}</td>
+              <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(value)}</td>
+            </tr>`)
+        .join("");
+    }
+
     const { data, error } = await resend.emails.send({
       from: "Optimizers <hello@optimizers.agency>",
       to: ["mohamed@neamatalla.com"],
-      subject: `New Optimizers Client Data Submission from ${firstName}`,
+      subject: isCalendlyFallback
+        ? `New Optimizers Booking (form email retry) from ${firstName}`
+        : `New Optimizers Client Data Submission from ${firstName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #263328; border-bottom: 2px solid #6ae499; padding-bottom: 10px;">
@@ -76,7 +141,7 @@ export default async function handler(req, res) {
             <tr>
               <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Primary Objective</td>
               <td style="padding: 12px; border: 1px solid #ddd;">${challenge}</td>
-            </tr>
+            </tr>${calendlyRows}
           </table>
           <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
             This submission was received from the Optimizers booking form.
