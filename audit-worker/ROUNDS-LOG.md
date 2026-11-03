@@ -36,9 +36,65 @@ under **Changed later**, so each entry still matches what's live.
 
 ---
 
+## Round 21 — Real end-to-end trial of the production pipeline (and the bugs it found)
+
+**Status:** 🟡 staged, waiting for review. Builds on rounds 1–20.
+**Why:** rounds 1–20 were checked on previews (the renderer with sample data) and on live store visits, never through the real job (`poll.ts`) → saved rows → rebuilt report.
+
+### The local pipeline runner (new)
+`npx tsx src/local-pipeline/run.ts <site> --role=media_buyer --tools=GA4,GTM [--ad=… --coupon=…]` runs the real `processRequest`. Only `supabase.ts` and `email.ts` are swapped, by a module hook (`hooks.mjs`), for `fake-supabase.ts` / `fake-email.ts`:
+- progress goes to `output/pipeline-<host>-progress.json`;
+- "publish" does toRows → JSON round trip → fromRows → the live renderer, and writes `output/pipeline-<host>.html`;
+- the email goes to `-email.html`.
+
+`poll.ts` gains `export` on `processRequest`, and the poll loop is skipped only when `AUDIT_WORKER_NO_POLL=1`. Production is unchanged otherwise.
+
+### Bugs the trial found (all fixed, staged)
+1. **Production never opened ad landing pages** (round 19): `poll.ts` collected without `collectorLanding`. Fixed; signal quality there also gets the GA4 currency.
+2. **Landing crops would sit inline in the DB row:** they're now uploaded to the images bucket like every other image (`supabase.ts withUploadedImages`).
+3. **Crawl timed out at 20s:** regal-honey.com takes about 22s to send its homepage. Now 45s (`crawl.ts`).
+4. **GTM invisible on platform stores:** Zid keeps it in `"google_tag_manager": "GTM-…"`. Strict key-plus-ID patterns were added for GTM and GA4 (`crawl.ts`).
+5. **All 50 GA4/GTM checks became generic passes for role-based readers.** The model answered `GA4-07`; the media-buyer list has `MB-GA4-07`, so all were dropped. This affects production for every media-buyer and store-owner audit. Fixed two ways:
+   - the prompt's example ids now come from the reader's own checklist;
+   - the parser maps a base id to the reader's renamed point.
+   Verified live: 0 dropped, 0 generic passes (was 50/50). `src/audit-ids.test.ts`.
+6. **GA4 batch parser dropped the URL's first event** (round 19): gtag puts the first event in the URL and the rest in the body. Fixed; body events no longer inherit the URL event's fields.
+7. **A log-in wall was judged as checkout:** platforms showed "missing InitiateCheckout". Now "not tested: your checkout asks shoppers to log in first".
+8. Local runner: tsx rewrites `.js` to `.ts` before hooks see it, and the dev server's local report route forbids dots in file names. Both handled.
+9. **Desktop mockup missing:** the desktop shot goes first and hit the 25s load limit on the slow store (the phone shot after it found the site warm). The error was swallowed. Now: 45s limit, one retry per shot, and the reason is logged (`screenshots.ts`).
+10. **Mockups covered by the store's arrival pop-up** (regal-honey's country/currency modal, in both shots). Before the capture: Escape, then a visible close/cancel control inside a dialog is clicked, then any fixed full-screen dialog or overlay left is hidden (`CLOSE_POPUPS_JS`, illustration only).
+
+The trial report was rebuilt (`output/rebuild.ts`: same AI results, fresh screenshots and store-visit capture, same rows → renderer path):
+- both mockups present and clean;
+- pixel signal 67%: Meta 100%, TikTok 100%, GA4 0% (custom `OZ_` event names), checkout "not tested: your checkout asks shoppers to log in first".
+
+### The trial: regal-honey.com, media buyer, GA4+GTM via service accounts
+- 38.5 min end to end, exit 0, no failed calls.
+- Audit 318s:
+  - GA4 19/25 (6 fail), GTM 20/25 (5 fail), all with real verdicts;
+  - PageSpeed: phone 30, desktop 41.
+- Phone visit: 5/5 pages, Add to Cart ok (drawer), 184 hits blocked, 0 leaked. Checkout → Zid log-in page (sso.zid.store) with a guest option.
+- Friction rules: 45/45 assessed, score 67.
+- CRO checklist: 265 run, 165 shown, 139 written up, 0 failed calls. Checkout tab 72%; its first card names the log-in wall correctly.
+- Arabic 50/50.
+- Report: rebuilt from rows, buyer version, no sideways scroll. Present:
+  - "Can you trust the numbers?", pixel signal, phone visit, break-even;
+  - ROAS leaks, "After the click", CRO checklist (140 cards, 10 tabs), speed, GA4/GTM, sources.
+- Absent by design without the form's GA4 OAuth data: campaigns, ad setup, ad landing pages, Clarity.
+- Real finding: Regal's GA4 runs through server-side GTM (`gtm.regal-honey.com`) with custom event names (`OZ_product_page_view`), not `view_item` / `add_to_cart`. Signal quality rightly scores GA4 0%. Meta and TikTok are complete.
+- Cost: 52 claude calls, about 1.1M output tokens, about 20 points of the 5-hour window.
+
+### Known limits of this trial
+- The first render of the trial predates fixes 6, 7, 9 and 10; the rebuilt report has them.
+
+- The platform shows as unknown (the crawler doesn't name Zid).
+- GA4-driven sections need a run with the form's Google OAuth (staging or production).
+
+---
+
 ## Round 20 — Where your ads land: the landing page against the ad
 
-**Status:** 🟡 staged, waiting for review. Builds on rounds 1–19.
+**Status:** ✅ approved (by moving on to round 21), staged, not committed. Builds on rounds 1–19.
 **Reader:** media buyer. It replaces the "Your ad, as you told us" box at the top of "After the click" (#friction), and the guide gets an "Ad landing" stop.
 **Files:**
 - `src/ad-match.ts` (new): the matcher. `src/ad-match.test.ts` (new, 7 tests).

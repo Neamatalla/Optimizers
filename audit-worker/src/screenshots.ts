@@ -105,6 +105,38 @@ export function findChrome(): string | null {
   return candidates.find(p => existsSync(p)) ?? null;
 }
 
+// Closes what covers the page on arrival (country/currency pickers, newsletter
+// and cookie pop-ups), for the illustration only: a visible close/cancel
+// control inside a dialog is clicked; a dialog or full-screen overlay still
+// up after that is hidden. Returns how many were handled.
+const CLOSE_POPUPS_JS = String.raw`(function () {
+  var n = 0;
+  var vw = window.innerWidth, vh = window.innerHeight;
+  function visible(el) { var r = el.getBoundingClientRect(); var s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && +s.opacity > 0.05; }
+  function overlayish(el) {
+    var s = getComputedStyle(el); var r = el.getBoundingClientRect();
+    return (s.position === "fixed" || s.position === "absolute") && r.width >= vw * 0.6 && r.height >= vh * 0.6 && (+s.zIndex || 0) >= 10;
+  }
+  var dialogs = [].filter.call(document.querySelectorAll('[role="dialog"], [aria-modal="true"], dialog[open], .modal, [class*="popup"], [class*="Popup"], [class*="modal"]'), visible);
+  var CLOSE = /^(×|✕|✖|x|close|إغلاق|اغلاق|إلغاء|الغاء|no thanks|لا شكرا)$/i;
+  dialogs.forEach(function (d) {
+    var btn = [].find.call(d.querySelectorAll('button, a, [role="button"], span, i'), function (b) {
+      var t = (b.getAttribute("aria-label") || b.textContent || "").trim();
+      return visible(b) && (CLOSE.test(t) || /close|dismiss/i.test(b.className || "") || /close|إغلاق/i.test(b.getAttribute("aria-label") || ""));
+    });
+    if (btn) { try { btn.click(); n++; } catch (e) {} }
+  });
+  // Whatever still covers most of the screen is hidden (the header and the
+  // page itself never match: they aren't fixed and full-screen at once).
+  [].forEach.call(document.querySelectorAll("body *"), function (el) {
+    if (!visible(el)) return;
+    var isDialog = el.matches('[role="dialog"], [aria-modal="true"], dialog[open]');
+    if ((isDialog || overlayish(el)) && getComputedStyle(el).position === "fixed") { el.style.setProperty("display", "none", "important"); n++; }
+  });
+  document.documentElement.style.overflow = ""; document.body.style.overflow = "";
+  return n;
+})()`;
+
 export async function captureSiteScreenshots(url: string): Promise<SiteScreenshots> {
   const executablePath = findChrome();
   if (!executablePath) {
@@ -134,10 +166,18 @@ export async function captureSiteScreenshots(url: string): Promise<SiteScreensho
         // chat widgets and pixels may never go idle, and this is an
         // illustration — a 25s ceiling on a page that keeps talking is better
         // than waiting for silence that never comes.
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25_000 });
+        // 45s like the crawl: a slow store's first page load can take over
+        // 25s (regal-honey.com, 2026-11-02: the desktop shot, taken first,
+        // timed out; the phone shot after it found the site warm).
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
         // Give lazy-loaded hero imagery a moment to paint; without this the
         // shot is often the skeleton state, which misrepresents the site.
         await new Promise(r => setTimeout(r, 2500));
+        // The mockup should show the store, not its arrival pop-up
+        // (regal-honey.com: a country/currency modal covered both shots).
+        await page.keyboard.press("Escape").catch(() => {});
+        await page.evaluate(CLOSE_POPUPS_JS).catch(() => 0);
+        await new Promise(r => setTimeout(r, 500));
         // Walk down the page once so lazy-loaded sections and scroll-reveal
         // animations paint, then return to the top for the capture.
         const height = await page.evaluate(async (limit: number) => {
@@ -168,8 +208,20 @@ export async function captureSiteScreenshots(url: string): Promise<SiteScreensho
 
     // Sequential, not parallel: two Chrome tabs racing on the same VPS core
     // makes both shots more likely to catch a half-painted page.
-    const desktop = await shoot(DESKTOP, DESKTOP_CAP).catch(() => null);
-    const mobile = await shoot(MOBILE, MOBILE_CAP, MOBILE_UA).catch(() => null);
+    // One retry each: the first load warms a slow store up. The reason is
+    // logged instead of swallowed, so a missing mockup can be explained.
+    const attempt = async (name: string, run: () => Promise<string>): Promise<string | null> => {
+      for (let i = 1; i <= 2; i++) {
+        try {
+          return await run();
+        } catch (err) {
+          console.warn(`[screenshots] ${name} shot failed (try ${i}/2): ${err instanceof Error ? err.message.slice(0, 160) : err}`);
+        }
+      }
+      return null;
+    };
+    const desktop = await attempt("desktop", () => shoot(DESKTOP, DESKTOP_CAP));
+    const mobile = await attempt("mobile", () => shoot(MOBILE, MOBILE_CAP, MOBILE_UA));
 
     return {
       desktop,
