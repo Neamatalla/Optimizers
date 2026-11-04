@@ -3,6 +3,7 @@ export const arTranslations: Record<string, string> = {
   // Navigation & Header
   // ═══════════════════════════════════════════════
   "Get Free Audit": "احصل على تدقيقك المجاني",
+  "Book a call": "احجز مكالمة",
   "Services": "الخدمات",
   "ROI Calculator": "حاسبة العائد",
   "Case Studies": "دراسات الحالة",

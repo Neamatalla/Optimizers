@@ -1418,7 +1418,7 @@ function DivBtnLabel() {
   return (
     <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
       <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[14px] text-center text-white whitespace-nowrap">
-        <p className="leading-[17px]">{t('Get Free Audit')}</p>
+        <p className="leading-[17px]">{t('Book a call')}</p>
       </div>
     </div>
   );
@@ -1593,7 +1593,7 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         >
           <div aria-hidden="true" className="absolute border border-[#6ae499] border-solid inset-0 pointer-events-none rounded-[100px]" />
           <div className="absolute inset-0 pointer-events-none rounded-[100px]" style={{ boxShadow: 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)' }} />
-          <span className="relative z-10">{t('Get Free Audit')}</span>
+          <span className="relative z-10">{t('Book a call')}</span>
         </button>
       </div>
     </div>
