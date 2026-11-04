@@ -149,7 +149,7 @@ export default function ProcessWithAnimation() {
                         <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
                             <div className="content-stretch flex items-start justify-center pl-0 pr-[0.5px] py-0 relative shrink-0" data-name="div.btn-label">
                                 <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-nowrap text-white">
-                                    <p className="leading-[21.6px]">{t('Book a Free CRO Audit')}</p>
+                                    <p className="leading-[21.6px]">{t('Book a call')}</p>
                                 </div>
                             </div>
                         </div>

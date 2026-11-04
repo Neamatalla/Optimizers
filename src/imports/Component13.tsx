@@ -565,7 +565,7 @@ function DivBtnLabel() {
   return (
     <div className="content-stretch flex items-start justify-center pr-[0.5px] relative shrink-0" data-name="div.btn-label">
       <div className="css-g0mm18 flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-white">
-        <p className="css-ew64yg leading-[21.6px]">{t('Book a Free CRO Audit')}</p>
+        <p className="css-ew64yg leading-[21.6px]">{t('Book a call')}</p>
       </div>
     </div>
   );

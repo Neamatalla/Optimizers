@@ -353,7 +353,7 @@ export default function App() {
                   onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
                   className="audit-button hidden lg:block"
                 >
-                  Book a Free CRO Audit
+                  Book a call
                 </button>
               </div>
 
@@ -419,7 +419,7 @@ export default function App() {
                     boxShadow: 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
                   }}
                 >
-                  Book a Free CRO Audit
+                  Book a call
                 </button>
               </div>
 
