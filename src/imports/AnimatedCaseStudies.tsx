@@ -4,6 +4,7 @@ import { useLanguage } from '../app/contexts/LanguageContext';
 import '../styles/case-studies-animations.css';
 import { MOB_DURATIONS, MOB_EASE } from '../lib/animations';
 import { track } from '@/lib/analytics';
+import { useOnScreenCenter } from '@/lib/analytics/react';
 
 // Same order on desktop (CaseStudy3-7) and mobile (CS_*).
 const CASE_STUDY_NAMES = ['Squadio', 'Ribal Magic', 'Regal Honey', 'Vitrine Furniture', 'Regal Honey (product page)'];
@@ -215,13 +216,14 @@ export default function AnimatedCaseStudies() {
     // One case_study_view per case study per page (desktop: scroll position, mobile: active slide).
     const viewedCaseStudiesRef = useRef<Set<number>>(new Set());
     const shownCaseStudy = isMobile ? activeMobileIndex_M : activeIndex;
+    const caseStudiesOnScreen = useOnScreenCenter(isMobile ? mobileContainerRef : desktopRef, isMobile);
     useEffect(() => {
-        if (shownCaseStudy < 0 || viewedCaseStudiesRef.current.has(shownCaseStudy)) return;
+        if (!caseStudiesOnScreen || shownCaseStudy < 0 || viewedCaseStudiesRef.current.has(shownCaseStudy)) return;
         const trigger = csTriggerRef.current || (isMobile ? 'initial' : 'scroll');
         viewedCaseStudiesRef.current.add(shownCaseStudy);
         csTriggerRef.current = '';
         track('case_study_view', { ...caseStudyParams(shownCaseStudy), slide_trigger: trigger, interaction_type: 'view' });
-    }, [shownCaseStudy, isMobile]);
+    }, [shownCaseStudy, isMobile, caseStudiesOnScreen]);
 
     // Gate trigger: fires when 50% of the section enters viewport
     useEffect(() => {

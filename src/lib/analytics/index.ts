@@ -109,6 +109,34 @@ export function emailDomainType(email: string): "business" | "free_email" | "unk
 
 const snake = (camel: string) => camel.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
 
+// ─── nav-driven smooth scrolls ───
+// A nav/CTA click smooth-scrolls past many sections; those must not count as
+// "viewed". While it runs, view tracking is paused; when scrolling settles,
+// listeners re-check what is actually on screen.
+let navScrolling = false;
+const navScrollEndListeners = new Set<() => void>();
+export const isNavScrolling = () => navScrolling;
+export function onNavScrollEnd(cb: () => void): () => void {
+  navScrollEndListeners.add(cb);
+  return () => navScrollEndListeners.delete(cb);
+}
+function startNavScroll() {
+  navScrolling = true;
+  let idle = 0;
+  const end = () => {
+    if (!navScrolling) return;
+    navScrolling = false;
+    window.removeEventListener("scroll", onScroll);
+    window.clearTimeout(idle);
+    window.clearTimeout(cap);
+    navScrollEndListeners.forEach((cb) => cb());
+  };
+  const onScroll = () => { window.clearTimeout(idle); idle = window.setTimeout(end, 250); };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  idle = window.setTimeout(end, 500); // no scroll at all (already there) → end quickly
+  const cap = window.setTimeout(end, 4000);
+}
+
 // ─── automatic listeners ───
 
 let started = false;
@@ -146,6 +174,7 @@ function initClickTracking() {
           ...linkParams(link?.getAttribute("href")),
         });
         track(event, params);
+        if (params.nav_target && !link?.getAttribute("href")?.startsWith("http")) startNavScroll();
         return;
       }
       const fallback = target.closest<HTMLElement>("a[href], button, [role='button'], input[type='submit']");
@@ -173,7 +202,7 @@ function initSectionViews() {
     (entries) => {
       for (const entry of entries) {
         const name = entry.target.getAttribute("data-track-section");
-        if (!name || seen.has(name) || !entry.isIntersecting) continue;
+        if (!name || seen.has(name) || !entry.isIntersecting || navScrolling) continue;
         // "Viewed" = covers half the viewport, or half of itself if shorter than the viewport.
         const coverage = entry.intersectionRect.height / Math.min(entry.boundingClientRect.height || 1, window.innerHeight);
         if (coverage < 0.5) continue;
@@ -187,6 +216,8 @@ function initSectionViews() {
     if (!observed.has(n)) { observed.add(n); io.observe(n); }
   });
   scan();
+  // After a nav scroll, re-observe so IntersectionObserver reports the sections now on screen.
+  onNavScrollEnd(() => document.querySelectorAll(SECTIONS).forEach((n) => { io.unobserve(n); io.observe(n); }));
   // Lazy-loaded sections mount later.
   let pending = 0;
   new MutationObserver(() => { window.clearTimeout(pending); pending = window.setTimeout(scan, 300); })
