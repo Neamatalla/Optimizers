@@ -3,6 +3,18 @@ import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionVa
 import { useLanguage } from '../app/contexts/LanguageContext';
 import '../styles/case-studies-animations.css';
 import { MOB_DURATIONS, MOB_EASE } from '../lib/animations';
+import { track } from '@/lib/analytics';
+
+// Same order on desktop (CaseStudy3-7) and mobile (CS_*).
+const CASE_STUDY_NAMES = ['Squadio', 'Ribal Magic', 'Regal Honey', 'Vitrine Furniture', 'Regal Honey (product page)'];
+const caseStudyParams = (i: number) => ({
+    slider_name: 'case_studies',
+    case_study_name: CASE_STUDY_NAMES[i],
+    client_name: CASE_STUDY_NAMES[i],
+    slide_index: i + 1,
+    slide_total: CASE_STUDY_NAMES.length,
+    section_name: 'case_studies',
+});
 
 import CaseStudy3 from './CaseStudy3';
 import CaseStudy4 from './CaseStudy4';
@@ -181,12 +193,35 @@ export default function AnimatedCaseStudies() {
     }, [smoothScale, scaleValue]);
 
     // ── Arrow-based Navigation Logic (Mobile) ──
+    const csTriggerRef = useRef<string>('');
     const handleNextMobile = () => {
-        setActiveMobileIndex_M((prev) => (prev < 4 ? prev + 1 : 0));
+        const to = activeMobileIndex_M < 4 ? activeMobileIndex_M + 1 : 0;
+        csTriggerRef.current = 'next';
+        track('case_studies_slider_next_click', { ...caseStudyParams(to), slide_from_index: activeMobileIndex_M + 1, element_type: 'button' });
+        setActiveMobileIndex_M(to);
     };
     const handlePrevMobile = () => {
-        setActiveMobileIndex_M((prev) => (prev > 0 ? prev - 1 : 4));
+        const to = activeMobileIndex_M > 0 ? activeMobileIndex_M - 1 : 4;
+        csTriggerRef.current = 'prev';
+        track('case_studies_slider_prev_click', { ...caseStudyParams(to), slide_from_index: activeMobileIndex_M + 1, element_type: 'button' });
+        setActiveMobileIndex_M(to);
     };
+    const handleDotMobile = (i: number) => {
+        csTriggerRef.current = 'dot';
+        track('case_studies_slider_dot_click', { ...caseStudyParams(i), slide_from_index: activeMobileIndex_M + 1, element_type: 'dot' });
+        setActiveMobileIndex_M(i);
+    };
+
+    // One case_study_view per case study per page (desktop: scroll position, mobile: active slide).
+    const viewedCaseStudiesRef = useRef<Set<number>>(new Set());
+    const shownCaseStudy = isMobile ? activeMobileIndex_M : activeIndex;
+    useEffect(() => {
+        if (shownCaseStudy < 0 || viewedCaseStudiesRef.current.has(shownCaseStudy)) return;
+        const trigger = csTriggerRef.current || (isMobile ? 'initial' : 'scroll');
+        viewedCaseStudiesRef.current.add(shownCaseStudy);
+        csTriggerRef.current = '';
+        track('case_study_view', { ...caseStudyParams(shownCaseStudy), slide_trigger: trigger, interaction_type: 'view' });
+    }, [shownCaseStudy, isMobile]);
 
     // Gate trigger: fires when 50% of the section enters viewport
     useEffect(() => {
@@ -347,7 +382,7 @@ export default function AnimatedCaseStudies() {
                             }}
                         >
                             <button
-                                onClick={language === 'ar' ? handleNextMobile : handlePrevMobile}
+                                data-track-ignore onClick={language === 'ar' ? handleNextMobile : handlePrevMobile}
                                 className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
                                 style={{ 
                                     backgroundColor: hoverBg, 
@@ -367,7 +402,7 @@ export default function AnimatedCaseStudies() {
                                 {[0, 1, 2, 3, 4].map((i) => (
                                     <button
                                         key={i}
-                                        onClick={() => setActiveMobileIndex_M(i)}
+                                        data-track-ignore onClick={() => handleDotMobile(i)}
                                         className="rounded-full transition-all duration-300"
                                         style={{
                                             width: i === activeMobileIndex_M ? '20px' : '8px',
@@ -381,7 +416,7 @@ export default function AnimatedCaseStudies() {
                             </div>
 
                             <button
-                                onClick={language === 'ar' ? handlePrevMobile : handleNextMobile}
+                                data-track-ignore onClick={language === 'ar' ? handlePrevMobile : handleNextMobile}
                                 className="w-10 h-10 rounded-full flex items-center justify-center active:scale-95"
                                 style={{ 
                                     backgroundColor: hoverBg, 

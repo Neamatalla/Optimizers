@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import imgLearnCroFromOurCeo from "../assets/48c0908a5973996950b53feb47622625902ab2fe.webp";
 import { imgGroup, imgGroup1 } from "./svg-s0pg2";
 import { useLanguage } from "../app/contexts/LanguageContext";
+import { useYouTubeTracking } from "@/lib/analytics/youtube";
 
 function Group() {
   return (
@@ -527,9 +528,14 @@ function MaskGroup() {
   );
 }
 
+const CEO_VIDEO = { video_id: "8zECN_jyCG4", video_url: "https://www.youtube.com/watch?v=8zECN_jyCG4", video_title: "Learn CRO From Our CEO", section_name: "ceo_video" };
+
 function Background() {
   const [isPlaying, setIsPlaying] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  useYouTubeTracking(iframeRef, isPlaying, {
+    start: "ceo_video_start", pause: "ceo_video_pause", resume: "ceo_video_resume", progress: "ceo_video_progress", complete: "ceo_video_complete",
+  }, CEO_VIDEO);
 
   useEffect(() => {
     if (isPlaying && iframeRef.current) {
@@ -543,7 +549,7 @@ function Background() {
       <div className="absolute inset-0 lg:inset-[2.5%_1%_2.5%_1%] rounded-[8px]" data-name="Screenshot 2025-09-24 at 12.05.29 AM 1">
 
         {!isPlaying ? (
-          <div className="relative w-full h-full cursor-pointer rounded-[8px] overflow-hidden" onClick={() => setIsPlaying(true)}>
+          <div className="relative w-full h-full cursor-pointer rounded-[8px] overflow-hidden" data-track="ceo_video_play_click" data-track-video-provider="youtube" data-track-video-id={CEO_VIDEO.video_id} data-track-video-title={CEO_VIDEO.video_title} data-track-element-type="video_thumbnail" onClick={() => setIsPlaying(true)}>
             <img
               src={videoThumbnail}
               alt="Video thumbnail"

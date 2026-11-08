@@ -2053,7 +2053,7 @@ function DivBtnLabel() {
 
 function Link() {
   return (
-    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform cta-glow-pulse tap-feedback" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform cta-glow-pulse tap-feedback" data-name="Link" data-track="guarantee_book_call_click" data-track-nav-target="contact" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
       </div>

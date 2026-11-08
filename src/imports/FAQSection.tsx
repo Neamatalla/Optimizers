@@ -8,6 +8,7 @@ import {
 } from "@/app/components/ui/accordion";
 import imgFrequentlyAskedQuestions from "../assets/666a6dfa4c8f6032da118c9f1f873233b2397282.webp";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { track } from "@/lib/analytics";
 
 const faqDataKeys = [
     {
@@ -71,7 +72,7 @@ function Link() {
         ? 'inset 0px 0px 30px 0px rgba(106,228,153,0.6)'
         : 'inset 0px 0px 20px 0px rgba(106,228,153,0.45)';
     return (
-        <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity lg:shadow-[0px_0px_25px_rgba(106,228,153,0.3)]" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+        <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity lg:shadow-[0px_0px_25px_rgba(106,228,153,0.3)]" data-name="Link" data-track="faq_book_call_click" data-track-nav-target="contact" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
             <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[24px] lg:px-[28px] py-[12px] relative rounded-[inherit]">
                 <DivBtnLabel />
             </div>
@@ -102,6 +103,18 @@ export default function FAQSection() {
     }));
     const [headingRef, headingVisible] = useScrollReveal<HTMLDivElement>();
     const [accordionRef, accordionVisible] = useScrollReveal<HTMLDivElement>({ threshold: 0.08 });
+    // Single-open accordion: opening one question closes the previous one (both are tracked).
+    const openFaqRef = React.useRef<string>("item-1");
+    const faqParams = (id: string, method: string) => {
+        const i = faqDataKeys.findIndex(f => f.id === id);
+        return { faq_question: faqDataKeys[i]?.questionKey, faq_index: i + 1, faq_total: faqDataKeys.length, toggle_method: method, section_name: "faq" };
+    };
+    const onFaqChange = (value: string) => {
+        const prev = openFaqRef.current;
+        if (prev && prev !== value) track("faq_question_collapse", faqParams(prev, value ? "other_question_opened" : "click"));
+        if (value) track("faq_question_expand", faqParams(value, "click"));
+        openFaqRef.current = value;
+    };
 
     return (
         <div className="bg-[#020601] relative size-full min-h-screen pt-[60px] lg:pt-[7vw] pb-[40px] lg:pb-0 px-[20px] lg:px-[2.1vw] overflow-hidden">
@@ -114,6 +127,8 @@ export default function FAQSection() {
                         type="single"
                         collapsible
                         defaultValue="item-1"
+                        onValueChange={onFaqChange}
+                        data-track-ignore
                         className="flex flex-col gap-[12px] lg:gap-4 w-full"
                     >
                         {faqData.map((faq, index) => (

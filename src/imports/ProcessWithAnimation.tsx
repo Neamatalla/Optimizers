@@ -145,7 +145,7 @@ export default function ProcessWithAnimation() {
                 <p className="font-['Sora:Regular',sans-serif] font-normal leading-[22px] lg:leading-[28px] relative shrink-0 text-[14px] lg:text-[20px] text-[rgba(255,255,255,0.8)] text-center w-full max-w-[797px]">{t('We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.')}</p>
                 {/* CTA button — hidden on mobile to reduce CTA spam */}
                 <div className="hidden lg:block">
-                    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+                    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" data-track="process_book_call_click" data-track-nav-target="contact" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
                         <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
                             <div className="content-stretch flex items-start justify-center pl-0 pr-[0.5px] py-0 relative shrink-0" data-name="div.btn-label">
                                 <div className="flex flex-col font-['Sora:SemiBold',sans-serif] font-semibold justify-center leading-[0] relative shrink-0 text-[18px] text-center text-nowrap text-white">

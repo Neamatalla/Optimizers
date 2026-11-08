@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { InlineWidget, useCalendlyEventListener } from "react-calendly";
@@ -7,6 +7,15 @@ import { useLanguage } from "../app/contexts/LanguageContext";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { track, emailDomainType, type TrackParams } from "@/lib/analytics";
+import type { TrackingEventName } from "@/lib/analytics/events";
+import { useOnScreenCenter } from "@/lib/analytics/react";
+
+const FORM_STEP_NAMES: Record<number, string> = { 1: "traffic", 2: "conversions", 3: "objective", 4: "website", 5: "contact", 6: "schedule" };
+const FORM_TOTAL_STEPS = 6;
+// Text fields: form field name -> tracking slug (events strategy_form_<slug>_focus / _complete).
+const FIELD_SLUGS = { customObjective: "custom_objective", website: "website", firstName: "first_name", email: "email" } as const;
+type TrackedField = keyof typeof FIELD_SLUGS;
 import imgBookYourFreeStrategySession from "../assets/4885e8a0678713d22d734d0a41f2f71f1b85c0ab.webp";
 
 // --- Validation & Helpers ---
@@ -266,6 +275,77 @@ export default function StrategySession() {
     email: "",
   });
 
+  // ── Tracking ──
+  const formCardRef = useRef<HTMLDivElement>(null);
+  const formOnScreen = useOnScreenCenter(formCardRef);
+  const formStartRef = useRef(0);          // timestamp of the first interaction (0 = not started)
+  const formSubmittedRef = useRef(false);  // submit attempted (success or error) — not an abandon
+  const abandonSentRef = useRef(false);
+  const lastViewedStepRef = useRef(0);
+  const lastErrorsRef = useRef<Record<string, string>>({});
+  const calendlySeenRef = useRef<Set<string>>(new Set());
+  const formSeconds = () => (formStartRef.current ? Math.round((Date.now() - formStartRef.current) / 1000) : undefined);
+  const formParams = (extra: TrackParams = {}): TrackParams => ({
+    form_name: "strategy_session",
+    form_step: currentStep,
+    form_step_name: FORM_STEP_NAMES[currentStep],
+    form_total_steps: FORM_TOTAL_STEPS,
+    max_step_reached: maxStepReached,
+    form_traffic: formData.traffic || undefined,
+    form_conversions: formData.conversionVolume || undefined,
+    form_objective: formData.primaryObjective || undefined,
+    form_duration_sec: formSeconds(),
+    section_name: "strategy_session",
+    ...extra,
+  });
+  const latestFormParams = useRef(formParams);
+  latestFormParams.current = formParams;
+  const markFormStart = (trigger: string) => {
+    if (formStartRef.current) return;
+    formStartRef.current = Date.now();
+    track("strategy_form_start", formParams({ form_start_trigger: trigger }));
+  };
+  const trackValidationErrors = (trigger: string) => {
+    for (const [field, message] of Object.entries(lastErrorsRef.current)) {
+      if (message) track("strategy_form_validation_error", formParams({ field_name: FIELD_SLUGS[field as TrackedField] || field, error_message: message, error_trigger: trigger }));
+    }
+  };
+  const fieldError = (field: TrackedField, value: string) =>
+    field === "website" ? validateRequired(value, "Website") || validateWebsite(value)
+      : field === "email" ? validateRequired(value, "Email") || validateEmail(value)
+      : validateRequired(value, field === "firstName" ? "First name" : "Objective");
+  const onFieldFocus = (field: TrackedField) => {
+    markFormStart("field_focus");
+    track(`strategy_form_${FIELD_SLUGS[field]}_focus` as TrackingEventName, formParams({ field_name: FIELD_SLUGS[field], element_type: "input" }));
+  };
+  const onFieldBlur = (field: TrackedField) => {
+    const value = formData[field].trim();
+    if (!value) return;
+    const error = fieldError(field, value);
+    if (error) track("strategy_form_validation_error", formParams({ field_name: FIELD_SLUGS[field], error_message: error, error_trigger: "blur" }));
+    else track(`strategy_form_${FIELD_SLUGS[field]}_complete` as TrackingEventName, formParams({ field_name: FIELD_SLUGS[field], field_valid: true, field_length: value.length, element_type: "input" }));
+  };
+
+  // Step views: every step shown (step 1 only once the form is actually on screen).
+  useEffect(() => {
+    if (lastViewedStepRef.current === currentStep) return;
+    if (currentStep === 1 && lastViewedStepRef.current === 0 && !formOnScreen) return;
+    const previous = lastViewedStepRef.current;
+    lastViewedStepRef.current = currentStep;
+    track("strategy_form_step_view", formParams({ previous_step: previous || undefined, is_revisit: currentStep < maxStepReached }));
+  }, [currentStep, formOnScreen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Abandon: started but never submitted when the page goes away.
+  useEffect(() => {
+    const onHide = () => {
+      if (!formStartRef.current || formSubmittedRef.current || abandonSentRef.current) return;
+      abandonSentRef.current = true;
+      track("strategy_form_abandon", latestFormParams.current({ abandon_trigger: "pagehide" }));
+    };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, []);
+
   // Tracks whether the step-5 contact email went through; if not, we retry after the Calendly booking.
   const contactSentRef = useRef(false);
   const fallbackSentRef = useRef(false);
@@ -282,7 +362,16 @@ export default function StrategySession() {
   // Fallback: if the form email failed, send the data again once the user books in Calendly,
   // attaching the Calendly event/invitee URIs so the server can pull the booking details.
   useCalendlyEventListener({
+    // Calendly re-sends view messages when the widget re-renders: count each view once.
+    onProfilePageViewed: () => { if (calendlySeenRef.current.has("profile")) return; calendlySeenRef.current.add("profile"); track("calendly_profile_view", formParams({ calendly_url: "https://calendly.com/neamatalla/cro" })); },
+    onEventTypeViewed: () => { if (calendlySeenRef.current.has("event_type")) return; calendlySeenRef.current.add("event_type"); track("calendly_event_type_view", formParams({ calendly_url: "https://calendly.com/neamatalla/cro" })); },
+    onDateAndTimeSelected: () => track("calendly_date_time_select", formParams({ calendly_url: "https://calendly.com/neamatalla/cro" })),
     onEventScheduled: (e) => {
+      track("calendly_event_scheduled", formParams({
+        calendly_url: "https://calendly.com/neamatalla/cro",
+        calendly_event_uri: e.data.payload.event.uri,
+        contact_email_sent: contactSentRef.current,
+      }));
       if (contactSentRef.current || fallbackSentRef.current) return;
       fallbackSentRef.current = true;
       apiRequest("POST", "/api/contact", {
@@ -311,11 +400,15 @@ export default function StrategySession() {
       ]);
     },
     onSuccess: () => {
+      const lead = formParams({ email_domain_type: emailDomainType(formData.email), lead_source: "strategy_session_form", has_custom_objective: formData.primaryObjective === "Other" });
+      track("strategy_form_submit_success", lead);
+      track("generate_lead", lead);
       contactSentRef.current = true;
       toast({ title: "Success!", description: "Information captured! Please choose a slot for our meeting." });
       goToCalendlyStep();
     },
     onError: (error: any) => {
+      track("strategy_form_submit_error", formParams({ error_message: String(error?.message || error || "unknown"), email_domain_type: emailDomainType(formData.email) }));
       console.error("Contact submission failed, continuing to Calendly:", error);
       goToCalendlyStep();
     },
@@ -342,6 +435,7 @@ export default function StrategySession() {
     };
 
     setValidationErrors(prev => ({ ...prev, ...nextErrors }));
+    lastErrorsRef.current = nextErrors;
     return !Object.values(nextErrors).some(Boolean);
   };
 
@@ -360,17 +454,20 @@ export default function StrategySession() {
     };
 
     setValidationErrors(nextErrors);
+    lastErrorsRef.current = nextErrors;
     return !Object.values(nextErrors).some(Boolean);
   };
 
   const handleNext = async () => {
     if (submitContactMutation.isPending) return;
     if (currentStep < 6) {
-      if (!validateCurrentStep()) return;
+      track(currentStep === 5 ? "strategy_form_submit_click" : "strategy_form_next_click", formParams({ target_step: currentStep + 1, element_type: "button" }));
+      if (!validateCurrentStep()) { trackValidationErrors("next_click"); return; }
 
       if (currentStep === 5) {
-        if (!validateFullSubmission()) return;
+        if (!validateFullSubmission()) { trackValidationErrors("submit_click"); return; }
 
+        formSubmittedRef.current = true;
         submitContactMutation.mutate(buildContactPayload());
       } else {
         const nextStep = currentStep + 1;
@@ -383,6 +480,7 @@ export default function StrategySession() {
   const handleBack = () => {
     if (submitContactMutation.isPending) return;
     if (currentStep > 1) {
+      track("strategy_form_back_click", formParams({ target_step: currentStep - 1, target_step_name: FORM_STEP_NAMES[currentStep - 1], element_type: "button" }));
       submitContactMutation.reset(); // Clear submission state when going back
       setCurrentStep(prev => prev - 1);
     }
@@ -390,6 +488,17 @@ export default function StrategySession() {
 
   const handleSelect = (field: string, value: string) => {
     if (submitContactMutation.isPending) return;
+    markFormStart("option_select");
+    const selectEvent = ({ traffic: "strategy_form_traffic_select", conversionVolume: "strategy_form_conversions_select", primaryObjective: "strategy_form_objective_select" } as Record<string, TrackingEventName>)[field];
+    if (selectEvent) {
+      track(selectEvent, formParams({
+        field_name: field === "conversionVolume" ? "conversions" : field === "primaryObjective" ? "objective" : field,
+        form_option: value,
+        form_option_previous: (formData as Record<string, string>)[field] || undefined,
+        [field === "traffic" ? "form_traffic" : field === "conversionVolume" ? "form_conversions" : "form_objective"]: value,
+        element_type: "option_card",
+      }));
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
     setValidationErrors(prev => ({ ...prev, [field]: "" }));
 
@@ -488,7 +597,7 @@ export default function StrategySession() {
             <p className="lg:hidden text-[14px] text-white font-['Sora:Regular',sans-serif] self-start">{t('Select objective:')}</p>
             {formData.primaryObjective === "Other" ? (
               <div className="w-full max-w-[400px] flex flex-col gap-4">
-                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} placeholder={t('Specify your objective...')} className={`bg-white/10 border-2 ${validationErrors.customObjective ? 'border-red-500' : 'border-[#31da72]/30'} text-white placeholder:text-white/40 h-9 w-full`} />
+                <Input name="customObjective" value={formData.customObjective} onChange={handleInputChange} onFocus={() => onFieldFocus("customObjective")} onBlur={() => onFieldBlur("customObjective")} placeholder={t('Specify your objective...')} className={`bg-white/10 border-2 ${validationErrors.customObjective ? 'border-red-500' : 'border-[#31da72]/30'} text-white placeholder:text-white/40 h-9 w-full`} />
                 {validationErrors.customObjective && <p className="text-red-500 text-sm">{validationErrors.customObjective}</p>}
               </div>
             ) : (
@@ -510,7 +619,7 @@ export default function StrategySession() {
           <div className="flex flex-col gap-[4.2vw] items-center w-full">
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('What is your website?')}</p>
             <div className="w-full max-w-[380px] flex flex-col gap-2">
-              <Input name="website" value={formData.website} onChange={handleInputChange} placeholder="https://yourwebsite.com" className={`bg-white/10 border-2 ${validationErrors.website ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
+              <Input name="website" value={formData.website} onChange={handleInputChange} onFocus={() => onFieldFocus("website")} onBlur={() => onFieldBlur("website")} placeholder="https://yourwebsite.com" className={`bg-white/10 border-2 ${validationErrors.website ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
               {validationErrors.website && <p className="text-red-500 text-sm">{validationErrors.website}</p>}
             </div>
           </div>
@@ -521,11 +630,11 @@ export default function StrategySession() {
             <p className="css-4hzbpn font-['Sora:SemiBold',sans-serif] font-semibold leading-[22px] lg:leading-[1.3] text-[16px] lg:text-[2.4vw] text-center text-white tracking-[0px] w-full lg:w-auto" style={{ wordSpacing: '3px' }}>{t('Contact Information')}</p>
             <div className="w-full max-w-[380px] flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <Input name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder={t('First Name')} className={`bg-white/10 border-2 ${validationErrors.firstName ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
+                <Input name="firstName" value={formData.firstName} onChange={handleInputChange} onFocus={() => onFieldFocus("firstName")} onBlur={() => onFieldBlur("firstName")} placeholder={t('First Name')} className={`bg-white/10 border-2 ${validationErrors.firstName ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
                 {validationErrors.firstName && <p className="text-red-500 text-sm">{validationErrors.firstName}</p>}
               </div>
               <div className="flex flex-col gap-2">
-                <Input name="email" value={formData.email} onChange={handleInputChange} placeholder={t('Email')} className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
+                <Input name="email" value={formData.email} onChange={handleInputChange} onFocus={() => onFieldFocus("email")} onBlur={() => onFieldBlur("email")} placeholder={t('Email')} className={`bg-white/10 border-2 ${validationErrors.email ? 'border-red-500' : 'border-[#31da72]/30'} text-white h-9`} />
                 {validationErrors.email && <p className="text-red-500 text-sm">{validationErrors.email}</p>}
               </div>
             </div>
@@ -558,6 +667,7 @@ export default function StrategySession() {
       <div
         className="relative flex flex-col min-h-0 lg:min-h-[50.9vw] h-auto items-center justify-center mx-auto lg:mx-auto rounded-[16px] lg:rounded-[24px] mt-[16px] lg:mt-[2.8vw] w-[96%] md:w-[90%] lg:w-full max-w-[96vw] md:max-w-[800px] lg:max-w-[1240px] z-10 animate-wave-fast"
         data-name="Card"
+        ref={formCardRef}
         style={{
           backgroundImage: "linear-gradient(155.126deg, rgba(255, 255, 255, 0.05) 2.6545%, rgba(255, 255, 255, 0) 44.796%), url('data:image/svg+xml;utf8,<svg viewBox=\\\'0 0 1240 733\\\' xmlns=\\\'http://www.w3.org/2000/svg\\\' preserveAspectRatio=\\\'none\\\'><rect x=\\\'0\\\' y=\\\'0\\\' height=\\\'100%\\\' width=\\\'100%\\\' fill=\\\'url(%23grad)\\\' opacity=\\\'1\\\'/><defs><radialGradient id=\\\'grad\\\' gradientUnits=\\\'userSpaceOnUse\\\' cx=\\\'0\\\' cy=\\\'0\\\' r=\\\'10\\\' gradientTransform=\\\'matrix(196.13 40.783 -59.815 70.828 573.8 102.21)\\\'><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0\\\'/><stop stop-color=\\\'rgba(0,0,0,1)\\\' offset=\\\'0.55823\\\'/><stop stop-color=\\\'rgba(0,0,0,0.3)\\\' offset=\\\'0.73997\\\'/><stop stop-color=\\\'rgba(0,0,0,0)\\\' offset=\\\'1\\\'/></radialGradient></defs></svg>'), linear-gradient(87.1906deg, rgb(66, 102, 164) 0%, rgb(146, 235, 180) 25%, rgb(66, 102, 164) 50%, rgb(146, 235, 180) 75%, rgb(66, 102, 164) 100%)",
           backgroundSize: "100% 100%, 100% 100%, 400% 400%",
@@ -576,7 +686,10 @@ export default function StrategySession() {
         <div aria-hidden="true" className="absolute border border-transparent lg:border-[1.5px] lg:border-white/40 border-solid inset-0 pointer-events-none rounded-[16px] lg:rounded-[24px]" />
 
         <div className="content-stretch flex flex-col gap-[16px] lg:gap-[40px] min-h-0 lg:min-h-[645px] h-auto items-center relative shrink-0 w-full pt-[24px] lg:pt-[40px] px-[12px] lg:px-8 pb-[20px] lg:pb-0">
-          <Stepper currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={setCurrentStep} />
+          <Stepper currentStep={currentStep} maxStepReached={maxStepReached} onStepClick={(n: number) => {
+            track("strategy_form_stepper_click", formParams({ target_step: n, target_step_name: FORM_STEP_NAMES[n], element_type: "stepper" }));
+            setCurrentStep(n);
+          }} />
 
           <div
             className={`flex-1 w-full flex flex-col items-center justify-center relative transition-all duration-500 ${currentStep === 6 ? 'lg:min-h-[850px]' : 'lg:min-h-[400px]'}`}
@@ -586,10 +699,10 @@ export default function StrategySession() {
 
           <div className="flex items-center justify-center gap-4 py-4 lg:py-4 mb-0 lg:mb-2 w-full h-auto lg:h-[60px]">
             {currentStep > 1 && (
-              <Button onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">{t('Back')}</Button>
+              <Button data-track-ignore onClick={handleBack} disabled={submitContactMutation.isPending} variant="outline" className="px-5 py-2 border-[#31da72] text-[#31da72] bg-black hover:bg-black/80 hover:text-[#31da72] rounded-xl h-auto text-sm font-semibold transition-all">{t('Back')}</Button>
             )}
             {((currentStep === 3 && formData.primaryObjective === "Other") || (currentStep >= 4 && currentStep < 6)) && (
-              <Button onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold min-w-[80px] transition-all">
+              <Button data-track-ignore onClick={handleNext} disabled={isNextDisabled() || submitContactMutation.isPending} className="px-5 py-2 border border-[#31da72] bg-[#31da72] text-[#020601] hover:bg-[#31da72]/90 rounded-xl h-auto text-sm font-semibold min-w-[80px] transition-all">
                 {submitContactMutation.isPending ? t('Submitting...') : t('Next')}
               </Button>
             )}

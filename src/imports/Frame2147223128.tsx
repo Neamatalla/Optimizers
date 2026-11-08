@@ -22,6 +22,7 @@ import imgHedeyaLogo from "../assets/hedeya-logo.png";
 import imgHeaderVideo from "../assets/75f3f92d20cabf7495b10a5e660b8ee7c2ca5654.webp";
 import headerVideoMp4 from "../assets/2026-full-1.mp4";
 import { imgGroup } from "./svg-0tz7a";
+import { track } from "@/lib/analytics";
 
 function Bg() {
   return (
@@ -1301,12 +1302,12 @@ function Links() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch hidden lg:flex font-normal gap-[20px] items-start leading-[17px] relative shrink-0 text-[14px] text-[rgba(255,255,255,0.8)]" data-name="Links">
-      <p className="font-['Sora:Regular',sans-serif] relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>{t('Services')}</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('about-us')?.scrollIntoView({ behavior: 'smooth' })}>{t('About Us')}</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>{t('ROI Calculator')}</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>{t('Case Studies')}</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}>{t('Team')}</p>
-      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>{t('Contact')}</p>
+      <p className="font-['Sora:Regular',sans-serif] relative shrink-0 cursor-pointer hover:text-white transition-colors" data-track="header_nav_services_click" data-track-nav-target="services" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>{t('Services')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" data-track="header_nav_about_us_click" data-track-nav-target="about-us" onClick={() => document.getElementById('about-us')?.scrollIntoView({ behavior: 'smooth' })}>{t('About Us')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" data-track="header_nav_roi_calculator_click" data-track-nav-target="roi-calculator" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>{t('ROI Calculator')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" data-track="header_nav_case_studies_click" data-track-nav-target="case-studies" onClick={() => document.getElementById('case-studies')?.scrollIntoView({ behavior: 'smooth' })}>{t('Case Studies')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" data-track="header_nav_team_click" data-track-nav-target="team" onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}>{t('Team')}</p>
+      <p className="font-['Inter:Regular',sans-serif] not-italic relative shrink-0 cursor-pointer hover:text-white transition-colors" data-track="header_nav_contact_click" data-track-nav-target="contact" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>{t('Contact')}</p>
     </div>
   );
 }
@@ -1387,6 +1388,9 @@ function User() {
       className="content-stretch flex gap-[8px] items-center justify-center relative shrink-0 cursor-pointer p-2 rounded-full hover:bg-white/5 transition-colors"
       onClick={toggleLanguage}
       data-name="User"
+      data-track="header_language_switch_click"
+      data-track-language-from={language}
+      data-track-language-to={language === 'en' ? 'ar' : 'en'}
     >
       <span
         style={{
@@ -1442,6 +1446,8 @@ function Link() {
       data-name="Link"
       id="roi-link"
       href="#contact"
+      data-track="header_book_call_click"
+      data-track-nav-target="contact"
       onClick={(e) => {
         e.preventDefault();
         document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
@@ -1494,7 +1500,14 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   return (
     <div
       className={`mobile-nav-overlay ${isOpen ? 'open' : ''}`}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      data-track-section="mobile_menu"
+      data-track-no-view
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          track("mobile_menu_close", { close_method: "backdrop", section_name: "mobile_menu" });
+          onClose();
+        }
+      }}
       style={{
         background: 'linear-gradient(160deg, #020601 0%, #0a2a15 30%, #0d3a1c 50%, #0a2a15 70%, #020601 100%)',
       }}
@@ -1522,6 +1535,8 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         <button
           onClick={onClose}
           aria-label="Close menu"
+          data-track="mobile_menu_close"
+          data-track-close-method="close_button"
           className="w-10 h-10 flex items-center justify-center rounded-full border border-white/30 active:bg-white/10 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
@@ -1535,6 +1550,8 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         {navItems.map((item, i) => (
           <p
             key={item.id}
+            data-track={`mobile_menu_nav_${item.id.replace(/-/g, '_')}_click`}
+            data-track-nav-target={item.id}
             className={`nav-link-stagger ${isOpen ? 'nav-link-visible' : ''}`}
             style={{
               fontFamily: "'Sora', sans-serif",
@@ -1564,14 +1581,17 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         {/* Social Icons */}
         <div className="flex justify-center gap-4 mb-8">
           {[
-            { href: 'https://web.facebook.com/optimizersagency', icon: <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /> },
-            { href: 'https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05', icon: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></> },
-            { href: 'https://x.com/optimizersCRO/', icon: <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.768-6.768M15.232 9.232L20 4" /> },
-            { href: 'https://www.linkedin.com/company/optimizersagency', icon: <><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></> },
+            { name: 'facebook', href: 'https://web.facebook.com/optimizersagency', icon: <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /> },
+            { name: 'instagram', href: 'https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05', icon: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></> },
+            { name: 'x', href: 'https://x.com/optimizersCRO/', icon: <path d="M4 4l11.733 16h4.267l-11.733-16zM4 20l6.768-6.768M15.232 9.232L20 4" /> },
+            { name: 'linkedin', href: 'https://www.linkedin.com/company/optimizersagency', icon: <><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></> },
           ].map((social, i) => (
             <a
               key={i}
               href={social.href}
+              data-track={`mobile_menu_social_${social.name}_click`}
+              data-track-social-network={social.name}
+              aria-label={social.name}
               target="_blank"
               rel="noopener noreferrer"
               className="w-11 h-11 flex items-center justify-center rounded-full border border-white/30 text-white/70 hover:text-white hover:border-white/60 transition-all"
@@ -1585,6 +1605,8 @@ function MobileNavOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
         {/* CTA Button */}
         <button
+          data-track="mobile_menu_book_call_click"
+          data-track-nav-target="contact"
           onClick={() => {
             document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
             onClose();
@@ -1619,6 +1641,8 @@ function Header({ mobileMenuOpen = false, setMobileMenuOpen = () => { } }: { mob
           className={`mobile-menu-btn ${mobileMenuOpen ? 'open' : ''}`}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
+          data-track={mobileMenuOpen ? 'mobile_menu_close' : 'mobile_menu_open'}
+          data-track-close-method={mobileMenuOpen ? 'toggle_button' : undefined}
         >
           <span />
           <span />

@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
+import { track, type TrackParams } from "@/lib/analytics";
+import type { TrackingEventName } from "@/lib/analytics/events";
 import imgRoiCalculator from "../assets/5522a305e991d2984d5522a9865ed717796014a0.webp";
 import { useLanguage } from "../app/contexts/LanguageContext";
 
@@ -79,15 +81,18 @@ function StepperInput({
   min = 0,
   suffix,
   displayFormatter,
+  onCommit,
 }: {
   value: number;
   onChange: (v: number) => void;
+  onCommit?: (previous: number, next: number) => void;
   step: number;
   min?: number;
   suffix?: string;
   displayFormatter?: (v: number) => string;
 }) {
   const [focused, setFocused] = React.useState(false);
+  const valueOnFocus = React.useRef(value);
 
   const dec = () => onChange(parseFloat((Math.max(min, value - step)).toFixed(2)));
   const inc = () => onChange(parseFloat((value + step).toFixed(2)));
@@ -123,8 +128,8 @@ function StepperInput({
           type="text"
           inputMode="decimal"
           value={displayValue}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={() => { valueOnFocus.current = value; setFocused(true); }}
+          onBlur={() => { setFocused(false); if (onCommit && value !== valueOnFocus.current) onCommit(valueOnFocus.current, value); }}
           onChange={handleChange}
           className="bg-transparent text-center text-white font-['Sora'] font-semibold text-[14px] lg:text-[16px] focus:outline-none w-full px-2"
         />
@@ -143,6 +148,33 @@ function CalculatorContent() {
   const [currentCR, setCurrentCR] = useState(defaultValues.currentCR);
   const [currentAOV, setCurrentAOV] = useState(defaultValues.currentAOV);
   const [selectedLift, setSelectedLift] = useState(defaultValues.selectedLift);
+
+  // ── Tracking ──
+  const roiEngagedRef = useRef(false);
+  type RoiState = { currency: string; monthlyUsers: number; currentCR: number; currentAOV: number; selectedLift: number };
+  const roiSnapshot = (o: Partial<RoiState> = {}): TrackParams => {
+    const c: RoiState = { currency, monthlyUsers, currentCR, currentAOV, selectedLift, ...o };
+    const base = c.monthlyUsers * (c.currentCR / 100) * c.currentAOV;
+    const projected = base * (1 + c.selectedLift / 100);
+    return {
+      roi_currency: c.currency,
+      roi_monthly_visitors: c.monthlyUsers,
+      roi_conversion_rate: c.currentCR,
+      roi_avg_order_value: c.currentAOV,
+      roi_lift_percent: c.selectedLift,
+      roi_base_revenue: Math.round(base),
+      roi_projected_revenue: Math.round(projected),
+      roi_additional_revenue: Math.round(projected - base),
+      section_name: "roi_calculator",
+    };
+  };
+  const trackRoi = (event: TrackingEventName, next: Partial<RoiState>, extra: TrackParams) => {
+    if (!roiEngagedRef.current) {
+      roiEngagedRef.current = true;
+      track("roi_calculator_engaged", { ...roiSnapshot(), roi_first_action: event });
+    }
+    track(event, { ...roiSnapshot(next), ...extra });
+  };
 
   const handleReset = () => {
     setCurrency(defaultValues.currency);
@@ -199,7 +231,11 @@ function CalculatorContent() {
         {CURRENCIES.map((c) => (
           <button
             key={c}
-            onClick={() => setCurrency(c)}
+            data-track-ignore
+            onClick={() => {
+              if (c !== currency) trackRoi("roi_currency_select", { currency: c }, { roi_field: "currency", roi_previous_value: currency, roi_new_value: c, element_type: "button" });
+              setCurrency(c);
+            }}
             className="flex-1 lg:flex-none px-[6px] lg:px-[32px] py-[4px] lg:py-[10px] text-[14px] lg:text-[18px] font-['Sora'] transition-all duration-200"
             style={getCurrencyStyle(c)}
           >
@@ -233,6 +269,7 @@ function CalculatorContent() {
           <StepperInput
             value={monthlyUsers}
             onChange={setMonthlyUsers}
+            onCommit={(prev, next) => trackRoi("roi_visitors_change", { monthlyUsers: next }, { roi_field: "monthly_visitors", roi_previous_value: prev, roi_new_value: next, element_type: "input" })}
             step={1000}
             min={0}
             displayFormatter={(v) => v.toLocaleString()}
@@ -245,6 +282,7 @@ function CalculatorContent() {
           <StepperInput
             value={currentCR}
             onChange={setCurrentCR}
+            onCommit={(prev, next) => trackRoi("roi_conversion_rate_change", { currentCR: next }, { roi_field: "conversion_rate", roi_previous_value: prev, roi_new_value: next, element_type: "input" })}
             step={0.1}
             min={0}
             suffix="%"
@@ -257,6 +295,7 @@ function CalculatorContent() {
           <StepperInput
             value={currentAOV}
             onChange={setCurrentAOV}
+            onCommit={(prev, next) => trackRoi("roi_avg_order_value_change", { currentAOV: next }, { roi_field: "avg_order_value", roi_previous_value: prev, roi_new_value: next, element_type: "input" })}
             step={10}
             min={0}
             displayFormatter={(v) => v.toLocaleString()}
@@ -275,7 +314,11 @@ function CalculatorContent() {
         {LIFT_OPTIONS.map((lift) => (
           <button
             key={lift}
-            onClick={() => setSelectedLift(lift)}
+            data-track-ignore
+            onClick={() => {
+              if (lift !== selectedLift) trackRoi("roi_lift_select", { selectedLift: lift }, { roi_field: "lift_percent", roi_previous_value: selectedLift, roi_new_value: lift, element_type: "button" });
+              setSelectedLift(lift);
+            }}
             className="px-[6px] lg:px-[24px] py-[6px] lg:py-[10px] font-['Sora'] text-[14px] lg:text-[18px] rounded-[8px] lg:rounded-[12px] transition-all duration-200"
             style={
               lift === selectedLift
@@ -374,7 +417,8 @@ function CalculatorContent() {
 
       {/* ─── Reset ─── */}
       <button
-        onClick={handleReset}
+        data-track-ignore
+        onClick={() => { trackRoi("roi_reset_click", {}, { element_type: "button" }); handleReset(); }}
         className="text-white/40 font-['Sora'] text-[13px] font-medium underline underline-offset-2 self-center active:text-white/60 transition-colors hover:text-white/60"
       >
         {t('Reset to defaults')}

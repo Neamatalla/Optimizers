@@ -10,6 +10,8 @@ import Section6 from "./Section6";
 import imgTopclientsResults4 from "../assets/f6cb95ddf6fbcaa6d79196a0ac804e1747a8b1c4.webp";
 import '../styles/top-clients-scroll.css';
 import { MOB_DURATIONS, MOB_EASE } from "../lib/animations";
+import { track, type TrackParams } from "@/lib/analytics";
+import { useOnScreenCenter } from "@/lib/analytics/react";
 
 // Mobile carousel client data — mockup + profile images from each Section
 import imgMockup1 from "../assets/dc7b94025c6990629360e685e3f89e4c1a875b87.webp";
@@ -173,6 +175,19 @@ export default function AnimatedHeroSection() {
 
     // ══════ MOBILE: Auto-rotating carousel — compact single viewport ══════
     const [activeSlide, setActiveSlide] = useState(0);
+
+    // ── Tracking: how a slide became active, and which clients were actually seen ──
+    const slideTriggerRef = useRef<string>("");
+    const viewedSlidesRef = useRef<Set<number>>(new Set());
+    const sliderOnScreen = useOnScreenCenter(containerRef, isMobile);
+    const slideParams = (idx: number): TrackParams => ({
+        slider_name: "top_clients",
+        slide_index: idx + 1,
+        slide_total: clientData.length,
+        client_name: clientData[idx]?.name,
+        client_industry: clientData[idx]?.tag,
+        section_name: "top_clients",
+    });
     const touchStartX = useRef<number | null>(null);
     const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -192,7 +207,16 @@ export default function AnimatedHeroSection() {
         }, 7000);
     };
 
-    const goToSlide = (idx: number) => {
+    type SlideVia = "prev" | "next" | "dot" | "swipe_left" | "swipe_right";
+    const goToSlide = (idx: number, via?: SlideVia) => {
+        if (via) {
+            slideTriggerRef.current = via;
+            const from = { slide_from_index: activeSlide + 1, slide_from_client: clientData[activeSlide]?.name };
+            if (via === "prev") track("top_clients_slider_prev_click", { ...slideParams(idx), ...from, element_type: "button" });
+            else if (via === "next") track("top_clients_slider_next_click", { ...slideParams(idx), ...from, element_type: "button" });
+            else if (via === "dot") track("top_clients_slider_dot_click", { ...slideParams(idx), ...from, element_type: "dot" });
+            else track("top_clients_slider_swipe", { ...slideParams(idx), ...from, swipe_direction: via === "swipe_left" ? "left" : "right" });
+        }
         setActiveSlide(idx);
         resetAutoPlay();
     };
@@ -204,11 +228,21 @@ export default function AnimatedHeroSection() {
         if (touchStartX.current === null) return;
         const diff = touchStartX.current - e.changedTouches[0].clientX;
         if (Math.abs(diff) > 50) {
-            if (diff > 0 && activeSlide < sections.length - 1) goToSlide(activeSlide + 1);
-            else if (diff < 0 && activeSlide > 0) goToSlide(activeSlide - 1);
+            if (diff > 0 && activeSlide < sections.length - 1) goToSlide(activeSlide + 1, "swipe_left");
+            else if (diff < 0 && activeSlide > 0) goToSlide(activeSlide - 1, "swipe_right");
         }
         touchStartX.current = null;
     };
+
+    // One slide_view per client per page, only while the slider is on screen.
+    const shownSlide = isMobile ? activeSlide : activeIndex;
+    useEffect(() => {
+        if (!sliderOnScreen || shownSlide < 0 || viewedSlidesRef.current.has(shownSlide)) return;
+        const trigger = slideTriggerRef.current || (viewedSlidesRef.current.size === 0 ? "initial" : isMobile ? "autoplay" : "scroll");
+        viewedSlidesRef.current.add(shownSlide);
+        slideTriggerRef.current = "";
+        track("top_clients_slide_view", { ...slideParams(shownSlide), slide_trigger: trigger, interaction_type: "view" });
+    }, [shownSlide, sliderOnScreen, isMobile]);
 
     if (isMobile) {
         const client = clientData[activeSlide];
@@ -412,7 +446,7 @@ export default function AnimatedHeroSection() {
                                 {/* Pagination and Arrows */}
                                 <div className={`flex items-center justify-between pt-5 ${language === 'ar' ? 'flex-row-reverse' : ''}`}>
                                     <button
-                                        onClick={() => language === 'ar' ? goToSlide((activeSlide + 1) % sections.length) : goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1)}
+                                        data-track-ignore onClick={() => language === 'ar' ? goToSlide((activeSlide + 1) % sections.length, "prev") : goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1, "prev")}
                                         className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: `${clientData[activeSlide].accentColor}40`, transition: 'background-color 800ms ease' }}
                                         aria-label="Previous slide"
@@ -426,7 +460,7 @@ export default function AnimatedHeroSection() {
                                         {clientData.map((_, i) => (
                                             <button
                                                 key={i}
-                                                onClick={() => goToSlide(i)}
+                                                data-track-ignore onClick={() => goToSlide(i, "dot")}
                                                 className="rounded-full transition-all duration-300"
                                                 style={{
                                                     width: i === activeSlide ? '20px' : '8px',
@@ -439,7 +473,7 @@ export default function AnimatedHeroSection() {
                                     </div>
 
                                     <button
-                                        onClick={() => language === 'ar' ? goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1) : goToSlide((activeSlide + 1) % sections.length)}
+                                        data-track-ignore onClick={() => language === 'ar' ? goToSlide(activeSlide === 0 ? sections.length - 1 : activeSlide - 1, "next") : goToSlide((activeSlide + 1) % sections.length, "next")}
                                         className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: `${clientData[activeSlide].accentColor}40`, transition: 'background-color 800ms ease' }}
                                         aria-label="Next slide"
@@ -501,6 +535,8 @@ export default function AnimatedHeroSection() {
                             {language === 'ar' ? 'مستعد لتكون قصة نجاحنا القادمة؟' : 'Ready to be our next success story?'}
                         </p>
                         <div
+                            data-track="top_clients_book_consultation_click"
+                            data-track-nav-target="contact"
                             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
                             className="bg-[rgba(2,6,1,0.7)] backdrop-blur-md h-auto relative rounded-[100px] border border-[#6ae499]/50 cursor-pointer hover:scale-105 hover:bg-[rgba(106,228,153,0.1)] transition-all shadow-[0px_0px_30px_0px_rgba(106,228,153,0.3)]"
                             style={{ padding: '1.17vw 2.34vw' }}

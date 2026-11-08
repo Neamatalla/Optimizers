@@ -330,15 +330,17 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <LayoutDebugger />
-      <div className="global-persistent-header">
+      <div className="global-persistent-header" data-track-section="header" data-track-no-view>
         <HeaderNav />
       </div>
       <div className="bg-[#020601] w-full min-h-screen relative flex flex-col">
-        <HeaderSection />
+        <div data-track-section="hero">
+          <HeaderSection />
+        </div>
         <div style={{ position: 'relative', background: '#020601' }}>
           
           {/* Unified Services Section for Navigation */}
-          <div id="services" style={{ scrollMarginTop: '100px' }}>
+          <div id="services" data-track-section="services" style={{ scrollMarginTop: '100px' }}>
             {/* MOBILE ONLY (< lg) - Pure Vertical Stack */}
             <div className="flex lg:hidden flex-col items-center w-full bg-[#020601] pt-2 pb-10">
               {/* Mobile Header elements using imported services.css styles */}
@@ -350,6 +352,7 @@ export default function App() {
                   We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
                 </p>
                 <button
+                  data-track="services_book_call_click"
                   onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
                   className="audit-button hidden lg:block"
                 >
@@ -408,6 +411,7 @@ export default function App() {
                   We follow a systematic 6-step approach that has generated millions in additional revenue for e-commerce brands across the GCC.
                 </p>
                 <button
+                  data-track="services_book_call_click"
                   onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
                   className="bg-[#020601] h-[50px] rounded-[100px] px-[28px] py-[12px] border border-[#6ae499] relative overflow-hidden w-fit cursor-pointer hover:scale-105 transition-transform"
                   style={{
@@ -428,41 +432,57 @@ export default function App() {
             </div>
           </div>
           
-          <div id="case-studies">
+          <div id="case-studies" data-track-section="top_clients">
             <AnimatedHeroSection />
           </div>
-          <Component333 />
-          <ProcessWithAnimation />
-          <Table />
-          <div id="case-studies-section" style={{ position: 'relative', zIndex: 0 }}>
+          <div data-track-section="guarantee">
+            <Component333 />
+          </div>
+          <div data-track-section="process">
+            <ProcessWithAnimation />
+          </div>
+          <div data-track-section="comparison_table">
+            <Table />
+          </div>
+          <div id="case-studies-section" data-track-section="case_studies" style={{ position: 'relative', zIndex: 0 }}>
             <Suspense fallback={<div className="w-full min-h-[100px]" />}>
               <AnimatedCaseStudies />
             </Suspense>
           </div>
-          <Frame2147223150 />
-          <div id="roi-calculator">
+          <div data-track-section="ceo_video">
+            <Frame2147223150 />
+          </div>
+          <div id="roi-calculator" data-track-section="roi_calculator">
             <Suspense fallback={<div className="w-full min-h-[100px]" />}>
               <ROICalculator />
             </Suspense>
           </div>
-          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <PartnersAndTools />
-          </Suspense>
-          <div className="relative w-full h-auto" id="contact">
+          <div data-track-section="partners_tools">
+            <Suspense fallback={<div className="w-full min-h-[100px]" />}>
+              <PartnersAndTools />
+            </Suspense>
+          </div>
+          <div className="relative w-full h-auto" id="contact" data-track-section="strategy_session">
             <StrategySession />
           </div>
-          <div id="team">
+          <div id="team" data-track-section="team">
             <Suspense fallback={<div className="w-full min-h-[100px]" />}>
               <MeetTheTeam />
             </Suspense>
           </div>
-          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <FAQSection />
-          </Suspense>
-          <Suspense fallback={<div className="w-full min-h-[100px]" />}>
-            <GallerySection />
-          </Suspense>
-          <Footer />
+          <div data-track-section="faq">
+            <Suspense fallback={<div className="w-full min-h-[100px]" />}>
+              <FAQSection />
+            </Suspense>
+          </div>
+          <div data-track-section="gallery">
+            <Suspense fallback={<div className="w-full min-h-[100px]" />}>
+              <GallerySection />
+            </Suspense>
+          </div>
+          <div data-track-section="footer">
+            <Footer />
+          </div>
         </div>
       </div>
       <ScrollToTopButton />

@@ -15,7 +15,7 @@ function DivBtnLabel() {
 
 function Link() {
   return (
-    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+    <div className="bg-[#020601] h-[50px] relative rounded-[100px] shrink-0 cursor-pointer hover:scale-105 transition-transform" data-name="Link" data-track="footer_cta_success_story_click" data-track-nav-target="contact" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
       <div className="content-stretch flex h-full items-center justify-center overflow-clip px-[28px] py-[12px] relative rounded-[inherit]">
         <DivBtnLabel />
       </div>
@@ -110,7 +110,7 @@ function Component6239Ba0290D29F5D0A709E8BFacebookSvg1() {
 
 function Link1() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://web.facebook.com/optimizersagency">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://web.facebook.com/optimizersagency" data-track="footer_social_facebook_click" data-track-social-network="facebook" aria-label="facebook">
       <Component6239Ba0290D29F5D0A709E8BFacebookSvg1 />
     </a>
   );
@@ -144,7 +144,7 @@ function Component6239Ba027A3Bbd1Ec055Fda8TwitterSvg1() {
 
 function Link2() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://x.com/optimizersCRO/">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://x.com/optimizersCRO/" data-track="footer_social_x_click" data-track-social-network="x" aria-label="x">
       <Component6239Ba027A3Bbd1Ec055Fda8TwitterSvg1 />
     </a>
   );
@@ -180,7 +180,7 @@ function Component6239Ba027547Cf7Eb7430709LinkedinSvg1() {
 
 function Link3() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.linkedin.com/company/optimizersagency">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.linkedin.com/company/optimizersagency" data-track="footer_social_linkedin_click" data-track-social-network="linkedin" aria-label="linkedin">
       <Component6239Ba027547Cf7Eb7430709LinkedinSvg1 />
     </a>
   );
@@ -216,7 +216,7 @@ function Component6239Ba03Ad9611637A539Ec3InstagramSvg1() {
 
 function Link4() {
   return (
-    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05">
+    <a className="bg-[rgba(255,255,255,0.12)] content-stretch flex items-center justify-center max-h-[444.4565124511719px] max-w-[444.4565124511719px] p-[11.821px] relative rounded-[23.641px] shrink-0 size-[40px]" data-name="Link" href="https://www.instagram.com/optimizersagency?igsh=b3g3NTR5NGltOW05" data-track="footer_social_instagram_click" data-track-social-network="instagram" aria-label="instagram">
       <Component6239Ba03Ad9611637A539Ec3InstagramSvg1 />
     </a>
   );
@@ -250,19 +250,19 @@ function Frame4() {
   const { t } = useLanguage();
   return (
     <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 text-[14px] w-full">
-      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" data-track="footer_nav_about_click" data-track-nav-target="top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('About')}</p>
       </div>
-      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
+      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" data-track="footer_nav_services_click" data-track-nav-target="services" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('Services')}</p>
       </div>
-      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>
+      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" data-track="footer_nav_roi_calculator_click" data-track-nav-target="roi-calculator" onClick={() => document.getElementById('roi-calculator')?.scrollIntoView({ behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('ROI Calculator')}</p>
       </div>
-      <a className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" href="https://www.optimizers.agency/blog">
+      <a className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" href="https://www.optimizers.agency/blog" data-track="footer_nav_blog_click" data-track-nav-target="blog">
         <p className="css-4hzbpn leading-[17px]">{t('Blog')}</p>
       </a>
-      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
+      <div className="flex flex-col justify-center relative shrink-0 w-full cursor-pointer hover:underline" data-track="footer_nav_contact_click" data-track-nav-target="contact" onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>
         <p className="css-4hzbpn leading-[17px]">{t('Contact')}</p>
       </div>
     </div>

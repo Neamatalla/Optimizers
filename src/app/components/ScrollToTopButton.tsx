@@ -28,6 +28,8 @@ export default function ScrollToTopButton() {
             className={`scroll-to-top-btn ${visible ? "scroll-to-top-visible" : ""}`}
             onClick={scrollToTop}
             aria-label="Scroll to top"
+            data-track="scroll_to_top_click"
+            data-track-nav-target="top"
             title="Back to top"
         >
             <svg
