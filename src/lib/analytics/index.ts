@@ -13,6 +13,7 @@
  * Never push personal data (name, email, website, free text) — GA4 forbids it.
  */
 import { TRACKING_EVENTS, type TrackingEventName } from "./events";
+import { captureAttribution, firstTouch, isLead, touchLabel } from "./attribution";
 
 type ParamValue = string | number | boolean | null | undefined;
 export type TrackParams = Record<string, ParamValue>;
@@ -51,7 +52,23 @@ function commonParams(): TrackParams {
     viewport_width: window.innerWidth,
     scroll_percent: scrollPercent(),
     time_on_page_sec: Math.round((Date.now() - PAGE_START) / 1000),
+    // Visitor-level (sent as GA4 user properties too)
+    visitor_is_lead: isLead() ? "yes" : "no",
+    first_touch_source: touchLabel(firstTouch()),
+    ab_experiments: abExperiments(),
   };
+}
+
+/** Running Convert.com experiences as "experienceId:variationId|…" so every event splits by A/B variant. */
+function abExperiments(): string | undefined {
+  try {
+    const exps = (window as any).convert?.currentData?.experiences;
+    if (!exps || typeof exps !== "object") return undefined;
+    const parts = Object.entries(exps).map(([id, e]: [string, any]) => `${id}:${e?.variation?.id ?? "?"}`);
+    return parts.length ? parts.join("|").slice(0, 100) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Push one event. Params from the previous event are cleared so they never leak into this one. */
@@ -144,10 +161,46 @@ let started = false;
 export function initAnalytics(): void {
   if (started || typeof window === "undefined") return;
   started = true;
+  captureAttribution();
   initClickTracking();
   initSectionViews();
   initScrollDepth();
   initTimeMilestones();
+  initErrorTracking();
+  void initWebVitals();
+}
+
+/** Core Web Vitals (LCP, INP, CLS, FCP, TTFB) once each per page, with Google's rating. */
+async function initWebVitals() {
+  const { onLCP, onINP, onCLS, onFCP, onTTFB } = await import("web-vitals");
+  const send = (m: { name: string; value: number; rating: string; navigationType?: string }) =>
+    track("web_vital", {
+      metric_name: m.name,
+      metric_value: m.name === "CLS" ? Math.round(m.value * 1000) / 1000 : Math.round(m.value),
+      metric_rating: m.rating,
+      navigation_type: m.navigationType,
+    });
+  onLCP(send); onINP(send); onCLS(send); onFCP(send); onTTFB(send);
+}
+
+/** Uncaught JS errors and promise rejections (max 10 per page, deduplicated). */
+function initErrorTracking() {
+  const seen = new Set<string>();
+  const report = (message: string, source: string, kind: string) => {
+    const key = message + source;
+    if (seen.has(key) || seen.size >= 10) return;
+    seen.add(key);
+    track("js_error", { error_message: cleanText(message), error_source: cleanText(source), error_kind: kind });
+  };
+  window.addEventListener("error", (e) => {
+    if (!e.message) return; // resource load errors carry no message
+    const file = (e.filename || "").replace(window.location.origin, "");
+    report(e.message, `${file}:${e.lineno}:${e.colno}`, "error");
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const r: any = e.reason;
+    report(r?.message || String(r), (r?.stack || "").split("\n")[1]?.trim() || "promise", "unhandled_rejection");
+  });
 }
 
 function initClickTracking() {

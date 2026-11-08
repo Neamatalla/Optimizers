@@ -334,7 +334,7 @@ export default function App() {
         <HeaderNav />
       </div>
       <div className="bg-[#020601] w-full min-h-screen relative flex flex-col">
-        <div data-track-section="hero">
+        <div id="about-us" data-track-section="hero">
           <HeaderSection />
         </div>
         <div style={{ position: 'relative', background: '#020601' }}>

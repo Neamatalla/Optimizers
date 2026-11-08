@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { track, emailDomainType, type TrackParams } from "@/lib/analytics";
+import { leadAttribution, markLead, gaIds } from "@/lib/analytics/attribution";
 import type { TrackingEventName } from "@/lib/analytics/events";
 import { useOnScreenCenter } from "@/lib/analytics/react";
 
@@ -357,6 +358,8 @@ export default function StrategySession() {
     traffic: formData.traffic,
     monthlyConversions: formData.conversionVolume,
     challenge: formData.primaryObjective === "Other" ? formData.customObjective : formData.primaryObjective,
+    // Where the lead came from + GA4 ids (for the lead email and server-side deal-stage events).
+    attribution: leadAttribution(),
   });
 
   // Fallback: if the form email failed, send the data again once the user books in Calendly,
@@ -403,6 +406,7 @@ export default function StrategySession() {
       const lead = formParams({ email_domain_type: emailDomainType(formData.email), lead_source: "strategy_session_form", has_custom_objective: formData.primaryObjective === "Other" });
       track("strategy_form_submit_success", lead);
       track("generate_lead", lead);
+      markLead();
       contactSentRef.current = true;
       toast({ title: "Success!", description: "Information captured! Please choose a slot for our meeting." });
       goToCalendlyStep();
@@ -647,6 +651,8 @@ export default function StrategySession() {
             <div className="w-full">
               <InlineWidget
                 url="https://calendly.com/neamatalla/cro"
+                // GA4 ids ride along in Calendly's UTM fields so the booking webhook (api/calendly-webhook.js) can join the session.
+                utm={{ utmSource: "website", utmMedium: "strategy_form", utmCampaign: "strategy_session", utmContent: gaIds().client_id, utmTerm: gaIds().session_id }}
                 styles={{ height: '700px', width: '100%' }}
                 prefill={{ email: formData.email, name: formData.firstName }}
                 pageSettings={{ backgroundColor: '1a1a1a', primaryColor: '31da72', textColor: 'ffffff' }}

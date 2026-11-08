@@ -20,6 +20,7 @@ export const EVENT_CATEGORIES = [
   "faq",
   "engagement",
   "fallback",
+  "performance",
 ] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
@@ -138,6 +139,10 @@ export const TRACKING_EVENTS = {
   page_scroll_depth: "engagement",
   page_time_milestone: "engagement",
   ui_click_untagged: "fallback",
+
+  // ── Performance & errors ──
+  web_vital: "performance",
+  js_error: "performance",
 } as const satisfies Record<string, EventCategory>;
 
 export type TrackingEventName = keyof typeof TRACKING_EVENTS;
