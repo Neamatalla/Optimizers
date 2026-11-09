@@ -237,6 +237,12 @@ const failures = [
 ].filter(Boolean);
 if (failures.length) {
   console.error("\nTRACKING QA FAILED\n- " + failures.join("\n- "));
+  // Surface the reasons as GitHub annotations (visible on the commit without opening the logs).
+  if (process.env.GITHUB_ACTIONS) {
+    for (const f of failures) console.log(`::error title=Tracking QA::${String(f).replace(/\n/g, " ")}`);
+    const misses = log.filter((l) => !l.startsWith("ok")).join(" | ");
+    if (misses) console.log(`::error title=Tracking QA steps::${misses}`);
+  }
   process.exit(1);
 }
 console.log(`\nTRACKING QA PASSED: all ${catalog.length} planned events fired`);
