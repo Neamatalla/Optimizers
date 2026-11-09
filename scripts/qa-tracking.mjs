@@ -9,7 +9,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const BLOCK = /googletagmanager|google-analytics|clarity\.ms|convertexperiments|doubleclick/;
 const PII = ["QA Tester", "qa.tester@example-agency.com", "example-agency.com", "Increase repeat buyers"];
 
-const b = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || undefined, headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
+const b = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || undefined, headless: true, args: ["--autoplay-policy=no-user-gesture-required", ...(process.env.CI ? ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"] : [])] });
 const log = [];
 
 async function setup(vp) {
