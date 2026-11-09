@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { callMetricsFrom, checkApiKey, claudeModel, isAccountError, isRateLimitError, newStreamInfo, readStreamEvent } from "./claude.js";
+import { callMetricsFrom, checkApiKey, claudeModel, isAccountError, isRateLimitError, newStreamInfo, readStreamEvent, writerModel } from "./claude.js";
 import { buildRunMetricsRow, type ActiveRun, type ClaudeCallMetrics } from "./run-metrics.js";
 
 test("API key check: set, blank or missing", () => {
@@ -15,6 +15,13 @@ test("model comes from CLAUDE_MODEL, blank means the CLI default", () => {
   assert.equal(claudeModel({ CLAUDE_MODEL: " claude-opus-5-5 " }), "claude-opus-5-5");
   assert.equal(claudeModel({ CLAUDE_MODEL: "" }), undefined);
   assert.equal(claudeModel({}), undefined);
+});
+
+test("writer model comes from CLAUDE_WRITER_MODEL, blank falls back to CLAUDE_MODEL", () => {
+  assert.equal(writerModel({ CLAUDE_MODEL: "claude-sonnet-5-5", CLAUDE_WRITER_MODEL: " claude-haiku-5-5 " }), "claude-haiku-5-5");
+  assert.equal(writerModel({ CLAUDE_MODEL: "claude-sonnet-5-5", CLAUDE_WRITER_MODEL: "" }), "claude-sonnet-5-5");
+  assert.equal(writerModel({ CLAUDE_MODEL: "claude-sonnet-5-5" }), "claude-sonnet-5-5");
+  assert.equal(writerModel({}), undefined);
 });
 
 test("account errors are told apart from rate limits", () => {

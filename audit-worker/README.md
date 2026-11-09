@@ -36,7 +36,8 @@ wherever you start it.
    - `GTM_MCP_SCRIPT_PATH` / `GTM_SERVICE_ACCOUNT_PATH` — same idea, for
      `google-tag-manager-mcp-server`.
    - `ANTHROPIC_API_KEY` — the Anthropic Console key Claude is billed to
-     (API credits). `CLAUDE_MODEL` picks the model (`claude-opus-5-5`).
+     (API credits). `CLAUDE_MODEL` picks the main audit's model and
+     `CLAUDE_WRITER_MODEL` the writing steps' model.
      See "Claude billing and monitoring" below.
 3. Set up the database once: run `supabase/baseline.sql` (repo root), then
    every migration in order — see "New project" in `docs/DB_WORKFLOW.md`.
@@ -161,8 +162,12 @@ Windows path (`Cwd must be an absolute path`). PowerShell needs nothing.
 
 ## Claude billing and monitoring
 
-Every `claude -p` call is billed to `ANTHROPIC_API_KEY` (API credits) and
-runs on `CLAUDE_MODEL`. Use one key per environment, in an Anthropic Console
+Every `claude -p` call is billed to `ANTHROPIC_API_KEY` (API credits). The
+main audit runs on `CLAUDE_MODEL`. The writing steps run on
+`CLAUDE_WRITER_MODEL`: the CRO checklist, the Arabic translation, the friction
+judge and action repair. They only write from evidence the worker already
+has, and they used to be most of the cost. Blank `CLAUDE_WRITER_MODEL` means
+`CLAUDE_MODEL`. Use one key per environment, in an Anthropic Console
 workspace with a monthly spend limit, and turn on credit auto-reload so the
 worker doesn't pause when credit runs out.
 

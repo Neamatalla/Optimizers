@@ -19,6 +19,10 @@ export interface ClaudeRunOptions {
   // mechanical, no-tool work like translate-ar.ts's pass, where extended
   // thinking is pure overhead on a task that has nothing to decide.
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  // "main" (default) runs on CLAUDE_MODEL. "writer" runs on
+  // CLAUDE_WRITER_MODEL: the steps that only write text from evidence the
+  // worker already has (checklist, translation, judge, action repair).
+  model?: "main" | "writer";
   // Name for this call in the [claude-usage] log and run-metrics summary.
   label?: string;
 }
@@ -116,6 +120,11 @@ export function claudeModel(env: NodeJS.ProcessEnv = process.env): string | unde
   return env.CLAUDE_MODEL?.trim() || undefined;
 }
 
+/** The model for the writing steps (CLAUDE_WRITER_MODEL), or CLAUDE_MODEL when that's blank. */
+export function writerModel(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.CLAUDE_WRITER_MODEL?.trim() || claudeModel(env);
+}
+
 export interface ApiKeyStatus {
   ok: boolean;
   // For the log line and alert email. Never contains the key itself.
@@ -205,9 +214,9 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   if (opts.effort) {
     args.push("--effort", opts.effort);
   }
-  // One model for every call, chosen on purpose (e.g. claude-opus-5-5).
-  // Unset: no flag, so the CLI's own default applies.
-  const model = claudeModel();
+  // CLAUDE_MODEL for the main audit, CLAUDE_WRITER_MODEL for the writing
+  // steps. Unset: no flag, so the CLI's own default applies.
+  const model = opts.model === "writer" ? writerModel() : claudeModel();
   if (model) {
     args.push("--model", model);
   }

@@ -218,7 +218,7 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
   const mcp = await buildMcpConfig(`${jobId}-checklist`, { ga4Admin: false, gtm: false, browser: false });
   try {
     const call = async (prompt: string, label: string) => extractJsonPayload(await runClaudeHeadless({
-      prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort: "medium", label,
+      prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort: "medium", model: "writer", label,
     }));
 
     // Pass 1: verdicts.
