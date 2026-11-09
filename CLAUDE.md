@@ -71,7 +71,7 @@ Two animation patterns coexist (documented in `ScrollAnimationRefinement.md`):
   - `audit-approve.js` — approve link from the internal review email
   - `report/edit.js` — edits one finding row, behind `REPORT_EDIT_API_KEY`
 - **Logging:** JSON lines, read in the Vercel and Railway dashboards (no outside log service). API handlers are wrapped in `withLog` from `api/_lib/log.js` and log with `log.*`. The worker keeps plain `console.*`: `audit-worker/src/logger.ts` formats it, and `log-context.ts` adds the `auditId` of the audit being run. The same `auditId` (`audit_requests.id`) shows up in both dashboards. In production, an API 5xx or crash also emails the reviewer, at most once per route every 15 minutes (`api/_lib/error-alert.js`).
-- **Claude in the worker:** billed to `ANTHROPIC_API_KEY` (API credits, never a subscription login), on the model in `CLAUDE_MODEL`. Each audit attempt's time, stage times and estimated cost go to the `audit_run_metrics` table (see the worker README, "Claude billing and monitoring").
+- **Claude in the worker:** billed to `ANTHROPIC_API_KEY` (API credits, never a subscription login), on the model in `CLAUDE_MODEL` for the main audit and `CLAUDE_WRITER_MODEL` for the writing steps (checklist, translation, judge, action repair). Each audit attempt's time, stage times and estimated cost go to the `audit_run_metrics` table (see the worker README, "Claude billing and monitoring").
 - `vercel.json` proxies `/blog/*` to WordPress and `/apps/*` to other Vercel apps, sends `/audit-reports/*` to `/audit-report.html`, and rewrites all other non-API routes to `/index.html` (SPA)
 
 ### Strategy Session Form

@@ -137,6 +137,7 @@ async function translateBatch(items: FlatFinding[], jobId: string, role?: Audien
       allowedTools: [],
       timeoutMs: TRANSLATE_TIMEOUT_MS,
       effort: "low",
+      model: "writer",
       label: `translate (${items.length} findings)`,
     });
 
