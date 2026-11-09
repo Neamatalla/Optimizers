@@ -173,9 +173,11 @@ export function parseExplains(raw: unknown, ids: string[]): Map<string, ManualEx
 // ---- batching and the run ------------------------------------------------------
 
 // Verdicts are short: ~40 checkpoints per call. Write-ups are long and in two
-// languages: 4 per call keeps each answer well inside the output limit.
+// languages: 10 per call is about 19K output tokens, well inside the output
+// limit. Every call re-sends the page text (~11K tokens), so fewer, bigger
+// calls cost less: at 4 per call, an audit took ~43 write-up calls.
 const VERDICT_BATCH = 40;
-const EXPLAIN_BATCH = 4;
+const EXPLAIN_BATCH = 10;
 const CONCURRENCY = 3;
 const TIMEOUT_MS = 12 * 60 * 1000;
 
