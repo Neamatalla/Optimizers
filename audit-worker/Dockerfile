@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Claude Code, pinned to the version the laptop runs. Bump on purpose.
-ARG CLAUDE_CODE_VERSION=2.1.291
+ARG CLAUDE_CODE_VERSION=2.1.319
 RUN npm install -g --no-audit --allow-scripts=@anthropic-ai/claude-code \
       @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
  && npm cache clean --force
