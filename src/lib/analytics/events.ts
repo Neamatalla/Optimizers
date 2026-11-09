@@ -21,6 +21,7 @@ export const EVENT_CATEGORIES = [
   "engagement",
   "fallback",
   "performance",
+  "content",
 ] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
@@ -139,6 +140,11 @@ export const TRACKING_EVENTS = {
   page_scroll_depth: "engagement",
   page_time_milestone: "engagement",
   ui_click_untagged: "fallback",
+
+  // ── Team & gallery ──
+  team_member_click: "content",
+  gallery_image_view: "content",
+  gallery_image_click: "content",
 
   // ── Performance & errors ──
   web_vital: "performance",

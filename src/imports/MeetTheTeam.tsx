@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { track } from "@/lib/analytics";
 import svgPaths from "./svg-67sjau8p5h";
 import svgMobilePaths from "./svg-mobile-meet";
 import imgRectangle2 from "../assets/8beafb71ac0e56f696268857cdb1244ee06d2dcc.webp";
@@ -1447,6 +1448,30 @@ export default function MeetTheTeam() {
 
     const scaledHeight = CANVAS_HEIGHT * scale;
 
+    // Team card clicks: which person, and whether the photo, name or title was clicked.
+    const onTeamClick = (e: React.MouseEvent) => {
+        const target = e.target as Element;
+        const card = target.closest('[data-name="Safer"], [data-name="MobileSafer"]');
+        if (!card) return;
+        const cardText = card.textContent || "";
+        const index = teamMembers.findIndex((m) => cardText.includes(m.name));
+        if (index < 0) return;
+        const member = teamMembers[index];
+        const clickedText = (target.closest("p")?.textContent || "").trim();
+        const clickTarget = !clickedText ? "image" : clickedText === member.name ? "name" : "title";
+        track("team_member_click", {
+            team_member_name: member.name,
+            team_member_title: member.role,
+            team_member_position: index + 1,
+            team_size: teamMembers.length,
+            click_target: clickTarget,
+            element_text: clickedText || member.name,
+            element_type: clickTarget === "image" ? "team_photo" : "team_text",
+            team_layout: card.getAttribute("data-name") === "MobileSafer" ? "mobile" : "desktop",
+            section_name: "team",
+        });
+    };
+
     const teamMembers = [
         { name: "Mohamed Neamatalla", role: "Founder & CEO", image: imgRectangle2, color: "#5F82BF" },
         { name: "Alia Mahran", role: "Operation Manager", image: imgRectangle3, color: "#FFA69A" },
@@ -1458,7 +1483,7 @@ export default function MeetTheTeam() {
     ];
 
     return (
-        <div className="bg-[#020601] relative w-full overflow-hidden">
+        <div className="bg-[#020601] relative w-full overflow-hidden" onClick={onTeamClick}>
             {/* Mobile: Responsive Grid from Figma */}
             <div 
                 className="lg:hidden relative w-full max-w-[375px] mx-auto overflow-hidden"
