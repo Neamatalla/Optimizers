@@ -15,8 +15,6 @@ import imgRectangle19 from "../assets/212c2c3f9e91b0f640a3c4744397715ee2bd1eb1.w
 import imgTeamPhoto from "../assets/team-photo.jpg";
 import imgWhatsApp from "../assets/WhatsApp Image 2026-04-15 at 12.55.43 PM.jpeg";
 import { useLanguage } from "../app/contexts/LanguageContext";
-import { useEffect, useRef } from "react";
-import { track, isNavScrolling } from "@/lib/analytics";
 import { GALLERY_IMAGES } from "@/lib/analytics/gallery";
 
 const ALL_IMAGES = [
@@ -26,7 +24,7 @@ const ALL_IMAGES = [
     imgTeamPhoto, imgWhatsApp
 ];
 
-/** data-track attributes for one gallery tile: a click sends gallery_image_click; a view is picked up by the observer below. */
+/** data-track attributes for one gallery tile: a click sends gallery_image_click (via the delegated data-track listener). */
 function galleryTileProps(src: string, layout: string, position: string) {
   const i = ALL_IMAGES.indexOf(src);
   const meta = GALLERY_IMAGES[i] || { name: "unknown", description: "" };
@@ -148,35 +146,8 @@ function MobileGalleryGrid() {
 
 export default function GallerySection() {
   const { t } = useLanguage();
-  const galleryRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const root = galleryRef.current;
-    if (!root) return;
-    const seen = new Set<string>();
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting || isNavScrolling()) continue;
-        const d = (e.target as HTMLElement).dataset;
-        const name = d.trackImageName || "unknown";
-        if (seen.has(name)) continue;
-        seen.add(name);
-        track("gallery_image_view", {
-          image_name: name,
-          image_description: d.trackImageDescription,
-          image_index: Number(d.trackImageIndex),
-          gallery_layout: d.trackGalleryLayout,
-          images_seen_count: seen.size,
-          images_total: GALLERY_IMAGES.length,
-          section_name: "gallery",
-          interaction_type: "view",
-        });
-      }
-    }, { threshold: 0.6 });
-    root.querySelectorAll("[data-gallery-image]").forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
     return (
-        <div ref={galleryRef} className="bg-[#000000] relative w-full h-[339px] lg:h-screen overflow-hidden flex flex-col items-center justify-center">
+        <div className="bg-[#000000] relative w-full h-[339px] lg:h-screen overflow-hidden flex flex-col items-center justify-center">
             {/* Static Header */}
             <p className="absolute z-30 bg-clip-text bg-gradient-to-b css-4hzbpn font-['Sora',sans-serif] font-semibold from-[rgba(255,255,255,0.8)] leading-none left-0 text-[37px] lg:text-[145px] text-center to-[rgba(255,255,255,0.1)] top-[40px] lg:top-[-0.05em] tracking-[-1.48px] lg:tracking-[-6.5px] w-full pointer-events-none select-none"
                 style={{ WebkitTextFillColor: "transparent", textShadow: '0 10px 40px rgba(0,0,0,0.6)' }}>{t("Behind The Scenes")}</p>

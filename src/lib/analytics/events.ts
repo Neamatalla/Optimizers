@@ -143,7 +143,6 @@ export const TRACKING_EVENTS = {
 
   // ── Team & gallery ──
   team_member_click: "content",
-  gallery_image_view: "content",
   gallery_image_click: "content",
 
   // ── Performance & errors ──

@@ -1,0 +1,32 @@
+name: Tracking QA
+
+# Builds the site and triggers every event in the tracking plan in headless Chrome.
+# Fails if any planned event never fires, an unknown event appears, an event
+# loses its category, personal data leaks, or a real link/button goes untagged.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tracking-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install headless Chrome (CI only, not a project dependency)
+        run: npm install --no-save puppeteer@23
+      - name: Serve the build
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          npx --yes wait-on@8 http://localhost:4173 --timeout 60000
+      - name: Run tracking QA
+        run: node scripts/qa-tracking.mjs
+        env:
+          BASE_URL: http://localhost:4173/

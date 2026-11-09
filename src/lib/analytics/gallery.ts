@@ -1,7 +1,7 @@
 /**
  * "Behind The Scenes" gallery photos, named by what they show (same order as
  * ALL_IMAGES in src/imports/GallerySection.tsx). Sent as image_name /
- * image_description with gallery_image_view and gallery_image_click.
+ * image_description with gallery_image_click.
  * Note: #2 and #12 (team-photo.jpg) are the same portrait.
  */
 export const GALLERY_IMAGES: { name: string; description: string }[] = [
