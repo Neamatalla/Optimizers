@@ -217,8 +217,10 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
   let failedBatches = 0;
   const mcp = await buildMcpConfig(`${jobId}-checklist`, { ga4Admin: false, gtm: false, browser: false });
   try {
-    const call = async (prompt: string, label: string) => extractJsonPayload(await runClaudeHeadless({
-      prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort: "medium", model: "writer", label,
+    // Verdicts judge, so they keep medium effort. Write-ups only write up a
+    // verdict already made, so low is enough.
+    const call = async (prompt: string, label: string, effort: "low" | "medium") => extractJsonPayload(await runClaudeHeadless({
+      prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort, model: "writer", label,
     }));
 
     // Pass 1: verdicts.
@@ -226,7 +228,7 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
     const drafts = (await pool(vb, CONCURRENCY, async (list, i) => {
       const ids = list.map(c => c.id);
       try {
-        return parseVerdicts(await call(buildVerdictPrompt(e, list, role, ad), `cro-checklist verdicts ${i + 1}/${vb.length} (${list.length})`), ids);
+        return parseVerdicts(await call(buildVerdictPrompt(e, list, role, ad), `cro-checklist verdicts ${i + 1}/${vb.length} (${list.length})`, "medium"), ids);
       } catch (err) {
         failedBatches++;
         console.warn(`[audit-worker] CRO checklist verdict batch ${i + 1}/${vb.length} failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
@@ -240,7 +242,7 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
     const explains = new Map<string, ManualExplain>();
     await pool(eb, CONCURRENCY, async (list, i) => {
       try {
-        const got = parseExplains(await call(buildExplainPrompt(e, list, role, ad), `cro-checklist write-ups ${i + 1}/${eb.length} (${list.length})`), list.map(x => x.c.id));
+        const got = parseExplains(await call(buildExplainPrompt(e, list, role, ad), `cro-checklist write-ups ${i + 1}/${eb.length} (${list.length})`, "low"), list.map(x => x.c.id));
         for (const [id, x] of got) explains.set(id, x);
       } catch (err) {
         // The checkpoints still show, with their one-line note.
