@@ -194,6 +194,8 @@ function initErrorTracking() {
   };
   window.addEventListener("error", (e) => {
     if (!e.message) return; // resource load errors carry no message
+    // Cross-origin scripts (YouTube, Calendly, Convert…) report only "Script error." with no file — not actionable.
+    if (e.message === "Script error." && !e.filename) return;
     const file = (e.filename || "").replace(window.location.origin, "");
     report(e.message, `${file}:${e.lineno}:${e.colno}`, "error");
   });
