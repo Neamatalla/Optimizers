@@ -18,6 +18,29 @@ const PII = ["QA Tester", "qa.tester@example-agency.com", "example-agency.com", 
 // The untagged button the test adds on purpose (not counted as real untagged UI).
 const SYNTHETIC_UNTAGGED = "QA untagged button";
 
+// Stand-in for the YouTube embed. Real YouTube refuses to play on CI/data-centre IPs ("confirm
+// you're not a bot"), so the test serves this page at the same youtube.com URL. It speaks the real
+// iframe API protocol: answers "listening", obeys playVideo/pauseVideo/seekTo commands, and sends
+// infoDelivery messages (playerState, currentTime, duration) — exactly what the site's tracking reads.
+const YOUTUBE_STUB = `<!doctype html><html><body style="margin:0;background:#000"><script>
+  var state = -1, time = 0, duration = 600, listening = false, last = Date.now();
+  function send() { if (!listening) return; parent.postMessage(JSON.stringify({ event: "infoDelivery", info: { playerState: state, currentTime: time, duration: duration, videoData: { title: "QA stub video" } } }), "*"); }
+  window.addEventListener("message", function (e) {
+    var d; try { d = JSON.parse(e.data); } catch (x) { return; }
+    if (d.event === "listening") { listening = true; send(); return; }
+    if (d.event !== "command") return;
+    if (d.func === "playVideo") state = 1;
+    else if (d.func === "pauseVideo") state = 2;
+    else if (d.func === "seekTo") time = Math.min(duration, Number(d.args[0]) || 0);
+    send();
+  });
+  setInterval(function () {
+    var now = Date.now();
+    if (state === 1) { time += (now - last) / 1000; if (time >= duration) { time = duration; state = 0; } }
+    last = now; send();
+  }, 250);
+</script></body></html>`;
+
 const browser = await puppeteer.launch({
   executablePath: process.env.CHROME_PATH || undefined,
   headless: true,
@@ -33,6 +56,7 @@ async function open(viewport, { apiStatus = 200 } = {}) {
   p.on("request", (r) => {
     const u = r.url();
     if (BLOCK.test(u)) return r.abort();
+    if (/^https:\/\/www\.youtube(-nocookie)?\.com\/embed\//.test(u)) return r.respond({ status: 200, contentType: "text/html", body: YOUTUBE_STUB });
     if (u.includes("/api/contact")) {
       return r.respond({ status: apiStatus, contentType: "application/json", body: JSON.stringify(apiStatus === 200 ? { success: true } : { error: "QA forced failure" }) });
     }
@@ -155,7 +179,7 @@ await step("video start/pause/resume/progress/complete", async () => {
   await yt(p, "mute"); await yt(p, "playVideo"); await sleep(3000);
   await yt(p, "pauseVideo"); await sleep(1500);
   await yt(p, "playVideo"); await sleep(2000);
-  const duration = 5116;
+  const duration = 600; // the stand-in player's length
   for (const pct of [0.26, 0.51, 0.76]) { await yt(p, "seekTo", [Math.round(duration * pct), true]); await sleep(2500); }
   await yt(p, "seekTo", [duration - 2, true]); await sleep(6000);
 });
