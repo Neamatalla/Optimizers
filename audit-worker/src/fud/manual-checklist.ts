@@ -221,9 +221,10 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
   try {
     // Low effort for both passes: on the writer model (Haiku), medium mostly
     // bought extra thinking tokens and time.
-    const call = async (prompt: string, label: string) => extractJsonPayload(await runClaudeHeadless({
+    const ask = (prompt: string, label: string) => runClaudeHeadless({
       prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort: "low", model: "writer", label,
-    }));
+    });
+    const call = async (prompt: string, label: string) => extractJsonPayload(await ask(prompt, label));
 
     // Pass 1: verdicts.
     const vb = batchesOf(runnable, c => c.tab, VERDICT_BATCH);
@@ -243,8 +244,20 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
     const eb = batchesOf(toExplain, x => x.c.tab, EXPLAIN_BATCH);
     const explains = new Map<string, ManualExplain>();
     await pool(eb, CONCURRENCY, async (list, i) => {
+      const prompt = buildExplainPrompt(e, list, role, ad);
+      const label = `cro-checklist write-ups ${i + 1}/${eb.length} (${list.length})`;
+      const read = (raw: string) => parseExplains(extractJsonPayload(raw), list.map(x => x.c.id));
       try {
-        const got = parseExplains(await call(buildExplainPrompt(e, list, role, ad), `cro-checklist write-ups ${i + 1}/${eb.length} (${list.length})`), list.map(x => x.c.id));
+        // One retry, only for an answer that can't be read (a long JSON
+        // sometimes breaks). Timeouts and account errors are not retried.
+        const raw = await ask(prompt, label);
+        let got: Map<string, ManualExplain>;
+        try {
+          got = read(raw);
+        } catch (err) {
+          console.warn(`[audit-worker] CRO checklist write-up batch ${i + 1}/${eb.length} unreadable, retrying once: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
+          got = read(await ask(prompt, `${label} retry`));
+        }
         for (const [id, x] of got) explains.set(id, x);
       } catch (err) {
         // The checkpoints still show, with their one-line note.
