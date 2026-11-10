@@ -19,6 +19,10 @@ export interface ClaudeRunOptions {
   // mechanical, no-tool work like translate-ar.ts's pass, where extended
   // thinking is pure overhead on a task that has nothing to decide.
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  // false: no prompt caching for this call (DISABLE_PROMPT_CACHING). Only
+  // worth it for a single-request call, where the cache write (1.25x input)
+  // is never read back. Default: on.
+  promptCache?: boolean;
   // "main" (default) runs on CLAUDE_MODEL. "writer" runs on
   // CLAUDE_WRITER_MODEL: the steps that only write text from evidence the
   // worker already has (checklist, translation, judge, action repair).
@@ -125,6 +129,11 @@ export function writerModel(env: NodeJS.ProcessEnv = process.env): string | unde
   return env.CLAUDE_WRITER_MODEL?.trim() || claudeModel(env);
 }
 
+/** The child's environment: with promptCache false, Claude Code's DISABLE_PROMPT_CACHING is set. */
+export function childEnv(promptCache: boolean | undefined, env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return promptCache === false ? { ...env, DISABLE_PROMPT_CACHING: "1" } : env;
+}
+
 export interface ApiKeyStatus {
   ok: boolean;
   // For the log line and alert email. Never contains the key itself.
@@ -222,7 +231,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"], env: childEnv(opts.promptCache) });
     child.stdin.end(opts.prompt);
     let stdoutBytes = 0;
     let stdoutTail = "";

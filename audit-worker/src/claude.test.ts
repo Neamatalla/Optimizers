@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { callMetricsFrom, checkApiKey, claudeModel, isAccountError, isRateLimitError, newStreamInfo, readStreamEvent, writerModel } from "./claude.js";
+import { callMetricsFrom, checkApiKey, childEnv, claudeModel, isAccountError, isRateLimitError, newStreamInfo, readStreamEvent, writerModel } from "./claude.js";
 import { buildRunMetricsRow, type ActiveRun, type ClaudeCallMetrics } from "./run-metrics.js";
 
 test("API key check: set, blank or missing", () => {
@@ -9,6 +9,14 @@ test("API key check: set, blank or missing", () => {
   assert.equal(checkApiKey({}).ok, false);
   // The key never ends up in the log or email text.
   assert.ok(!checkApiKey({ ANTHROPIC_API_KEY: "sk-ant-secret" }).detail.includes("sk-ant-secret"));
+});
+
+test("promptCache false turns caching off for that call only", () => {
+  const env = { PATH: "x" };
+  assert.deepEqual(childEnv(false, env), { PATH: "x", DISABLE_PROMPT_CACHING: "1" });
+  assert.equal(childEnv(true, env), env);
+  assert.equal(childEnv(undefined, env), env);
+  assert.equal("DISABLE_PROMPT_CACHING" in env, false);
 });
 
 test("model comes from CLAUDE_MODEL, blank means the CLI default", () => {
