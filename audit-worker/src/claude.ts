@@ -15,9 +15,8 @@ export interface ClaudeRunOptions {
   timeoutMs?: number;
   // "low"/"medium"/"high"/"xhigh"/"max" — passed straight through as
   // `--effort`. Omitted entirely (CLI default) for the main audit run, which
-  // genuinely needs to reason across live tool calls; set to "low" for
-  // mechanical, no-tool work like translate-ar.ts's pass, where extended
-  // thinking is pure overhead on a task that has nothing to decide.
+  // genuinely needs to reason across live tool calls. The writing steps all
+  // run at "low": on Haiku, medium mostly bought extra thinking tokens and time.
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
   // false: no prompt caching for this call (DISABLE_PROMPT_CACHING). Only
   // worth it for a single-request call, where the cache write (1.25x input)

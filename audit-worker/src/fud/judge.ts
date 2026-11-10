@@ -308,7 +308,7 @@ async function judgeOnce(
         mcpConfigPath: mcp.configPath,
         allowedTools: [],
         timeoutMs: JUDGE_TIMEOUT_MS,
-        effort: "medium",
+        effort: "low",
         model: "writer",
         label: `fud-judge (${rules.length} rules)${labelSuffix}${attempt > 1 ? " retry" : ""}`,
       });
