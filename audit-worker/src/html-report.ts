@@ -243,7 +243,7 @@ function fontFace(family: string, weight: number, uri: string): string {
 function checklistForDisplay(category: CategoryKey, total: number, findingIds: string[] = []): ChecklistPoint[] {
   // A store owner's or media buyer's audit ran that reader's own points.
   const persona = personaOfFindings(findingIds);
-  if (persona) return personaChecklistFor(persona, category, total === 50 ? [] : ["GA4"]);
+  if (persona) return personaChecklistFor(persona, category, total === 50 ? [] : ["GA4"]).filter(p => persona !== "media_buyer" || !BUYER_HIDDEN_POINTS.has(p.id));
   const current = category === "GA4" ? GA4_CHECKLIST : category === "GTM" ? GTM_CHECKLIST : total === WEBSITE_CODE_CHECKLIST.length ? WEBSITE_CODE_CHECKLIST : WEBSITE_CHECKLIST;
   // A result scored before the action-point rewrite cites the old ids.
   if (findingIds.length && !findingIds.some(id => current.some(p => p.id === id))) {
@@ -1201,10 +1201,12 @@ function mediaBuyerFirstHtml(result: AuditResult): string {
           "كل إعلان بيتحكم عليه بالمبيعات اللي بتتحسب له. اتأكد من العدّ ده قبل ما تغيّر أي ميزانية. قرينا GA4 والـ Pixels بيعدّوا كل بيعة إزاي. وبعدين شفناهم بيشتغلوا من الموبايل.",
         )}</p>
         ${lane("lane-real", "1", "Is the number real?", "الرقم حقيقي؟",
-          "Ads Manager and GA4 count your sales. Here we check if that count is right. Too many sales: you may spend more on a losing ad. Too few: you may stop a winning ad. Don't change budgets until this is fixed.",
-          "Ads Manager وGA4 بيعدّوا مبيعاتك. هنا بنشوف العدّ ده صح ولا لأ. مبيعات زيادة: ممكن تصرف أكتر على إعلان خسران. مبيعات ناقصة: ممكن توقف إعلان كسبان. متغيّرش الميزانية لحد ما ده يتصلح.",
+          "GA4 and your pixels count your sales. Here we check the tracking behind that count is set up right. A broken count can make a losing ad look like a winner, or the other way round. Fix these before you change budgets.",
+          "GA4 والـ Pixels بيعدّوا مبيعاتك. هنا بنشوف التتبع اللي ورا العدّ ده متظبط صح ولا لأ. العدّ الغلط ممكن يخلّي إعلان خسران شكله كسبان، أو العكس. صلّح دول قبل ما تغيّر الميزانية.",
           s.real, "No counting problem found: each sale reaches GA4 and the pixels once, with its value.", "مفيش مشكلة في العدّ: كل بيعة بتوصل GA4 والـ Pixels مرة واحدة بقيمتها.",
-          biasMeterHtml(up, s.real.length - up))}
+          // No "extra vs missed sales" meter: comparing Ads Manager with GA4
+          // needs the ad account connected, which the audit doesn't do yet.
+          "")}
         ${storeVisitHtml(result)}
         ${lane("lane-learn", "2", "Can the algorithm learn from your sales?", "الخوارزمية بتتعلم من مبيعاتك؟",
           "Meta and Google learn from your sales data. Missing data means worse targeting. Each sale then slowly costs more.",
@@ -1296,9 +1298,21 @@ function checklistHtml(result: AuditResult): string {
             </details>`;
   };
 
+  // Critical first: every failing Critical point, from all tabs, in one group
+  // at the top. The tab groups below then hold the rest.
+  const isCrit = (c: ManualCheckpoint) => c.importance === "Critical" && byId.get(c.id)!.v !== "well";
+  const crit = MANUAL_CHECKPOINTS.filter(c => byId.has(c.id) && isCrit(c))
+    .sort((a, b) => VERDICT_ORDER[byId.get(a.id)!.v] - VERDICT_ORDER[byId.get(b.id)!.v]);
+  const critGroup = crit.length ? `
+          <div class="ck-group ck-group--crit" id="ck-critical">
+            <h3 class="ck-gh"><span>${bi("Critical: fix these first", "حرجة: صلّح دول الأول")}</span><span class="ck-gs ck-gs--bad" dir="ltr">${crit.length}</span></h3>
+            <p class="ck-gl">${bi("The points that cost the most sales, from every part of the store.", "النقط اللي بتضيّع أكتر مبيعات، من كل أجزاء المتجر.")}</p>
+            ${crit.map(c => card(c, byId.get(c.id)!)).join("")}
+          </div>` : "";
+
   const groups = s.tabs.filter(t => t.judged).map(t => {
     const list = MANUAL_CHECKPOINTS.filter(c => c.tab === t.tab && byId.has(c.id));
-    const bad = list.filter(c => byId.get(c.id)!.v !== "well")
+    const bad = list.filter(c => byId.get(c.id)!.v !== "well" && !isCrit(c))
       .sort((a, b) => IMPORTANCE_ORDER[a.importance] - IMPORTANCE_ORDER[b.importance] || VERDICT_ORDER[byId.get(a.id)!.v] - VERDICT_ORDER[byId.get(b.id)!.v]);
     const good = list.filter(c => byId.get(c.id)!.v === "well");
     const n = bad.length;
@@ -1337,7 +1351,7 @@ function checklistHtml(result: AuditResult): string {
         <div class="ck-filter" role="group" aria-label="Filter by importance">
           ${(["all", "Critical", "High", "Medium", "Low"] as const).map(k => `<button type="button" class="ck-chip" data-f="${k}" aria-pressed="${k === "all"}">${k === "all" ? bi("All", "الكل") : bi(...CK_IMP[k])}</button>`).join("")}
         </div>
-        ${groups}
+        ${critGroup}${groups}
         <script>(function(){
           var sec = document.getElementById("cro-checklist"); if (!sec) return;
           sec.querySelectorAll(".ck-chip").forEach(function(b){ b.addEventListener("click", function(){
@@ -1497,18 +1511,39 @@ function campaignsHtml(result: AuditResult): string {
           </article>`;
   };
 
-  const groups = CAMPAIGN_PAID.map(ch => {
-    const list = paidRows.filter(r => r.channel === ch).sort((a, b) => b.sessions - a.sessions);
-    if (!list.length) return "";
+  // One tab per ad platform (Meta, TikTok, Snapchat, Google...), read from the
+  // GA4 source, so the buyer sees each ad account's campaigns on their own.
+  const KNOWN = ["Meta", "TikTok", "Snapchat", "Google", "Microsoft"];
+  const tabOf = (r: Ga4CampaignRow): string => { const p = platformOf(r.source); return KNOWN.includes(p) ? p : "Other"; };
+  const platforms = new Map<string, Ga4CampaignRow[]>();
+  for (const r of paidRows) { const p = tabOf(r); platforms.set(p, [...(platforms.get(p) ?? []), r]); }
+  const order = [...platforms.entries()]
+    .map(([p, list]) => ({ p, list: list.sort((a, b) => b.sessions - a.sessions), s: list.reduce((a, r) => a + r.sessions, 0) }))
+    .sort((a, b) => (a.p === "Other" ? 1 : 0) - (b.p === "Other" ? 1 : 0) || b.s - a.s);
+  const pLabel = (p: string): Bi2 => p === "Other" ? ["Other", "تانية"] : [p, p];
+  const panels = order.map(({ p, list }, i) => {
     const t = { s: list.reduce((a, r) => a + r.sessions, 0), b: list.reduce((a, r) => a + r.sales, 0) };
     const top = list.slice(0, 8), more = list.slice(8);
     return `
-        <div class="cp-group">
-          <h3 class="cp-gh">${escapeHtml(ch)}<span>${bi(`${fmtInt(t.s)} visits · ${fmtInt(t.b)} sales · CVR ${pc(t.b / Math.max(1, t.s))}`, `${fmtInt(t.s)} زيارة · ${fmtInt(t.b)} بيعة · CVR ${pc(t.b / Math.max(1, t.s))}`)}</span></h3>
+        <div class="cp-group" role="tabpanel" id="cp-tab-${i}" aria-labelledby="cp-tb-${i}"${i ? " hidden" : ""}>
+          <h3 class="cp-gh">${bi(...pLabel(p))}<span>${bi(`${fmtInt(t.s)} visits · ${fmtInt(t.b)} sales · CVR ${pc(t.b / Math.max(1, t.s))}`, `${fmtInt(t.s)} زيارة · ${fmtInt(t.b)} بيعة · CVR ${pc(t.b / Math.max(1, t.s))}`)}</span></h3>
           ${top.map(card).join("")}
           ${more.length ? `<details class="cp-more"><summary>${bi(`${more.length} more campaigns`, `${more.length} حملات تانية`)}</summary>${more.map(card).join("")}</details>` : ""}
         </div>`;
   }).join("");
+  const tabs = order.length > 1 ? `
+        <div class="cp-tabs" role="tablist" aria-label="Campaigns by platform">${order.map(({ p, list }, i) => `
+          <button type="button" role="tab" class="cp-tab" id="cp-tb-${i}" aria-controls="cp-tab-${i}" aria-selected="${i === 0}" tabindex="${i ? -1 : 0}">${bi(...pLabel(p))} <small dir="ltr">${list.length}</small></button>`).join("")}
+        </div>
+        <script>(function(){
+          var tabs=document.querySelectorAll("#campaigns .cp-tab");
+          function pick(b){ tabs.forEach(function(t){ var on=t===b; t.setAttribute("aria-selected", String(on)); t.tabIndex=on?0:-1; document.getElementById(t.getAttribute("aria-controls")).hidden=!on; }); }
+          tabs.forEach(function(b,i){
+            b.addEventListener("click", function(){ pick(b); });
+            b.addEventListener("keydown", function(e){ var d=e.key==="ArrowRight"?1:e.key==="ArrowLeft"?-1:0; if(!d) return; if(document.documentElement.dir==="rtl"||document.getElementById("i18n-ar")?.checked) d=-d; var n=tabs[(i+d+tabs.length)%tabs.length]; pick(n); n.focus(); e.preventDefault(); });
+          });
+        })();</script>` : "";
+  const groups = tabs + panels;
 
   // Unpaid channels, one line each: the comparison the paid cards are read against.
   const other = new Map<string, { s: number; b: number; rev: number }>();
@@ -1804,6 +1839,10 @@ function breakEvenHtml(result: AuditResult, sample = false): string {
         )}</p>
         <div class="be-grid">
           <div class="be-form">
+            ${field("aov", "Average order value", "متوسط قيمة الطلب", aov ? String(Math.round(aov)) : "", currency, aov ? `From this store's GA4, last ${periodOf(result)} days` : "From your store admin", aov ? `من GA4 بتاع المتجر، آخر ${periodOf(result)} يوم` : "من لوحة تحكم المتجر")}
+            ${field("margin", "Gross margin", "هامش الربح", "40", "%", "After product cost, before ads. 40% is a typical start", "بعد تكلفة المنتج، قبل الإعلانات. 40% بداية عادية")}
+            <label class="be-switch"><input type="checkbox" id="be-cod-on" /><span>${bi("The store uses cash on delivery: add its delivery rates", "المتجر بيستخدم الدفع عند الاستلام: ضيف نسب التسليم بتاعته")}</span></label>
+            <div class="be-cod" hidden>
             <div class="be-presets" role="group" aria-label="Starting points by market">
               <span class="be-presets-k">${bi("Start from", "ابدأ من")}</span>
               <button type="button" class="be-preset" data-c="85" data-d="82">${bi("Egypt", "مصر")}</button>
@@ -1811,16 +1850,14 @@ function breakEvenHtml(result: AuditResult, sample = false): string {
               <button type="button" class="be-preset" data-c="93" data-d="92">${bi("UAE", "الإمارات")}</button>
             </div>
             <p class="be-note be-note--top">${bi("Fills in typical rates for that country. Then put in your own. COD orders that come back (shipping companies, 2026): Egypt 25–35%. Saudi 15–25%. UAE 10–18%.", "بيحط نسب عادية للبلد دي. وبعدين حط أرقامك. أوردرات الدفع عند الاستلام اللي بترجع (شركات الشحن، 2026): مصر 25–35%. السعودية 15–25%. الإمارات 10–18%.")}</p>
-            ${field("aov", "Average order value", "متوسط قيمة الطلب", aov ? String(Math.round(aov)) : "", currency, aov ? `From this store's GA4, last ${periodOf(result)} days` : "From your store admin", aov ? `من GA4 بتاع المتجر، آخر ${periodOf(result)} يوم` : "من لوحة تحكم المتجر")}
-            ${field("margin", "Gross margin", "هامش الربح", sample ? "40" : "", "%", "After product cost, before ads", "بعد تكلفة المنتج، قبل الإعلانات")}
-            ${field("cod", "Orders paid on delivery", "طلبات الدفع عند الاستلام", sample ? "60" : "", "%")}
-            ${field("confirm", "COD orders confirmed", "طلبات الاستلام اللي بتتأكد", sample ? "85" : "", "%")}
-            ${field("deliver", "Confirmed orders delivered", "الطلبات المؤكدة اللي بتتسلّم", sample ? "80" : "", "%")}
-            ${field("ship", "Shipping you pay per shipped order", "الشحن اللي بتدفعه لكل طلب بيتشحن", sample ? "0" : "", currency)}
+
+            ${field("cod", "Orders paid on delivery", "طلبات الدفع عند الاستلام", "60", "%")}
+            ${field("confirm", "COD orders confirmed", "طلبات الاستلام اللي بتتأكد", "85", "%")}
+            ${field("deliver", "Confirmed orders delivered", "الطلبات المؤكدة اللي بتتسلّم", "75", "%", "Usually 70–85%", "عادةً 70–85%")}
+            ${field("ship", "Shipping you pay per shipped order", "الشحن اللي بتدفعه لكل طلب بيتشحن", "0", currency)}
+            </div>
             ${field("roas", "Your ROAS in Ads Manager (optional)", "ROAS بتاعك في Ads Manager (اختياري)", "", "×")}
-            <p class="be-note">${sample
-              ? bi("Margin and COD rates are sample values: change them to the store's. Saved in this browser only.", "هامش الربح ونسب الاستلام أرقام مثال: غيّرها لأرقام المتجر. بتتحفظ في المتصفح ده بس.")
-              : bi("Type the store's margin and COD rates. Only the order value comes from GA4. Saved in this browser only.", "اكتب هامش المتجر ونسب الاستلام. متوسط الأوردر بس جاي من GA4. بتتحفظ في المتصفح ده بس.")}</p>
+            <p class="be-note">${bi("Margin starts at a typical 40%: change it to the store's. COD rates count only when you turn them on, with the store's own delivery numbers. Only the order value and currency come from GA4. Saved in this browser only.", "هامش الربح بيبدأ بـ 40% كرقم عادي: غيّره لرقم المتجر. نسب الاستلام بتتحسب بس لما تفعّلها بأرقام التسليم بتاعة المتجر. متوسط الأوردر والعملة بس جايين من GA4. بتتحفظ في المتصفح ده بس.")}</p>
           </div>
           <div class="be-out" aria-live="polite">
             <p class="be-k">${bi("Break-even ROAS in Ads Manager", "ROAS التعادل في Ads Manager")}</p>
@@ -1842,23 +1879,20 @@ function breakEvenHtml(result: AuditResult, sample = false): string {
             </figure>
             <dl class="be-dl">
               <div><dt>${bi("Highest CPA per purchase in Ads Manager", "أعلى CPA لكل شراء في Ads Manager")}</dt><dd id="beo-cpa" dir="ltr">–</dd></div>
-              <div><dt>${bi("Highest cost per delivered order", "أعلى تكلفة لكل طلب متسلّم")}</dt><dd id="beo-dcpa" dir="ltr">–</dd></div>
-              <div><dt>${bi("Orders that turn into cash", "الطلبات اللي بتتحوّل فلوس")}</dt><dd id="beo-del" dir="ltr">–</dd></div>
-              <div><dt>${bi("Your real ROAS after COD losses", "الـ ROAS الحقيقي بعد خسارة الاستلام")}</dt><dd id="beo-real" dir="ltr">–</dd></div>
+              <div class="be-cod-out" hidden><dt>${bi("Highest cost per delivered order", "أعلى تكلفة لكل طلب متسلّم")}</dt><dd id="beo-dcpa" dir="ltr">–</dd></div>
+              <div class="be-cod-out" hidden><dt>${bi("Orders that turn into cash", "الطلبات اللي بتتحوّل فلوس")}</dt><dd id="beo-del" dir="ltr">–</dd></div>
+              <div class="be-cod-out" hidden><dt>${bi("Your real ROAS after COD losses", "الـ ROAS الحقيقي بعد خسارة الاستلام")}</dt><dd id="beo-real" dir="ltr">–</dd></div>
             </dl>
             <p class="be-verdict" id="be-verdict" hidden></p>
             <p class="be-lift" id="be-lift" hidden></p>
-            ${inflated ? `<p class="be-warn">${bi(
-              `We found ${inflated} tracking ${inflated === 1 ? "problem" : "problems"} that count extra sales. So the ROAS in Ads Manager is probably too high. Keep that in mind when you compare it to break-even.`,
-              `لقينا ${inflated} مشاكل تتبع بتعدّ مبيعات زيادة. فالـ ROAS في Ads Manager غالبًا أعلى من الحقيقي. خلّي ده في بالك وإنت بتقارنه بالتعادل.`,
-            )}</p>` : ""}
             <button type="button" class="btn btn--sm be-copy" id="be-copy">${bi("Copy for the store owner", "انسخها لصاحب المتجر")}</button>
           </div>
         </div>
         <script>(function(){
           var C=${cfg}, box=document.getElementById("breakeven"); if(!box) return;
           var ins=box.querySelectorAll("input[data-k]"), key="be:"+C.host;
-          try{ var s=JSON.parse(localStorage.getItem(key)||"null"); if(s) ins.forEach(function(i){ if(s[i.dataset.k]!=null) i.value=s[i.dataset.k]; }); }catch(e){}
+          var codOn=document.getElementById("be-cod-on"), codBox=box.querySelector(".be-cod");
+          try{ var s=JSON.parse(localStorage.getItem(key)||"null"); if(s){ ins.forEach(function(i){ if(s[i.dataset.k]!=null) i.value=s[i.dataset.k]; }); if(codOn) codOn.checked=!!s.codon; } }catch(e){}
           function ar(){ var r=document.getElementById("i18n-ar"); return !!(r&&r.checked); }
           function num(k){ var el=box.querySelector('[data-k="'+k+'"]'); var v=parseFloat(String(el.value).replace(/,/g,"")); return isFinite(v)?v:null; }
           function money(v){ return Math.round(v).toLocaleString("en-US")+(C.currency?" "+C.currency:""); }
@@ -1866,7 +1900,10 @@ function breakEvenHtml(result: AuditResult, sample = false): string {
           var last="";
           function calc(){
             var aov=num("aov"), m=num("margin"), cod=num("cod"), cf=num("confirm"), dl=num("deliver"), ship=num("ship")||0, roas=num("roas"), A=ar();
-            var save={}; ins.forEach(function(i){ save[i.dataset.k]=i.value; }); try{ localStorage.setItem(key, JSON.stringify(save)); }catch(e){}
+            // No COD: every order is paid up front, so all of them turn into cash.
+            var nc=!(codOn&&codOn.checked); if(codBox) codBox.hidden=nc; box.querySelectorAll(".be-cod-out").forEach(function(d){ d.hidden=nc; });
+            if(nc){ cod=0; cf=100; dl=100; ship=0; }
+            var save={codon:!nc}; ins.forEach(function(i){ save[i.dataset.k]=i.value; }); try{ localStorage.setItem(key, JSON.stringify(save)); }catch(e){}
             var out={roas:"–",cpa:"–",dcpa:"–",del:"–",real:"–"}, verdict="", lift="", be;
             var V=document.getElementById("be-verdict"), L=document.getElementById("be-lift");
             if(aov>0 && m!=null && cod!=null && cf!=null && dl!=null){
@@ -1904,6 +1941,7 @@ function breakEvenHtml(result: AuditResult, sample = false): string {
             last=(A?"ROAS التعادل: ":"Break-even ROAS: ")+out.roas+" · "+(A?"أعلى CPA: ":"Highest CPA: ")+out.cpa+" · "+(A?"أعلى تكلفة لكل طلب متسلّم: ":"Highest cost per delivered order: ")+out.dcpa+(verdict?"\\n"+verdict:"")+(lift?"\\n"+lift:"");
           }
           ins.forEach(function(i){ i.addEventListener("input", calc); });
+          if(codOn) codOn.addEventListener("change", calc);
           box.querySelectorAll(".be-preset").forEach(function(b){ b.addEventListener("click", function(){
             box.querySelector('[data-k="confirm"]').value=b.getAttribute("data-c");
             box.querySelector('[data-k="deliver"]').value=b.getAttribute("data-d");
@@ -2494,6 +2532,33 @@ function rollAttrs(pct: number): string {
   return `data-n="${text.replace(/,/g, "")}" data-dec="${text.includes(".") ? 1 : 0}" data-suf="%"`;
 }
 
+// Lost revenue for the summary box, a month. The biggest single money range
+// among the findings when there is one; otherwise the weakest funnel step,
+// closing 10% to 25% of its gap to the benchmark, capped at 10% of monthly
+// revenue (the same rule the findings use). Never a sum of points.
+function lostRevenueOf(result: AuditResult, steps: { event: string; count: number }[]): { text: string; note: Bi2 } | null {
+  const top = biggestMoney(result);
+  if (top) return { text: moneyRangeShort(top.money), note: ["Estimate from GA4, biggest single leak", "تقدير من GA4، أكبر تسريب واحد"] };
+  const m = result.ga4Metrics;
+  if (!m?.revenue) return null;
+  const monthly = (m.revenue / periodOf(result)) * 30;
+  let worst: { rate: number; bench: number } | null = null;
+  for (let i = 1; i < steps.length; i++) {
+    const rate = steps[i].count / steps[i - 1].count;
+    const bench = STEP_BENCHMARKS[`${steps[i - 1].event}>${steps[i].event}`];
+    if (bench === undefined || rate <= 0 || rate >= bench) continue;
+    if (!worst || rate / bench < worst.rate / worst.bench) worst = { rate, bench };
+  }
+  if (!worst) return null;
+  const lift = (share: number) => Math.min(monthly * 0.1, monthly * ((worst!.rate + share * (worst!.bench - worst!.rate)) / worst!.rate - 1));
+  const money: Money = { low: lift(0.1), high: lift(0.25), currency: m.currency ?? "" } as Money;
+  if (money.high <= 0) return null;
+  return { text: moneyRangeShort(money), note: ["Estimate from GA4, weakest funnel step", "تقدير من GA4، أضعف خطوة في المسار"] };
+}
+
+// The pages whose friction points explain a weak funnel step.
+const STEP_PAGES: Record<string, string> = { view_item: "home,collection,landing", add_to_cart: "product", begin_checkout: "cart", purchase: "checkout,cart" };
+
 function clickToCashHtml(result: AuditResult): string {
   const s = buyerSteps(result);
   const up = s.real.filter(r => adEffectOf(r.f.checklistId) === "inflated").length;
@@ -2506,7 +2571,7 @@ function clickToCashHtml(result: AuditResult): string {
 
   // One row shape for every step: number, what it means, one status word.
   type Status = "bad" | "warn" | "ok" | "na";
-  type Row = { zone: Bi2 | null; label: Bi2; value: string; meaning: string; status: Status; word: Bi2; href?: string; bar?: number; id?: string; leak?: boolean };
+  type Row = { zone: Bi2 | null; label: Bi2; value: string; meaning: string; status: Status; word: Bi2; href?: string; bar?: number; id?: string; leak?: boolean; pages?: string };
   const rows: Row[] = [];
   const statusWord: Record<Status, Bi2> = { bad: ["Leak", "تسريب"], warn: ["Okay", "مقبول"], ok: ["OK", "تمام"], na: ["Check", "اتأكد"] };
 
@@ -2520,16 +2585,28 @@ function clickToCashHtml(result: AuditResult): string {
       status: st, leak: st === "bad", word: st === "bad" ? ["Slow", "بطيئة"] : st === "warn" ? ["Okay", "مقبولة"] : ["Fast", "سريعة"] });
   }
 
-  // 2. The site: each rate sits on the step it leads to.
-  const first = steps[0]?.count ?? 0;
+  // 2. The site: visits first, then each rate sits on the step it leads to
+  // (Visits -> Product views -> Add to cart -> Checkout -> Purchase).
+  const m = result.ga4Metrics;
+  const visits = m?.sessions != null && m.sessions > 0 ? m.sessions : 0;
+  const first = visits || (steps[0]?.count ?? 0);
+  if (visits) {
+    rows.push({ zone: ["The site", "الموقع"], label: ["Visits", "الزيارات"], value: `<span data-n="${visits}">${fmtInt(visits)}</span>`, bar: 100, id: "sessions",
+      meaning: bi("Every visit to the store, from all channels.", "كل زيارات المتجر، من كل القنوات."), status: "na", word: ["Start", "البداية"] });
+  }
   const PREV_EN: Record<string, string> = { view_item: "product viewers", add_to_cart: "carts", begin_checkout: "checkouts" };
   const PREV_AR: Record<string, string> = { view_item: "اللي شافوا المنتج", add_to_cart: "السلات", begin_checkout: "اللي بدأوا الدفع" };
   steps.forEach((st, i) => {
     const [en, ar] = STRIP_LABEL[st.event] ?? [st.event, st.event];
     const bar = first ? Math.max(4, Math.pow(st.count / first, 0.35) * 100) : undefined;
-    const base = { zone: i === 0 ? (["The site", "الموقع"] as Bi2) : null, label: [en, ar] as Bi2, value: `<span data-n="${st.count}">${fmtInt(st.count)}</span>`, bar, id: st.event };
+    const base = { zone: i === 0 && !visits ? (["The site", "الموقع"] as Bi2) : null, label: [en, ar] as Bi2, value: `<span data-n="${st.count}">${fmtInt(st.count)}</span>`, bar, id: st.event };
     if (i === 0) {
-      rows.push({ ...base, meaning: bi("Visits that opened a product.", "زيارات فتحت صفحة منتج."), status: "na", word: ["Start", "البداية"] });
+      if (!visits) {
+        rows.push({ ...base, meaning: bi("Visits that opened a product.", "زيارات فتحت صفحة منتج."), status: "na", word: ["Start", "البداية"] });
+        return;
+      }
+      const pv = `<b dir="ltr" ${rollAttrs((st.count / visits) * 100)}>${fmtPct((st.count / visits) * 100)}%</b>`;
+      rows.push({ ...base, meaning: biHtml(`${pv} of visits opened a product.`, `${pv} من الزيارات فتحت صفحة منتج.`), status: "na", word: ["—", "—"] });
       return;
     }
     const prev = steps[i - 1];
@@ -2539,54 +2616,152 @@ function clickToCashHtml(result: AuditResult): string {
     const r = `<b dir="ltr" ${rollAttrs(rate * 100)}>${fmtPct(rate * 100)}%</b>`;
     const n = bench !== undefined ? fmtPct(bench * 100) : null;
     rows.push({ ...base,
-      meaning: biHtml(`${r} of ${PREV_EN[prev.event] ?? "the step before"}${n ? ` <span class="pl-norm">· normal <span dir="ltr">${n}%</span></span>` : ""}`, `${r} من ${PREV_AR[prev.event] ?? "الخطوة اللي قبلها"}${n ? ` <span class="pl-norm">· الطبيعي <span dir="ltr">${n}%</span></span>` : ""}`),
-      leak: low, status: low ? "bad" : bench === undefined ? "na" : "ok", word: low ? statusWord.bad : bench === undefined ? ["—", "—"] : statusWord.ok, href: low ? "#friction" : undefined });
+      meaning: biHtml(`${r} of ${PREV_EN[prev.event] ?? "the step before"}${n ? ` <span class="pl-norm">· industry benchmark <span dir="ltr">${n}%</span></span>` : ""}`, `${r} من ${PREV_AR[prev.event] ?? "الخطوة اللي قبلها"}${n ? ` <span class="pl-norm">· متوسط المجال <span dir="ltr">${n}%</span></span>` : ""}`),
+      leak: low, status: low ? "bad" : bench === undefined ? "na" : "ok", word: low ? statusWord.bad : bench === undefined ? ["—", "—"] : statusWord.ok, href: low ? "#friction" : undefined, pages: low ? STEP_PAGES[st.event] : undefined });
   });
 
   // 3. The count
   const countParts: Bi2[] = [
-    ...(up ? [[`${up} count extra sales`, `${up} بتعدّ مبيعات زيادة`] as Bi2] : []),
-    ...(down ? [[`${down} miss real sales`, `${down} بتفوّت مبيعات حقيقية`] as Bi2] : []),
+    ...(s.real.length ? [[`${s.real.length} tracking ${s.real.length === 1 ? "problem" : "problems"} in how sales are counted`, `${s.real.length} مشاكل تتبع في عدّ المبيعات`] as Bi2] : []),
     ...(s.learn.length ? [[`${s.learn.length} make ads learn less`, `${s.learn.length} بتخلي الإعلانات تتعلم أقل`] as Bi2] : []),
   ];
-  rows.push({ zone: ["The count", "العدّ"], label: ["Sales counted in Ads Manager", "المبيعات في Ads Manager"], href: "#lane-real",
+  rows.push({ zone: ["The count", "العدّ"], label: ["Sales tracking", "تتبّع المبيعات"], href: "#lane-real",
     value: s.real.length ? bi("Not right", "مش مظبوط") : bi("Right", "مظبوط"),
     meaning: countParts.length ? biHtml(countParts.map(p => escapeHtml(p[0])).join("<br>"), countParts.map(p => escapeHtml(p[1])).join("<br>")) : bi("Each sale is counted once, with its value.", "كل بيعة بتتحسب مرة واحدة بقيمتها."),
     status: s.real.length ? "bad" : "ok", word: s.real.length ? ["Problem", "مشكلة"] : statusWord.ok });
-  rows.push({ zone: null, label: ["Turns into cash", "بيتحوّل فلوس"], href: "#breakeven", id: "cash",
-    value: `<span class="pl-cash">${bi("–", "–")}</span>`,
-    meaning: `<span class="pl-cash-note">${bi("Of orders, at your COD rates. Set them in Break-even ↓", "من الأوردرات، بنسب الاستلام بتاعتك. ظبّطها في التعادل ↓")}</span>`,
-    status: "na", word: statusWord.na });
 
   const leak = rows.find(r => r.leak && r.id);
-  // Visits and sales: the totals behind the steps (the buyer has no numbers section).
-  const m = result.ga4Metrics;
+  // The summary box: visits, sales, orders and the money lost at the leaks
+  // (the buyer has no separate numbers section).
   const money = m?.revenue != null ? compactMoney(m.revenue) : null;
-  const moneyText = money ? `${m!.currency ? `${escapeHtml(m!.currency)} ` : ""}${money.value.toLocaleString("en-US", { maximumFractionDigits: money.dec })}${money.en}` : "";
-  const totals: Bi2 | null = m?.sessions != null || money
-    ? [[m?.sessions != null ? `<b dir="ltr">${fmtInt(m.sessions)}</b> visits` : "", money ? `<b dir="ltr">${moneyText}</b> in sales` : ""].filter(Boolean).join(", "),
-       [m?.sessions != null ? `<b dir="ltr">${fmtInt(m.sessions)}</b> زيارة` : "", money ? `<b dir="ltr">${moneyText}</b> مبيعات` : ""].filter(Boolean).join("، ")]
-    : null;
+  const moneyText = money ? `${m!.currency ? `${m!.currency} ` : ""}${money.value.toLocaleString("en-US", { maximumFractionDigits: money.dec })}${money.en}` : "";
+  const orders = steps.find(x => x.event === "purchase")?.count ?? null;
+  const lost = lostRevenueOf(result, steps);
+  const kpis: { value: string; label: Bi2; note?: Bi2; bad?: boolean }[] = [];
+  if (visits) kpis.push({ value: fmtInt(visits), label: ["Visits", "الزيارات"] });
+  if (money) kpis.push({ value: moneyText, label: ["Sales", "المبيعات"] });
+  if (orders) kpis.push({ value: fmtInt(orders), label: ["Orders", "الأوردرات"] });
+  if (lost) kpis.push({ value: lost.text, label: ["Lost revenue, a month", "مبيعات ضايعة، شهريًا"], note: lost.note, bad: true });
   return `
         <figure class="pipe" aria-labelledby="pipe-title">
           <figcaption class="pipe-head">
             <span id="pipe-title" class="pipe-title">${bi("From click to cash", "من الكليك للفلوس")}</span>
-            <span class="pipe-sub">${biHtml(`Your store, last ${periodOf(result)} days${totals ? `: ${totals[0]}` : ""}. Red means money leaks there.`, `متجرك، آخر ${periodOf(result)} يوم${totals ? `: ${totals[1]}` : ""}. الأحمر معناه إن فيه فلوس بتضيع هنا.`)}</span>
+            <span class="pipe-sub">${bi(`Your store, last ${periodOf(result)} days. Red means money leaks there.`, `متجرك، آخر ${periodOf(result)} يوم. الأحمر معناه إن فيه فلوس بتضيع هنا.`)}</span>
+            ${sourceBadgeHtml([["GA4", "GA4"], ["Google PageSpeed", "Google PageSpeed"], ["Tracking checks", "فحص التتبع"]])}
           </figcaption>
+          ${kpis.length ? `<dl class="pipe-kpis">${kpis.map(k => `
+            <div class="pipe-kpi${k.bad ? " pipe-kpi--bad" : ""}"><dt>${bi(...k.label)}</dt><dd dir="ltr">${escapeHtml(k.value)}</dd>${k.note ? `<p class="pipe-kpi-note">${bi(...k.note)}</p>` : ""}</div>`).join("")}
+          </dl>` : ""}
           <div class="pl-head" aria-hidden="true"><span></span><span>${bi("Step", "الخطوة")}</span><span>${bi("Number", "الرقم")}</span><span>${bi("What it means", "معناه")}</span><span>${bi("Status", "الحالة")}</span></div>
           <ol class="pl">${rows.map((r, i) => `
             ${r.zone ? `<li class="pl-zone" aria-hidden="true">${bi(...r.zone)}</li>` : ""}
             <li class="pl-row pl--${r.status}"${r.leak ? " data-leak" : ""}${r.id === "cash" ? ` id="pz-cash"` : ""}>
               <span class="pl-n" aria-hidden="true">${i + 1}</span>
-              <span class="pl-label">${r.href ? `<a href="${r.href}">${bi(...r.label)}</a>` : bi(...r.label)}</span>
+              <span class="pl-label">${(() => {
+                // Funnel steps keep the English metric name next to the Arabic one, so terms are never ambiguous.
+                const lab = r.id && r.id !== "cash" ? biHtml(escapeHtml(r.label[0]), `${escapeHtml(r.label[1])} <small class="pl-en" dir="ltr">${escapeHtml(r.label[0])}</small>`) : bi(...r.label);
+                return r.href ? `<a href="${r.href}"${r.pages ? ` data-dw-page="${r.pages}"` : ""}>${lab}</a>` : lab;
+              })()}</span>
               <span class="pl-value" dir="ltr">${r.value}${r.bar ? `<i class="pl-bar" style="--w:${r.bar.toFixed(1)}%"></i>` : ""}</span>
               <span class="pl-meaning">${r.meaning}</span>
-              <span class="pl-status"><span class="pl-word">${bi(...r.word)}</span></span>
+              <span class="pl-status">${r.href && (r.status === "bad" || r.status === "warn")
+                ? `<a class="pl-word" href="${r.href}"${r.pages ? ` data-dw-page="${r.pages}"` : ""}>${bi(...r.word)}</a>`
+                : `<span class="pl-word">${bi(...r.word)}</span>`}</span>
             </li>`).join("")}
           </ol>
-          ${leak ? `<p class="pl-foot">${biHtml(`<b>Biggest leak:</b> ${escapeHtml(leak.label[0])}. <a href="#friction">See why ↓</a>`, `<b>أكبر تسريب:</b> ${escapeHtml(leak.label[1])}. <a href="#friction">شوف السبب ↓</a>`)}</p>` : ""}
-        </figure>`;
+          ${leak ? `<p class="pl-foot">${biHtml(`<b>Biggest leak:</b> ${escapeHtml(leak.label[0])}. <a href="#friction"${leak.pages ? ` data-dw-page="${leak.pages}"` : ""}>See why</a>`, `<b>أكبر تسريب:</b> ${escapeHtml(leak.label[1])}. <a href="#friction"${leak.pages ? ` data-dw-page="${leak.pages}"` : ""}>شوف السبب</a>`)}</p>` : ""}
+        </figure>
+        ${DRAWER_HTML}`;
 }
+
+// Media buyer: every section says where its numbers come from, so a buyer
+// knows which ones they can check in GA4, which we measured on the site and
+// which they typed themselves.
+const SECTION_SOURCE: Record<string, Bi2[]> = {
+  "fix-first": [["GA4", "GA4"], ["Our phone visit", "زيارتنا بالموبايل"]],
+  breakeven: [["GA4", "GA4"], ["Your numbers", "أرقامك"]],
+  campaigns: [["GA4", "GA4"]],
+  "ad-setup": [["GA4", "GA4"], ["Ad pixels on the site", "بكسلات الإعلانات على الموقع"]],
+  "roas-leaks": [["Our phone visit", "زيارتنا بالموبايل"]],
+  friction: [["Our phone visit", "زيارتنا بالموبايل"]],
+  "cro-checklist": [["Our phone visit", "زيارتنا بالموبايل"]],
+  clarity: [["Microsoft Clarity", "Microsoft Clarity"]],
+  speed: [["Google PageSpeed", "Google PageSpeed"]],
+  "sec-ga4": [["GA4", "GA4"]],
+  "sec-gtm": [["Google Tag Manager", "Google Tag Manager"]],
+};
+function sourceBadgeHtml(list: Bi2[]): string {
+  return `<p class="src-badges"><span class="src-k">${bi("Source", "المصدر")}</span>${list.map(s => `<span class="src-badge">${bi(...s)}</span>`).join("")}</p>`;
+}
+function withSourceBadge(html: string): string {
+  return html.replace(/(<section\b[^>]*\bid="([^"]+)"[^>]*>(?:(?!<section\b)[\s\S])*?<\/h2>)/g, (all, head: string, id: string) =>
+    SECTION_SOURCE[id] ? `${head}${sourceBadgeHtml(SECTION_SOURCE[id])}` : all);
+}
+
+// The reason behind a step opens beside the page, so the buyer keeps their
+// place in the summary. The drawer shows a copy of the section the link points
+// to (ids removed so nothing is duplicated); "Open the full section" still
+// jumps there. Esc, the close button or the backdrop close it.
+const DRAWER_HTML = `
+        <div class="dw" id="dw" hidden>
+          <div class="dw-back" data-dw-close></div>
+          <aside class="dw-panel" role="dialog" aria-modal="true" aria-labelledby="dw-title" tabindex="-1">
+            <header class="dw-head">
+              <p class="dw-title" id="dw-title"></p>
+              <button type="button" class="dw-x" data-dw-close aria-label="Close">×</button>
+            </header>
+            <div class="dw-body"></div>
+            <footer class="dw-foot"><a class="dw-full" href="#">${bi("Open the full section", "افتح القسم كامل")}</a></footer>
+          </aside>
+        </div>
+        <script>(function(){
+          var dw=document.getElementById("dw"); if(!dw) return;
+          // Out of main, so no section stacking context can sit above it.
+          document.body.appendChild(dw);
+          var panel=dw.querySelector(".dw-panel"), body=dw.querySelector(".dw-body"), title=dw.querySelector(".dw-title"), full=dw.querySelector(".dw-full"), from=null, moved=[];
+          // Links that move around the page stay links: the top bar, the side
+          // menu, the section jumps and the drawer's own "full section" link.
+          var NAV=".topbar, .jump, nav, [data-spy], .dw-foot";
+          // The points themselves move into the drawer (not copies), so the
+          // calculator and the spend inputs keep working; they go back on close.
+          function take(el){
+            // A same-size stand-in keeps the page from jumping while the point is out.
+            var mark=document.createElement("div"); mark.className="dw-ph"; mark.style.height=el.offsetHeight+"px"; el.parentNode.insertBefore(mark, el);
+            var shut=el.classList.contains("is-collapsed"); if(shut) el.classList.remove("is-collapsed");
+            [el].concat([].slice.call(el.querySelectorAll("*"))).forEach(function(e){ if(e.style){ e.style.opacity=""; e.style.transform=""; e.style.visibility=""; e.style.translate=""; } });
+            moved.push({ el: el, mark: mark, shut: shut }); el.classList.add("dw-copy"); body.appendChild(el);
+          }
+          function putBack(){
+            moved.forEach(function(m){ m.el.classList.remove("dw-copy"); if(m.shut) m.el.classList.add("is-collapsed"); m.mark.parentNode.insertBefore(m.el, m.mark); m.mark.remove(); });
+            moved=[];
+          }
+          function close(){ if(dw.hidden) return; putBack(); dw.hidden=true; document.documentElement.classList.remove("dw-open"); if(from && from.isConnected) from.focus(); }
+          function open(a){
+            var id=a.getAttribute("href").slice(1); if(!id) return false;
+            var t=document.getElementById(id); if(!t || t.contains(a)) return false;
+            putBack();
+            // A funnel step or a page link: only the points found on those pages.
+            var pages=(a.getAttribute("data-dw-page")||"").split(",").filter(Boolean), list=[];
+            if(pages.length) list=[].slice.call(document.querySelectorAll(".fud-row[data-page]")).filter(function(r){ return pages.indexOf(r.getAttribute("data-page"))>-1 && r.getAttribute("data-fud-status")!=="pass"; });
+            var h=list.length?null:t.querySelector("h2, h3"), row=a.closest(".pl-row"), lab=row&&row.querySelector(".pl-label");
+            if(lab){ lab=lab.cloneNode(true); lab.querySelectorAll("a").forEach(function(x){ x.replaceWith.apply(x, [].slice.call(x.childNodes)); }); }
+            title.innerHTML=lab?lab.innerHTML:h?h.innerHTML:a.innerHTML;
+            if(list.length) list.forEach(take); else take(t);
+            full.setAttribute("href","#"+id); from=a;
+            dw.hidden=false; document.documentElement.classList.add("dw-open"); body.scrollTop=0; panel.focus();
+            return true;
+          }
+          // Capture phase: runs before the page's own smooth-scroll handler.
+          document.addEventListener("click", function(e){
+            if(!e.target.closest) return;
+            if(e.target.closest("[data-dw-close]")) { close(); return; }
+            var a=e.target.closest('a[href^="#"]');
+            if(!a || e.metaKey || e.ctrlKey || e.shiftKey || a.closest(NAV)) return;
+            if(open(a)) { e.preventDefault(); e.stopPropagation(); }
+          }, true);
+          full.addEventListener("click", function(){ close(); });
+          document.addEventListener("keydown", function(e){ if(e.key==="Escape" && !dw.hidden) close(); });
+        })();</script>`;
 
 // The opening is a scoreboard: each question, its verdict and its count, and
 // a link to the one place that holds the detail (the lanes, break-even).
@@ -2617,8 +2792,8 @@ function buyerHeroHtml(result: AuditResult, counts: ReturnType<typeof resultCoun
   const rows: Row[] = [
     off
       ? { cls: "bad", q: ["Is the number real?", "الرقم حقيقي؟"], v: ["No", "لأ"], href: "#lane-real",
-        note: [[up ? `${n(up, "problem counts", "problems count")} extra sales` : "", down ? `${n(down, "problem misses", "problems miss")} real sales` : ""].filter(Boolean).join(". ") + ".",
-               [up ? `${up} مشاكل بتعدّ مبيعات زيادة` : "", down ? `${down} مشاكل بتفوّت مبيعات حقيقية` : ""].filter(Boolean).join(". ") + "."] }
+        note: [`${n(up + down, "tracking problem", "tracking problems")} in how sales are counted.`,
+               `${up + down} مشاكل تتبع في عدّ المبيعات.`] }
       : { cls: "ok", q: ["Is the number real?", "الرقم حقيقي؟"], v: ["Yes", "أيوه"], href: "#lane-real", note: ["Each sale is counted once, with its value.", "كل بيعة بتتحسب مرة واحدة بقيمتها."] },
     s.learn.length
       ? { cls: "bad", q: ["Can the algorithm learn from your sales?", "الخوارزمية بتتعلم من مبيعاتك؟"], v: ["Partly", "جزئيًا"], href: "#lane-learn", note: [`${n(s.learn.length, "problem makes", "problems make")} your ads learn less.`, `${s.learn.length} مشاكل بتخلي إعلاناتك تتعلم أقل.`] }
@@ -2971,7 +3146,7 @@ function handoffLink(h: Handoff | undefined, result: AuditResult): string {
     const [pageEn, pageAr] = FUD_PAGE_LABEL[h.page];
     // The buyer has no GA4 follow-up box (round 8): their page detail is "After the click".
     const href = result.audienceRole !== "media_buyer" && result.ga4Facts?.focus.page === h.page ? "#ga4-followup" : "#friction";
-    return `<a class="act-handoff" href="${href}">${bi(`Next: see what we found on your ${pageEn}`, `الخطوة التالية: ما وجدناه في ${pageAr}`)}</a>`;
+    return `<a class="act-handoff" href="${href}" data-dw-page="${h.page}">${bi(`Next: see what we found on your ${pageEn}`, `الخطوة التالية: ما وجدناه في ${pageAr}`)}</a>`;
   }
   const cat = categoryOfId(h.id);
   const target = cat && result.categories.find(c => c.category === cat && c.findings.some(f => f.checklistId === h.id));
@@ -3634,7 +3809,7 @@ function fudRowHtml(f: FudFinding, open: boolean, periodDays: number | null, res
   const act = issue && f.action && result ? actionBlockHtml(f.action, { step: ar.recommendation, doneWhen: f.ar?.doneWhen }, result) : "";
 
   return `
-          <article class="check check--${tone} fud-row${open ? "" : " is-collapsed"}" id="row-${id}" data-fud-status="${f.status}">
+          <article class="check check--${tone} fud-row${open ? "" : " is-collapsed"}" id="row-${id}" data-fud-status="${f.status}" data-page="${f.pageType}">
             <input type="checkbox" class="tech-toggle" id="${id}" />
             <div class="check-main">
               <div class="check-side">${side}</div>
@@ -4374,6 +4549,9 @@ p{margin:0; text-wrap:pretty}
 #i18n-ar:checked ~ main .i18n-ar:not(.voice):not([hidden]){display:revert}
 #i18n-ar:checked ~ .topbar,
 #i18n-ar:checked ~ main{direction:rtl; font-family:var(--arabic)}
+#i18n-ar:checked ~ .dw .i18n-en:not(.voice){display:none}
+#i18n-ar:checked ~ .dw .i18n-ar:not(.voice):not([hidden]){display:revert}
+#i18n-ar:checked ~ .dw{direction:rtl; font-family:var(--arabic)}
 #i18n-ar:checked ~ main :is(h1,h2,h3,.btn,.speed-table td){font-family:var(--arabic)}
 /* Which voice shows is decided per check by its .tech-toggle checkbox
    (unchecked = business, checked = technical); the language radio picks the
@@ -4441,6 +4619,22 @@ p{margin:0; text-wrap:pretty}
 .pl-meaning{font-size:14px; color:var(--ink-2); line-height:1.4}
 .pl-meaning b{color:var(--ink); font-variant-numeric:tabular-nums}
 .pl-norm{color:var(--ink-3); white-space:nowrap}
+.pl-en{display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--ink-3)}
+.src-badges{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 16px; font-size:12px; color:var(--ink-3)}
+.src-k{font-weight:600}
+.src-badge{display:inline-flex; align-items:center; padding:2px 10px; border-radius:999px; border:1px solid var(--line-strong); background:var(--bg-soft); color:var(--ink-2); font-weight:600}
+.pipe-head .src-badges{margin:8px 0 0}
+/* The summary box: the store's totals and the money lost, before the steps. */
+.pipe-kpis{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin:16px 0 8px; padding:12px; border-radius:16px; background:var(--bg-soft); border:1px solid var(--line-strong)}
+.pipe-kpi{margin:0; padding:12px 16px; border-radius:12px; background:var(--bg); border:1px solid var(--line)}
+.pipe-kpi dt{font-size:12px; font-weight:600; color:var(--ink-3)}
+.pipe-kpi dd{margin:4px 0 0; font-family:var(--display); font-size:24px; font-weight:700; line-height:1.1; color:var(--ink); font-variant-numeric:tabular-nums}
+#i18n-ar:checked ~ main .pipe-kpi dd{text-align:end}
+.pipe-kpi-note{margin:4px 0 0; font-size:12px; color:var(--ink-3)}
+.pipe-kpi--bad{background:var(--red-tint); border-color:rgba(255,107,87,.45)}
+.pipe-kpi--bad{grid-column:span 2}
+.pipe-kpi--bad dd{color:var(--red-ink); white-space:nowrap}
+@media (max-width:560px){ .pipe-kpis{grid-template-columns:1fr 1fr} .pipe-kpi dd{font-size:20px} }
 .pl-word{display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:700; border:1px solid var(--line-strong); color:var(--ink-3)}
 .pl--bad{border-inline-start-color:var(--red-ink); background:var(--red-tint)}
 .pl--bad:hover{background:var(--red-tint)}
@@ -4455,6 +4649,31 @@ p{margin:0; text-wrap:pretty}
 .pl-foot{margin:12px 0 0; padding:12px; border-radius:12px; background:var(--red-tint); font-size:14px; color:var(--ink-2)}
 .pl-foot b{color:var(--red-ink)}
 .pl-foot a{color:var(--green-ink)}
+a.pl-word{text-decoration:none; cursor:pointer}
+a.pl-word:hover{background:rgba(255,107,87,.12)}
+a.pl-word:focus-visible{outline:2px solid var(--green); outline-offset:2px}
+/* Side drawer for the reason behind a step. */
+.dw{position:fixed; inset:0; z-index:10000}
+.dw[hidden]{display:none}
+.dw-back{position:absolute; inset:0; background:rgba(0,0,0,.55)}
+.dw-panel{position:absolute; top:0; bottom:0; inset-inline-end:0; width:min(800px, 92vw); display:flex; flex-direction:column; background:var(--bg); border-inline-start:1px solid var(--line-strong); box-shadow:0 0 48px rgba(0,0,0,.6); outline:0}
+.dw-head{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 24px; border-bottom:1px solid var(--line)}
+.dw-title{margin:0; font-family:var(--display); font-size:20px; font-weight:700; color:var(--ink)}
+.dw-x{width:36px; height:36px; border-radius:999px; border:1px solid var(--line-strong); background:transparent; color:var(--ink); font-size:20px; cursor:pointer}
+.dw-x:focus-visible{outline:2px solid var(--green); outline-offset:2px}
+.dw-body{flex:1; overflow:auto; padding:24px 32px}
+@media (max-width:640px){ .dw-panel{width:100%} .dw-body{padding:16px} }
+section.dw-copy{margin:0; padding:0; border:0; background:none}
+.dw-body > .dw-copy + .dw-copy{margin-top:12px}
+.dw-body > .dw-copy{width:100%; max-width:none}
+.dw-body .check-main{grid-template-columns:minmax(0,1fr); gap:8px; padding:16px}
+.dw-body .dw-ph, .dw-ph{display:block}
+.dw-copy :is(.section-lead,.lead,.callout,.fact,.actions,.fix-list li,.group-head,.check,.shot,.shots-note,h2,h3,.kpi,.chart,.cell,.speed-card){opacity:1 !important; transform:none !important}
+.dw-copy [class*="fill"], .dw-copy [class*="bar"] > *{transform:none !important}
+.dw-foot{padding:12px 24px; border-top:1px solid var(--line)}
+.dw-full{color:var(--green-ink); font-size:14px}
+html.dw-open{overflow:hidden}
+@media (prefers-reduced-motion: no-preference){ .dw:not([hidden]) .dw-panel{animation:dw-in .22s var(--ease)} @keyframes dw-in{from{transform:translateX(24px); opacity:0}} }
 .pl-dot{position:absolute; left:0; top:0; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:999px; background:var(--green); box-shadow:0 0 12px var(--green), 0 0 28px rgba(106,228,153,.55); pointer-events:none; opacity:0; z-index:2}
 .pl-drop{position:absolute; left:0; top:0; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:999px; background:var(--red-ink); box-shadow:0 0 10px rgba(255,107,87,.75); pointer-events:none; z-index:2}
 @media (prefers-reduced-motion: no-preference){
@@ -4573,6 +4792,13 @@ p{margin:0; text-wrap:pretty}
 /* Round 14: campaign cards. */
 .cp-sum{margin-bottom:8px}
 .cp-group{margin-top:48px}
+.cp-tabs{display:flex; flex-wrap:wrap; gap:8px; margin-top:32px; padding:4px; border-radius:999px; background:var(--bg-soft); border:1px solid var(--line); width:fit-content; max-width:100%}
+.cp-tab{padding:8px 16px; border:0; border-radius:999px; background:transparent; color:var(--ink-2); font:600 14px var(--body); cursor:pointer}
+.cp-tab small{font-size:12px; color:var(--ink-3); margin-inline-start:4px}
+.cp-tab[aria-selected=true]{background:var(--bg); color:var(--ink); box-shadow:inset 0 0 0 1px var(--line-strong)}
+.cp-tab:focus-visible{outline:2px solid var(--green); outline-offset:2px}
+.cp-tabs + .cp-group{margin-top:24px}
+.cp-group[hidden]{display:none}
 .cp-gh{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 16px; font-family:var(--display); font-size:20px; font-weight:700; color:var(--ink); padding-bottom:12px; border-bottom:1px solid var(--line-strong)}
 .cp-gh span{font:400 14px var(--body); color:var(--ink-3)}
 .cp{margin-top:16px; padding:20px; border-radius:16px; border:1px solid var(--line); border-inline-start:4px solid var(--line-strong); background:var(--bg-soft)}
@@ -4826,6 +5052,9 @@ p{margin:0; text-wrap:pretty}
 .be-input input{flex:1; min-width:0; width:auto; padding:8px 0; border:0; outline:0; background:transparent; color:var(--ink); font:600 15px/1.2 var(--body); font-variant-numeric:tabular-nums; text-align:right}
 .be-unit{font-size:13px; color:var(--ink-3); white-space:nowrap}
 .be-note{margin-top:12px; font-size:13px; color:var(--ink-3)}
+.be-switch{display:flex; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line); font-size:14px; color:var(--ink-2); cursor:pointer}
+.be-switch input{width:16px; height:16px; accent-color:var(--green)}
+.be-cod[hidden], .be-cod-out[hidden]{display:none}
 .be-out{position:sticky; top:132px; padding-top:4px}
 .be-k{font-size:14px; color:var(--ink-3)}
 .be-big{margin-top:4px; font-family:var(--display); font-size:clamp(44px,5vw,60px); font-weight:700; line-height:1.05; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums}
@@ -5542,6 +5771,7 @@ body{position:relative}
 .ck-chip[aria-pressed="true"]{border-color:var(--green); background:var(--green-tint); color:var(--ink)}
 .ck-chip:focus-visible{outline:2px solid var(--green); outline-offset:2px}
 .ck-group{margin-top:48px}
+.ck-group--crit{padding:16px; border-radius:16px; background:var(--red-tint); border:1px solid rgba(255,107,87,.35)}
 .ck-gh{display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-family:var(--display); font-size:22px; font-weight:700; color:var(--ink)}
 .ck-gs{font-size:20px} .ck-gs--bad{color:var(--red-ink)} .ck-gs--warn{color:var(--amber-ink)} .ck-gs--ok{color:var(--green-ink)}
 .ck-gl{margin-top:4px; font-size:14px; color:var(--ink-3); padding-bottom:12px; border-bottom:1px solid var(--line)}
@@ -6940,6 +7170,7 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
   const body = buyer
     ? [hero, fixFirst, breakEven, campaigns, adSetup, siteLeaks, friction, croChecklist, clarity, speedHtml, checks, method, sourcesHtml(result)]
     : [hero, questionsHtml(result), fixFirst, breakEven, numbers, friction, croChecklist, clarity, keep, checks, speedHtml, method, sourcesHtml(result)];
+  if (buyer) body.forEach((h, i) => { body[i] = withSourceBadge(h); });
   const speedUp = buyer && Boolean(speedHtml);
   const afterFix: Array<[string, string, string]> = [
     ...(breakEven ? [["breakeven", "Break-even ROAS", "ROAS التعادل"] as [string, string, string]] : []),
@@ -7008,7 +7239,34 @@ ${buyer ? `<script>${CAROUSEL_SCRIPT}</script><script>${BUYER_MOTION}</script><s
 
 /** The full report page. Pure: runs in Node (html-report-node.ts) and in the browser. */
 export function renderAuditReport(result: AuditResult, assets: ReportAssets): string {
-  return renderReport(withReaderSeverity(result), assets);
+  return renderReport(withoutHiddenPoints(withReaderSeverity(result)), assets);
+}
+
+// Points the media buyer report leaves out. MB-GA4-17 (attribution settings
+// that decide paid credit) was retired after the team review (2026-11): it is
+// only useful next to the ad platforms' own attribution, which the audit
+// doesn't connect to. New audits run MB-GA4-26 (refund tracking) instead;
+// audits saved before that still carry MB-GA4-17, and the page leaves it out
+// so every count agrees.
+const BUYER_HIDDEN_POINTS = new Set(["MB-GA4-17"]);
+function withoutHiddenPoints(result: AuditResult): AuditResult {
+  if (result.audienceRole !== "media_buyer") return result;
+  return {
+    ...result,
+    categories: result.categories.map(cat => {
+      const gone = cat.findings.filter(f => BUYER_HIDDEN_POINTS.has(f.checklistId));
+      if (!gone.length) return cat;
+      const t = cat.checklistTally;
+      const total = Math.max(0, t.total - gone.length);
+      const passed = Math.max(0, t.passed - gone.filter(f => f.status === "pass").length);
+      return {
+        ...cat,
+        findings: cat.findings.filter(f => !BUYER_HIDDEN_POINTS.has(f.checklistId)),
+        checklistTally: { total, evaluated: Math.max(0, t.evaluated - gone.length), passed },
+        score: total ? Math.round((passed / total) * 100) : cat.score,
+      };
+    }),
+  };
 }
 
 // Each reader sees the severity their ICP gives a point (audience.ts
