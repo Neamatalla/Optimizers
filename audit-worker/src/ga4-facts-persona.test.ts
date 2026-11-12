@@ -60,7 +60,7 @@ function base() {
       ]),
       paidFunnel: rep([[["view_item"], [40000, 20000]], [["add_to_cart"], [3000, 2000]], [["begin_checkout"], [1500, 1100]], [["purchase"], [600, 600]]]),
       paidLanding: rep([[["/products/oil"], [5000, 300, 60]], [["/collections/all"], [4000, 200, 50]]]),
-      events90: rep([[["page_view"], [100000]], [["purchase"], [900]]]),
+      events90: rep([[["page_view"], [100000]], [["purchase"], [900]], [["refund"], [40]]]),
     } as Record<string, unknown>,
   };
 }
@@ -104,7 +104,7 @@ const cases: Array<{ id: string; fail: (o: O) => void; noData: (o: O) => void; f
   { id: "GA4-P14", fail: o => (o.reportData.dailyTrend = rep(days(90, [3000, 450, 10]))), noData: o => delete o.reportData.dailyTrend, failText: /no rise in sales/ },
   { id: "GA4-P15", fail: o => (o.reportData.dailyTrend = rep(days(90, [3000, 450, 10]))), noData: o => delete o.reportData.dailyTrend, failText: /likely bots/ },
   { id: "GA4-P16", fail: o => o.keyEvents.push({ eventName: "generate_lead" }), noData: o => delete o.reportData.events90, failText: /generate_lead recorded nothing/ },
-  { id: "GA4-P17", fail: o => (o.attribution.acquisitionConversionEventLookbackWindow = "ACQUISITION_CONVERSION_EVENT_LOOKBACK_WINDOW_7_DAYS"), noData: o => delete (o as Partial<O>).attribution, failText: /7 days instead of GA4's default 30/ },
+  { id: "GA4-P17", fail: o => (o.reportData.events90 = rep([[["page_view"], [100000]], [["purchase"], [900]]])), noData: o => delete o.reportData.events90, failText: /no refund events/ },
 ];
 
 for (const c of cases) {

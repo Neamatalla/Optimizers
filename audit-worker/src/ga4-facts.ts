@@ -729,11 +729,19 @@ function ordersFact(ctx: Ctx): Ga4Fact {
   const id = "GA4-P01";
   const c = purchaseCounts(ctx);
   if (!c || !c.events) return { id, status: "no_data", en: "No purchase events in the last 28 days to compare with orders." };
-  const { issues, idsKnown } = orderIssues(c, ctx);
-  const line = `${n0(c.events)} purchase events against ${n0(c.tx)} transactions in 28 days.`;
-  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}. GA4 shows more purchases than real orders.`, handoff: { kind: "check", id: "GTM-01" } };
-  if (!idsKnown) return { id, status: "no_data", en: `${line} The per-order ID report isn't in this GA4 pull, so repeated order IDs can't be checked.` };
-  return { id, status: "pass", en: `${line} Every order ID is counted once.` };
+  // Only what GA4 can prove by itself: the same order ID on more than one
+  // purchase event. GA4 never sees the store's real orders, so a gap between
+  // purchase events and transactions is not called a duplicate here
+  // (team review 2026-11).
+  const line = `${n0(c.events)} purchase events in 28 days.`;
+  if (!got(ctx.rd.purchaseIds)) return { id, status: "no_data", en: `${line} The per-order ID report isn't in this GA4 pull, so repeated order IDs can't be checked.` };
+  const rows = rowsOf(ctx.rd.purchaseIds).filter(r => r.dims[0] && r.dims[0] !== "(not set)");
+  const dups = rows.filter(r => r.vals[0] > 1);
+  if (dups.length) {
+    const extra = dups.reduce((s, r) => s + r.vals[0] - 1, 0);
+    return { id, status: "fail", en: `${line} Problem: ${dups.length >= rows.length && !complete(ctx.rd.purchaseIds) ? "at least " : ""}${plural(dups.length, "order ID")} counted on more than one purchase event (${n0(extra)} extra purchases; the most repeated ID ${n0(Math.max(...dups.map(r => r.vals[0])))} times). The same order is counted twice in GA4.`, handoff: { kind: "check", id: "GTM-01" } };
+  }
+  return { id, status: "pass", en: `${line} No order ID is counted twice.` };
 }
 
 // SO-GA4-06
@@ -1100,26 +1108,20 @@ function keyEventsUsedFact(ctx: Ctx): Ga4Fact {
   return { id, status: "pass", en: `${line} purchase is key, no noise events are, and each recorded data in 90 days (${names.map(n => `${n} ${n0(counts.get(n) ?? 0)}`).join(", ")}).` };
 }
 
-// MB-GA4-17
-function attributionFact(ctx: Ctx): Ga4Fact {
+// MB-GA4-26: returned and cancelled orders reach GA4. It replaces the
+// attribution-settings point (team review 2026-11) and reads only GA4's own
+// 90-day event list, so it needs no ad account and no shipping company.
+function refundsFact(ctx: Ctx): Ga4Fact {
   const id = "GA4-P17";
-  const a = ctx.oauth.attribution as { reportingAttributionModel?: string; acquisitionConversionEventLookbackWindow?: string; otherConversionEventLookbackWindow?: string; error?: string } | undefined;
-  if (!a || typeof a !== "object" || a.error || !a.reportingAttributionModel) return { id, status: "no_data", en: "Attribution settings not available." };
-  const days = (w?: string) => {
-    const m = /(\d+)_DAYS/.exec(w ?? "");
-    return m ? Number(m[1]) : null;
-  };
-  const acq = days(a.acquisitionConversionEventLookbackWindow);
-  const other = days(a.otherConversionEventLookbackWindow);
-  const label = a.reportingAttributionModel.replace(/_/g, " ").toLowerCase();
-  const issues: string[] = [];
-  if (/GOOGLE_PAID|ADS_PREFERRED/.test(a.reportingAttributionModel)) issues.push("the model credits Google paid channels only");
-  if (acq !== null && acq < 30) issues.push(`the first-visit (acquisition) lookback is ${acq} days instead of GA4's default 30`);
-  if (other !== null && other < 90) issues.push(`the lookback for other key events is ${other} days instead of GA4's default 90`);
-  const line = `Reporting attribution model: ${label}; lookback ${acq ?? "?"} days for acquisition key events, ${other ?? "?"} days for the rest.`;
-  if (issues.length) return { id, status: "fail", en: `${line} Problem: ${issues.join("; ")}.` };
-  if (acq === null || other === null) return { id, status: "no_data", en: `${line} The lookback windows couldn't be read.` };
-  return { id, status: "pass", en: `${line} Not a Google-paid-only model, and the windows are GA4's defaults.` };
+  const ev = got(ctx.rd.events90) ? ctx.rd.events90 : null;
+  if (!ev) return { id, status: "no_data", en: "The 90-day event list isn't in this GA4 pull, so refund tracking can't be checked." };
+  const counts = new Map(rowsOf(ev).map(r => [r.dims[0], r.vals[0]]));
+  const purchases = counts.get("purchase") ?? 0;
+  const refunds = counts.get("refund") ?? 0;
+  if (!purchases) return { id, status: "no_data", en: "No purchases in 90 days, so there are no orders to return." };
+  if (refunds > 0) return { id, status: "pass", en: `${n0(refunds)} refund events against ${n0(purchases)} purchases in 90 days (${pct(refunds / purchases)}). Returned and cancelled orders reach GA4.` };
+  if (!complete(ev)) return { id, status: "no_data", en: `${n0(purchases)} purchases in 90 days; the event list is cut off, so a refund event may be missing from it.` };
+  return { id, status: "fail", en: `${n0(purchases)} purchases and no refund events in 90 days. Returned and cancelled orders (COD refusals included) still count as sales in GA4, so revenue and paid ROAS in GA4 read higher than the cash the store keeps.` };
 }
 
 /** The persona-point facts, keyed GA4-P01..P17. */
@@ -1141,7 +1143,7 @@ function personaFacts(ctx: Ctx): Ga4Fact[] {
     paidBotsFact(ctx),
     recordingFact(ctx),
     keyEventsUsedFact(ctx),
-    attributionFact(ctx),
+    refundsFact(ctx),
   ];
 }
 
