@@ -131,7 +131,7 @@ export async function repairActions(categories: CategoryResult[], rejected: Arra
   if (!items.length) return { repaired: 0 };
   const mcp = await buildMcpConfig(`${jobId}-actions`, { ga4Admin: false, gtm: false, browser: false });
   try {
-    const raw = await runClaudeHeadless({ prompt: repairPrompt(items), mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: REPAIR_TIMEOUT_MS, effort: "low", label: `action repair (${items.length})` });
+    const raw = await runClaudeHeadless({ prompt: repairPrompt(items), mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: REPAIR_TIMEOUT_MS, effort: "low", model: "writer", label: `action repair (${items.length})` });
     const parsed = extractJsonPayload(raw);
     if (!Array.isArray(parsed)) return { repaired: 0, error: "repair response was not a JSON array" };
     let repaired = 0;

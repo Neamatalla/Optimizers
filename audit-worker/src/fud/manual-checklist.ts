@@ -173,9 +173,11 @@ export function parseExplains(raw: unknown, ids: string[]): Map<string, ManualEx
 // ---- batching and the run ------------------------------------------------------
 
 // Verdicts are short: ~40 checkpoints per call. Write-ups are long and in two
-// languages: 4 per call keeps each answer well inside the output limit.
+// languages: 10 per call is about 19K output tokens, well inside the output
+// limit. Every call re-sends the page text (~11K tokens), so fewer, bigger
+// calls cost less: at 4 per call, an audit took ~43 write-up calls.
 const VERDICT_BATCH = 40;
-const EXPLAIN_BATCH = 4;
+const EXPLAIN_BATCH = 10;
 const CONCURRENCY = 3;
 const TIMEOUT_MS = 12 * 60 * 1000;
 
@@ -217,8 +219,10 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
   let failedBatches = 0;
   const mcp = await buildMcpConfig(`${jobId}-checklist`, { ga4Admin: false, gtm: false, browser: false });
   try {
-    const call = async (prompt: string, label: string) => extractJsonPayload(await runClaudeHeadless({
-      prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort: "medium", label,
+    // Verdicts judge, so they keep medium effort. Write-ups only write up a
+    // verdict already made, so low is enough.
+    const call = async (prompt: string, label: string, effort: "low" | "medium") => extractJsonPayload(await runClaudeHeadless({
+      prompt, mcpConfigPath: mcp.configPath, allowedTools: [], timeoutMs: TIMEOUT_MS, effort, model: "writer", label,
     }));
 
     // Pass 1: verdicts.
@@ -226,7 +230,7 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
     const drafts = (await pool(vb, CONCURRENCY, async (list, i) => {
       const ids = list.map(c => c.id);
       try {
-        return parseVerdicts(await call(buildVerdictPrompt(e, list, role, ad), `cro-checklist verdicts ${i + 1}/${vb.length} (${list.length})`), ids);
+        return parseVerdicts(await call(buildVerdictPrompt(e, list, role, ad), `cro-checklist verdicts ${i + 1}/${vb.length} (${list.length})`, "medium"), ids);
       } catch (err) {
         failedBatches++;
         console.warn(`[audit-worker] CRO checklist verdict batch ${i + 1}/${vb.length} failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
@@ -240,7 +244,7 @@ export async function runManualChecklist(e: StoreEvidence, jobId: string, role?:
     const explains = new Map<string, ManualExplain>();
     await pool(eb, CONCURRENCY, async (list, i) => {
       try {
-        const got = parseExplains(await call(buildExplainPrompt(e, list, role, ad), `cro-checklist write-ups ${i + 1}/${eb.length} (${list.length})`), list.map(x => x.c.id));
+        const got = parseExplains(await call(buildExplainPrompt(e, list, role, ad), `cro-checklist write-ups ${i + 1}/${eb.length} (${list.length})`, "low"), list.map(x => x.c.id));
         for (const [id, x] of got) explains.set(id, x);
       } catch (err) {
         // The checkpoints still show, with their one-line note.

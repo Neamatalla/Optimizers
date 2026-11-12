@@ -309,6 +309,7 @@ async function judgeOnce(
         allowedTools: [],
         timeoutMs: JUDGE_TIMEOUT_MS,
         effort: "medium",
+        model: "writer",
         label: `fud-judge (${rules.length} rules)${labelSuffix}${attempt > 1 ? " retry" : ""}`,
       });
       try {
