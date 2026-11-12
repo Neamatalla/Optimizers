@@ -11,7 +11,7 @@
 // local report.
 import path from 'path'
 import { spawn } from 'child_process'
-import { appendFileSync } from 'fs'
+import { appendFileSync, mkdirSync, writeFileSync } from 'fs'
 import { validateAuditForm } from '../api/_lib/audit-intake.js'
 import { escapeHtml } from '../api/_lib/escape-html.js'
 
@@ -23,6 +23,18 @@ export function runLocalAudit(req: any, res: any, rootDir: string) {
 
   console.warn('SUPABASE_URL/SUPABASE_SECRET_KEY missing in .env. Running audit-worker test-run directly instead of queueing.')
   const auditWorkerDir = path.join(rootDir, 'audit-worker')
+  // The whole form, with the GA4/GTM data from the Google sign-in and the
+  // reader's role, for the local pipeline (audit-worker/src/local-pipeline/run.ts
+  // --form=<file>), which test-run below doesn't take. output/ is gitignored.
+  try {
+    const host = String(website).replace(/^https?:\/\//, '').replace(/[^a-z0-9.-]+/gi, '-').replace(/-+$/, '')
+    const formPath = path.join(auditWorkerDir, 'output', `form-${host}.json`)
+    mkdirSync(path.dirname(formPath), { recursive: true })
+    writeFileSync(formPath, JSON.stringify(check.form, null, 2))
+    console.log(`[dev form] saved ${formPath}`)
+  } catch (err) {
+    console.warn('[dev form] could not save the form:', err)
+  }
   // Spawn node -> tsx's CLI entry directly, no npx/shell layer — shell:true
   // combined with fd-based stdio redirection is flaky on Windows and was
   // silently swallowing this process's output.
