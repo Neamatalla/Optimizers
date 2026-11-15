@@ -46,6 +46,7 @@ export const markRequestRateLimited = noop;
 export const scheduleRetry = noop;
 export const markSentToClient = noop;
 export const recordDigestSent = noop;
+export const saveRunMetrics = noop;
 export async function claimNextRequest(): Promise<null> { return null; }
 export async function findDueScheduledRequests(): Promise<never[]> { return []; }
 export async function findScheduledDeliveries(): Promise<never[]> { return []; }

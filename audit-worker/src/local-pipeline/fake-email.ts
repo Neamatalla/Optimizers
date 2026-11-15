@@ -21,3 +21,4 @@ export const sendInternalReviewEmail = skipped("internal review email");
 export const sendDailyDigestEmail = skipped("daily digest");
 export const sendAuditFailedEmail = skipped("audit-failed email");
 export const sendClaudeLoginAlertEmail = skipped("login alert");
+export const sendClaudePausedEmail = skipped("claude paused");

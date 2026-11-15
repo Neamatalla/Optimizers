@@ -179,9 +179,9 @@ export const CRO_RULES: FudRule[] = [
     needs: ["home"],
     crop: "fold",
     title: { en: "Menu is short and specific", ar: "القائمة قصيرة وواضحة" },
-    question: "Looking at the store's top menu (desktop labels are listed in the evidence): are there about 6 or fewer top-level items, with specific category names shoppers recognise (e.g. 'Hair oils', 'زيوت الشعر') rather than generic ones ('Products', 'Shop', 'Collections')?",
-    pass: "6 or fewer top-level items, mostly specific category names.",
-    warn: "More than 7 items, or mostly generic labels that don't say what's inside.",
+    question: "Looking at the store's top menu (desktop labels are listed in the evidence): are there 5 or fewer top-level items, with specific category names shoppers recognise (e.g. 'Hair oils', 'زيوت الشعر') rather than generic ones ('Products', 'Shop', 'Collections')?",
+    pass: "5 or fewer top-level items, mostly specific category names.",
+    warn: "More than 5 top-level items, or mostly generic labels that don't say what's inside.",
     fail: "(not used — this rule is WARN at most)",
     E: 4, C: 5, T: 4, I: 3,
     funnel: null,
@@ -190,7 +190,7 @@ export const CRO_RULES: FudRule[] = [
     signal: e => {
       const nav = desktopOf(e, "home")?.facts?.nav ?? pageOf(e, "home")?.facts?.nav ?? [];
       if (nav.length === 0) return "unknown";
-      return nav.length <= 7 ? "present" : "elsewhere";
+      return nav.length <= 5 ? "present" : "elsewhere";
     },
   },
   {
