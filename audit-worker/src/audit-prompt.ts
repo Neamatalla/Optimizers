@@ -5,6 +5,7 @@ import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, 
 import { buildAction, defaultProtect, repairActions, type RawAction } from "./actions.js";
 import { ga4FactsPromptBlock, ga4MetricsFromOAuth } from "./ga4-facts.js";
 import { siteChecksPromptBlock } from "./site-checks.js";
+import { compactGa4, compactGtm, json, sizeLine } from "./prompt-data.js";
 import { clarityFactsPromptBlock, type ClarityFacts } from "./clarity-facts.js";
 import { personaChecklistFor, personaOf } from "./persona-checklist.js";
 import type { AudienceRole } from "./audience.js";
@@ -200,12 +201,12 @@ Website: ${input.website}
 Tools the visitor says they have: ${input.tools.length ? input.tools.join(", ") : "none"}
 
 Public crawl signal (script presence, not live account data):
-${JSON.stringify(input.crawl.detected, null, 2)}
+${json(input.crawl.detected)}
 
 Response headers from that same crawl fetch (only headers actually present are
 included — an absent key means the header genuinely wasn't sent, not that it
 wasn't checked):
-${JSON.stringify(input.crawl.headers, null, 2)}
+${json(input.crawl.headers)}
 
 Structural signals computed from that same crawl's raw page source (a single
 static HTML string, no JS execution — each is a real, deterministic
@@ -213,14 +214,14 @@ computation, not a guess, but a null value means the underlying pattern
 genuinely wasn't found, not that it failed; looksLikeSpaShell/cmsPlatformGuess
 are explicitly best-effort heuristics, treat them as a signal to reason about,
 not a certainty):
-${JSON.stringify(input.crawl.structuralSignals, null, 2)}
+${json(input.crawl.structuralSignals)}
 
 Pages discovered on this site (homepage first, then one representative page
 per commerce-relevant type — product, collection, cart, blog — taken from the
 site's own sitemap.xml or, absent one, its homepage links). Deterministically
 computed in code, not guessed: these are real URLs that exist. Use them for
 any check that needs a specific page type rather than inventing a URL:
-${JSON.stringify(input.discoveredPages, null, 2)}
+${json(input.discoveredPages)}
 
 ## Checklists
 
@@ -445,7 +446,7 @@ description, not something we saw in the ad account.
 
 ` : ""}${categories.includes("GA4") ? `## GA4 data source
 ${input.ga4OAuthData
-  ? `Pre-fetched via the visitor's own Google OAuth consent — already scoped to exactly their account, so this is authoritative and needs no ID-matching or MCP tool calls. Evaluate the GA4 checklist against it directly and mark every resulting finding dataSource "live":\n${JSON.stringify(input.ga4OAuthData, null, 2)}`
+  ? `Pre-fetched via the visitor's own Google OAuth consent — already scoped to exactly their account, so this is authoritative and needs no ID-matching or MCP tool calls. Evaluate the GA4 checklist against it directly and mark every resulting finding dataSource "live":\n${json(compactGa4(input.ga4OAuthData, input.ga4Facts))}`
   : `No OAuth data for GA4 — fall back to the shared-service-account MCP tool (mcp__ga4-admin). That account is used by many different client businesses over time, so identification must be by EXACT ID MATCH ONLY, never by business name or any fuzzy signal. Candidate measurement IDs (crawled and/or visitor-typed, either source equally valid as a match key but never as proof of ownership on its own): ${JSON.stringify(ga4Candidates)}.
 
 ${ga4Candidates.length > 0
@@ -483,7 +484,7 @@ dataSource "detection", without any data pulls.
 
 ` : ""}${categories.includes("GTM") ? `## GTM data source
 ${input.gtmOAuthData
-  ? `Pre-fetched via the visitor's own Google OAuth consent — already scoped to exactly their account, so this is authoritative and needs no ID-matching or MCP tool calls. Evaluate the GTM checklist against it directly and mark every resulting finding dataSource "live":\n${JSON.stringify(input.gtmOAuthData, null, 2)}`
+  ? `Pre-fetched via the visitor's own Google OAuth consent — already scoped to exactly their account, so this is authoritative and needs no ID-matching or MCP tool calls. Evaluate the GTM checklist against it directly and mark every resulting finding dataSource "live":\n${json(compactGtm(input.gtmOAuthData))}`
   : `No OAuth data for GTM — fall back to the shared-service-account MCP tool (mcp__google-tag-manager-mcp-server), same exact-ID-match discipline as GA4 above. Candidate container IDs: ${JSON.stringify(gtmCandidates)}. ONLY use a container whose public container ID is an EXACT string match to one of those IDs; otherwise evaluate the GTM checklist against the crawl signal + general best practice and mark dataSource "detection".`}
 
 ` : ""}## How scoring works

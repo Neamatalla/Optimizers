@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { StoreEvidence } from "./evidence.js";
 import { MANUAL_CHECKPOINTS } from "./manual-checklist-data.js";
-import { batchesOf, finalize, parseExplains, parseVerdicts, runnableCheckpoints, scoreChecklist } from "./manual-checklist.js";
+import { batchesOf, buildExplainPrompt, buildVerdictPrompt, finalize, parseExplains, parseVerdicts, runnableCheckpoints, scoreChecklist } from "./manual-checklist.js";
+import { STATIC_WRITEUP } from "./manual-checklist-static.js";
 
 const store = (pages: string[]): StoreEvidence => ({
   website: "https://store.eg",
@@ -92,4 +93,38 @@ test("batches: a tab stays together unless it is bigger than one call; small tab
   const b = batchesOf(items, x => x.tab, 40);
   assert.deepEqual(b.map(x => x.length), [40, 19]);
   assert.equal(b.flat().length, 59);
+});
+
+test("verdict prompt asks for the Arabic note and title only for checkpoints done well", () => {
+  const p = buildVerdictPrompt(store(["home"]), [MANUAL_CHECKPOINTS[0]]);
+  assert.match(p, /Only for W/);
+  assert.match(p, /leave out "ar" and "t"/);
+});
+
+test("a verdict with no Arabic note still parses (the English one stands in)", () => {
+  const [d] = parseVerdicts({ items: [{ id: "SW-001", v: "N", en: "No bar." }] }, ["SW-001"]);
+  assert.deepEqual(d.seen, { en: "No bar.", ar: "No bar." });
+});
+
+test("a checkpoint with stored means/done isn't asked for them, and gets them from the store file", () => {
+  const c = MANUAL_CHECKPOINTS[0];
+  const items = [{ c, d: { id: c.id, v: "missing" as const, seen: { en: "x", ar: "x" } } }];
+  const before = buildExplainPrompt(store(["home"]), items);
+  assert.match(before, /- "means":/);
+  assert.match(before, /- "done":/);
+  STATIC_WRITEUP[c.id] = { means: { en: "M", ar: "م" }, done: { en: "D", ar: "د" } };
+  try {
+    const after = buildExplainPrompt(store(["home"]), items);
+    assert.doesNotMatch(after, /- "means":/);
+    assert.doesNotMatch(after, /- "done":/);
+    assert.doesNotMatch(after, /"means":\{"en"/);
+    assert.match(after, /"fix":\{"en":\["...","..."\],"ar":\["...","..."\]\}\}\]\}/);
+    const { means, done, ...short } = explain(c.id);
+    const got = parseExplains({ items: [short] }, [c.id]);
+    assert.deepEqual(got.get(c.id)?.means, { en: "M", ar: "م" });
+    assert.deepEqual(got.get(c.id)?.done, { en: "D", ar: "د" });
+  } finally {
+    delete STATIC_WRITEUP[c.id];
+  }
+  assert.equal(parseExplains({ items: [(({ means, ...r }) => r)(explain(c.id))] }, [c.id]).size, 0);
 });

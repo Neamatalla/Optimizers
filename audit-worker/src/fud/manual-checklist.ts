@@ -5,6 +5,7 @@ import type { ManualChecklistResult, ManualExplain, ManualShownVerdict, ManualTe
 import type { StoreEvidence } from "./evidence.js";
 import { marketHint, pageBlock, storeBlock } from "./judge.js";
 import type { ManualCheckpoint } from "./manual-checklist-data.js";
+import { STATIC_WRITEUP } from "./manual-checklist-static.js";
 import { CODES, MANUAL_CHECKLIST_VERSION, isShown, pagesForTab, runnableCheckpoints } from "./manual-checklist-score.js";
 
 export * from "./manual-checklist-score.js";
@@ -65,11 +66,13 @@ For EVERY checkpoint above, give one verdict code:
 
 X and U are dropped from the client's report, so only W, A, B and N need notes.
 "en": one line in English, what you saw, quoting the store's own words when useful (25 words or fewer).
+Only for W (the checkpoints done well, which the report lists as they are):
 "ar": the same line in Arabic. ${arabicRule(role)}
 "t": the checkpoint itself rewritten as a short Arabic title (10 words or fewer).
+For A, B and N leave out "ar" and "t": a full write-up in both languages comes next.
 
 Answer with JSON only, no prose before or after:
-{"items":[{"id":"SW-001","v":"N","en":"...","ar":"...","t":"..."}]}`;
+{"items":[{"id":"SW-001","v":"W","en":"...","ar":"...","t":"..."},{"id":"SW-002","v":"N","en":"..."}]}`;
 }
 
 export function parseVerdicts(raw: unknown, ids: string[]): Draft[] {
@@ -107,6 +110,9 @@ Pass looks like: ${c.pass}
 Reference: ${c.ref}
 Verdict on this store: ${verdictWord[d.v] ?? d.v}
 What the first review saw: ${d.seen?.en ?? "(no note)"}`).join("\n\n");
+  // "means" and "done" don't depend on the store, so a checkpoint with a stored
+  // version (manual-checklist-static.ts) doesn't have them written again.
+  const stored = items.every(({ c }) => STATIC_WRITEUP[c.id]);
   return `You are a senior CRO specialist at Optimizers. The checkpoints below did not pass on this store (it sells in ${marketHint(e.website)}). Write the explanation the client will read in their audit report. The reader is busy and not technical. They must finish each one knowing exactly what the point says, what it means, what is wrong on their store, and how to fix it.
 
 ## Store-wide facts
@@ -120,12 +126,12 @@ ${list}
 
 ## What to write for each checkpoint
 - "title": the problem on THIS store as a plain headline (12 words or fewer), e.g. "Shoppers can't see the delivery cost until checkout".
-- "found": 2-4 sentences. What we saw on this store, specifically. Name the page and where on it. Quote the store's own words in quotation marks when that helps.
-- "means": 3-5 sentences. What this checkpoint is about and why it matters to a shopper deciding to buy, and what it does to sales. Use the agency's note, but explain it for this store.
-- "problem": 2-4 sentences. The exact issue on this store and what it costs: which shoppers it loses, at which step.
+- "found": 2-3 sentences. What we saw on this store, specifically. Name the page and where on it. Quote the store's own words in quotation marks when that helps.
+${stored ? "" : `- "means": 3-5 sentences. What this checkpoint is about and why it matters to a shopper deciding to buy, and what it does to sales. Use the agency's note, but explain it for this store.
+`}- "problem": 1-2 sentences. Only what this costs: which shoppers it loses, at which step. Do not repeat "found".
 - "fix": 3-6 steps, in order. Each step is one or two sentences and says exactly what to change and where (which page, which part of the page, which setting or app if the platform makes it obvious). Include one example line of copy the store can paste when the fix is a wording change.
-- "done": 1-2 sentences. How the store can check it's fixed, based on "Pass looks like".
-
+${stored ? "" : `- "done": 1-2 sentences. How the store can check it's fixed, based on "Pass looks like".
+`}
 Rules:
 - Plain words. Short sentences, one idea each, 14 words or fewer. No semicolons.
 - Explain any term the first time you use it, e.g. "above the fold (the part of the page you see before scrolling)".
@@ -134,7 +140,7 @@ Rules:
 - "en" is English. "ar" is the same content in Arabic, written naturally, not word for word. ${arabicRule(role)}
 
 Answer with JSON only, no prose before or after:
-{"items":[{"id":"PDP-002","title":{"en":"...","ar":"..."},"found":{"en":"...","ar":"..."},"means":{"en":"...","ar":"..."},"problem":{"en":"...","ar":"..."},"fix":{"en":["...","..."],"ar":["...","..."]},"done":{"en":"...","ar":"..."}}]}`;
+{"items":[{"id":"PDP-002","title":{"en":"...","ar":"..."},"found":{"en":"...","ar":"..."},${stored ? "" : "\"means\":{\"en\":\"...\",\"ar\":\"...\"},"}"problem":{"en":"...","ar":"..."},"fix":{"en":["...","..."],"ar":["...","..."]}${stored ? "" : ",\"done\":{\"en\":\"...\",\"ar\":\"...\"}"}}]}`;
 }
 
 const MAX_FIELD = 1600;
@@ -163,7 +169,8 @@ export function parseExplains(raw: unknown, ids: string[]): Map<string, ManualEx
     const o = x as Record<string, unknown>;
     const id = typeof o.id === "string" ? o.id.trim() : "";
     if (!want.has(id) || out.has(id)) continue;
-    const title = text(o.title), found = text(o.found), means = text(o.means), problem = text(o.problem), fix = steps(o.fix), done = text(o.done);
+    const stat = STATIC_WRITEUP[id];
+    const title = text(o.title), found = text(o.found), means = text(o.means) ?? stat?.means ?? null, problem = text(o.problem), fix = steps(o.fix), done = text(o.done) ?? stat?.done ?? null;
     // A write-up is all or nothing: half an explanation reads worse than the short note.
     if (title && found && means && problem && fix && done) out.set(id, { title, found, means, problem, fix, done });
   }
