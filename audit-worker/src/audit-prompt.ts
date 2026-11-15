@@ -130,6 +130,11 @@ register come from that brief, and only from it:
   actually happens. Never moralize or sell; describe the consequence and
   stop. No "we recommend engaging our team".
 
+LENGTH — keep "detail" short in both voices. A pass needs one or two
+sentences: the proof and what it protects. A fail needs two or three: the
+evidence and the consequence. Never pad a pass to the length of a fail. The
+summaries, the real values and the ids stay exactly as required above.
+
 WRITING RULES — both voices, every finding. The reader is reading a report
 from an agency, so it has to read like a sharp person wrote it, not a
 template:
@@ -301,6 +306,11 @@ background:
 - Never restate severity as the impact ("this is critical") — say what
   actually happens. Never moralize or sell; describe the consequence and
   stop. No "we recommend engaging our team".
+
+LENGTH — keep "detail" short in both voices. A pass needs one or two
+sentences: the proof and what it protects. A fail needs two or three: the
+evidence and the consequence. Never pad a pass to the length of a fail. The
+summaries, the real values and the ids stay exactly as required above.
 
 WRITING RULES — both voices, every finding. The reader is a store owner
 reading a report from an agency, so it has to read like a sharp person
@@ -537,11 +547,11 @@ shape exactly:
           "status": "<pass|fail>",
           "technical": {
             "summary": "<one line, engineer register: the literal state found, with the real value/name/number that proves it. Never a restatement of the checklist point's own title/expectedState>",
-            "detail": "<a short paragraph: the mechanism behind that result, or what exactly the data shows>"
+            "detail": "<pass: 1-2 sentences, fail: 2-3 sentences. The mechanism behind that result, or what exactly the data shows>"
           },
           "business": {
             "summary": "${brief ? "<one line, same fact in the voice of WHO READS THIS REPORT above>" : "<one line, same fact with the jargon removed — readable by someone who has never opened GA4>"}",
-            "detail": "<a short paragraph: the real consequence — which decision this distorts, what it costs or protects, who feels it and when they would notice. Concrete over general. Stands alone without the technical voice>"
+            "detail": "<pass: 1-2 sentences, fail: 2-3 sentences. The real consequence — which decision this distorts, what it costs or protects, who feels it and when they would notice. Concrete over general. Stands alone without the technical voice>"
           },
           "dataSource": "<live|detection|public>",
           "severity": "<critical|medium|low — the checklist point's own severity>",
