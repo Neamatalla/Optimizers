@@ -3,7 +3,8 @@ import { test } from "node:test";
 import type { StoreEvidence } from "./evidence.js";
 import { MANUAL_CHECKPOINTS } from "./manual-checklist-data.js";
 import { batchesOf, buildExplainPrompt, buildVerdictPrompt, finalize, parseExplains, parseVerdicts, runnableCheckpoints, scoreChecklist } from "./manual-checklist.js";
-import { STATIC_WRITEUP } from "./manual-checklist-static.js";
+import { MEANS_DONE_AR } from "./manual-checklist-ar.js";
+import { STATIC_WRITEUP, storedWriteup } from "./manual-checklist-static.js";
 
 const store = (pages: string[]): StoreEvidence => ({
   website: "https://store.eg",
@@ -106,25 +107,42 @@ test("a verdict with no Arabic note still parses (the English one stands in)", (
   assert.deepEqual(d.seen, { en: "No bar.", ar: "No bar." });
 });
 
-test("a checkpoint with stored means/done isn't asked for them, and gets them from the store file", () => {
+test("means and done come from the agency's own text for every checkpoint, and the model isn't asked for them", () => {
+  assert.equal(MANUAL_CHECKPOINTS.length, 377);
+  for (const c of MANUAL_CHECKPOINTS) {
+    const s = storedWriteup(c);
+    assert.equal(s.means.en, c.why, c.id);
+    assert.equal(s.done.en, c.pass, c.id);
+    // Arabic: every checkpoint has its own (not the English text again).
+    assert.ok(/[؀-ۿ]/.test(s.means.ar), c.id);
+    assert.ok(/[؀-ۿ]/.test(s.done.ar) || s.done.ar === s.done.en, c.id);
+    assert.ok(s.means.en.trim() && s.done.en.trim(), c.id);
+  }
   const c = MANUAL_CHECKPOINTS[0];
   const items = [{ c, d: { id: c.id, v: "missing" as const, seen: { en: "x", ar: "x" } } }];
-  const before = buildExplainPrompt(store(["home"]), items);
-  assert.match(before, /- "means":/);
-  assert.match(before, /- "done":/);
+  const prompt = buildExplainPrompt(store(["home"]), items);
+  assert.doesNotMatch(prompt, /- "means":/);
+  assert.doesNotMatch(prompt, /- "done":/);
+  assert.doesNotMatch(prompt, /"means":\{"en"/);
+  assert.match(prompt, /"fix":\{"en":\["...","..."\],"ar":\["...","..."\]\}\}\]\}/);
+  // The write-up parses without those two fields, and fills them from the source text.
+  const { means, done, ...short } = explain(c.id);
+  const got = parseExplains({ items: [short] }, [c.id]).get(c.id);
+  assert.deepEqual(got?.means, storedWriteup(c).means);
+  assert.deepEqual(got?.done, storedWriteup(c).done);
+  assert.notEqual(got?.means.ar, c.why);
+  assert.equal(Object.keys(MEANS_DONE_AR).length, 377);
+});
+
+test("an entry in STATIC_WRITEUP (real Arabic wording) wins over the source text", () => {
+  const c = MANUAL_CHECKPOINTS[0];
   STATIC_WRITEUP[c.id] = { means: { en: "M", ar: "م" }, done: { en: "D", ar: "د" } };
   try {
-    const after = buildExplainPrompt(store(["home"]), items);
-    assert.doesNotMatch(after, /- "means":/);
-    assert.doesNotMatch(after, /- "done":/);
-    assert.doesNotMatch(after, /"means":\{"en"/);
-    assert.match(after, /"fix":\{"en":\["...","..."\],"ar":\["...","..."\]\}\}\]\}/);
     const { means, done, ...short } = explain(c.id);
-    const got = parseExplains({ items: [short] }, [c.id]);
-    assert.deepEqual(got.get(c.id)?.means, { en: "M", ar: "م" });
-    assert.deepEqual(got.get(c.id)?.done, { en: "D", ar: "د" });
+    const got = parseExplains({ items: [short] }, [c.id]).get(c.id);
+    assert.deepEqual(got?.means, { en: "M", ar: "م" });
+    assert.deepEqual(got?.done, { en: "D", ar: "د" });
   } finally {
     delete STATIC_WRITEUP[c.id];
   }
-  assert.equal(parseExplains({ items: [(({ means, ...r }) => r)(explain(c.id))] }, [c.id]).size, 0);
 });

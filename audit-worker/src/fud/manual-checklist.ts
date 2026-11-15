@@ -5,8 +5,8 @@ import type { ManualChecklistResult, ManualExplain, ManualShownVerdict, ManualTe
 import type { StoreEvidence } from "./evidence.js";
 import { marketHint, pageBlock, storeBlock } from "./judge.js";
 import type { ManualCheckpoint } from "./manual-checklist-data.js";
-import { STATIC_WRITEUP } from "./manual-checklist-static.js";
-import { CODES, MANUAL_CHECKLIST_VERSION, isShown, pagesForTab, runnableCheckpoints } from "./manual-checklist-score.js";
+import { storedWriteup } from "./manual-checklist-static.js";
+import { CODES, MANUAL_CHECKLIST_VERSION, checkpointById, isShown, pagesForTab, runnableCheckpoints } from "./manual-checklist-score.js";
 
 export * from "./manual-checklist-score.js";
 
@@ -112,7 +112,7 @@ Verdict on this store: ${verdictWord[d.v] ?? d.v}
 What the first review saw: ${d.seen?.en ?? "(no note)"}`).join("\n\n");
   // "means" and "done" don't depend on the store, so a checkpoint with a stored
   // version (manual-checklist-static.ts) doesn't have them written again.
-  const stored = items.every(({ c }) => STATIC_WRITEUP[c.id]);
+  const stored = items.every(({ c }) => storedWriteup(c));
   return `You are a senior CRO specialist at Optimizers. The checkpoints below did not pass on this store (it sells in ${marketHint(e.website)}). Write the explanation the client will read in their audit report. The reader is busy and not technical. They must finish each one knowing exactly what the point says, what it means, what is wrong on their store, and how to fix it.
 
 ## Store-wide facts
@@ -169,7 +169,8 @@ export function parseExplains(raw: unknown, ids: string[]): Map<string, ManualEx
     const o = x as Record<string, unknown>;
     const id = typeof o.id === "string" ? o.id.trim() : "";
     if (!want.has(id) || out.has(id)) continue;
-    const stat = STATIC_WRITEUP[id];
+    const c = checkpointById(id);
+    const stat = c ? storedWriteup(c) : undefined;
     const title = text(o.title), found = text(o.found), means = text(o.means) ?? stat?.means ?? null, problem = text(o.problem), fix = steps(o.fix), done = text(o.done) ?? stat?.done ?? null;
     // A write-up is all or nothing: half an explanation reads worse than the short note.
     if (title && found && means && problem && fix && done) out.set(id, { title, found, means, problem, fix, done });

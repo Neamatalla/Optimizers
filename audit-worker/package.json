@@ -7,7 +7,6 @@
   "scripts": {
     "poll": "tsx src/poll.ts",
     "test-run": "tsx src/test-run.ts",
-    "gen-static-writeups": "tsx src/gen-static-writeups.ts",
     "test-run-oauth": "tsx src/test-run-oauth.ts",
     "test-send-review-email": "tsx src/test-send-review-email.ts",
     "test-send-digest-email": "tsx src/test-send-digest-email.ts",
