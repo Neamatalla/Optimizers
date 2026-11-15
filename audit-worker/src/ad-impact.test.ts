@@ -37,7 +37,8 @@ test("audit prompt: ad effect lines only for readers judged on ROAS/CAC", async 
   };
   for (const role of [null, ...AUDIENCE_ROLES]) {
     const prompt = buildPrompt({ ...base, audienceRole: role });
-    const has = /Ad effect when failing \(direction only, never a ROAS\/CAC value\): right now sales or conversions are over-counted/.test(prompt);
+    // The six sentences are listed once (with the "direction only, never a ROAS/CAC value" rule); each point names its key.
+    const has = /Ad effect keys \(.*direction only, never a ROAS\/CAC value\)[\s\S]*inflated: right now sales or conversions are over-counted/.test(prompt) && /Ad effect when failing: (inflated|deflated|performance|aov|cost|optimization)\n/.test(prompt);
     assert.equal(has, Boolean(role && AD_EFFECT_ROLES.has(role)), String(role));
   }
 });

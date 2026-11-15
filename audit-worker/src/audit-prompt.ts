@@ -104,7 +104,7 @@ function formatChecklist(category: CategoryKey, tools: ToolId[], role?: Audience
   // the business text and the report's chip say the same thing.
   const adLine = (id: string) => {
     const effect = role && AD_EFFECT_ROLES.has(role) ? adEffectOf(id) : null;
-    return effect ? `\n    Ad effect when failing (direction only, never a ROAS/CAC value): ${AD_EFFECT_PROMPT[effect]}` : "";
+    return effect ? `\n    Ad effect when failing: ${effect}` : "";
   };
   return points
     .map(p => `  - [${p.id}, ${p.severity}, ${p.opportunity}${p.fact ? `, computed${p.factId ? `: use fact ${p.factId}` : ""}` : ""}] ${p.title}\n    Pass when: ${p.expectedState}\n    Fails when: ${p.commonFailure}\n    How to check it: ${p.validate}\n    Default action: ${p.action} (owner: ${p.owners.join(" + ")})\n    Done when: ${p.doneWhen}${p.whyItMatters ? `\n    Why it matters to this reader: ${p.whyItMatters}` : ""}${adLine(p.id)}`)
@@ -181,7 +181,11 @@ business summary should read as a direct reply to the question, in the
 reader's terms, with this store's numbers.
 ${questions.map(q => `- "${q.en}"${q.points.length ? ` (answered by ${q.points.join(", ")})` : " (answered by every fix the reader can make without a developer)"}`).join("\n")}
 ` : "";
-  const checklistBlocks = categories
+  // The six ad-effect sentences, once, instead of one copy on each of ~50 points.
+  const adEffectLegend = input.audienceRole && AD_EFFECT_ROLES.has(input.audienceRole)
+    ? `Ad effect keys (a point's "Ad effect when failing" line names one; direction only, never a ROAS/CAC value):\n${Object.entries(AD_EFFECT_PROMPT).map(([k, v]) => `  ${k}: ${v}`).join("\n")}\n\n`
+    : "";
+  const checklistBlocks = adEffectLegend + categories
     .map(c => `### ${c} checklist (evaluate every point below; report a finding only for points that are NOT clean)\n${formatChecklist(c, input.tools, input.audienceRole)}`)
     .join("\n\n");
 
