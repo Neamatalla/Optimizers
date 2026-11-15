@@ -9,6 +9,8 @@ import { audienceRoleOf, type AudienceRole } from "../audience.js";
 import { FUD_RULES, groupOf, RULE_SET_VERSION, type FudRule, type SignalState } from "./rules.js";
 import { GROUP_OPPORTUNITY, RULE_ACTIONS } from "./rule-actions.js";
 import { band, computePexti, frictionScore, funnelLeak, gate, sortFindings } from "./score.js";
+import { costSignals } from "./cost-signals.js";
+import { ministryChecks } from "./ministry-checks.js";
 
 /**
  * The purchase-friction (FUD) pass: poll.ts stage 1b. Runs after the main
@@ -186,6 +188,8 @@ export function assemble(e: StoreEvidence, verdicts: JudgeVerdict[], ga4: Ga4Met
     assessed,
     applicable,
     findings: sorted,
+    costSignals: costSignals(e),
+    ministryChecks: ministryChecks(e),
   };
 }
 

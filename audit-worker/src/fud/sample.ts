@@ -14,7 +14,8 @@ function placeholderCrop(label: string): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
-type Draft = Pick<FudFinding, "ruleId" | "status" | "technical" | "business"> & Partial<FudFinding> & { ar: NonNullable<FudFinding["ar"]> };
+export type SampleFudDraft = Pick<FudFinding, "ruleId" | "status" | "technical" | "business"> & Partial<FudFinding> & { ar: NonNullable<FudFinding["ar"]> };
+type Draft = SampleFudDraft;
 
 const DRAFTS: Draft[] = [
   {
@@ -169,7 +170,12 @@ const DRAFTS: Draft[] = [
 ];
 
 export function sampleFudResult(website: string): FudResult {
-  const findings: FudFinding[] = DRAFTS.map(d => {
+  return buildSampleFud(website, DRAFTS);
+}
+
+/** A sample result from hand-written drafts (the store owner preview has its own: preview-owner.ts). */
+export function buildSampleFud(website: string, drafts: SampleFudDraft[]): FudResult {
+  const findings: FudFinding[] = drafts.map(d => {
     const rule = ruleById(d.ruleId)!;
     const leak = Boolean(d.funnel);
     const pexti = computePexti({ status: d.status, signal: d.status === "pass" ? "present" : d.status === "fail" ? "absent" : "elsewhere", rule, leak });
@@ -202,5 +208,9 @@ export function sampleFudResult(website: string): FudResult {
     assessed,
     applicable,
     findings: sortFindings(findings),
+    // Sample visit: what a typical Salla store shows (preview only).
+    costSignals: { pages: ["product", "cart"], methods: { mada: true, applePay: true, tabby: true }, deliveryFee: true, codFee: false, vatIncluded: true, deliveryPromise: null, freeThreshold: 300 },
+    // Sample visit: a mix of seen / not seen (owner "What the Ministry checks").
+    ministryChecks: { pages: ["home", "product", "cart"], saudi: true, items: { sbc: false, cr: true, vat: true, phone: true, email: true, returns: true, terms: true, privacy: true, deliveryTime: false, complaints: false } },
   };
 }

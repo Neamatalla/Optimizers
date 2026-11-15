@@ -74,11 +74,14 @@ export interface CrawlFindings {
     // First recognized CMS/platform fingerprint found in the raw source
     // (script/asset URL patterns, global object names), or null if none of
     // the recognized patterns matched — not an exhaustive CMS detector.
-    cmsPlatformGuess: "Shopify" | "WooCommerce" | "WordPress" | "Wix" | "Squarespace" | "Webflow" | "Magento" | "BigCommerce" | null;
+    cmsPlatformGuess: "Salla" | "Zid" | "Shopify" | "WooCommerce" | "WordPress" | "Wix" | "Squarespace" | "Webflow" | "Magento" | "BigCommerce" | null;
   };
 }
 
 const CMS_PATTERNS: Array<[CrawlFindings["structuralSignals"]["cmsPlatformGuess"] & string, RegExp]> = [
+  // Salla and Zid first (owner round 4): their pages can carry other markers.
+  ["Salla", /cdn\.salla\.network|assets\.salla\.sa/i],
+  ["Zid", /zidcdn|media\.zid\.store|raqeeb\.zid\.sa/i],
   ["Shopify", /cdn\.shopify\.com|Shopify\.theme|window\.Shopify/i],
   ["WooCommerce", /woocommerce|wp-content\/plugins\/woocommerce/i],
   ["WordPress", /wp-content\/|wp-json\/|wp-includes\//i],

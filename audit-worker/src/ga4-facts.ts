@@ -130,7 +130,8 @@ function originOf(website: string): string | null {
 }
 
 function pageTypeOfPath(path: string): FudPageType | null {
-  if (/\/products?\/[^/]+/i.test(path)) return "product";
+  // Shopify/Zid: /products/slug. Salla: /slug/p123456 (owner round 4).
+  if (/\/products?\/[^/]+/i.test(path) || /\/p\d{3,}\/?$/i.test(path)) return "product";
   if (/\/(collections?|categor(y|ies)|product-category|shop)\/[^/]+/i.test(path)) return "collection";
   if (path === "/" || path === "") return "home";
   return null;

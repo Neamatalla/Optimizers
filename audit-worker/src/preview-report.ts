@@ -23,7 +23,7 @@
 import "./logger.js";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { sampleFudResult } from "./fud/sample.js";
-import { applyPreviewActions } from "./preview-actions.js";
+import { applyPreviewActions, withFudActions } from "./preview-actions.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildAuditHtmlReport } from "./html-report-node.js";
@@ -35,6 +35,8 @@ import { audienceRoleOf } from "./audience.js";
 import { computeClarityFacts } from "./clarity-facts.js";
 import { signalQualityFrom } from "./signal-quality.js";
 import { pixelMapFrom, siteChecksFrom } from "./site-checks.js";
+import { ownerActionCategories, ownerChecklistFixture, ownerSampleFud } from "./preview-owner.js";
+import { OWNER_STORE, ownerClarityInput, ownerGa4Metrics } from "./preview-owner-data.js";
 import type { AuditResult, CategoryResult } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -334,13 +336,22 @@ function websiteCategory(): CategoryResult {
 
 async function main() {
   const mode = (process.argv.find(a => a.startsWith("--path="))?.split("=")[1] ?? "tracking") as "tracking" | "single" | "website";
+  const role = audienceRoleOf(process.argv.find(a => a.startsWith("--role="))?.split("=")[1]);
+  // --role=store_owner previews what a real owner audit produces (owner round 1,
+  // preview-owner.ts): the owner's own SO-* points, owner-voice text in English
+  // and Gulf Arabic, a Saudi store on Salla in SAR. Every other role keeps the
+  // shared fixture below unchanged.
+  const owner = role === "store_owner";
+  const site = owner ? OWNER_STORE.website : "https://example.com";
 
-  const discoveredPages = [
-    "https://example.com/",
-    "https://example.com/collections/all",
-    "https://example.com/products/best-seller",
-    "https://example.com/cart",
-  ];
+  const discoveredPages = owner
+    ? [`${site}/`, `${site}/collections/offers`, `${site}/products/cambodi-oud`, `${site}/cart`]
+    : [
+        "https://example.com/",
+        "https://example.com/collections/all",
+        "https://example.com/products/best-seller",
+        "https://example.com/cart",
+      ];
 
   // --shots=<url> captures REAL screenshots from a live site so the device
   // mockup can be eyeballed; without it the preview renders with no mockup,
@@ -367,7 +378,7 @@ async function main() {
         average: { mobile: 44, desktop: 77 },
       };
 
-  const base = { websiteUrl: shotsUrl ?? "https://example.com", businessName: "Nour Home & Living", discoveredPages, screenshots, pageSpeed };
+  const base = { websiteUrl: shotsUrl ?? site, businessName: owner ? OWNER_STORE.name : "Nour Home & Living", discoveredPages, screenshots, pageSpeed };
 
   const result: AuditResult =
     mode === "tracking"
@@ -385,19 +396,24 @@ async function main() {
       const saved = JSON.parse(await readFile(file, "utf8"));
       result.fud = saved.result ?? saved;
     } else {
-      result.fud = sampleFudResult(result.websiteUrl);
+      result.fud = owner ? ownerSampleFud(result.websiteUrl, null) : sampleFudResult(result.websiteUrl);
     }
   }
 
   // Action-point checklists by default (the real ga4-facts + scoring code on
   // a sample GA4 pull); --legacy keeps the pre-rewrite fixtures above, to
   // check older saved results still render.
-  if (!process.argv.includes("--legacy")) applyPreviewActions(result, mode);
+  if (owner && !process.argv.includes("--legacy")) {
+    const { categories, ga4Facts } = ownerActionCategories(mode, result.websiteUrl);
+    result.categories = categories;
+    result.ga4Facts = ga4Facts;
+    result.overallScore = categories.reduce((s, c) => s + c.checklistTally.passed, 0);
+    if (result.fud) result.fud = fudArg?.includes("=") ? withFudActions(result.fud, ga4Facts) : ownerSampleFud(result.websiteUrl, ga4Facts);
+  } else if (!process.argv.includes("--legacy")) applyPreviewActions(result, mode);
 
   // --role=media_buyer renders the report layout and copy for that reader
-  // (audience.ts). The fixture findings keep their owner-voice text: only a
+  // (audience.ts). The shared fixture findings keep their own text: only a
   // real run writes the business voice from the reader brief.
-  const role = audienceRoleOf(process.argv.find(a => a.startsWith("--role="))?.split("=")[1]);
   if (role) result.audienceRole = role;
 
   // --clarity adds a sample Clarity snapshot (shape from a real 2026-10-20
@@ -405,7 +421,10 @@ async function main() {
   // --site adds a sample phone visit (site-checks.ts shape): Add to Cart filled
   // the drawer, the dataLayer and Meta sent it, GA4 didn't; one WhatsApp link
   // has a broken number; sold-out products show up front.
-  if (process.argv.includes("--site")) {
+  if (process.argv.includes("--site") && owner) {
+    result.siteChecks = ownerSiteChecks(site);
+    result.ga4Metrics ??= ownerGa4Metrics();
+  } else if (process.argv.includes("--site")) {
     result.siteChecks = {
       platform: "Shopify",
       addToCart: { attempted: true, ok: true, via: "drawer", method: "click", clickAdded: true },
@@ -467,7 +486,9 @@ async function main() {
       channels: [], segments: [],
     };
   }
-  if (process.argv.includes("--clarity")) {
+  if (process.argv.includes("--clarity") && owner) {
+    result.clarityFacts = computeClarityFacts(ownerClarityInput(result.websiteUrl));
+  } else if (process.argv.includes("--clarity")) {
     result.clarityFacts = computeClarityFacts({
       source: "clarity", fetchedAt: new Date().toISOString(), days: 3, hostMatch: true,
       sessions: 6810, botSessions: 1268, distinctUsers: 6060, pagesPerSession: 2.2,
@@ -501,7 +522,12 @@ async function main() {
   // --checklist=<file.json> attaches a CRO checklist run saved by
   // src/checklist-run.ts (output/checklist-<host>.json) to the friction result.
   const checklistArg = process.argv.find(a => a.startsWith("--checklist="));
-  if (checklistArg && result.fud) result.fud.checklist = JSON.parse(await readFile(checklistArg.split("=").slice(1).join("="), "utf8"));
+  if (checklistArg && result.fud) {
+    const saved = JSON.parse(await readFile(checklistArg.split("=").slice(1).join("="), "utf8"));
+    // The saved runs were written for a media buyer in Egyptian Arabic; the
+    // owner preview rewords them (Gulf words, Western digits, SAR).
+    result.fud.checklist = owner ? ownerChecklistFixture(saved) : saved;
+  }
 
   // Dev preview: the Break-even calculator starts with sample numbers;
   // --empty-inputs renders it the way a real audit does (empty fields).
@@ -511,6 +537,47 @@ async function main() {
   const outPath = path.join(outDir, `preview-${mode}${role ? `-${role}` : ""}.html`);
   await writeFile(outPath, html, "utf8");
   console.log(`Wrote ${outPath}`);
+}
+
+/**
+ * The owner sample's phone visit: Salla, Add to cart filled the drawer, one of
+ * two WhatsApp links has a broken number, 3 sold-out products up front, the
+ * Snapchat pixel loads twice. Money in SAR (one 350 SAR item).
+ */
+function ownerSiteChecks(site: string): NonNullable<AuditResult["siteChecks"]> {
+  const C = OWNER_STORE.currency;
+  const q = { value: OWNER_STORE.cartTotal, currency: C, items: 1 };
+  return {
+    platform: OWNER_STORE.platform,
+    addToCart: { attempted: true, ok: true, via: "drawer", method: "click", clickAdded: true },
+    atcEvents: { dataLayer: ["add_to_cart"], ga4: ["view_item"], pixels: ["meta:AddToCart", "snap:PAGE_VIEW"] },
+    contactLinks: [{ href: "https://wa.me/966500000000", kind: "whatsapp", valid: true }, { href: "https://wa.me/0500", kind: "whatsapp", valid: false }],
+    soldOutPromoted: 3,
+    heroVideoMobile: false,
+    pixelMap: {
+      pages: [
+        { pageType: "home", hits: [{ vendor: "ga4", name: "page_view", count: 1 }, { vendor: "snap", name: "PAGE_VIEW", count: 2 }, { vendor: "meta", name: "PageView", count: 1 }] },
+        { pageType: "product", hits: [{ vendor: "ga4", name: "page_view", count: 1 }, { vendor: "ga4", name: "view_item", count: 1 }, { vendor: "meta", name: "PageView", count: 1 }, { vendor: "meta", name: "ViewContent", count: 1 }, { vendor: "snap", name: "PAGE_VIEW", count: 2 }] },
+      ],
+      ids: { ga4: ["G-ABC123"], meta: ["1234567890"] },
+    },
+    pagesVisited: [{ pageType: "home", url: `${site}/`, loaded: true }, { pageType: "product", url: `${site}/products/cambodi-oud`, loaded: true }, { pageType: "cart", url: `${site}/cart`, loaded: true }],
+    signal: signalQualityFrom({
+      website: site, blockedHits: 40, durationMs: 1,
+      pages: (["product", "checkout"] as const).map(t => ({ pageType: t, url: `${site}/${t}`, loaded: true, blocks: [], widgets: [], jsonLd: { types: [] }, policyLinks: [], crops: {} })),
+      addToCart: { attempted: true, ok: true, via: "click", clickAdded: true },
+      pageHits: [
+        { page: "product", vendor: "meta", name: "ViewContent", q: { ...q, eventId: true } },
+        { page: "product", vendor: "ga4", name: "view_item", q },
+        { page: "checkout", vendor: "meta", name: "InitiateCheckout", q: { ...q, eventId: true } },
+        { page: "checkout", vendor: "ga4", name: "begin_checkout", q },
+      ],
+      atcHits: [
+        { vendor: "meta", name: "AddToCart", q: { ...q, eventId: true } },
+        { vendor: "ga4", name: "add_to_cart", q: { currency: C } },
+      ],
+    }, C),
+  };
 }
 
 main().catch(err => {

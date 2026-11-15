@@ -399,6 +399,10 @@ export interface FudResult {
   // (fud/manual-checklist.ts). Absent on runs before 2026-11-02 or when the
   // pass was turned off (CRO_CHECKLIST=off) or failed.
   checklist?: ManualChecklistResult;
+  // What the customer pays and how they can pay (fud/cost-signals.ts). Absent on older runs.
+  costSignals?: import("./fud/cost-signals.js").CostSignals;
+  // Saudi trust and legal basics seen on the visit (fud/ministry-checks.ts). Absent on older runs; null = no page loaded.
+  ministryChecks?: import("./fud/ministry-checks.js").MinistryChecks | null;
 }
 
 // ---- The CRO manual checklist (fud/manual-checklist.ts) ----

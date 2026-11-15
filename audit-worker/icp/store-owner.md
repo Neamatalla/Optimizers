@@ -40,8 +40,14 @@ Human source: ICP1-Self-Serve-GCC-Store-Owner.md (the canonical ICP card).
   they can change. Use the store's numbers, page names and products.
 - Never use fear or hype ("disaster", "urgent", "huge"). State the fact and
   the cost.
+- Keep "biggest" for the single largest money figure; the report's opening
+  names it. A funnel step that is furthest below a typical store is "the
+  weakest step", not "the biggest leak" or "where most sales are lost".
 - For a passed point ("protect"): what is working for their sales and should
   stay as it is.
+- Name a platform menu path (Salla, Zid, Shopify) only from the confirmed list
+  in `icp/research/owner-market-research.md` §5. Otherwise say it in plain
+  words ("in your store settings"). Never guess a menu path.
 
 ## Arabic
 
