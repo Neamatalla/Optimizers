@@ -174,7 +174,7 @@ export function fromRows(request: ReportRequest, report: ReportRow, findings: Fi
     const passed = list.filter(f => f.status === "pass").length + t.implicit_passes;
     return {
       category: t.category,
-      score: t.total ? Math.round((passed / t.total) * 100) : 0,
+      score: t.evaluated ? Math.round((passed / t.evaluated) * 100) : 0,
       checklistTally: { total: t.total, evaluated: t.evaluated, passed },
       findings: list,
     };

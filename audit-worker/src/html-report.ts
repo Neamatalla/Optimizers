@@ -3276,8 +3276,9 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
   const technical = finding?.technical ?? { summary: fallbackEn, detail: "" };
   const businessAr = finding?.ar?.business ?? (finding ? finding.business : { summary: fallbackAr, detail: "" });
   const technicalAr = finding?.ar?.technical ?? (finding ? finding.technical : { summary: fallbackAr, detail: "" });
-  const status = failed ? finding!.severity : "pass";
-  const side = failed ? severityTag(finding!.severity) : `<span class="sev sev--pass">${bi("Passed", "ناجح")}</span>`;
+  const unverified = finding?.status === "unassessed";
+  const status = failed ? finding!.severity : unverified ? "unassessed" : "pass";
+  const side = failed ? severityTag(finding!.severity) : unverified ? `<span class="sev sev--unassessed">${bi("Unverified", "غير مؤكد")}</span>` : `<span class="sev sev--pass">${bi("Passed", "ناجح")}</span>`;
   const meta = finding
     ? `<span class="check-meta"><code>${escapeHtml(point.id)}</code>${bi(DATA_SOURCE_LABEL[finding.dataSource] ?? finding.dataSource, DATA_SOURCE_LABEL_AR[finding.dataSource] ?? finding.dataSource)}</span>`
     : "";
@@ -3311,7 +3312,7 @@ function checkRowHtml(cat: CategoryResult, point: ChecklistPoint, finding: Categ
                   ${criteriaHtml(point, finding, result)}
                   ${failed && finding?.action && result ? actionBlockHtml(finding.action, finding.ar?.action, result) : ""}
                   ${failed && result?.audienceRole === "media_buyer" ? verifyLineHtml(point.id) : ""}
-                  ${!failed && finding?.protect ? protectHtml(finding.protect, finding.ar?.protect) : ""}
+                  ${!failed && !unverified && finding?.protect ? protectHtml(finding.protect, finding.ar?.protect) : ""}
                   ${finding ? `<div class="check-foot">${techSwitchHtml(id)}${meta}</div>` : ""}
                 </div>
               </div>
@@ -3349,7 +3350,9 @@ function checkGroupsHtml(cat: CategoryResult, result?: AuditResult): string {
       const points = [...g.points].filter(p => !inLane(p)).sort((a, b) => rank(a) - rank(b));
       if (!points.length) return "";
       const issues = points.filter(p => rank(p) < 3);
-      const passed = points.filter(p => rank(p) === 3);
+      const isUnverified = (p: ChecklistPoint) => findingsById.get(p.id)?.status === "unassessed";
+      const unverified = points.filter(p => rank(p) === 3 && isUnverified(p));
+      const passed = points.filter(p => rank(p) === 3 && !isUnverified(p));
       const rows = (list: ChecklistPoint[]) => list.map(p => checkRowHtml(cat, p, findingsById.get(p.id), result)).join("");
       // Passed checks are shown open and highlighted, never folded away:
       // what already works is part of the result, not a detail to dig for.
@@ -3357,9 +3360,14 @@ function checkGroupsHtml(cat: CategoryResult, result?: AuditResult): string {
         <div class="check-group">
           <div class="group-head">
             <h3>${bi(g.en, g.ar)}</h3>
-            <span>${bi(`${issues.length} to fix · ${passed.length} passed`, `${issues.length} للإصلاح · ${passed.length} ناجح`)}</span>
+            <span>${bi(`${issues.length} to fix · ${passed.length} passed${unverified.length ? ` · ${unverified.length} unverified` : ""}`, `${issues.length} للإصلاح · ${passed.length} ناجح${unverified.length ? ` · ${unverified.length} غير مؤكد` : ""}`)}</span>
           </div>
           ${issues.length ? `<div class="check-list">${rows(issues)}</div>` : ""}
+          ${unverified.length ? `
+          <div class="passed-block">
+            <h4 class="passed-head passed-head--unassessed">${bi(`${unverified.length} unverified ${checksWord(unverified.length)}: worth a manual look`, `${unverified.length} ${arChecksNoun(unverified.length)} غير مؤكدة: تستحق مراجعة يدوية`)}</h4>
+            <div class="check-list">${rows(unverified)}</div>
+          </div>` : ""}
           ${passed.length ? `
           <div class="passed-block">
             <h4 class="passed-head">${bi(`${passed.length} passed ${checksWord(passed.length)}`, `${passed.length} ${arChecksNoun(passed.length)} ناجحة`)}</h4>
@@ -4381,7 +4389,7 @@ function checkMapHtml(result: AuditResult, counts: ReturnType<typeof resultCount
     const byId = new Map(cat.findings.map(f => [f.checklistId, f]));
     const cells = checklistForDisplay(cat.category, cat.checklistTally.total, cat.findings.map(f => f.checklistId)).map(point => {
       const f = byId.get(point.id);
-      const st = f?.status === "fail" ? f.severity : "pass";
+      const st = f?.status === "fail" ? f.severity : f?.status === "unassessed" ? "unassessed" : "pass";
       const en = f?.business.summary ?? point.title;
       const ar = f?.ar?.business.summary ?? en;
       return `<a class="cell cell--${st}" href="#${rowId(cat, point)}" data-en="${escapeHtml(en)}" data-ar="${escapeHtml(ar)}" title="${escapeHtml(en)}" aria-label="${escapeHtml(en)}" style="--i:${idx++}"></a>`;
@@ -5307,6 +5315,11 @@ html.dw-open{overflow:hidden}
 .check--low{--status:var(--blue-ink); --status-tint:var(--blue-tint)}
 .check--pass{--status:var(--green-ink); --status-tint:rgba(106,228,153,.2); border-color:rgba(106,228,153,.38)}
 .check--pass .sev--pass{font-weight:700}
+.sev--unassessed{color:var(--amber-ink)}
+.sev--unassessed::before{content:"?"; width:auto; height:auto; border:0; background:none; font-weight:700}
+.check--unassessed{--status:var(--amber-ink); border-style:dashed}
+.passed-head--unassessed{color:var(--amber-ink)}
+.passed-head--unassessed::before{display:none}
 .passed-block{margin-top:16px}
 .passed-head{display:flex; align-items:center; gap:8px; padding:14px 0 12px; font-family:var(--body); font-size:15px; font-weight:700; color:var(--green-ink)}
 .passed-head::before{content:""; width:11px; height:6px; border:solid currentColor; border-width:0 0 2.5px 2.5px; transform:rotate(-45deg) translate(1px,-2px)}
@@ -5606,6 +5619,7 @@ main{position:relative; z-index:2}
 .cmap-cells{display:flex; flex-wrap:wrap; gap:6px}
 .cell{position:relative; display:block; width:24px; height:24px; border-radius:6px; transition:transform .2s var(--ease), box-shadow .2s var(--ease)}
 .cell--pass{background:rgba(106,228,153,.2); box-shadow:inset 0 0 0 1px rgba(106,228,153,.45)}
+.cell--unassessed{background:transparent; box-shadow:inset 0 0 0 1.5px var(--amber-ink)}
 .cell--critical{background:var(--red-ink); box-shadow:0 0 12px rgba(255,107,87,.55)}
 .cell--medium{background:var(--amber-ink)}
 .cell--low{background:var(--blue-ink)}
@@ -6289,7 +6303,7 @@ function scriptBlock(): string {
       var groupShown = 0;
       group.querySelectorAll(".check[data-status]").forEach(function(row){
         var status = row.getAttribute("data-status");
-        var statusOk = filter === "all" || status === filter || (filter === "fail" && status !== "pass");
+        var statusOk = filter === "all" || status === filter || (filter === "fail" && status !== "pass" && status !== "unassessed");
         var show = statusOk && (!q || row.textContent.toLowerCase().indexOf(q) !== -1);
         row.hidden = !show;
         if (show) groupShown++;
