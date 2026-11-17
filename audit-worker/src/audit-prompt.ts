@@ -749,30 +749,29 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
       }
       return finding;
     }
-    console.warn(`[audit-prompt] ${raw.category}: no finding returned for checklist id "${point.id}" — the model should cite every point, pass or fail; falling back to a generic pass note`);
+    console.warn(`[audit-prompt] ${raw.category}: no finding returned for checklist id "${point.id}" — the model should cite every point, pass or fail; recording it as unassessed (not a pass)`);
     return {
       checklistId: point.id,
       technical: {
-        summary: "No specific finding was reported for this check this run.",
-        detail: `The model returned no entry for ${point.id} (${point.title}). Treated as a pass so the run still accounts for all 50 checks, but there is no evidence behind it either way.`,
+        summary: "Unverified: no result was reported for this check.",
+        detail: `The model returned no entry for ${point.id} (${point.title}). Recorded as not assessed: it counts neither as a pass nor as a fail.`,
       },
       business: {
-        summary: "This check came back without a result.",
-        detail: "Nothing was reported for this item, so treat it as unverified rather than confirmed — worth a manual look before relying on it.",
+        summary: "Unverified: worth a manual look.",
+        detail: "Nothing was reported for this item, so it is not counted as passed. Worth a manual look before relying on it.",
       },
       dataSource: "detection",
       severity: point.severity,
-      status: "pass",
+      status: "unassessed",
       opportunity: point.opportunity,
-      protect: defaultProtect(point),
       criteria: point.expectedState,
     };
   });
 
   const total = checklist.length;
-  const evaluated = total;
+  const evaluated = total - findings.filter(f => f.status === "unassessed").length;
   const passed = findings.filter(f => f.status === "pass").length;
-  const score = Math.round((passed / total) * 100);
+  const score = evaluated > 0 ? Math.round((passed / evaluated) * 100) : 0;
 
   return {
     category: raw.category,

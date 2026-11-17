@@ -146,7 +146,9 @@ export type FindingSeverity = "critical" | "medium" | "low";
 // visible on the open GA4-D slots, whose placeholder text is deliberately
 // generic scaffolding, not real report content) — html-report.ts now always
 // renders a finding's own text, for pass or fail, never checklist.ts's.
-export type FindingStatus = "pass" | "fail";
+// "unassessed" = the model returned nothing for this check (audit-prompt.ts
+// fills it in). Not a pass: it is left out of passed and of the score.
+export type FindingStatus = "pass" | "fail" | "unassessed";
 
 /**
  * One check, told twice — the same finding in two registers, so the report
@@ -238,13 +240,9 @@ export interface CategoryResult {
   // point scale.
   score: number;
   // total = every check in this category's checklist (checklist.ts).
-  // evaluated = ALWAYS equal to total — there is no "skipped/not evaluable"
-  // bucket any more (a prior version let a genuinely-inaccessible check
-  // shrink this below total; that's gone, computeCategoryResult now hard-
-  // guarantees evaluated===total in code, not just by prompt instruction).
-  // Kept as a separate field from `total` only because CategoryFinding/
-  // html-report.ts's display code already expects it, not because it can
-  // differ any more.
+  // evaluated = total minus the checks the model returned nothing for (status
+  // "unassessed"). Normally equal to total. Those checks count neither as
+  // passed nor in the score's denominator.
   // passed = count of findings below with status "pass" — every check is
   // worth exactly 1 in the overall audit tally (see scoring.ts's
   // computeOverallPoints); a "21/25 checks passed" figure IS the count, not

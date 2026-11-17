@@ -29,3 +29,16 @@ test("the prompt's example ids come from the reader's own checklist", () => {
   assert.match(p, /e\.g\. "MB-GA4-\d+"/);
   assert.doesNotMatch(p, /e\.g\. "GA4-03"/);
 });
+
+test("a check the model leaves out is unassessed: not a pass, out of passed and the score", () => {
+  const checklist = personaChecklistFor("media_buyer", "GA4", ["GA4", "GTM"]);
+  const [a, b, c] = checklist;
+  const ok = (id: string, status: string) => ({ checklistId: id, status, technical: { summary: "x y z", detail: "d" }, business: { summary: "x y z", detail: "d" } });
+  const cat = computeCategoryResult({ category: "GA4", findings: [ok(a.id, "pass"), ok(b.id, "fail")] } as any, checklist.slice(0, 3));
+  const missed = cat.findings.find(f => f.checklistId === c.id)!;
+  assert.equal(missed.status, "unassessed");
+  assert.match(missed.business.summary, /manual look/);
+  assert.equal(missed.protect, undefined);
+  assert.deepEqual(cat.checklistTally, { total: 3, evaluated: 2, passed: 1 });
+  assert.equal(cat.score, 50);
+});
