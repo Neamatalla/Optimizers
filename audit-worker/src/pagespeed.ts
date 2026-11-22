@@ -21,6 +21,31 @@ export interface PageSpeedPage {
   url: string;
   mobile: number | null;
   desktop: number | null;
+  // Lab numbers from the same phone run, for the speed points (src/points).
+  // Absent on results saved before 22 Nov 2026 or when the run failed.
+  mobileMetrics?: PageSpeedMetrics;
+}
+
+export interface PageSpeedMetrics {
+  lcpMs: number | null;
+  cls: number | null;
+  tbtMs: number | null;
+  totalBytes: number | null;
+  // Third-party transfer by company (Lighthouse "third-party-summary").
+  thirdParty: Array<{ entity: string; bytes: number }> | null;
+}
+
+/** The lab numbers the speed points need, read from a Lighthouse result. */
+export function metricsFrom(lighthouse: any): PageSpeedMetrics {
+  const audits = lighthouse?.audits ?? {};
+  const num = (id: string): number | null => (typeof audits[id]?.numericValue === "number" ? audits[id].numericValue : null);
+  const items = audits["third-party-summary"]?.details?.items;
+  const thirdParty = Array.isArray(items)
+    ? items
+        .map((i: any) => ({ entity: String(typeof i.entity === "object" ? i.entity?.text ?? "" : i.entity ?? ""), bytes: Number(i.transferSize) || 0 }))
+        .filter((i: { entity: string }) => i.entity)
+    : null;
+  return { lcpMs: num("largest-contentful-paint"), cls: num("cumulative-layout-shift"), tbtMs: num("total-blocking-time"), totalBytes: num("total-byte-weight"), thirdParty };
 }
 
 export interface PageSpeedResult {
@@ -33,7 +58,7 @@ function parseKeys(raw: string | undefined): string[] {
   return (raw ?? "").split(",").map(k => k.trim()).filter(Boolean);
 }
 
-async function performanceScore(url: string, strategy: "mobile" | "desktop", keys: string[], keyOffset: number): Promise<number | null> {
+async function performanceScore(url: string, strategy: "mobile" | "desktop", keys: string[], keyOffset: number): Promise<{ score: number | null; metrics?: PageSpeedMetrics } | null> {
   // Up to one retry, on the next key, for rate limits and transient 5xx.
   for (let attempt = 0; attempt < 2; attempt++) {
     const params = new URLSearchParams({ url, strategy, category: "performance" });
@@ -49,7 +74,7 @@ async function performanceScore(url: string, strategy: "mobile" | "desktop", key
       }
       const json: any = await res.json();
       const score = json?.lighthouseResult?.categories?.performance?.score;
-      return typeof score === "number" ? Math.round(score * 100) : null;
+      return { score: typeof score === "number" ? Math.round(score * 100) : null, metrics: json?.lighthouseResult ? metricsFrom(json.lighthouseResult) : undefined };
     } catch {
       continue;
     }
@@ -79,7 +104,9 @@ export async function runPageSpeed(discoveredPages: string[]): Promise<PageSpeed
           performanceScore(url, "mobile", keys, i * 2),
           performanceScore(url, "desktop", keys, i * 2 + 1),
         ]);
-        return { type, url, mobile, desktop };
+        const page: PageSpeedPage = { type, url, mobile: mobile?.score ?? null, desktop: desktop?.score ?? null };
+        if (mobile?.metrics) page.mobileMetrics = mobile.metrics;
+        return page;
       }),
     );
     const average = { mobile: averageOf(pages.map(p => p.mobile)), desktop: averageOf(pages.map(p => p.desktop)) };

@@ -10,7 +10,7 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-01",
     "category": "tracking",
     "title": "Product views that turn into add to cart",
-    "rule": "In the last 28 days, add_to_cart users are at least 8% of view_item users.",
+    "rule": "Over 28 days, with 50+ view_item users: add_to_cart users are at least 8% of view_item users. Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -51,13 +51,13 @@ export const POINTS: AuditPoint[] = [
       "GA4-02",
       "SO-GA4-04"
     ],
-    "note": "Report names the worst of TRK-01/02/03 as the biggest leak."
+    "note": "Rule matches ga4-facts.ts GA4-02; the code wins (decided 22 Nov). Report names the worst of TRK-01/02/03 as the biggest leak."
   },
   {
     "id": "TRK-02",
     "category": "tracking",
     "title": "Carts that reach checkout",
-    "rule": "In the last 28 days, begin_checkout users are at least 50% of add_to_cart users.",
+    "rule": "Over 28 days, with 50+ add_to_cart users: begin_checkout users are at least 50% of them (if begin_checkout is missing but add_shipping_info exists, add_shipping_info at least 40%). Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -96,13 +96,14 @@ export const POINTS: AuditPoint[] = [
     "origin": [
       "GA4-03",
       "SO-GA4-03"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-03; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-03",
     "category": "tracking",
     "title": "Started checkouts that end in a sale",
-    "rule": "In the last 28 days, purchase users are at least 50% of begin_checkout users; add_shipping_info and add_payment_info name the losing sub-step.",
+    "rule": "Over 28 days, with 50+ begin_checkout users: purchase users are at least 50% of them (if begin_checkout is missing, at least 60% of add_shipping_info users). Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -141,7 +142,8 @@ export const POINTS: AuditPoint[] = [
     "origin": [
       "GA4-04",
       "SO-GA4-02"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-04; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-04",
@@ -254,7 +256,7 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-06",
     "category": "tracking",
     "title": "Payment pages or own domains taking credit",
-    "rule": "No payment provider or own store domain is a session source with 5 or more sessions in 28 days.",
+    "rule": "No payment gateway (Tabby, Tamara, KNET, MyFatoorah and others) is a session source with 5+ sessions in 28 days, and the store's own domain never appears as a referral source.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -303,13 +305,13 @@ export const POINTS: AuditPoint[] = [
       "SO-GA4-15",
       "MB-GA4-10"
     ],
-    "note": "Own-domain list from crawl hostnames and GA4 hostName. Review: No minimum volume, so 1 stray session fails it. Add 5+ sessions per source (code uses MIN_ROW 5). The _gl linker part of MB-GA4-10 is dropped; acceptable."
+    "note": "Rule matches ga4-facts.ts GA4-19, GA4-P06; the code wins (decided 22 Nov). Own-domain list from crawl hostnames and GA4 hostName."
   },
   {
     "id": "TRK-07",
     "category": "tracking",
     "title": "Tracking live with no sudden drop",
-    "rule": "Realtime shows active users (unassessed if the store averages under 5 visits per 30 minutes) and sessions did not fall over 40% week on week.",
+    "rule": "Fails when: realtime shows no users while the store averages 5+ visits per 30 minutes; nothing was recorded in the last 7 days; visits fell over 40% week on week (prior week 200+); or a day in the last 28 had a spike of unengaged visits.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -357,13 +359,13 @@ export const POINTS: AuditPoint[] = [
       "MB-GA4-06",
       "MB-GA4-14"
     ],
-    "note": "Review: 'Realtime shows active users' false-fails quiet stores. Code returns no_data when the store is too quiet. State that, and keep the 40% week-on-week drop."
+    "note": "Rule matches ga4-facts.ts GA4-15, GA4-P15; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-08",
     "category": "tracking",
     "title": "Every buying step is recorded",
-    "rule": "view_item, add_to_cart, begin_checkout and purchase all have events in 28 days, and each step is at least 30% of its benchmark rate.",
+    "rule": "view_item, add_to_cart, begin_checkout (or add_shipping_info) and purchase all record events in 28 days, and no funnel step shows a tracking gap. Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -413,13 +415,14 @@ export const POINTS: AuditPoint[] = [
       "SO-GA4-08",
       "MB-GA4-16",
       "GTM-06"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-17; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-09",
     "category": "tracking",
     "title": "Each order counted once",
-    "rule": "No transaction_id appears on more than one purchase event, and purchase events are within 10% of transactions.",
+    "rule": "No order ID is counted on more than one purchase event, purchase events and transactions are within 10% of each other, and purchases carry revenue and a currency.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -465,13 +468,14 @@ export const POINTS: AuditPoint[] = [
       "GA4-18",
       "SO-GA4-06",
       "MB-GA4-02"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-18, GA4-P01; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-10",
     "category": "tracking",
     "title": "Purchases carry revenue and products",
-    "rule": "Every purchase has a non-zero value in one currency, item names are not (not set), and item revenue is within 5% of purchase revenue minus shipping and tax.",
+    "rule": "Purchases carry a non-zero value in one currency (none unset), at most 5% of items sold have no product name, and item revenue is within 5% of order revenue.",
     "severity": "critical",
     "decidedBy": "code",
     "pages": [
@@ -519,7 +523,8 @@ export const POINTS: AuditPoint[] = [
       "SO-GA4-22",
       "GTM-02",
       "MB-GTM-03"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-P03, GA4-P04; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-11",
@@ -1023,7 +1028,7 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-20",
     "category": "tracking",
     "title": "Phone shoppers convert close to desktop",
-    "rule": "With 500+ sessions on each, mobile purchase conversion rate is at least 60% of desktop's.",
+    "rule": "With 200+ sessions on both phone and desktop and at least one desktop sale in 28 days, phone conversion rate is at least 60% of desktop's.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
@@ -1070,13 +1075,13 @@ export const POINTS: AuditPoint[] = [
       "SO-GA4-05",
       "MB-GA4-12"
     ],
-    "note": "Session minimum is a threshold to tune."
+    "note": "Rule matches ga4-facts.ts GA4-05; the code wins (decided 22 Nov). Session minimum is a threshold to tune."
   },
   {
     "id": "TRK-21",
     "category": "tracking",
     "title": "Busy landing pages with no sales",
-    "rule": "No landing page among the top 10 by sessions converts below one third of the store's average conversion rate; failing pages are named.",
+    "rule": "No landing page with at least 200 sessions (or 3% of all sessions) converts below one third of the store average in 28 days; the biggest such page is named.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
@@ -1123,13 +1128,14 @@ export const POINTS: AuditPoint[] = [
       "GA4-06",
       "SO-GA4-10",
       "MB-GA4-08"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-06; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-22",
     "category": "tracking",
     "title": "Popular products viewed but not added",
-    "rule": "No product among the top 10 by item views has an add-to-cart rate below half the store average; failing products are named.",
+    "rule": "No product page with at least 100 views (or 2% of all product views) adds to cart at under half the store average in 28 days; the worst one is named.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
@@ -1176,7 +1182,8 @@ export const POINTS: AuditPoint[] = [
       "GA4-10",
       "SO-GA4-09",
       "MB-GA4-19"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-10; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-23",
@@ -1272,7 +1279,7 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-25",
     "category": "tracking",
     "title": "Visits with no known source",
-    "rule": "Unassigned plus (not set) sessions are under 10% of sessions in 28 days, and sessions with a paid medium (cpc, paid) sit in a paid channel group.",
+    "rule": "Unassigned, (not set) and (other) sessions are at most 10% of sessions in 28 days, and paid-medium traffic sits in a paid channel group.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
@@ -1320,7 +1327,7 @@ export const POINTS: AuditPoint[] = [
       "MB-GA4-09",
       "MB-GA4-11"
     ],
-    "note": "Review: Loses MB-GA4-09's paid half (failed 10 of 10 reports): paid-tagged traffic landing in a non-paid channel group. Add it."
+    "note": "Rule matches ga4-facts.ts GA4-08, GA4-P09; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-26",
@@ -1368,7 +1375,7 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-27",
     "category": "tracking",
     "title": "Only real sales count as key events",
-    "rule": "purchase is a key event, and none of page_view, scroll, session_start, first_visit or user_engagement is.",
+    "rule": "purchase is a key event; none of page_view, scroll, session_start, first_visit, user_engagement, click, view_item or form_start is; and every key event recorded data in the last 90 days.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
@@ -1414,7 +1421,8 @@ export const POINTS: AuditPoint[] = [
       "GA4-20",
       "SO-GA4-20",
       "MB-GA4-05"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-20, GA4-P16; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-28",
@@ -1737,7 +1745,7 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-35",
     "category": "tracking",
     "title": "Visits from countries with no sales",
-    "rule": "No country with 5%+ of sessions in 28 days has zero purchases.",
+    "rule": "Countries other than the top one, each with 3%+ of sessions and zero purchases, add up to under 5% of sessions in 28 days.",
     "severity": "low",
     "decidedBy": "code",
     "pages": [
@@ -1784,13 +1792,13 @@ export const POINTS: AuditPoint[] = [
       "SO-GA4-24",
       "MB-GA4-21"
     ],
-    "note": "Mostly ad geo-targeting leaks for media buyers."
+    "note": "Rule matches ga4-facts.ts GA4-09; the code wins (decided 22 Nov). Mostly ad geo-targeting leaks for media buyers."
   },
   {
     "id": "TRK-36",
     "category": "tracking",
     "title": "Bringing past visitors back",
-    "rule": "Returning users convert at 2x new users or more, or the visit finds an email or WhatsApp signup form.",
+    "rule": "With 200+ new and 50+ returning sessions, returning visitors convert at 2x new visitors or more; if not, the visit finds an email or phone signup field.",
     "severity": "low",
     "decidedBy": "code",
     "pages": [
@@ -1839,13 +1847,14 @@ export const POINTS: AuditPoint[] = [
       "SO-GA4-13",
       "GA4-14",
       "MB-GA4-18"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-12; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-37",
     "category": "tracking",
     "title": "Site searches recorded with the term",
-    "rule": "If the store has a search box, GA4 has search or view_search_results events carrying search_term in the last 28 days.",
+    "rule": "If the phone homepage has a search box, GA4 records search events in 28 days and the box is visible on phones, not hidden behind the menu. Fails if GA4 records searches but no search box was found.",
     "severity": "low",
     "decidedBy": "code",
     "pages": [
@@ -1889,13 +1898,13 @@ export const POINTS: AuditPoint[] = [
       "GTM-13",
       "SO-GA4-21"
     ],
-    "note": "Search box visible on phones is a navigation point, not this one."
+    "note": "Rule matches ga4-facts.ts GA4-13; the code wins (decided 22 Nov). Search box visible on phones is a navigation point, not this one."
   },
   {
     "id": "TRK-38",
     "category": "tracking",
     "title": "GA4 uses your currency and time zone",
-    "rule": "GA4 property currency and time zone match the country with the most purchases.",
+    "rule": "GA4 property currency and time zone match the country with the most sessions (one of the markets the code knows).",
     "severity": "low",
     "decidedBy": "code",
     "pages": [
@@ -1933,7 +1942,8 @@ export const POINTS: AuditPoint[] = [
       "GA4-22",
       "SO-GA4-16",
       "MB-GA4-25"
-    ]
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-22; the code wins (decided 22 Nov)."
   },
   {
     "id": "TRK-39",
@@ -5354,7 +5364,7 @@ export const POINTS: AuditPoint[] = [
     "id": "OFFER-04",
     "category": "offers",
     "title": "Free-delivery threshold vs average order",
-    "rule": "A free-delivery threshold shows on the product page or cart and sits at 1.1 to 1.6 times the GA4 average order value.",
+    "rule": "A free-delivery threshold found on the visited pages sits at 1.1 to 1.6 times the GA4 average order value.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
@@ -5406,7 +5416,7 @@ export const POINTS: AuditPoint[] = [
       "M3",
       "MB-CRO-13"
     ],
-    "note": "AI reads the threshold from site text; code compares. Overlaps SO-CRO-03, MB-CRO-13. Review: Threshold 1.1 to 1.5 contradicts 3 origins and ga4-facts.ts (1.1 to 1.6). Use 1.6. Code already does this, so decidedBy code."
+    "note": "Rule matches ga4-facts.ts GA4-11; the code wins (decided 22 Nov). AI reads the threshold from site text; code compares. Overlaps SO-CRO-03, MB-CRO-13."
   },
   {
     "id": "OFFER-05",
