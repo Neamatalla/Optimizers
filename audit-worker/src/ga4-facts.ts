@@ -1298,6 +1298,7 @@ export function computeGa4Facts(oauth: unknown, website: string, evidence: Store
       campaignLandingUrl: campaign.url,
     },
     facts: Object.fromEntries(list.map(f => [f.id, f])),
+    itemsPerOrder: itemsPerOrderOf(ctx),
     ...(campaigns ? { campaigns } : {}),
   };
 }
@@ -1327,6 +1328,14 @@ export function ga4MetricsFromOAuth(oauth: unknown): Ga4Metrics | null {
       .filter((x): x is typeof x & { name: "new" | "returning" } => x.name === "new" || x.name === "returning")
       .map(x => ({ name: x.name, sessions: x.sessions, conversionRate: rate(x.purchases, x.sessions) })),
   };
+}
+
+// Item units per order (OFFER-15): itemSales units over transactions.
+function itemsPerOrderOf(ctx: Ctx): number | null {
+  if (!got(ctx.rd.itemSales)) return null;
+  const units = totalsOf(ctx.rd.itemSales)?.[1];
+  const orders = purchaseCounts(ctx)?.tx;
+  return units && orders ? Math.round((units / orders) * 100) / 100 : null;
 }
 
 /** The prompt block: one line per fact, numbers and status fixed. */

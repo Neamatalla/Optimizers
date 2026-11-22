@@ -61,9 +61,15 @@ export function compactGa4(data: unknown, facts?: Ga4Facts | null): unknown {
 }
 
 type Param = { key?: string; type?: string; value?: unknown; list?: unknown; map?: unknown };
+// The API keeps long Custom HTML for the code rules; the prompt still gets the
+// first 400 characters of any value, as before.
+const cut = (v: unknown) => (typeof v === "string" && v.length > 401 ? `${v.slice(0, 400)}…` : v);
 function params(list: unknown): unknown {
-  if (!Array.isArray(list) || !list.every((p: Param) => p && typeof p.key === "string" && "value" in p && !p.list && !p.map)) return list;
-  return Object.fromEntries((list as Param[]).map(p => [p.key as string, p.value]));
+  if (!Array.isArray(list)) return list;
+  if (!list.every((p: Param) => p && typeof p.key === "string" && "value" in p && !p.list && !p.map)) {
+    return (list as Param[]).map(p => (p && typeof p === "object" && "value" in p ? { ...p, value: cut(p.value) } : p));
+  }
+  return Object.fromEntries((list as Param[]).map(p => [p.key as string, cut(p.value)]));
 }
 
 /** The GTM pull with each tag/trigger/variable's parameter list as { key: value }. */

@@ -1,6 +1,7 @@
 import type { StoreEvidence } from "../../fud/evidence.js";
 import type { Ga4Facts, SiteChecks } from "../../types.js";
 import type { PageSpeedResult } from "../../pagespeed.js";
+import type { ClaritySnapshot } from "../../clarity-facts.js";
 
 /**
  * A code rule decides one master point (src/points/registry.ts) from data the
@@ -29,6 +30,10 @@ export interface RuleInput {
   evidence?: StoreEvidence | null;
   siteChecks?: SiteChecks | null;
   pageSpeed?: PageSpeedResult | null;
+  // The raw Clarity snapshot (audit_requests.clarity_data): page rows live there.
+  clarity?: ClaritySnapshot | null;
+  // The GTM container export (gtm_oauth_data), read by points/gtm.ts.
+  gtm?: unknown;
 }
 
 export type Rule = (input: RuleInput) => RuleResult;

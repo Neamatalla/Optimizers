@@ -616,12 +616,16 @@ export async function fetchAllGTMContainers(token) {
 
 // Keeps GTM parameters readable for the audit prompt: long values (Custom
 // HTML bodies above all) cut to their first 400 characters.
+// Custom HTML bodies keep up to 6,000 characters so the worker's code rules
+// can see pixel purchase calls (src/points/gtm.ts); the audit prompt cuts
+// every value back to 400 (compactGtm), so the prompt size is unchanged.
+const HTML_MAX = 6000;
 function trimParameters(params) {
   if (!Array.isArray(params)) return undefined;
   return params.map(p => ({
     key: p.key,
     type: p.type,
-    value: typeof p.value === "string" && p.value.length > 400 ? `${p.value.slice(0, 400)}…` : p.value,
+    value: typeof p.value === "string" && p.value.length > (p.key === "html" ? HTML_MAX : 400) ? `${p.value.slice(0, p.key === "html" ? HTML_MAX : 400)}…` : p.value,
     list: Array.isArray(p.list) ? trimParameters(p.list) : undefined,
     map: Array.isArray(p.map) ? trimParameters(p.map) : undefined,
   }));

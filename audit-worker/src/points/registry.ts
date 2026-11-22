@@ -5794,7 +5794,7 @@ export const POINTS: AuditPoint[] = [
     "id": "OFFER-15",
     "category": "offers",
     "title": "Orders contain more than one item",
-    "rule": "GA4 items per purchase averages 1.2 or more over the last 90 days.",
+    "rule": "GA4 item units per order average 1.2 or more over the last 28 days (item units sold ÷ transactions).",
     "severity": "low",
     "decidedBy": "code",
     "pages": [
@@ -5825,7 +5825,7 @@ export const POINTS: AuditPoint[] = [
     "origin": [
       "MB-CRO-14"
     ],
-    "note": "Outcome measure of the cross-sell point; threshold to tune per store type. Review: Items per purchase above 1.0 passes almost every store, no signal. Use 1.2 or more. Not in ga4-facts.ts today, so it needs a new GA4 metric (code+)."
+    "note": "28 days: the period the GA4 pull already covers (was 90 days in the draft). Units, so three of one product count as 3. Outcome measure of the cross-sell point; threshold to tune per store type. Review: Items per purchase above 1.0 passes almost every store, no signal. Use 1.2 or more. Not in ga4-facts.ts today, so it needs a new GA4 metric (code+)."
   },
   {
     "id": "OFFER-16",

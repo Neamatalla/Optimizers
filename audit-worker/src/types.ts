@@ -519,6 +519,10 @@ export interface Ga4Facts {
   aov: number | null;
   focus: Ga4Focus;
   facts: Record<string, Ga4Fact>;
+  // Item units sold per order over the period (itemSales units ÷
+  // transactions), for OFFER-15. Not a fact, so it stays out of the prompt.
+  // Absent on older results or when either report is missing.
+  itemsPerOrder?: number | null;
   // Visits, engaged visits, cart adds, sales and revenue per channel /
   // source / medium / campaign (trafficSources, top 40 by visits), for the
   // buyer's campaign cards. Optional: runs before 2026-11-02 don't have it,
