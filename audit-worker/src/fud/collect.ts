@@ -917,6 +917,19 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
   const ev = toEvidence(pageType, page.url(), x);
   ev.popups = popups;
   ev.facts = ((await page.evaluate(FACTS_JS).catch(() => null)) as PageFacts | null) ?? undefined;
+  // RISK-07: re-read sideways overflow on a 360px phone, then restore 390px
+  // before any crop. Part of the extra probes, so off unless COLLECT_PROBES=on.
+  if (PROBES_ON && ev.facts && page.viewport()?.width === MOBILE.width) {
+    try {
+      await page.setViewport({ ...MOBILE, width: 360 });
+      const narrow = (await page.evaluate(FACTS_JS).catch(() => null)) as PageFacts | null;
+      if (narrow?.overflow) ev.facts.overflow360 = narrow.overflow;
+    } catch {
+      // Best effort: RISK-07 stays unverified without it.
+    } finally {
+      await page.setViewport(MOBILE).catch(() => {});
+    }
+  }
   if (pageType === "product" && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
   if (!withCrops) return ev;
   ev.crops.fold = await crop(page, { x: 0, y: 0, width: MOBILE.width, height: MOBILE.height });

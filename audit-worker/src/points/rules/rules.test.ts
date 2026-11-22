@@ -209,3 +209,9 @@ test("points built from two GA4 facts: any fail fails, a pass needs both, a gap 
   assert.equal(gapR.status, "unverified");
   assert.deepEqual(gapR.facts?.unchecked, ["GA4-P06"]);
 });
+
+test("every active code-decided point has a code rule", async () => {
+  const { activePoints } = await import("../index.js");
+  const missing = activePoints().filter(p => p.decidedBy === "code" && !RULES[p.id]).map(p => p.id);
+  assert.deepEqual(missing, []);
+});

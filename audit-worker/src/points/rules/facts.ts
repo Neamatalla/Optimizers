@@ -260,7 +260,7 @@ const nav07: Rule = ({ evidence: e }) => {
   if (!ft.phone && !ft.whatsapp && !ft.email) missing.push("contact details (phone, WhatsApp or email)");
   for (const k of ["shipping", "returns", "privacy", "terms"]) if (!ft.kinds.includes(k)) missing.push(`a ${k} link`);
   const facts = { phone: ft.phone, whatsapp: ft.whatsapp, email: ft.email, links: ft.kinds };
-  if (missing.length) return fail(`The footer has no ${missing.join(", no ")}.`, facts);
+  if (missing.length) return fail(`The footer is missing ${missing.join(", ")}.`, facts);
   return pass(`The footer has contact details and links to ${ft.kinds.join(", ")}.`, facts);
 };
 

@@ -287,7 +287,11 @@ const PICK_VARIANT_JS = String.raw`(function () {
     var items = [].slice.call(g.querySelectorAll("[role=radio]")).filter(function (e) { return e.getAttribute("aria-disabled") !== "true" && !SOLD.test(labelOf(e)); });
     if (items.length >= 2) groups.push({ kind: "aria", name: groupName(g, ""), opts: items.map(function (e, i) { return { i: i, label: labelOf(e), el: e }; }), cur: items.findIndex(function (e) { return e.getAttribute("aria-checked") === "true"; }) });
   });
-  var usable = groups.filter(function (g) { return !SIZE.test(g.name) && g.cur >= 0; });
+  // Not variant pickers: phone country codes, country/currency/language and
+  // quantity dropdowns (regal-honey.com, 22 Nov: a "+973" dial-code select was picked).
+  var NOT_VARIANT = /phone|tel|mobile|country|dial|code|currency|lang|qty|quantity|كمية|الدولة|العملة|اللغة/i;
+  function dialCodes(g) { var n = 0; g.opts.forEach(function (o) { if (/^\+?\d{1,4}$|^\+\d/.test(o.label)) n++; }); return n * 2 > g.opts.length; }
+  var usable = groups.filter(function (g) { return !SIZE.test(g.name) && !NOT_VARIANT.test(g.name) && !dialCodes(g) && !(g.el && g.el.closest && g.el.closest("[class*=phone],[class*=country],[class*=currency]")) && g.cur >= 0; });
   if (!usable.length) return { ok: false, why: groups.length ? "only size options, or no option was selected by default" : "no variant options found", groups: groups.length };
   usable.sort(function (a, b) { return (COLOR.test(b.name) ? 1 : 0) - (COLOR.test(a.name) ? 1 : 0); });
   var g = usable[0];
