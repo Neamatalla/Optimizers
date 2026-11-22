@@ -29,7 +29,7 @@ test("GA4 batched hits: one event per body line, shared currency from the URL, i
   const body = ["en=view_item&epn.value=1399&pr1=id87~nmOil", "en=scroll&epn.percent_scrolled=90"].join("\n");
   const hits = hitEvents(url, body);
   assert.deepEqual(hits.map(h => h.name), ["view_item", "scroll"]);
-  assert.deepEqual(hits[0].q, { value: 1399, currency: "EGP", items: 1 });
+  assert.deepEqual(hits[0].q, { value: 1399, currency: "EGP", items: 1, itemFields: [{ id: true, name: true, price: false, qty: false }] });
   assert.equal(hits[0].id, "G-ABC123");
 });
 
@@ -38,7 +38,7 @@ test("GA4: the first event in the URL is read too, and its fields don't leak int
   const body = ["en=user_engagement&_et=4000", "en=scroll&epn.percent_scrolled=90"].join("\n");
   const hits = hitEvents(url, body);
   assert.deepEqual(hits.map(h => h.name), ["view_item", "user_engagement", "scroll"]);
-  assert.deepEqual(hits[0].q, { value: 120, currency: "SAR", items: 1 });
+  assert.deepEqual(hits[0].q, { value: 120, currency: "SAR", items: 1, itemFields: [{ id: true, name: true, price: false, qty: false }] });
   assert.equal(hits[1].q?.value, undefined, "the URL event's value stays with it");
   assert.equal(hits[1].q?.items, undefined);
   assert.equal(hits[1].q?.currency, "SAR", "shared currency still applies");

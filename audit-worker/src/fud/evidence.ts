@@ -42,6 +42,39 @@ export interface HitParams {
   userData?: boolean;
   // Meta cd[content_type] ("product" / "product_group").
   contentType?: string;
+  // GA4 only: for each product (pr1, pr2…) which of the GA4 item fields the
+  // hit named: item_id (id), item_name (nm), price (pr), quantity (qt).
+  itemFields?: ItemFields[];
+}
+
+export interface ItemFields {
+  id: boolean;
+  name: boolean;
+  price: boolean;
+  qty: boolean;
+}
+
+// A dataLayer push for a shopping event, reduced to its money fields.
+export interface DataLayerPush {
+  event: string;
+  value?: number;
+  currency?: string;
+  items?: ItemFields[];
+}
+
+// What the browser logged while one page was open (collect.ts preparePage).
+// Requests we aborted on purpose (BLOCKED_HITS) are never listed as failures.
+export interface PageNet {
+  // Uncaught script errors (pageerror). host: where the failing script came from, when the stack names it.
+  errors: Array<{ msg: string; host?: string }>;
+  // Responses with status 400+ and network errors (first 30).
+  failed: Array<{ url: string; type: string; status?: number; error?: string }>;
+  // http:// requests as "type url" (first 15): mixed content on an https page.
+  http: string[];
+  // gtag/js?id= script requests per measurement ID.
+  gtag: Record<string, number>;
+  // Video/audio responses with their size when the headers give it.
+  media: Array<{ url: string; status: number; bytes?: number }>;
 }
 
 export interface PageEvidence {
@@ -58,7 +91,9 @@ export interface PageEvidence {
   // page's scripts and markup (signals.ts WIDGETS).
   widgets: string[];
   // schema.org essentials only — @type list, rating, availability.
-  jsonLd: { types: string[]; ratingValue?: number; reviewCount?: number; availability?: string };
+  // offer: an Offer node was seen (set by the current collector, so a missing
+  // price on evidence without it means "not recorded", not "not there").
+  jsonLd: { types: string[]; ratingValue?: number; reviewCount?: number; availability?: string; price?: number; priceCurrency?: string; offer?: boolean };
   policyLinks: Array<{ kind: "shipping" | "returns" | "contact" | "about" | "faq"; text: string; href: string }>;
   // Product pages: how variants are chosen, if at all.
   variants?: { hasSize: boolean; control: "pills" | "dropdown" | "none"; groups: string[] };
@@ -75,7 +110,31 @@ export interface PageEvidence {
     hasSort: boolean;
     // Sub-category links sitting above the product grid.
     pills: number;
+    // Cards showing an image, a name, and a struck-through price.
+    withImage?: number;
+    withName?: number;
+    withStrike?: number;
+    // Cards whose text or badge talks about a discount (% off, sale, save).
+    withSaleText?: number;
+    // Per card in page order: does it carry a sold-out label?
+    soldOutFlags?: boolean[];
+    // The selected sort ("text|value", lower case), when a select or checked radio shows it.
+    sort?: string;
+    // Page y of the top-most visible filter or sort control.
+    controlsTop?: number;
+    // Page y of the first product card.
+    firstCardTop?: number;
+    // Up to 12 cards, top to bottom then left to right (columns, carousels).
+    cardBoxes?: Box[];
   };
+  // Struck-through (del, s, strike, line-through) prices on the page.
+  struck?: Array<{ text: string; y: number }>;
+  // Product pages: a link to the reviews (#reviews…) with its text and page y.
+  reviewAnchor?: { text: string; y: number; href: string } | null;
+  // Visible <video> elements: autoplay flag, source, position.
+  videos?: Array<{ autoplay: boolean; muted: boolean; src: string; y: number; w: number; h: number }>;
+  // Script errors, failed files, http requests seen while this page was open.
+  net?: PageNet;
   // Layout facts the text alone can't give (facts-js.ts). Absent on cart
   // drawers and on evidence saved before they existed.
   facts?: PageFacts;
@@ -206,6 +265,9 @@ export interface StoreEvidence {
   atcEvents?: { dataLayer: string[]; ga4: string[]; pixels: string[] };
   // The same click's pixel hits with what each carried (round 19).
   atcHits?: Array<{ vendor: string; name: string; id?: string; q?: HitParams }>;
+  // view_item (product page, before the click) and add_to_cart (the click)
+  // pushes to the dataLayer, money fields only.
+  dlPushes?: { view?: DataLayerPush[]; atc?: DataLayerPush[] };
   // Every analytics/pixel hit seen while a page loaded (before any tap),
   // with the page and, for GA4 and Meta, the measurement / pixel ID.
   pageHits?: Array<{ page: string; vendor: string; name: string; id?: string; q?: HitParams }>;
