@@ -3,7 +3,6 @@ import { track } from "@/lib/analytics";
 import svgPaths from "./svg-67sjau8p5h";
 import svgMobilePaths from "./svg-mobile-meet";
 import imgRectangle2 from "../assets/8beafb71ac0e56f696268857cdb1244ee06d2dcc.webp";
-import imgRectangle3 from "../assets/4f11d4feb717671a4fc30f59979ff4c1bbb1eeb2.webp";
 import imgRectangle4 from "../assets/omar-maged.webp";
 import imgAlaa from "../assets/alaa-abdullah.webp";
 import imgAdhamMarzouk from "../assets/adham-marzouk.png";
@@ -108,106 +107,6 @@ const Safer = React.memo(function Safer() {
             <div className="absolute flex h-[307.354px] items-center justify-center left-[0.02px] top-[0.02px] w-[239.942px]" style={{ "--transform-inner-width": "157.59375", "--transform-inner-height": "38" } as React.CSSProperties}>
                 <div className="flex-none rotate-[-90deg]">
                     <Card />
-                </div>
-            </div>
-        </div>
-    );
-});
-
-function Lights1() {
-    return (
-        <div className="absolute h-[303.946px] left-[1.16px] overflow-clip rounded-[17.139px] top-[1.16px] w-[237.672px]" data-name="Lights">
-            <div className="absolute bg-[#333333] h-[303.946px] left-0 rounded-[17.14px] top-0 w-[237.672px]">
-                <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_4.571px_27.424px_-7.999px_rgba(255,166,154,0.4)]" />
-            </div>
-            <div className="absolute h-[368px] left-[calc(50%+0.02px)] rounded-[17.14px] top-[-9.39px] translate-x-[-50%] w-[288px]">
-                <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[17.14px]">
-                    <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[17.14px] to-black" />
-                    <img alt="" className="absolute max-w-none object-cover rounded-[17.14px] size-full scale-[1.3] origin-top translate-y-[-40px]" src={imgRectangle3} decoding="async" />
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function BgElements1() {
-    return (
-        <div className="absolute contents left-[-221.37px] top-[-263.61px]" data-name="Bg Elements">
-            <div className="absolute flex h-[840.336px] items-center justify-center left-[-220.57px] mix-blend-screen top-[-262.81px] w-[726.781px]" style={{ "--transform-inner-width": "0", "--transform-inner-height": "0" } as React.CSSProperties}>
-                <div className="flex-none rotate-[72.8deg]">
-                    <div className="h-[540.261px] relative w-[712.432px]" data-name="Light greyish">
-                        <div className="absolute inset-[-15.65%_-11.86%]">
-                            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 881.486 709.315">
-                                <g filter="url(#filter0_f_1_322)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                                    <path d={svgPaths.p35b78a00} fill="url(#paint0_radial_1_322)" fillOpacity="0.55" />
-                                </g>
-                                <defs>
-                                    <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="709.315" id="filter0_f_1_322" width="881.486" x="0" y="0">
-                                        <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                                        <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
-                                        <feGaussianBlur result="effect1_foregroundBlur_1_322" stdDeviation="42.2637" />
-                                    </filter>
-                                    <radialGradient cx="0" cy="0" gradientTransform="matrix(-240.157 -255.672 255.448 -240.409 540.284 366.28)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_322" r="1">
-                                        <stop offset="0.409332" stopColor="#FFA69A" />
-                                        <stop offset="1" stopOpacity="0" />
-                                        <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
-                                    </radialGradient>
-                                </defs>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function Text1() {
-    const { t } = useLanguage();
-    return (
-        <div className="absolute contents left-[calc(50%-97.42px)] top-[50.19px] translate-x-[-50%]" data-name="Text">
-            <div className="absolute flex h-[111px] items-center justify-center left-[calc(50%-82.92px)] top-[64.99px] translate-x-[-50%] w-[23px]" style={{ "--transform-inner-width": "85.15625", "--transform-inner-height": "19" } as React.CSSProperties}>
-                <div className="flex-none rotate-[90deg]">
-                    <p className="text-white css-ew64yg font-['Sora:SemiBold',sans-serif] font-semibold leading-[23px] relative text-[19px] text-center tracking-[-0.38px]">
-                        Alia Mahran
-                    </p>
-                </div>
-            </div>
-            <div className="absolute flex h-[138px] items-center justify-center left-[calc(50%-114.92px)] top-[50.99px] translate-x-[-50%] w-[17px]" style={{ "--transform-inner-width": "139.875", "--transform-inner-height": "19" } as React.CSSProperties}>
-                <div className="flex-none rotate-[90deg]">
-                    <p className="css-ew64yg font-['Sora:Regular',sans-serif] font-normal leading-[17px] relative text-[14px] text-[rgba(255,255,255,0.5)] text-center">{t('Operation Manager')}</p>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function Card1() {
-    return (
-        <div className="h-[239.957px] overflow-clip relative rounded-[18.282px] w-[307.374px]" data-name="Card">
-            <div
-                className="absolute inset-0 pointer-events-none rounded-[18.282px]"
-                style={{
-                    padding: "0.8px",
-                    background: "linear-gradient(to left, #ffa69a 0%, #ffa69a 30%, transparent 100%)",
-                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                    WebkitMaskComposite: "xor",
-                    maskComposite: "exclude",
-                }}
-            />
-            <BgElements1 />
-            <Text1 />
-        </div>
-    );
-}
-
-const Safer1 = React.memo(function Safer1() {
-    return (
-        <div className="h-[305.235px] relative rounded-[27.424px] shrink-0 w-[240px]" data-name="Safer">
-            <Lights1 />
-            <div className="absolute flex h-[307.374px] items-center justify-center left-[0.02px] top-[0.02px] w-[239.957px]" style={{ "--transform-inner-width": "139.875", "--transform-inner-height": "38" } as React.CSSProperties}>
-                <div className="flex-none rotate-[-90deg]">
-                    <Card1 />
                 </div>
             </div>
         </div>
@@ -635,7 +534,7 @@ function hexToRgb(hex: string) {
     return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 }
 
-// Same card as Safer1-5, with the member passed in as props.
+// Same card as Safer, Safer2-5, with the member passed in as props.
 const TeamCard = React.memo(function TeamCard({ id, name, role, image, color }: TeamCardProps) {
     const { t } = useLanguage();
     return (
@@ -725,7 +624,6 @@ function Frame1() {
         // Four cards per row (4 x 240px + 3 x 24px gaps).
         <div className="flex flex-wrap gap-[24px] items-center justify-center w-full max-w-[1040px] mx-auto">
             <Safer />
-            <Safer1 />
             <Safer2 />
             <Safer3 />
             <Safer4 />
@@ -843,106 +741,6 @@ function MobileSafer() {
   );
 }
 
-function MobileLights1() {
-  return (
-    <div className="absolute h-[202.143px] left-[0.77px] overflow-clip top-[0.77px] w-[158.066px]" data-name="MobileLights">
-      <div className="absolute bg-[#333333] h-[202.143px] left-0 rounded-[11.399px] top-0 w-[158.066px]">
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_3.04px_18.238px_-5.32px_rgba(255,166,154,0.4)]" />
-      </div>
-      <div className="absolute h-[202.143px] left-0 rounded-[11.399px] top-0 w-[158.066px]">
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[11.399px]">
-          <div className="absolute bg-gradient-to-b from-[rgba(0,0,0,0)] inset-0 rounded-[11.399px] to-black" />
-          <div className="absolute inset-0 overflow-hidden rounded-[11.399px]">
-            <img alt="" className="absolute max-w-none object-cover rounded-[11.399px] size-full scale-[1.3] origin-top translate-y-[-15px]" src={imgRectangle3} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileBgElements1() {
-  return (
-    <div className="absolute contents left-[-147.45px] top-[-175.55px]" data-name="Bg Elements">
-      <div className="absolute flex h-[558.875px] items-center justify-center left-[-146.69px] mix-blend-screen top-[-174.79px] w-[483.354px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
-        <div className="flex-none rotate-[72.8deg]">
-          <div className="h-[359.307px] relative w-[473.811px]" data-name="Light greyish">
-            <div className="absolute inset-[-15.65%_-11.86%]">
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 586.243 471.738">
-                <g filter="url(#filter0_f_1_325)" id="Light greyish" style={{ mixBlendMode: "screen" }}>
-                  <path d={svgMobilePaths.p30f98800} fill="url(#paint0_radial_1_325)" fillOpacity="0.55" />
-                </g>
-                <defs>
-                  <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="471.738" id="filter0_f_1_325" width="586.243" x="0" y="0">
-                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                    <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
-                    <feGaussianBlur result="effect1_foregroundBlur_1_325" stdDeviation="28.1079" />
-                  </filter>
-                  <radialGradient cx="0" cy="0" gradientTransform="matrix(-159.719 -170.037 169.889 -159.887 359.322 243.599)" gradientUnits="userSpaceOnUse" id="paint0_radial_1_325" r="1">
-                    <stop offset="0.409332" stopColor="#FFA69A" />
-                    <stop offset="1" stopOpacity="0" />
-                    <stop offset="1" stopColor="#2D2E32" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileText1() {
-  const { t } = useLanguage();
-  return (
-    <div className="-translate-x-1/2 absolute contents left-[calc(50%-65.14px)] top-[25.22px]" data-name="MobileText">
-      <div className="-translate-x-1/2 absolute flex h-[74px] items-center justify-center left-[calc(50%-55.5px)] top-[43.22px] w-[16px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
-        <div className="flex-none rotate-90">
-          <p className="font-['Sora:SemiBold',sans-serif] font-semibold leading-[15.296px] relative text-[12.636px] text-white text-center tracking-[-0.2527px] whitespace-nowrap">Alia Mahran</p>
-        </div>
-      </div>
-      <div className="-translate-x-1/2 absolute flex h-[109px] items-center justify-center left-[calc(50%-76.77px)] top-[25.98px] w-[12px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "19" } as React.CSSProperties}>
-        <div className="flex-none rotate-90">
-          <p className="font-['Sora:Regular',sans-serif] font-normal leading-[11.306px] relative text-[11px] text-[rgba(255,255,255,0.5)] text-center whitespace-nowrap">{t('Operation Manager')}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileCard1() {
-  return (
-    <div className="h-[159.586px] overflow-clip relative rounded-[12.159px] w-[204.423px]" data-name="MobileCard">
-      <div
-          className="absolute inset-0 pointer-events-none rounded-[12.159px]"
-          style={{
-              padding: "0.76px",
-              background: "linear-gradient(to left, #ffa69a 0%, #ffa69a 30%, transparent 100%)",
-              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-              WebkitMaskComposite: "xor",
-              maskComposite: "exclude",
-          }}
-      />
-      <MobileBgElements1 />
-      <MobileText1 />
-    </div>
-  );
-}
-
-function MobileSafer1() {
-  return (
-    <div className="absolute h-[203px] left-[calc(50%+7.5px)] rounded-[18.238px] top-[80px] w-[159.615px]" data-name="MobileSafer">
-      <MobileLights1 />
-      <div className="absolute flex h-[204.423px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.586px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
-        <div className="-rotate-90 flex-none">
-          <MobileCard1 />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function MobileLights2() {
   return (
     <div className="absolute h-[203.139px] left-[0.78px] overflow-clip top-[0.78px] w-[158.845px]" data-name="MobileLights">
@@ -1032,7 +830,7 @@ function MobileCard2() {
 
 function MobileSafer2() {
   return (
-    <div className="absolute h-[204px] left-[20px] rounded-[18.328px] top-[298px] w-[160.401px]" data-name="MobileSafer">
+    <div className="absolute h-[204px] left-[calc(50%+7.5px)] rounded-[18.328px] top-[80px] w-[160.401px]" data-name="MobileSafer">
       <MobileLights2 />
       <div className="absolute flex h-[205.43px] items-center justify-center left-[0.02px] top-[0.01px] w-[160.373px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
         <div className="-rotate-90 flex-none">
@@ -1132,7 +930,7 @@ function MobileCard3() {
 
 function MobileSafer3() {
   return (
-    <div className="absolute h-[203.49px] left-[calc(50%+7.5px)] rounded-[18.282px] top-[298.25px] w-[160px]" data-name="MobileSafer">
+    <div className="absolute h-[203.49px] left-[20px] rounded-[18.282px] top-[298.25px] w-[160px]" data-name="MobileSafer">
       <MobileLights3 />
       <div className="absolute flex h-[204.916px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.972px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
         <div className="-rotate-90 flex-none">
@@ -1232,7 +1030,7 @@ function MobileCard4() {
 
 function MobileSafer4() {
   return (
-    <div className="absolute h-[203.49px] left-[20px] rounded-[18.282px] top-[516.75px] w-[160px]" data-name="MobileSafer">
+    <div className="absolute h-[203.49px] left-[calc(50%+7.5px)] rounded-[18.282px] top-[298.25px] w-[160px]" data-name="MobileSafer">
       <MobileLights4 />
       <div className="absolute flex h-[204.916px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.972px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
         <div className="-rotate-90 flex-none">
@@ -1333,7 +1131,7 @@ function MobileCard5() {
 
 function MobileSafer5() {
   return (
-    <div className="absolute h-[203.49px] left-[calc(50%+7.5px)] rounded-[18.282px] top-[516.75px] w-[160px]" data-name="MobileSafer">
+    <div className="absolute h-[203.49px] left-[20px] rounded-[18.282px] top-[516.75px] w-[160px]" data-name="MobileSafer">
       <MobileLights5 />
       <div className="absolute flex h-[204.916px] items-center justify-center left-[0.02px] top-[0.01px] w-[159.972px]" style={{ "--transform-inner-width": "1200", "--transform-inner-height": "57" } as React.CSSProperties}>
         <div className="-rotate-90 flex-none">
@@ -1344,7 +1142,7 @@ function MobileSafer5() {
   );
 }
 
-// Same card as MobileSafer1-5, with the member and its grid position passed in.
+// Same card as MobileSafer, MobileSafer2-5, with the member and its grid position passed in.
 function MobileTeamCard({ id, name, role, image, color, top, left }: TeamCardProps & { top: number; left: string }) {
   const { t } = useLanguage();
   return (
@@ -1423,7 +1221,10 @@ function MobileTeamCard({ id, name, role, image, color, top, left }: TeamCardPro
 
 // Mobile grid: 2 columns, rows 218.5px apart (see MobileSafer-MobileSafer5).
 const MOBILE_COLUMNS = ["20px", "calc(50% + 7.5px)"];
-const MOBILE_FIRST_NEW_ROW_TOP = 735.25;
+const MOBILE_FIRST_ROW_TOP = 80;
+const MOBILE_ROW_GAP = 218.5;
+// Grid slots taken by the fixed cards (MobileSafer, MobileSafer2-5); new members follow.
+const MOBILE_FIXED_SLOTS = 5;
 const MOBILE_HEIGHT = 970;
 
 // Two rows of four 240px cards under the heading.
@@ -1474,7 +1275,6 @@ export default function MeetTheTeam() {
 
     const teamMembers = [
         { name: "Mohamed Neamatalla", role: "Founder & CEO", image: imgRectangle2, color: "#5F82BF" },
-        { name: "Alia Mahran", role: "Operation Manager", image: imgRectangle3, color: "#FFA69A" },
         { name: "Omar Maged", role: "Tech Manager", image: imgRectangle4, color: "#FDE68A" },
         { name: "Adham Marzouk", role: "Software Engineer", image: imgAdhamMarzouk, color: "#FFA437" },
         { name: "Alaa Abdullah", role: "Quality Assurance", image: imgAlaa, color: "#B794F6" },
@@ -1497,7 +1297,6 @@ export default function MeetTheTeam() {
                     {t('Meet The Team')}
                 </p>
                 <MobileSafer />
-                <MobileSafer1 />
                 <MobileSafer2 />
                 <MobileSafer3 />
                 <MobileSafer4 />
@@ -1506,8 +1305,8 @@ export default function MeetTheTeam() {
                     <MobileTeamCard
                         key={m.id}
                         {...m}
-                        top={MOBILE_FIRST_NEW_ROW_TOP + Math.floor(i / 2) * 218.5}
-                        left={MOBILE_COLUMNS[i % 2]}
+                        top={MOBILE_FIRST_ROW_TOP + Math.floor((MOBILE_FIXED_SLOTS + i) / 2) * MOBILE_ROW_GAP}
+                        left={MOBILE_COLUMNS[(MOBILE_FIXED_SLOTS + i) % 2]}
                     />
                 ))}
             </div>

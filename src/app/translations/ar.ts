@@ -302,7 +302,6 @@ export const arTranslations: Record<string, string> = {
   // ═══════════════════════════════════════════════
   "Meet The Team": "تعرّف على فريقنا",
   "Mohamed Neamatalla": "محمد نعمة الله",
-  "Alia Mahran": "عالية مهران",
   "Omar Maged": "عمر ماجد",
   "Adham Marzouk": "أدهم مرزوق",
   "Alaa Abdullah": "علاء عبد الله",
