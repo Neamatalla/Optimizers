@@ -45,6 +45,7 @@ HeaderNav (persistent) → HeaderSection → Services (mobile/desktop variants) 
 - `api/` — Vercel serverless functions; shared code in `api/_lib/`, tests in `tests/api/`
 - `supabase/` — the audit system's database: a frozen baseline plus numbered migrations (see `docs/DB_WORKFLOW.md`)
 - `audit-worker/` — separate worker that runs the free audits (Docker on Railway, not deployed to Vercel); see its README
+- `audit-worker/src/points/` — the master audit point list (201 points with role labels; every old checklist id maps to one point or is dropped). Not wired into the audit yet; plan in `audit-worker/PHASE1-PLAN.md`, overview in `audit-worker/master-points/README.md`
 - `src/hooks/` — Custom hooks (`useScrollReveal`, `use-toast`)
 - `src/lib/` — `queryClient.ts` (API request utility with TanStack React Query), `animations.ts`, `scrollToSection.ts`
 - `src/styles/` — CSS files: `index.css`, `tailwind.css`, `theme.css` (variables), `rtl.css`, `scroll-reveal.css`, `responsive.css`, `services.css`, `case-studies-animations.css`, `top-clients-scroll.css`, `fonts.css`
