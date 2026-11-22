@@ -1,4 +1,5 @@
 import type { FudPageType } from "../types.js";
+import type { ProbeResults } from "./collect-probes.js";
 
 /**
  * What collect.ts captures from one page, and the only thing judge.ts and
@@ -147,6 +148,9 @@ export interface StoreEvidence {
   // Searched the store for a word from the product's name and counted the
   // product links on the results page. Absent when no search was found.
   searchTest?: { query: string; url: string; results: number; loaded: boolean };
+  // Extra browser probes (collect-probes.ts): empty cart, second variant,
+  // campaign parameters, in-app navigation, tags per page type, hit timing.
+  probes?: ProbeResults;
   // Analytics/ad hits aborted during collection (should be > 0 on any store
   // with tracking — proves the bot stayed out of the client's data).
   blockedHits: number;
