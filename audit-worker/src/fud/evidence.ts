@@ -112,6 +112,76 @@ export interface PageFacts {
   soldOutTop?: number;
   hero: { kind: string; src: string; alt: string; coverPct: number } | null;
   capture: { email: boolean; phone: boolean; account: boolean };
+  // ---- Round 23: facts for the master-point rules (src/points/rules/facts.ts).
+  // All optional: evidence saved before they existed still loads. Boxes are
+  // page coordinates (same as cta.box). Never holds what a shopper typed.
+  // Visible form fields (never their values): keyboard type, autocomplete, height, font size.
+  inputs?: FactInput[];
+  // Header cart / menu / search controls, read from the header element.
+  header?: { found: boolean; cart: { box: Box; count: number | null; opens: "page" | "drawer" | null } | null; menu: Box | null; search: Box | null };
+  // Where the language switch sits: visible in the header, hidden inside the
+  // header/menu, in the footer, or elsewhere. Null when there is none.
+  langAt?: "header" | "menu" | "footer" | "body" | null;
+  // Footer contents (booleans only, no numbers or addresses kept).
+  footer?: { found: boolean; links: number; phone: boolean; whatsapp: boolean; email: boolean; kinds: string[] };
+  // Fixed-position elements on screen that are not the header or a buy bar.
+  floaters?: Array<{ kind: "chat" | "tab" | "banner" | "other"; box: Box }>;
+  // Quantity selector near the buy button (box around it, its +/- boxes).
+  qty?: { box: Box; controls: Box[] } | null;
+  // Variant option pills / swatches near the buy button.
+  swatches?: Box[];
+  // The Add to Cart button as the page paints it. bgComplex: gradient, image
+  // or see-through background, so contrast can't be computed.
+  atc?: { box: Box; fg: string; bg: string; bgComplex: boolean } | null;
+  // Sideways scroll: layout width vs scroll width, the widest in-flow element,
+  // and whether html/body hide overflow (which masks real scrolling).
+  overflow?: PageOverflow;
+  // The same read after a 360px viewport. Filled by collect.ts when it re-reads.
+  overflow360?: PageOverflow;
+  // Template text and demo links found anywhere on the page.
+  placeholder?: { text: string[]; hrefs: string[] };
+  // Links to the store's own domain, and how many carry utm_ parameters.
+  utm?: { internal: number; withUtm: number; samples: string[] };
+  // Content images (not SVG, 48px wide or more), and the page's true total
+  // when the list was cut.
+  images?: PageImage[];
+  imagesTotal?: number;
+}
+
+export interface FactInput {
+  type: string;
+  inputmode: string;
+  autocomplete: string;
+  // The field's own name/id and placeholder/label, to tell phone from email.
+  name: string;
+  label: string;
+  w: number;
+  h: number;
+  // Computed font size in px.
+  fs: number;
+  inHeader: boolean;
+}
+
+export interface PageOverflow {
+  iw: number;
+  sw: number;
+  wide: number;
+  clipped: boolean;
+}
+
+export interface PageImage {
+  // Host and URL path (no query), to read the file type.
+  host: string;
+  path: string;
+  // "webp", "avif", "jpg", "png", "gif" or "other", from the file name or format parameter.
+  fmt: string;
+  // The URL asks the CDN to choose the format (f_auto, auto=format, ...).
+  auto: boolean;
+  // Natural width (0 = not loaded) and displayed width in px, page y of the top edge.
+  nw: number;
+  dw: number;
+  top: number;
+  lazy: boolean;
 }
 
 export interface StoreEvidence {
