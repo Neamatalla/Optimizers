@@ -1,6 +1,7 @@
 import type { StoreEvidence } from "../../fud/evidence.js";
 import type { Ga4Facts, SiteChecks } from "../../types.js";
 import type { PageSpeedResult } from "../../pagespeed.js";
+import type { NetChecks } from "../net-checks.js";
 
 /**
  * A code rule decides one master point (src/points/registry.ts) from data the
@@ -29,6 +30,8 @@ export interface RuleInput {
   evidence?: StoreEvidence | null;
   siteChecks?: SiteChecks | null;
   pageSpeed?: PageSpeedResult | null;
+  // Plain HTTP checks (points/net-checks.ts): robots.txt, hreflang, links, 404 page.
+  net?: NetChecks | null;
 }
 
 export type Rule = (input: RuleInput) => RuleResult;
