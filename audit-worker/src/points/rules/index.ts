@@ -4,12 +4,13 @@ import { VISIT_RULES } from "./visit.js";
 import { SPEED_RULES } from "./speed.js";
 import { ACCOUNT_RULES } from "./account.js";
 import { NET_RULES } from "./net.js";
+import { PROBE_RULES } from "./probes.js";
 import type { Rule, RuleInput, RuleResult } from "./types.js";
 
 export type * from "./types.js";
 
 /** Every code rule, by master point id. */
-export const RULES: Record<string, Rule> = { ...GA4_RULES, ...VISIT_RULES, ...SPEED_RULES, ...ACCOUNT_RULES, ...NET_RULES };
+export const RULES: Record<string, Rule> = { ...GA4_RULES, ...VISIT_RULES, ...SPEED_RULES, ...ACCOUNT_RULES, ...NET_RULES, ...PROBE_RULES };
 
 /**
  * Runs every code rule for the active points. A rule that throws is

@@ -3,6 +3,7 @@ import { pageTypeOf } from "../discover-pages.js";
 import { findChrome } from "../screenshots.js";
 import type { FudPageType } from "../types.js";
 import type { HitParams, PageEvidence, StoreEvidence, TextBlock } from "./evidence.js";
+import { runProbes } from "./collect-probes.js";
 import { widgetsIn } from "./signals.js";
 import { FACTS_JS, POPUPS_JS, STICKY_JS } from "./facts-js.js";
 import type { PageFacts } from "./evidence.js";
@@ -38,7 +39,11 @@ const DESKTOP_PROFILE: Profile = {
 const MOBILE = MOBILE_PROFILE.viewport;
 const NAV_TIMEOUT_MS = 25_000;
 // Round 19 added up to two landing pages and the first checkout screen.
-const TOTAL_TIMEOUT_MS = 230_000;
+// The interaction probes (collect-probes.ts) feed the new code rules, which
+// nothing reads yet (src/points, PHASE1-PLAN.md step 5). They stay off unless
+// COLLECT_PROBES=on, so live audits keep today's time budget.
+const PROBES_ON = (process.env.COLLECT_PROBES ?? "").trim().toLowerCase() === "on";
+const TOTAL_TIMEOUT_MS = PROBES_ON ? 300_000 : 230_000;
 const DRAWER_WAIT_MS = 8_000;
 const MAX_TEXT_PER_PAGE = 12_000;
 
@@ -1047,9 +1052,13 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       }
     }
 
+    // Extra probes (collect-probes.ts) get the time left; they never fail the visit.
+    const probes = PROBES_ON && Date.now() + 20_000 < startedAt + TOTAL_TIMEOUT_MS
+      ? await runProbes({ browser, homepage, productUrl, collectionUrl, cartUrl: cartUrl!, deps: { isBlocked: isBlockedHit, hitEvents }, deadline: startedAt + TOTAL_TIMEOUT_MS - 10_000 }).catch(() => undefined)
+      : undefined;
     const focusUrls = opts.focus?.productUrl || opts.focus?.collectionUrl ? { product: opts.focus.productUrl, collection: opts.focus.collectionUrl } : undefined;
     const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id, q }) => ({ page: p!, vendor, name, ...(id && { id }), ...(q && { q }) }));
-    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, pageHits, focusUrls, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, pageHits, focusUrls, searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.
