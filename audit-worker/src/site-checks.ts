@@ -4,8 +4,14 @@ import { signalQualityFrom } from "./signal-quality.js";
 import type { CheckoutSummary, LandingSummary } from "./ad-match.js";
 import type { PageEvidence } from "./fud/evidence.js";
 
-// A price in the text: a currency next to a number, either order.
-const PRICE = /(?:LE|EGP|SAR|AED|KWD|QAR|BHD|OMR|USD|E£|\$|ج\.?\s?م|جنيه|ريال|ر\.?\s?س|د\.?\s?إ)\s*[\d٠-٩]|[\d٠-٩][\d٠-٩,.٬]*\s*(?:LE|EGP|SAR|AED|KWD|QAR|E£|ج\.?\s?م|جنيه|ريال|ر\.?\s?س|د\.?\s?إ)/i;
+// A price in the text: a currency next to a number, either order. Covers
+// every GCC currency in Latin and Arabic (د.ك Kuwait, ر.ق Qatar, ر.ع Oman,
+// د.ب Bahrain); keep in step with PRICE in fud/collect.ts.
+const CURRENCY = String.raw`LE|EGP|SAR|AED|KWD|QAR|BHD|OMR|USD|E£|ج\.?\s?م|جنيه|ريال|دينار|درهم|ر\.?\s?س|د\.?\s?إ|د\.?\s?ك|ر\.?\s?ق|ر\.?\s?ع|د\.?\s?ب`;
+const PRICE = new RegExp(String.raw`(?:${CURRENCY}|\$)\s*[\d٠-٩]|[\d٠-٩][\d٠-٩,.٬]*\s*(?:${CURRENCY})`, "i");
+export function hasPrice(text: string): boolean {
+  return PRICE.test(text);
+}
 const COUPON_FIELD = /خصم|كوبون|قسيمة|بطاقة هدايا|discount|coupon|promo|voucher|gift card/i;
 const PHONE_HEIGHT = 844;
 
@@ -20,7 +26,7 @@ function landingSummary(p: PageEvidence): LandingSummary {
     h1: p.facts?.h1 ?? [],
     fold,
     page: p.blocks.map(b => b.text).join(" | ").slice(0, 8000),
-    priceOnFold: PRICE.test(fold),
+    priceOnFold: hasPrice(fold),
     buyOnFold: Boolean(p.cta && !p.cta.disabled && p.cta.box.y + p.cta.box.h <= PHONE_HEIGHT),
     ...(p.cta && { buyLabel: p.cta.text }),
     ...(p.crops.fold && { crop: p.crops.fold }),
@@ -66,14 +72,29 @@ export function pixelMapFrom(hits: StoreEvidence["pageHits"]): SiteChecks["pixel
   };
 }
 
-export function siteChecksFrom(e: StoreEvidence, platform: string | null, currency?: string | null): SiteChecks {
+// A "share this product on WhatsApp" button (api.whatsapp.com/send?text=…,
+// wa.me/?text=…) carries a message and no phone number. It isn't a way to
+// reach the store, so it must not count as a broken contact link.
+function isShareLink(href: string): boolean {
+  if (href.startsWith("tel:")) return false;
+  const hasNumber = /wa\.me\/\+?\d/.test(href) || /[?&]phone=\+?\d/.test(href);
+  return !hasNumber && /[?&]text=/.test(href);
+}
+
+/** The store's WhatsApp/phone links across the visited pages, share buttons left out. */
+export function contactLinksFrom(pages: StoreEvidence["pages"]): SiteChecks["contactLinks"] {
   const links = new Map<string, SiteChecks["contactLinks"][number]>();
-  for (const p of e.pages) {
+  for (const p of pages) {
     for (const href of p.facts?.contactLinks ?? []) {
-      if (links.has(href)) continue;
+      if (links.has(href) || isShareLink(href)) continue;
       links.set(href, { href, kind: href.startsWith("tel:") ? "tel" : "whatsapp", valid: contactValid(href) });
     }
   }
+  return [...links.values()];
+}
+
+export function siteChecksFrom(e: StoreEvidence, platform: string | null, currency?: string | null): SiteChecks {
+  const contactLinks = contactLinksFrom(e.pages);
   const cart = e.pages.find(p => p.pageType === "cart" && p.loaded);
   const home = e.pages.find(p => p.pageType === "home" && p.loaded);
   return {
@@ -81,7 +102,7 @@ export function siteChecksFrom(e: StoreEvidence, platform: string | null, curren
     addToCart: { attempted: e.addToCart.attempted, ok: e.addToCart.ok, reason: e.addToCart.reason, via: e.addToCart.ok ? cart?.cart?.source : undefined, method: e.addToCart.via, clickAdded: e.addToCart.clickAdded },
     // Events only say something when the click itself filled the cart.
     atcEvents: e.addToCart.clickAdded === false || !e.addToCart.ok ? null : e.atcEvents ?? null,
-    contactLinks: [...links.values()].slice(0, 8),
+    contactLinks: contactLinks.slice(0, 8),
     soldOutPromoted: e.pages.filter(p => p.pageType === "home" || p.pageType === "collection").reduce((s, p) => s + (p.facts?.soldOutTop ?? 0), 0),
     heroVideoMobile: home?.facts?.hero?.kind === "video" && (home.facts.hero.coverPct ?? 0) >= 30,
     pagesVisited: e.pages.map(p => ({ pageType: p.pageType, url: p.url, loaded: p.loaded })),

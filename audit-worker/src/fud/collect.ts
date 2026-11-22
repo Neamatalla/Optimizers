@@ -281,7 +281,7 @@ const EXTRACT_JS = String.raw`
     cards.push(card);
   });
   if (cards.length >= 4) {
-    var PRICE = /\d[\d,.]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|qar|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|usd|\$|€|£)\s?\d/i;
+    var PRICE = /[\d٠-٩][\d٠-٩,.٬]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|د\.?\s?ك|دينار|qar|ر\.?\s?ق|bhd|د\.?\s?ب|omr|ر\.?\s?ع|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|bhd|omr|usd|ر\.?\s?س|د\.?\s?إ|د\.?\s?ك|ر\.?\s?ق|د\.?\s?ب|ر\.?\s?ع|\$|€|£)\s?[\d٠-٩]/i;
     var QUICK = /add to (cart|bag|basket)|quick (add|buy|shop|view)|choose options|select options|buy now|اضف|أضف|إضافة|اضافة|اشتر|اختر|اختاري|عرض سريع/i;
     var withPrice = 0, withRating = 0, quickAdd = 0, labels = {};
     cards.forEach(function (c2) {
@@ -434,7 +434,7 @@ const FIND_LINKS_JS = String.raw`
   var here = location.origin + location.pathname.replace(/\/$/, "");
   var LISTING = /(^|\/)(shop|store|collections?|categor(y|ies)|product-category|products|all-products|catalog|best-selling|newest|offers)(\/[^\/]*)?\/?$/i;
   var PRODUCTISH = /\/(products?|p|item|items)\/[^\/]+\/?$/i;
-  var PRICE = /\d[\d,.]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|qar|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|usd|\$|€|£)\s?\d/i;
+  var PRICE = /[\d٠-٩][\d٠-٩,.٬]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|د\.?\s?ك|دينار|qar|ر\.?\s?ق|bhd|د\.?\s?ب|omr|ر\.?\s?ع|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|bhd|omr|usd|ر\.?\s?س|د\.?\s?إ|د\.?\s?ك|ر\.?\s?ق|د\.?\s?ب|ر\.?\s?ع|\$|€|£)\s?[\d٠-٩]/i;
   var product = null, productByPath = null, collection = null;
   var links = document.querySelectorAll("a[href]");
   for (var i = 0; i < links.length; i++) {

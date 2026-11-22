@@ -1,6 +1,6 @@
 import type { StoreEvidence } from "./fud/evidence.js";
 import { formatMoney, formatPct, fromOAuth, rowsOf, salesIn, STEP_BENCHMARKS, type Normalized } from "./fud/insights.js";
-import { freeShippingThreshold } from "./fud/rules-cro.js";
+import { freeShippingOffer } from "./fud/rules-cro.js";
 import type { FudPageType, Ga4Fact, Ga4Facts, Ga4Focus, Ga4Metrics, Handoff } from "./types.js";
 
 /**
@@ -376,8 +376,12 @@ function thresholdFact(ctx: Ctx): Ga4Fact {
   if (!ctx.aov) return { id: "GA4-11", status: "no_data", en: "No average order value in the GA4 data." };
   const aovText = formatMoney(ctx.aov, ctx.d.currency);
   if (!ctx.evidence) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. The store's pages weren't visited this run, so the free-shipping threshold is unknown.` };
-  const threshold = freeShippingThreshold(ctx.evidence);
-  if (threshold === null) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. No free-shipping threshold was found on the pages we visited.` };
+  const offer = freeShippingOffer(ctx.evidence);
+  if (!offer) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. No free-shipping threshold was found on the pages we visited.` };
+  if (offer.currency && ctx.d.currency && offer.currency !== ctx.d.currency) {
+    return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. Free shipping starts at ${offer.amount} ${offer.currency}, a different currency from GA4's, so the two can't be compared.` };
+  }
+  const threshold = offer.amount;
   const ratio = threshold / ctx.aov;
   const line = `Free shipping starts at ${formatMoney(threshold, ctx.d.currency)}, ${ratio.toFixed(2)}× your average order value of ${aovText}.`;
   if (ratio >= 1.1 && ratio <= 1.6) return { id: "GA4-11", status: "pass", en: `${line} That nudges orders up without feeling out of reach.` };

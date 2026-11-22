@@ -29,9 +29,28 @@ export function normalize(text: string): string {
 
 // Currency tokens as they appear on EG/GCC storefronts (normalized: alef
 // forms folded, lowercase).
-const CURRENCY = String.raw`(?:egp|le|l\.e\.?|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?ا|درهم|kwd|د\.?\s?ك|qar|ر\.?\s?ق|bhd|omr|usd|\$|€|£)`;
+const CURRENCY = String.raw`(?:egp|le|l\.e\.?|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?ا|درهم|kwd|د\.?\s?ك|دينار|qar|ر\.?\s?ق|bhd|د\.?\s?ب|omr|ر\.?\s?ع|usd|\$|€|£)`;
 const AMOUNT = String.raw`\d[\d,.]*`;
 const MONEY = String.raw`(?:${CURRENCY}\s?${AMOUNT}|${AMOUNT}\s?${CURRENCY})`;
+
+/** Amounts written next to a currency in normalized text ("فوق 40 دينار" → [40]). */
+export function moneyAmounts(normalized: string): number[] {
+  return (normalized.match(new RegExp(MONEY, "g")) ?? [])
+    .map(m => Number((m.match(/\d[\d,]*(?:\.\d+)?/)?.[0] ?? "").replace(/,/g, "")))
+    .filter(n => Number.isFinite(n) && n > 0);
+}
+
+// ISO code of the one GCC/EG currency a normalized text names, or null when
+// it names none or is ambiguous (a bare "ريال" or "دينار").
+const CURRENCY_CODES: Array<[RegExp, string]> = [
+  [/\bkwd\b|د\.?\s?ك|دينار كويتي/, "KWD"], [/\bsar\b|ر\.?\s?س|ريال سعودي/, "SAR"], [/\baed\b|د\.?\s?ا\b|درهم/, "AED"],
+  [/\bqar\b|ر\.?\s?ق|ريال قطري/, "QAR"], [/\bbhd\b|د\.?\s?ب|دينار بحريني/, "BHD"], [/\bomr\b|ر\.?\s?ع|ريال عماني/, "OMR"],
+  [/\begp\b|ج\.?\s?م|جنيه/, "EGP"],
+];
+export function currencyIn(normalized: string): string | null {
+  const found = new Set(CURRENCY_CODES.filter(([re]) => re.test(normalized)).map(([, c]) => c));
+  return found.size === 1 ? [...found][0] : null;
+}
 
 export const PATTERNS = {
   freeShipping: /free (?:shipping|delivery)|ships? free|شحن مجاني|توصيل مجاني|الشحن مجاني|التوصيل مجاني|شحن مجانا|توصيل مجانا/,
