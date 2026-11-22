@@ -57,7 +57,7 @@ export default async function handler(req, res) {
 
     const {
       firstName, email, website, traffic, monthlyConversions, challenge,
-      source, calendlyEventUri, calendlyInviteeUri, attribution,
+      source, calendlyEventUri, calendlyInviteeUri,
     } = req.body || {};
     const isCalendlyFallback = source === "calendly-fallback";
     const requiredFields = { firstName, email, website, traffic, monthlyConversions, challenge };
@@ -86,26 +86,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Please enter a valid website URL." });
     }
 
-    // Lead source (first/last touch + GA4 ids) sent by the site; only known keys, every value escaped.
-    const ATTRIBUTION_LABELS = {
-      first_source: "First touch source", first_medium: "First touch medium", first_campaign: "First touch campaign",
-      first_landing_page: "First landing page", first_click_id_type: "First touch ad click", first_touch_at: "First visit (UTC)",
-      last_source: "Last touch source", last_medium: "Last touch medium", last_campaign: "Last touch campaign",
-      last_term: "Last touch term", last_content: "Last touch content", last_click_id_type: "Last touch ad click",
-      last_click_id: "Last touch click ID", last_referrer: "Last referrer",
-      client_id: "GA4 client ID", session_id: "GA4 session ID", session_number: "GA4 session number",
-    };
-    const attributionRows = attribution && typeof attribution === "object"
-      ? Object.entries(ATTRIBUTION_LABELS)
-          .filter(([key]) => attribution[key] !== undefined && attribution[key] !== null && String(attribution[key]).trim() !== "")
-          .map(([key, label]) => `
-            <tr>
-              <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${escapeHtml(label)}</td>
-              <td style="padding: 12px; border: 1px solid #ddd;">${escapeHtml(String(attribution[key]).slice(0, 200))}</td>
-            </tr>`)
-          .join("")
-      : "";
-
     let calendlyRows = "";
     if (isCalendlyFallback) {
       const details = await fetchCalendlyDetails(calendlyEventUri, calendlyInviteeUri);
@@ -128,7 +108,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await resend.emails.send({
       from: "Optimizers <hello@optimizers.agency>",
-      to: ["mohamed@neamatalla.com"],
+      to: ["Mohamed@neamatalla.com", "yaseen@optimizers.agency", "team@optimizers.agency"],
       subject: isCalendlyFallback
         ? `New Optimizers Booking (form email retry) from ${firstName}`
         : `New Optimizers Client Data Submission from ${firstName}`,
@@ -161,8 +141,7 @@ export default async function handler(req, res) {
             <tr>
               <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Primary Objective</td>
               <td style="padding: 12px; border: 1px solid #ddd;">${challenge}</td>
-            </tr>${calendlyRows}${attributionRows ? `
-            <tr><td colspan="2" style="padding: 12px; border: 1px solid #ddd; background-color: #263328; color: #6ae499; font-weight: bold;">Lead source</td></tr>${attributionRows}` : ""}
+            </tr>${calendlyRows}
           </table>
           <p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
             This submission was received from the Optimizers booking form.
