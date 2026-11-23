@@ -84,10 +84,13 @@ test("renderFinding fills slots from the rule's facts and picks the role's voice
   assert.equal(so.technical.detail, "tel:12345");
 });
 
-test("renderFinding: unverified and n/a get short generic text; a point with no template is marked generic", () => {
+test("renderFinding: unverified shows its reason, n/a gets short generic text; a point with no template is marked generic", () => {
   const u = renderFinding("PATH-08", { status: "unverified", reason: "No page loaded." });
   assert.equal(u.technical.summary, "No page loaded.");
-  assert.match(u.business.summary, /Not checked/);
+  assert.equal(u.business.summary, "No page loaded.", "the reason, not 'not checked'");
+  const ar = renderFinding("PATH-08", { status: "unverified", reason: "No page loaded.", observation: { en: "No page loaded.", ar: "لم تُحمّل أي صفحة." } }, { lang: "ar" });
+  assert.equal(ar.business.summary, "لم تُحمّل أي صفحة.");
+  assert.match(renderFinding("PATH-08", { status: "unverified", reason: "x" }, { lang: "ar" }).business.summary, /لم نتمكن/, "generic Arabic when no translation");
   assert.match(renderFinding("PATH-08", { status: "n/a", reason: "x" }, { lang: "ar" }).business.summary, /لا ينطبق/);
   // TRK-34 is parked, so it never gets a template.
   const none = renderFinding("TRK-34", { status: "pass", reason: "All 5 cards ok." });

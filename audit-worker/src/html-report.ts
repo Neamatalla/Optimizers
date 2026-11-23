@@ -2942,6 +2942,27 @@ function buyerClarityHtml(result: AuditResult): string {
 
 // How the audit works (#3 authority with substance, #51, #52 expectations):
 // sources, what "estimated" means, what we can't see.
+// Every check we couldn't settle this run, with why, in one place (Adham,
+// 23 Nov). Each row in the checks above says the same reason; this list lets
+// a reader see the whole gap at once.
+function notCheckedHtml(result: AuditResult): string {
+  const rows = result.categories.flatMap(c => c.findings.filter(f => f.status === "unassessed"));
+  if (!rows.length) return "";
+  const role = result.audienceRole ?? "store_owner";
+  const titleOf = (id: string) => { const p = pointById(id); return p?.roleCopy[role]?.title ?? p?.title ?? id; };
+  const items = rows.map(f => `
+          <li><b class="i18n-en">${escapeHtml(titleOf(f.checklistId))}</b> <code>${escapeHtml(f.checklistId)}</code>
+            <p class="i18n-en">${escapeHtml(f.business.summary)}</p>
+            <p class="i18n-ar" dir="rtl">${escapeHtml(f.ar?.business?.summary ?? f.business.summary)}</p></li>`).join("");
+  return `
+      <section class="doc-section" id="not-checked">
+        <h2>${bi(`What we couldn't check, and why (${rows.length})`, `اللي ما قدرناش نفحصه، وليه (${rows.length})`)}</h2>
+        <p class="section-lead">${bi("We only pass or fail a check when our visit or your data shows it. These need a manual look: each says what was missing.", "إحنا بنحكم على البند بس لما زيارتنا أو بياناتك توضّحه. دول محتاجين نظرة يدوية: كل واحد مكتوب جنبه إيه اللي كان ناقص.")}</p>
+        <ul class="not-checked-list">${items}
+        </ul>
+      </section>`;
+}
+
 function methodHtml(result: AuditResult, buyer: boolean, generatedAt: string, generatedAtAr: string): string {
   const { checked } = scopeOf(result);
   // The buyer's report lists every source right below, so here it's only how
@@ -5330,6 +5351,10 @@ html.dw-open{overflow:hidden}
 .sev--unassessed::before{content:"?"; width:auto; height:auto; border:0; background:none; font-weight:700}
 .check--unassessed{--status:var(--amber-ink); border-style:dashed}
 .passed-head--unassessed{color:var(--amber-ink)}
+.not-checked-list{list-style:none; margin:16px 0 0; padding:0; display:grid; gap:12px}
+.not-checked-list li{border:1px dashed var(--amber-ink); border-radius:10px; padding:12px 16px}
+.not-checked-list li code{font-size:12px; opacity:.7; margin-inline-start:6px}
+.not-checked-list li p{margin:6px 0 0}
 .passed-head--unassessed::before{display:none}
 .passed-block{margin-top:16px}
 .passed-head{display:flex; align-items:center; gap:8px; padding:14px 0 12px; font-family:var(--body); font-size:15px; font-weight:700; color:var(--green-ink)}
@@ -7172,6 +7197,7 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
   const clarity = persona ? claritySectionHtml(result, buyer) : "";
   const keep = persona === "store_owner" ? keepItHtml(result) : "";
   const method = persona ? methodHtml(result, buyer, generatedAt, generatedAtAr) : "";
+  const notChecked = notCheckedHtml(result);
   const hero = persona === "store_owner"
     ? ownerHeroHtml(result, counts, generatedAt, generatedAtAr, contactUrl, screens)
     : buyer
@@ -7193,8 +7219,8 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
   // Their GA4 totals sit in click-to-cash, so they get no numbers section.
   const croChecklist = checklistHtml(result);
   const body = buyer
-    ? [hero, fixFirst, breakEven, campaigns, adSetup, siteLeaks, friction, croChecklist, clarity, speedHtml, checks, method, sourcesHtml(result)]
-    : [hero, questionsHtml(result), fixFirst, breakEven, numbers, friction, croChecklist, clarity, keep, checks, speedHtml, method, sourcesHtml(result)];
+    ? [hero, fixFirst, breakEven, campaigns, adSetup, siteLeaks, friction, croChecklist, clarity, speedHtml, checks, notChecked, method, sourcesHtml(result)]
+    : [hero, questionsHtml(result), fixFirst, breakEven, numbers, friction, croChecklist, clarity, keep, checks, speedHtml, notChecked, method, sourcesHtml(result)];
   if (buyer) body.forEach((h, i) => { body[i] = withSourceBadge(h); });
   const speedUp = buyer && Boolean(speedHtml);
   const afterFix: Array<[string, string, string]> = [
@@ -7212,7 +7238,10 @@ function renderReport(result: AuditResult, assets: ReportAssets): string {
       ...(clarity && !buyer ? [["clarity", "Clarity", "Clarity"] as [string, string, string]] : []),
       ...(keep ? [["keep", "Keep it", "خلّه زي ما هو"] as [string, string, string]] : []),
     ],
-    after: method ? [["method", "How it works", buyer ? "اتعمل إزاي" : "كيف سوّيناه"] as [string, string, string]] : [],
+    after: [
+      ...(notChecked ? [["not-checked", "Not checked", buyer ? "متفحصش" : "ما انفحص"] as [string, string, string]] : []),
+      ...(method ? [["method", "How it works", buyer ? "اتعمل إزاي" : "كيف سوّيناه"] as [string, string, string]] : []),
+    ],
   };
   const title = `${result.businessName || hostOf(result.websiteUrl)} · Optimizers Audit`;
 

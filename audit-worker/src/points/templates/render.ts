@@ -73,11 +73,15 @@ export function renderFinding(pointId: string, result: RuleResult, opts: { role?
     const g = GENERIC[useLang];
     const title = point?.roleCopy[opts.role ?? "store_owner"]?.title ?? point?.title ?? pointId;
     const head = result.status === "n/a" ? g.na : result.status === "unverified" ? g.unverified : title;
+    // The specific reason, in both registers: English is the rule's or the
+    // AI's sentence, Arabic its translation (translate-reasons.ts) or the
+    // AI's observation; the generic line only when there is none. Adham,
+    // 23 Nov: an unchecked row says why, not "couldn't check" 30 times.
+    const why = useLang === "en" ? result.observation?.en ?? result.reason : result.observation?.ar;
+    const line = result.status === "unverified" && why ? why : head;
     return {
-      // English: the rule's own sentence. Arabic: its translation
-      // (translate-reasons.ts) or the AI's observation, else the generic line.
       technical: { summary: useLang === "en" ? result.reason : result.observation?.ar ?? head, detail: "" },
-      business: { summary: head, detail: result.status === "unverified" ? g.detail : "" },
+      business: { summary: line, detail: result.status === "unverified" ? g.detail : "" },
       missingSlots: [],
       generic: !copies,
     };
