@@ -205,6 +205,29 @@ from audit_run_metrics, jsonb_each_text(stages) as s(stage, ms)
 group by stage order by avg_seconds desc;
 ```
 
+## Master points (`POINTS_PIPELINE=on`)
+
+The new audit, behind a flag (plan and history in `PHASE1-PLAN.md`). The
+settings are in `.env.example`. With it on, the old main audit, friction pass,
+checklist and translation stages don't run. Instead:
+
+1. **Code rules** (`src/points/rules/`) decide what code can measure for sure.
+   A rule that saw the evidence and still can't decide says so
+   (`facts.final`), and the AI isn't asked to guess over it.
+2. **AI judge** (`src/points/ai-judge.ts`, `CLAUDE_MODEL`): one text call and
+   one call with the visit's pictures. They share the store's evidence through
+   the prompt cache: the picture call starts once the text call's answer
+   begins. Vague rules get a decision guide (`src/points/ai-guides.ts`). A pass
+   or fail that quotes text we never captured becomes unchecked.
+3. **Browser step** (`CLAUDE_WRITER_MODEL`): open points on a short list
+   are tested in a real headless browser, 5 per call. It may look, tap and
+   search, never fill a form, log in or order.
+4. **Arabic** for the code's English sentences (one writer call).
+
+Points nothing could settle show in the report with their reason, and in
+"What we couldn't check, and why". On Regal (Nov 2026) an audit costs about
+$0.50-0.57.
+
 ## Test mode
 
 To exercise the whole flow without the review queue, submit the form with a
@@ -248,7 +271,7 @@ Two things worth knowing before using it on a live site:
 An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that runs a CRO review of the store and adds a **Conversion review** section to the report: 31 checks across trust and cost (shipping, returns, cash on delivery, reviews, support), homepage clarity, product page layout (photos, option buttons, sticky buy button, organised details), navigation and search (including a live test search), order value (bundles, add-ons, free-shipping threshold vs average order), repeat purchases (signup, loyalty), local-market fit (Arabic, local payments and delivery) and popups. It also shows **Where the money is** (from the store's own GA4 data: a revenue range when a funnel step is below benchmark, device split, new vs returning, channels, weak landing pages). Each finding has a PEXTI priority, ready-to-paste copy (EN + AR) and a crop of the store's own page.
 
 - Runs **after** the 50-check audit is saved. It never changes the 50-check score, and if it fails the report ships without the section.
-- `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
+- `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
 - `COLLECT_PROBES=on` (default off): extra store-visit probes for the new code rules (`src/points/rules`): empty cart, variant photo, campaign tags, in-app navigation, tags per page, throttled hit timing, a 360px overflow re-read. They add up to ~70s per visit and raise the visit budget from 230s to 300s. Nothing reads them yet.
 - Visits home, one product, the cart and one collection page on a phone viewport, then home and product again at desktop width (for the "on desktop" notes).
 - It adds **one product to the store's cart** in a throwaway browser session and reads the cart drawer (or the cart page when the theme has no drawer). It never goes past the cart.

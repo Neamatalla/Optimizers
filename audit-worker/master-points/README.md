@@ -4,7 +4,7 @@ One list of audit points to replace the old 731 (the shared 50 checks, the store
 
 **Source of truth: `audit-worker/src/points/`.** Edit `registry.ts` (the points) and `dropped.ts` (old points with no master point) by hand. The CSVs here are read-only exports for viewing in a spreadsheet.
 
-**Not wired into the audit yet.** The old lists still run. Next: code rules for the code-decided points, then templates.
+**Wired in behind `POINTS_PIPELINE=on`** (off by default, so the old lists still run in production). Code rules, templates, the AI judge and the browser step are built; see the worker README "Master points" and `PHASE1-PLAN.md`.
 
 ## What's in it (22 Nov 2026)
 
