@@ -165,11 +165,10 @@ async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId:
   const mcp = await buildMcpConfig(`${jobId}-points`, { ga4Admin: false, gtm: false, browser: false });
   const prompt = buildPointsAsk(points, hints, pictures);
   const ids = points.map(p => p.id);
-  // Text points on the writer model (CLAUDE_WRITER_MODEL, Haiku), the visual
-  // batch on the main one (Sonnet): reading pictures is where it pays.
-  // POINTS_AI_MODEL=main|writer puts every batch on one model.
-  const forced = process.env.POINTS_AI_MODEL;
-  const model = forced === "main" || forced === "writer" ? forced : picturesDir ? "main" : "writer";
+  // Sonnet for every batch by default: on Regal (23 Nov) Haiku wrote 7x the
+  // output for the text points, took 2.5 min, and can't share Sonnet's cache.
+  // POINTS_AI_MODEL=writer moves every batch to CLAUDE_WRITER_MODEL.
+  const model = process.env.POINTS_AI_MODEL === "writer" ? "writer" : "main";
   try {
     for (let attempt = 1; ; attempt++) {
       const raw = await runClaudeHeadless({

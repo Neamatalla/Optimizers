@@ -277,6 +277,8 @@ export interface StoreEvidence {
   // Every analytics/pixel hit seen while a page loaded (before any tap),
   // with the page and, for GA4 and Meta, the measurement / pixel ID.
   pageHits?: Array<{ page: string; vendor: string; name: string; id?: string; q?: HitParams }>;
+  // The returns and shipping policy pages' text (first 3000 characters).
+  policies?: Array<{ kind: "returns" | "shipping"; url: string; text: string }>;
   // The cart drawer after Add to Cart, when the store has one and the full
   // cart page was opened as well (that page is the "cart" in pages).
   cartDrawer?: PageEvidence;

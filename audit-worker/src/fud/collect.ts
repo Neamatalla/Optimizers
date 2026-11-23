@@ -225,7 +225,7 @@ const EXTRACT_JS = String.raw`
 
   // Policy / identity links, anywhere on the page (usually the footer).
   var KINDS = [
-    ["returns", /return|refund|exchange|الاسترجاع|الاسترداد|الاستبدال|ارجاع|إرجاع/i],
+    ["returns", /return|refund|exchange|ال[اإ]سترجاع|ال[اإ]سترداد|ال[اإ]ستبدال|[اإ]رجاع|استرجاع|استبدال/i],
     ["shipping", /shipping|delivery|الشحن|التوصيل/i],
     ["contact", /contact|تواصل|اتصل/i],
     ["about", /about|our story|who we are|من نحن|قصتنا|عن المتجر|عنا/i],
@@ -981,7 +981,7 @@ const VISIBLE_LINKS_JS = String.raw`[].filter.call(document.querySelectorAll("a[
 // Never follows a link.
 const MENU_TAP_JS = String.raw`(function () {
   var before = ` + VISIBLE_LINKS_JS + String.raw`;
-  var cands = [].slice.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=menu-toggle], [class*=nav-toggle], [aria-label*=menu i], [aria-label*=القائمة]"));
+  var cands = [].slice.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=menu-toggle], [class*=nav-toggle], [aria-label*=\"menu\" i], [aria-label*=\"القائمة\"], button:has(svg[class*=burger])"));
   var btn = cands.find(function (el) {
     var r = el.getBoundingClientRect();
     if (!r.width || !r.height || r.top > 160) return false;
@@ -1349,6 +1349,26 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
         }
       }
     }
+    // The returns and shipping policy pages, read in the browser (many stores
+    // fill them in with script), for TRUST-01 and TRUST-07.
+    const policies: NonNullable<StoreEvidence["policies"]> = [];
+    const policyKinds = new Set<string>();
+    for (const pg of pages) {
+      for (const l of pg.policyLinks ?? []) {
+        if ((l.kind !== "returns" && l.kind !== "shipping") || policyKinds.has(l.kind)) continue;
+        let url: string;
+        try { url = new URL(l.href, pg.url).href; } catch { continue; }
+        policyKinds.add(l.kind);
+        try {
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+          await sleep(1500);
+          const text = ((await page.evaluate(`(document.querySelector("main") || document.body).innerText`)) as string) ?? "";
+          policies.push({ kind: l.kind, url: page.url(), text: text.replace(/\s+/g, " ").trim().slice(0, 3000) });
+        } catch {
+          // a policy page that won't load just isn't in the evidence
+        }
+      }
+    }
     await context.close().catch(() => {});
 
     // Desktop: text and positions only, in its own throwaway context.
@@ -1374,7 +1394,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     attachNet(pages, "phone");
     attachNet(desktop, "desktop");
     const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id, q }) => ({ page: p!, vendor, name, ...(id && { id }), ...(q && { q }) }));
-    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), ...(policies.length && { policies }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.
