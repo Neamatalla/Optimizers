@@ -46,7 +46,7 @@ export const POINTS: AuditPoint[] = [
       "content"
     ],
     "defaultAction": "Fix the weakest product page (see GA4-10) using the product-page issues in the Conversion review.",
-    "doneWhen": "Add-to-cart rate from product views is up over 14 days.",
+    "doneWhen": "In GA4, add_to_cart users are at least 8% of view_item users over 28 days.",
     "origin": [
       "GA4-02",
       "SO-GA4-04"
@@ -92,7 +92,7 @@ export const POINTS: AuditPoint[] = [
       "dev"
     ],
     "defaultAction": "Fix the cart issues the Conversion review found. Look at costs, trust and the next step.",
-    "doneWhen": "Cart to checkout reaches 50% or more over 14 days.",
+    "doneWhen": "In GA4, begin_checkout users are at least 50% of add_to_cart users over 28 days (add_shipping_info at least 40% if the store has no begin_checkout).",
     "origin": [
       "GA4-03",
       "SO-GA4-03"
@@ -138,7 +138,7 @@ export const POINTS: AuditPoint[] = [
       "owner"
     ],
     "defaultAction": "Run one test order on a phone and check: shipping cost shown before the last step, cash on delivery offered, no forced account, local payment options, no errors.",
-    "doneWhen": "Each item on that list is tested and fixed or ruled out, and checkout to purchase is at 50% or more.",
+    "doneWhen": "Each item on that list is tested and fixed or ruled out, and over 28 days purchase users are at least 50% of begin_checkout users (60% of add_shipping_info users if the store has no begin_checkout).",
     "origin": [
       "GA4-04",
       "SO-GA4-02"
@@ -1123,7 +1123,7 @@ export const POINTS: AuditPoint[] = [
       "marketing"
     ],
     "defaultAction": "Fix that landing page. Until then, stop sending ads to it.",
-    "doneWhen": "The page converts at half the store average or more. Or no paid traffic lands on it.",
+    "doneWhen": "Over 28 days the page converts at one third of the store average or more. Or no paid traffic lands on it.",
     "origin": [
       "GA4-06",
       "SO-GA4-10",
@@ -1177,7 +1177,7 @@ export const POINTS: AuditPoint[] = [
       "owner"
     ],
     "defaultAction": "Fix that product page. Check the price, photos, stock and sizes. The Conversion review checks this exact product.",
-    "doneWhen": "That product gets added to cart as often as the store average.",
+    "doneWhen": "Over 28 days that product is added to cart at half the store average or more.",
     "origin": [
       "GA4-10",
       "SO-GA4-09",
@@ -1320,7 +1320,7 @@ export const POINTS: AuditPoint[] = [
       "marketing"
     ],
     "defaultAction": "Add UTM tags to every link you share. That means ads, bio links, WhatsApp and SMS.",
-    "doneWhen": "Unassigned visits under 5% in GA4.",
+    "doneWhen": "Unassigned, (not set) and (other) visits are 10% of sessions or less in GA4 over 28 days.",
     "origin": [
       "GA4-08",
       "SO-GA4-17",
@@ -1629,12 +1629,11 @@ export const POINTS: AuditPoint[] = [
     "id": "TRK-32",
     "category": "tracking",
     "title": "Page view hits go out early",
-    "rule": "On a throttled phone, the first GA4 hit and first ad pixel PageView are sent before the LCP time.",
+    "rule": "On a throttled phone, the home page sends its first GA4 hit and first ad pixel PageView before the LCP time.",
     "severity": "medium",
     "decidedBy": "code",
     "pages": [
-      "home",
-      "product"
+      "home"
     ],
     "needs": [
       "visit"
@@ -1661,7 +1660,7 @@ export const POINTS: AuditPoint[] = [
       "dev"
     ],
     "defaultAction": "Ask your developer to load tracking early and send page views when the page starts, not after everything has loaded.",
-    "doneWhen": "Our re-scan sees the first GA4 page_view before LCP on all three pages.",
+    "doneWhen": "Our re-scan sees the first GA4 hit before LCP on the home page.",
     "origin": [
       "SO-WC-18",
       "MB-WC-13"

@@ -18,6 +18,5 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 - One score or three: Adham's call, before step 6.
 - Unverified checks have no score cap (the skipped-check fix on `staging`). Adham decides.
-- Registry text that disagrees with the code (found writing the tracking templates; the templates follow the code): TRK-25 doneWhen says Unassigned under 5%, the code fails above 10%. TRK-01, 02, 03, 21, 22 doneWhen use 14 days or "half the average", the code uses 28 days and its own benchmarks. TRK-32 lists home and product pages, the rule checks home only. Align the registry, or change the code.
 - Rules that can't yet say all they should: TRK-17 never returns fail (a missing hit is unverified). TRK-28 has no fact for "Conversions API detected", so its fail is hedged. GA4 rules don't hand over the campaign, page or product they name, the store's own rate, or the money currency, so templates only show them through the English `{reason}` (Arabic readers see none).
 - 6 old ids that reader questions point to are now dropped (GA4-01, GTM-14, W-06, W-34, W-35). The questions need remapping in step 6.
