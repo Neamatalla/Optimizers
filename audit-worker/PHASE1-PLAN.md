@@ -4,7 +4,14 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 23 Nov late — read this first
+## Update, 23 Nov night — read this first
+
+Rule (Adham): cost cuts never lower quality; credibility is the product.
+- **Cost, commit `902278c`:** 5-minute cache pinned (the API key's default; local runs used 1 hour and looked cheaper than production). The picture call now waits for the text call's answer to start, so it reads the cached evidence instead of writing it again (97K → 25-39K tokens written). Browser points run in batches of 5. Regal: **$0.50-0.57** per audit, against $0.64-0.67 for the same code before the fix.
+- **Quality held:** unchecked 31-33 (baseline 30), browser settled 3-4 (baseline 4).
+- **Still open, credibility:** 2-3 pass↔fail flips between any two runs, not from these changes: LAND-11 (same facts, judged both ways), OFFER-17 ("quiet" coupon field judged both ways), COL-01 (browser searched different names), TRK-32 (timing measured near the line), PATH-05 (Zid sent one run straight to a log-in page).
+
+## Update, 23 Nov late
 
 Branch pushed to GitHub (`origin/feature/deterministic-checks`); not on staging or main.
 - **Report fixes for the other readers:** "What you asked, answered" (owner, manager, agency) matched old ids only, so on a master-point report every question said "No problem found". It now reads each old id through its master point, and says so when nothing behind a question could be checked. Reader lanes and role severity (`audience.ts`) read master ids too; before, the media buyer saw every master point one step lower.
