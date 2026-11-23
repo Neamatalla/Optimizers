@@ -180,6 +180,11 @@ async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId:
         mcpConfigPath: mcp.configPath,
         // Read only, and only for the pictures folder.
         allowedTools: picturesDir ? ["Read"] : [],
+        // Keep the CLI's built-in tool definitions on both calls, so the
+        // picture call reads the evidence the text call cached. Dropping them
+        // on the text call alone broke that sharing (Regal, 23 Nov: +$0.13),
+        // and on the picture call it cost 8x.
+        builtinTools: null,
         ...(picturesDir && { addDirs: [picturesDir] }),
         timeoutMs: TIMEOUT_MS,
         effort: "low",
@@ -230,6 +235,7 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
   const dir = await mkdtemp(path.join(os.tmpdir(), "points-judge-"));
   const shared = path.join(dir, "evidence.md");
   await writeFile(shared, buildSharedPrompt(ctx), "utf8");
+  if (process.env.POINTS_DEBUG_DIR) await writeFile(path.join(process.env.POINTS_DEBUG_DIR, `points-prompt-${jobId}.md`), buildSharedPrompt(ctx), "utf8").catch(() => {});
   try {
     const pictures = visual.length ? await writePictures(ctx.evidence, dir) : [];
     const all = visual.length ? [...batches, visual] : batches;
@@ -300,19 +306,29 @@ async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: s
 const BROWSER_TOOLS = [
   "navigate_page", "new_page", "list_pages", "select_page", "close_page", "take_snapshot", "take_screenshot",
   "click", "hover", "press_key", "wait_for", "resize_page", "emulate", "evaluate_script", "get_css_styles",
-  "list_network_requests", "get_network_request", "handle_dialog", "fill",
+  "list_network_requests", "get_network_request", "handle_dialog", "fill", "type_text",
 ].map(t => `mcp__chrome-devtools__${t}`);
 // Points per browser call, most severe first. Each one costs browsing turns.
 // 15 at effort low tried about one action per point (Regal, 23 Nov).
-export const BROWSER_MAX_POINTS = Number(process.env.POINTS_BROWSER_MAX ?? 8);
+// 8 points on Sonnet cost about $0.60 and settled 1 to 4 (Regal, 23 Nov).
+export const BROWSER_MAX_POINTS = Number(process.env.POINTS_BROWSER_MAX ?? 5);
 const BROWSER_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function browserStepOn(): boolean {
   return (process.env.POINTS_BROWSER ?? "on").trim().toLowerCase() !== "off";
 }
 
-/** The points a browser could settle: unverified, about the store's pages, not tracking. */
+// The points a few taps can settle. Regal (23 Nov) runs 3-5: the browser
+// never settled landing-page points (it can't find the landing page),
+// leftover scripts or checkout, and spent most of its turns there.
+export const BROWSER_POINTS = new Set([
+  "OFFER-02", "PDP-03", "PDP-04", "PDP-13", "PDP-14", "COL-01", "COL-07", "PATH-09", "PATH-10", "PATH-14", "PATH-17",
+  "NAV-03", "NAV-12", "TRUST-05", "TRUST-06", "TRUST-08", "TRUST-10", "OFFER-01", "OFFER-05", "OFFER-07", "OFFER-11", "OFFER-12", "OFFER-17",
+]);
+
+/** The points a browser could settle: unverified, on the browser list, not blocked by a log-in. */
 export function browsable(p: AuditPoint, r: RuleResult | undefined): boolean {
+  if (!BROWSER_POINTS.has(p.id)) return false;
   if (!r || r.status !== "unverified" || r.facts?.blockedBy) return false;
   // Tracking and account points need GTM, GA4 or Clarity data, which this
   // step doesn't get (Regal, 23 Nov: TRK-15, LAND-01, RISK-01 came back open).
@@ -342,6 +358,7 @@ HOW TO BROWSE
 - Close pop-ups (press Escape or tap ×) when they block the page.
 - Do the test each point needs before you answer. "I did not check" or "I did not search" is never a reason: if the action is allowed, do it. Answer unverified only after you tried and couldn't see the answer.
 - Group points that use the same page, so you open each page once.
+- Budget: about 30 tool calls in total. Every call re-reads all earlier results, so stop when the budget is spent and answer unverified for what's left.
 
 HOW TO DECIDE
 - "pass" or "fail" only for what you saw yourself in the browser. Every part of the PASS line must be seen.
@@ -377,7 +394,9 @@ export async function investigatePoints(points: AuditPoint[], reasons: Record<st
       allowedTools: BROWSER_TOOLS,
       timeoutMs: BROWSER_TIMEOUT_MS,
       effort: "medium",
-      model: "main",
+      // The writer model (Haiku in production): browsing is many cheap turns,
+      // and the verdict rules above stay strict. POINTS_BROWSER_MODEL=main for Sonnet.
+      model: process.env.POINTS_BROWSER_MODEL === "main" ? "main" : "writer",
       label: `points-browser (${picked.length} points)`,
     });
     if (process.env.POINTS_DEBUG_DIR) await writeFile(path.join(process.env.POINTS_DEBUG_DIR, `points-browser-${jobId}.json`), raw, "utf8").catch(() => {});

@@ -35,6 +35,12 @@ export interface ClaudeRunOptions {
   systemPromptFile?: string;
   // Extra folders the call may read from (--add-dir), e.g. page pictures.
   addDirs?: string[];
+  // Built-in tools the model may see (--tools). [] = none; their definitions
+  // are then left out of the prompt, which saves tens of thousands of tokens
+  // per call. Unset = none when allowedTools is empty, else the CLI default.
+  // null = the CLI default even with no allowed tools (keeps a prompt cache
+  // shared with another call that has the built-ins).
+  builtinTools?: string[] | null;
 }
 
 // How much raw stdout to keep for error messages. stream-json writes every
@@ -239,6 +245,12 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
     args.push("--system-prompt-file", opts.systemPromptFile);
   }
   for (const dir of opts.addDirs ?? []) args.push("--add-dir", dir);
+  // A call that allows no tools gets no built-in tool definitions either
+  // (about 33K tokens per call, 23 Nov 2026). Only for these: on a call that
+  // uses tools over many turns, --tools stopped the cache being reused
+  // between turns (Regal, 23 Nov: 8x the cost).
+  const builtins = opts.builtinTools === null ? undefined : opts.builtinTools ?? (opts.allowedTools.length === 0 ? [] : undefined);
+  if (builtins) args.push("--tools", builtins.join(","));
 
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"], env: childEnv(opts.promptCache) });
