@@ -4,7 +4,19 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Where we are (23 Nov 2026) — read this first
+## Update, 23 Nov afternoon — read this first
+
+Commits `644fea7`, `3a6d0a9`, `a86320c`, `4ba91b2` (local, not pushed). Adham's rule: code decides only what it can detect for sure; anything that could fail wrongly goes to the AI, which must never invent and gets a browser to check.
+
+- **Tracking:** code rules for 7 code+ai points (`rules/tracking.ts`). A code+ai point the code settles no longer goes to the AI.
+- **Checkout log-in:** when the visit lands on a log-in page instead of checkout, PATH-11/12/13/16 stay unchecked with one reason, and the AI isn't asked (`pipeline.ts` CHECKOUT_FORM_POINTS).
+- **Stricter judge:** unverified unless every part of the rule is shown; decision guides for the points that flipped (`ai-guides.ts`).
+- **Browser step:** open points on a short list (`BROWSER_POINTS`) go to a Haiku call with a real headless browser: look, tap, type only in the store's search box, never fill or submit. Max 5 points, ~30 tool calls. A fail needs proof; a tap that didn't work is unverified.
+- **Cost:** tool-less Claude calls no longer carry the CLI's built-in tool definitions (33K tokens). The judge keeps them so its two calls share the cached evidence (dropping them there broke the sharing).
+- **Regal now (run 11):** about **$0.57** per audit (text $0.32 + pictures $0.21 + browser $0.04), vs $0.79 on 15 Nov. Between two runs about 10 points change, only 1 pass↔fail; the rest move between decided and unchecked. 71 pass, 45 fail, 38 unchecked.
+- **Open:** the remaining flips (mostly decided↔unchecked on visual points and on which browser points get settled); unchecked count is still ~35.
+
+## Where we are (23 Nov 2026, morning)
 
 Branch `feature/deterministic-checks` (not on staging, not merged). Last commit `ba9b874`. Tests and builds pass.
 
