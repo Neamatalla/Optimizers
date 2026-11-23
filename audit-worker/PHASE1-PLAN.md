@@ -4,7 +4,14 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 24 Nov early — read this first
+## Update, 24 Nov morning — read this first
+
+- **Probes on with the new audit:** `POINTS_PIPELINE=on` turns on the extra visit probes (TRK-19, TRK-23, TRK-31, TRK-32, PATH-15, PDP-12) unless `COLLECT_PROBES=off`. Visit budget 360 s. On Regal they settled TRK-23, TRK-31 and TRK-32 when they got time.
+- **Probes run last, on the time left.** When Regal is slow (it is at random: one landing page took 200 s, the desktop step hung), they get skipped and their points stay unchecked with that reason. Each landing page is now capped at 45 s and desktop at 70 s, so one slow page can't take all their time.
+- **Visit log line:** after the visit the worker logs its time, pages loaded, skipped probes and seconds per step, e.g. `[launch 1s, home 15s, ... landing /ar-sa 10s, desktop 34s, probes 84s]`. Visible in Railway.
+- PATH-15 and PDP-12 stay unchecked on Regal for real reasons: the empty cart only links home (not proof, the read can miss links), and the product only has size options.
+
+## Update, 24 Nov early
 
 **Flips fixed.** Regal runs 28→29 and 29→30: **0 pass↔fail** (before: 2-3 per pair). What changed:
 - **LAND-11 is decided by code** where it can be measured (button on the first phone screen, or a buy bar that follows → pass; past 2 screens with no bar → fail). The visit now checks for a following buy bar on landing pages too. Only the screen-2 case goes to the AI, with a word-count guide.
@@ -81,7 +88,7 @@ Target after 1–2: about $0.25–0.35 per audit, steadier verdicts, far fewer "
 
 - Google sign-in is saved in `audit-worker/output/form-regal-honey.com.json` (gitignored). Root `.env` (gitignored) holds the Google OAuth keys and `LOCAL_AUDIT=off`, and has no Supabase keys, so the local form never queues to staging.
 - Run: `cd audit-worker`, then
-  `POINTS_PIPELINE=on COLLECT_PROBES=on CLAUDE_MODEL=claude-sonnet-5-5 npx tsx src/local-pipeline/run.ts regal-honey.com --form=output/form-regal-honey.com.json --role=media_buyer --ad="honey that makes a man"`
+  `POINTS_PIPELINE=on CLAUDE_MODEL=claude-sonnet-5-5 CLAUDE_WRITER_MODEL=claude-haiku-5-5 npx tsx src/local-pipeline/run.ts regal-honey.com --form=output/form-regal-honey.com.json --role=media_buyer --ad="honey that makes a man"`
   (add `POINTS_DEBUG_DIR=output` to keep the AI's raw answers). The report: `npm run dev` in the root, then `http://localhost:5173/audit-reports/local/pipeline-regal-honey-com.html`. Per-call cost is in the `[claude-usage]` log lines.
 - Compare with the 15 Nov report: `npx tsx output/compare-regal.ts output/pipeline-regal-honey-com-progress.json` (writes `output/compare-regal.md`); all points as CSV: `npx tsx output/points-list.ts` (`output/regal-points.csv`). Both scripts are local only (output/ is gitignored).
 - The `claude` CLI on this machine bills to whatever account is logged in (`claude auth login`); a 5-hour limit shows as "You've hit your 5-hour limit".

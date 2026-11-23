@@ -272,7 +272,7 @@ An optional second stage (`src/fud/`, design in `FUD-PASS-DESIGN.md`) that runs 
 
 - Runs **after** the 50-check audit is saved. It never changes the 50-check score, and if it fails the report ships without the section.
 - `FUD_PASS=off|test|all` (default `off`). Start with `test`: it then runs only on test-mode audits, which are emailed to us.
-- `COLLECT_PROBES=on` (default off): extra store-visit probes for the new code rules (`src/points/rules`): empty cart, variant photo, campaign tags, in-app navigation, tags per page, throttled hit timing, a 360px overflow re-read. They add up to ~70s per visit and raise the visit budget from 230s to 300s. Nothing reads them yet.
+- `COLLECT_PROBES`: extra store-visit probes for the master-point code rules (`src/points/rules/probes.ts`): empty cart, variant photo, campaign tags, in-app navigation, tags per page, throttled hit timing, a 360px overflow re-read. On by default with `POINTS_PIPELINE=on`; `on`/`off` forces it. They add up to ~70s per visit and raise the visit budget from 230s to 360s.
 - Visits home, one product, the cart and one collection page on a phone viewport, then home and product again at desktop width (for the "on desktop" notes).
 - It adds **one product to the store's cart** in a throwaway browser session and reads the cart drawer (or the cart page when the theme has no drawer). It never goes past the cart.
 - Analytics and ad hits are blocked during the visit, so the bot stays out of the client's GA4/Meta/Shopify data. Anything analytics-shaped that slips past the blocklist is logged as `NOT blocked` — add it to `BLOCKED_HITS` in `src/fud/collect.ts`.

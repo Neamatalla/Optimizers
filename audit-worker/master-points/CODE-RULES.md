@@ -6,7 +6,7 @@ The 81 active points marked "code" in `src/points/registry.ts`, sorted by what i
 |---|---|---|
 | 23 | 46 | 12 |
 
-**All 81 rules are built** (✅) in `src/points/rules/`, with tests, and were run once on a real store visit (regal-honey.com, 22 Nov 2026: none errored). Not wired into the audit yet. The "Ready" sections below show what each rule needed when it was planned; the store-visit additions are live in the collector, and the interaction probes and the 360px re-read run only with COLLECT_PROBES=on. Thresholds are first drafts to tune on real stores.
+**All 81 rules are built** (✅) in `src/points/rules/`, with tests, and were run once on a real store visit (regal-honey.com, 22 Nov 2026: none errored). They run with `POINTS_PIPELINE=on`. The "Ready" sections below show what each rule needed when it was planned; the store-visit additions are live in the collector, and the interaction probes and the 360px re-read run with the new audit (or COLLECT_PROBES=on). Thresholds are first drafts to tune on real stores.
 
 Every rule returns **pass**, **fail** or **unverified** (never a guess), plus the facts behind it.
 

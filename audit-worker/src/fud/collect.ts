@@ -40,12 +40,18 @@ const MOBILE = MOBILE_PROFILE.viewport;
 const NAV_TIMEOUT_MS = 25_000;
 // Desktop home + product, text and positions only.
 const DESKTOP_MAX_MS = 70_000;
+// One GA4 landing page.
+const LANDING_MAX_MS = 45_000;
 // Round 19 added up to two landing pages and the first checkout screen.
-// The interaction probes (collect-probes.ts) feed the new code rules, which
-// nothing reads yet (src/points, PHASE1-PLAN.md step 5). They stay off unless
-// COLLECT_PROBES=on, so live audits keep today's time budget.
-const PROBES_ON = (process.env.COLLECT_PROBES ?? "").trim().toLowerCase() === "on";
-const TOTAL_TIMEOUT_MS = PROBES_ON ? 300_000 : 230_000;
+// The interaction probes (collect-probes.ts) feed 6 master-point code rules
+// (src/points/rules/probes.ts). On with the new audit (POINTS_PIPELINE=on)
+// unless COLLECT_PROBES=off; COLLECT_PROBES=on forces them on.
+const probesEnv = (process.env.COLLECT_PROBES ?? "").trim().toLowerCase();
+const PROBES_ON = probesEnv === "on" || (probesEnv !== "off" && (process.env.POINTS_PIPELINE ?? "").trim().toLowerCase() === "on");
+// The probes run on the time left at the end, so they get an extra minute:
+// at 300 s they were skipped on slow Regal visits (23 Nov). A full Regal
+// visit with probes took 205 s.
+const TOTAL_TIMEOUT_MS = PROBES_ON ? 360_000 : 230_000;
 const DRAWER_WAIT_MS = 8_000;
 const MAX_TEXT_PER_PAGE = 12_000;
 
@@ -1298,6 +1304,12 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
   let browser: Browser | undefined;
   // The step in progress, named in the timeout error.
   let step = "launch";
+  // Seconds each step took, for the visit log line (poll.ts).
+  const stepMs: Record<string, number> = {};
+  let stepAt = Date.now();
+  // Landing pages keep their path, so a slow one can be named.
+  const keyOf = (st: string) => (st.startsWith("landing ") ? `landing ${decodeURIComponent(st.slice(8).replace(/^https?:\/\/[^/]+/, "")).slice(0, 40)}` : st.replace(/ .*/, ""));
+  const at = (next: string) => { const k = keyOf(step); stepMs[k] = (stepMs[k] ?? 0) + Date.now() - stepAt; step = next; stepAt = Date.now(); };
   const work = (async (): Promise<StoreEvidence> => {
     browser = await puppeteer.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars"] });
     // Throwaway context: no cookies in, nothing kept after close().
@@ -1310,7 +1322,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       ((await page.evaluate(FIND_LINKS_JS).catch(() => null)) as { product: string | null; collection: string | null } | null) ?? { product: null, collection: null };
 
     counter.page = "home";
-    step = "home";
+    at("home");
     pages.push(await visit(page, "home", homepage, "h"));
     counter.page = undefined;
     // Discovery found no product or listing URL (non-Shopify URL shapes):
@@ -1328,7 +1340,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       }
     }
     counter.page = "product";
-    step = "product";
+    at("product");
     const product = productUrl ? await visit(page, "product", productUrl, "p") : failed("product", homepage, "no product page found on the site");
     // App pixels (Shopify web pixels) send view_item late: wait so it lands
     // with the product page and not with the Add-to-Cart tap (round 19).
@@ -1337,13 +1349,13 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     counter.page = undefined;
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
-    step = "add to cart";
+    at("add to cart");
     const { cart, drawer, atc, atcEvents, atcHits } = await addToCartAndCapture(page, product, cartUrl!, counter);
     pages.push(cart);
     if (drawer) cartDrawer = drawer;
     // First checkout screen, right after the cart so the item is still in it.
     counter.page = "checkout";
-    step = "checkout";
+    at("checkout");
     const checkout = await captureCheckout(page, Boolean(cart.loaded && cart.cart && !cart.cart.empty), homepage).catch(() => failed("checkout", homepage, "checkout did not load"));
     pages.push(checkout);
     // Checkout pixels (Shopify web pixels) fire late: give them time before
@@ -1353,7 +1365,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // After the cart, so a slow listing page can never cost the cart rules
     // (unless it was already needed above to find a product).
     if (!collection && collectionUrl) counter.page = "collection";
-    step = "collection";
+    at("collection");
     pages.push(collection ?? (collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site")));
     counter.page = undefined;
 
@@ -1364,8 +1376,13 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       if (seen) { pages.push(asLanding(seen, l.source)); continue; }
       if (pages.some(p => p.pageType === "landing" && pathKey(p.url) === pathKey(l.url))) continue;
       counter.page = "landing";
-      step = `landing ${l.url}`;
-      const ev = await visit(page, "landing", l.url, `g${pages.filter(p => p.pageType === "landing").length}`).catch(() => failed("landing", l.url, "landing page did not load"));
+      at(`landing ${l.url}`);
+      // Capped: a landing page normally takes 8-10 s, but a slow one once took
+      // 200 s and left the probes no time (Regal, 24 Nov).
+      const ev = await Promise.race([
+        visit(page, "landing", l.url, `g${pages.filter(p => p.pageType === "landing").length}`),
+        sleep(LANDING_MAX_MS).then(() => { throw new Error("timeout"); }),
+      ]).catch(err => failed("landing", l.url, err instanceof Error && err.message === "timeout" ? `landing page took over ${LANDING_MAX_MS / 1000}s` : "landing page did not load"));
       counter.page = undefined;
       ev.landing = { source: l.source };
       pages.push(ev);
@@ -1374,7 +1391,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // Search test (rule N2): search for a word from the product's name and
     // count product links on the results page.
     let searchTest: StoreEvidence["searchTest"];
-    step = "search test";
+    at("search test");
     const home = pages.find(p => p.pageType === "home" && p.loaded);
     if (home?.facts?.search.present && product.loaded) {
       const source = product.facts?.h1[0] || product.title || "";
@@ -1400,7 +1417,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // fill them in with script), for TRUST-01 and TRUST-07.
     const policies: NonNullable<StoreEvidence["policies"]> = [];
     const policyKinds = new Set<string>();
-    step = "policy pages";
+    at("policy pages");
     for (const pg of pages) {
       for (const l of pg.policyLinks ?? []) {
         if ((l.kind !== "returns" && l.kind !== "shipping") || policyKinds.has(l.kind)) continue;
@@ -1421,7 +1438,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
 
     // Desktop: text and positions only, in its own throwaway context.
     let desktop: PageEvidence[] | undefined;
-    step = `desktop (started at ${Math.round((Date.now() - startedAt) / 1000)}s)`;
+    at("desktop");
     // Its own time cap: desktop is optional, and a hang here used to time out
     // the whole visit and lose every phone page with it (Regal, 23 Nov).
     const desktopMs = Math.min(DESKTOP_MAX_MS, startedAt + TOTAL_TIMEOUT_MS - 15_000 - Date.now());
@@ -1448,7 +1465,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     }
 
     // Extra probes (collect-probes.ts) get the time left; they never fail the visit.
-    step = "probes";
+    at("probes");
     const probes = PROBES_ON && Date.now() + 20_000 < startedAt + TOTAL_TIMEOUT_MS
       ? await runProbes({ browser, homepage, productUrl, collectionUrl, cartUrl: cartUrl!, deps: { isBlocked: isBlockedHit, hitEvents }, deadline: startedAt + TOTAL_TIMEOUT_MS - 10_000 }).catch(() => undefined)
       : undefined;
@@ -1457,7 +1474,8 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     attachNet(pages, "phone");
     attachNet(desktop, "desktop");
     const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id, q }) => ({ page: p!, vendor, name, ...(id && { id }), ...(q && { q }) }));
-    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), ...(policies.length && { policies }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    at("done");
+    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), ...(policies.length && { policies }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt, stepMs };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.

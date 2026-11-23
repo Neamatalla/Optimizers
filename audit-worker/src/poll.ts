@@ -173,6 +173,8 @@ export async function processRequest(row: AuditRequestRow, workerId: string): Pr
     if (points || fudPassEnabled(row)) {
       try {
         evidence = await collectStoreEvidence(row.website, discoveredPages, { focus: collectorFocus(focus), landing: collectorLanding(focus) });
+        const pr = evidence.probes;
+        console.log(`[audit-worker] Store visit done in ${Math.round(evidence.durationMs / 1000)}s: ${evidence.pages.filter(p => p.loaded).length}/${evidence.pages.length} pages, desktop ${evidence.desktop ? "yes" : "no"}${pr ? `, probes ${Math.round(pr.ranMs / 1000)}s${pr.skipped ? ` (skipped: ${Object.entries(pr.skipped).map(([k, v]) => `${k}: ${v}`).join("; ")})` : ""}` : ", probes off or out of time"}${evidence.stepMs ? ` [${Object.entries(evidence.stepMs).map(([k, v]) => `${k} ${Math.round(v / 1000)}s`).join(", ")}]` : ""}`);
       } catch (err) {
         console.warn(`[audit-worker] Store visit failed for ${row.id}: ${err instanceof Error ? err.message : err}`);
       }

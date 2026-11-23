@@ -306,6 +306,8 @@ export interface StoreEvidence {
   // with tracking — proves the bot stayed out of the client's data).
   blockedHits: number;
   durationMs: number;
+  // Milliseconds per visit step (home, product, desktop, probes...), for the log.
+  stepMs?: Record<string, number>;
 }
 
 export function pageOf(evidence: StoreEvidence, type: FudPageType): PageEvidence | undefined {
