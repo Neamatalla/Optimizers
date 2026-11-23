@@ -75,6 +75,7 @@ test("TRK-17: passes when every platform records the add to cart; a missing hit 
   const r = RULES["TRK-17"]({ evidence: late });
   assert.equal(r.status, "unverified");
   assert.deepEqual(r.facts?.missing, ["ga4"]);
+  assert.equal(r.facts?.final, true, "final: the AI isn't asked to re-judge a missing hit");
   const botClick = store([], { pageHits: hits, addToCart: { attempted: true, ok: true, via: "api", clickAdded: false } });
   assert.equal(RULES["TRK-17"]({ evidence: botClick }).status, "unverified");
 });
@@ -103,6 +104,17 @@ test("PDP-01: button below the fold with no sticky bar fails; a sticky bar rescu
   assert.equal(RULES["PDP-01"]({ evidence: store([pg("product", { cta: cta(1200), sticky: "أضف للسلة" })]) }).status, "pass");
   assert.equal(RULES["PDP-01"]({ evidence: store([pg("product", { cta: cta(700), blocks: [block("12.500 د.ك", 400)] })]) }).status, "pass");
   assert.equal(RULES["PDP-01"]({ evidence: store([pg("product", { cta: cta(700) })]) }).status, "unverified");
+});
+
+test("LAND-11: first screen or a following buy bar passes, past two screens with no bar fails, screen 2 goes to the AI", () => {
+  const cta = (y: number) => ({ text: "أضف للسلة", box: { x: 0, y, w: 185, h: 50 }, disabled: false, nearbyBlockIds: [] });
+  const land = (y: number, sticky?: string | null) => RULES["LAND-11"]({ evidence: store([pg("landing", { cta: cta(y), ...(sticky !== undefined && { sticky }) })]) }).status;
+  assert.equal(land(600, null), "pass");
+  assert.equal(land(2500, "أضف للسلة"), "pass");
+  assert.equal(land(2500, null), "fail");
+  assert.equal(land(1200, null), "unverified", "screen 2: the AI judges the copy above it");
+  assert.equal(land(2500), "unverified", "buy bar not checked: no fail");
+  assert.equal(RULES["LAND-11"]({ evidence: store([pg("home")]) }).status, "unverified");
 });
 
 test("PDP-11: zoom found passes; zoom not found is unverified (pinch-zoom can't be seen)", () => {

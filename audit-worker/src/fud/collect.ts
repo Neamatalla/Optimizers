@@ -38,6 +38,8 @@ const DESKTOP_PROFILE: Profile = {
 };
 const MOBILE = MOBILE_PROFILE.viewport;
 const NAV_TIMEOUT_MS = 25_000;
+// Desktop home + product, text and positions only.
+const DESKTOP_MAX_MS = 70_000;
 // Round 19 added up to two landing pages and the first checkout screen.
 // The interaction probes (collect-probes.ts) feed the new code rules, which
 // nothing reads yet (src/points, PHASE1-PLAN.md step 5). They stay off unless
@@ -932,7 +934,8 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
       await page.setViewport(MOBILE).catch(() => {});
     }
   }
-  if (pageType === "product" && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
+  // Landing pages too: LAND-11 counts a buy bar that follows the shopper.
+  if ((pageType === "product" || pageType === "landing") && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
   if (pageType === "product") {
     const hidden = (await page.evaluate(HIDDEN_SECTIONS_JS).catch(() => null)) as Array<{ label: string; text: string }> | null;
     if (hidden?.length) ev.hiddenSections = hidden;
@@ -1293,6 +1296,8 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
 
   const counter: HitCounter = { blocked: 0, leaked: [], events: [], seen: new Set(), net: {}, dl: {} };
   let browser: Browser | undefined;
+  // The step in progress, named in the timeout error.
+  let step = "launch";
   const work = (async (): Promise<StoreEvidence> => {
     browser = await puppeteer.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars"] });
     // Throwaway context: no cookies in, nothing kept after close().
@@ -1305,6 +1310,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       ((await page.evaluate(FIND_LINKS_JS).catch(() => null)) as { product: string | null; collection: string | null } | null) ?? { product: null, collection: null };
 
     counter.page = "home";
+    step = "home";
     pages.push(await visit(page, "home", homepage, "h"));
     counter.page = undefined;
     // Discovery found no product or listing URL (non-Shopify URL shapes):
@@ -1322,6 +1328,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       }
     }
     counter.page = "product";
+    step = "product";
     const product = productUrl ? await visit(page, "product", productUrl, "p") : failed("product", homepage, "no product page found on the site");
     // App pixels (Shopify web pixels) send view_item late: wait so it lands
     // with the product page and not with the Add-to-Cart tap (round 19).
@@ -1330,11 +1337,13 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     counter.page = undefined;
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
+    step = "add to cart";
     const { cart, drawer, atc, atcEvents, atcHits } = await addToCartAndCapture(page, product, cartUrl!, counter);
     pages.push(cart);
     if (drawer) cartDrawer = drawer;
     // First checkout screen, right after the cart so the item is still in it.
     counter.page = "checkout";
+    step = "checkout";
     const checkout = await captureCheckout(page, Boolean(cart.loaded && cart.cart && !cart.cart.empty), homepage).catch(() => failed("checkout", homepage, "checkout did not load"));
     pages.push(checkout);
     // Checkout pixels (Shopify web pixels) fire late: give them time before
@@ -1344,6 +1353,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // After the cart, so a slow listing page can never cost the cart rules
     // (unless it was already needed above to find a product).
     if (!collection && collectionUrl) counter.page = "collection";
+    step = "collection";
     pages.push(collection ?? (collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site")));
     counter.page = undefined;
 
@@ -1354,6 +1364,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       if (seen) { pages.push(asLanding(seen, l.source)); continue; }
       if (pages.some(p => p.pageType === "landing" && pathKey(p.url) === pathKey(l.url))) continue;
       counter.page = "landing";
+      step = `landing ${l.url}`;
       const ev = await visit(page, "landing", l.url, `g${pages.filter(p => p.pageType === "landing").length}`).catch(() => failed("landing", l.url, "landing page did not load"));
       counter.page = undefined;
       ev.landing = { source: l.source };
@@ -1363,6 +1374,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // Search test (rule N2): search for a word from the product's name and
     // count product links on the results page.
     let searchTest: StoreEvidence["searchTest"];
+    step = "search test";
     const home = pages.find(p => p.pageType === "home" && p.loaded);
     if (home?.facts?.search.present && product.loaded) {
       const source = product.facts?.h1[0] || product.title || "";
@@ -1388,6 +1400,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // fill them in with script), for TRUST-01 and TRUST-07.
     const policies: NonNullable<StoreEvidence["policies"]> = [];
     const policyKinds = new Set<string>();
+    step = "policy pages";
     for (const pg of pages) {
       for (const l of pg.policyLinks ?? []) {
         if ((l.kind !== "returns" && l.kind !== "shipping") || policyKinds.has(l.kind)) continue;
@@ -1408,19 +1421,34 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
 
     // Desktop: text and positions only, in its own throwaway context.
     let desktop: PageEvidence[] | undefined;
-    if (opts.desktop !== false) {
+    step = `desktop (started at ${Math.round((Date.now() - startedAt) / 1000)}s)`;
+    // Its own time cap: desktop is optional, and a hang here used to time out
+    // the whole visit and lose every phone page with it (Regal, 23 Nov).
+    const desktopMs = Math.min(DESKTOP_MAX_MS, startedAt + TOTAL_TIMEOUT_MS - 15_000 - Date.now());
+    if (opts.desktop !== false && desktopMs > 10_000) {
+      const b = browser;
+      let dctx: Awaited<ReturnType<Browser["createBrowserContext"]>> | undefined;
       try {
-        const dctx = await browser.createBrowserContext();
-        const dpage = await preparePage(dctx, counter, DESKTOP_PROFILE);
-        desktop = [await visit(dpage, "home", homepage, "dh", false)];
-        if (productUrl) desktop.push(await visit(dpage, "product", productUrl, "dp", false));
-        await dctx.close().catch(() => {});
-      } catch {
+        desktop = await Promise.race([
+          (async () => {
+            dctx = await b.createBrowserContext();
+            const dpage = await preparePage(dctx, counter, DESKTOP_PROFILE);
+            const out = [await visit(dpage, "home", homepage, "dh", false)];
+            if (productUrl) out.push(await visit(dpage, "product", productUrl, "dp", false));
+            return out;
+          })(),
+          sleep(desktopMs).then(() => { throw new Error("desktop timed out"); }),
+        ]);
+      } catch (err) {
+        console.warn(`[audit-worker] Desktop visit skipped: ${err instanceof Error ? err.message : err}`);
         desktop = undefined;
+      } finally {
+        await (dctx as { close(): Promise<void> } | undefined)?.close().catch(() => {});
       }
     }
 
     // Extra probes (collect-probes.ts) get the time left; they never fail the visit.
+    step = "probes";
     const probes = PROBES_ON && Date.now() + 20_000 < startedAt + TOTAL_TIMEOUT_MS
       ? await runProbes({ browser, homepage, productUrl, collectionUrl, cartUrl: cartUrl!, deps: { isBlocked: isBlockedHit, hitEvents }, deadline: startedAt + TOTAL_TIMEOUT_MS - 10_000 }).catch(() => undefined)
       : undefined;
@@ -1439,7 +1467,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     return await Promise.race([
       work,
       sleep(TOTAL_TIMEOUT_MS).then(() => {
-        throw new Error(`collector timed out after ${TOTAL_TIMEOUT_MS / 1000}s`);
+        throw new Error(`collector timed out after ${TOTAL_TIMEOUT_MS / 1000}s (at: ${step})`);
       }),
     ]);
   } finally {

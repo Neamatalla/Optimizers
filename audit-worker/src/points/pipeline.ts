@@ -93,7 +93,10 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
   // A code+ai point goes to the AI only when its rule is missing or unverified.
   const blocked = checkoutLoginBlocks(input.evidence);
   const isBlocked = (p: AuditPoint) => blocked && CHECKOUT_FORM_POINTS.has(p.id);
-  const unsettled = (p: AuditPoint) => !code[p.id] || code[p.id].status === "unverified";
+  // facts.final: the rule saw the evidence and it can't decide the point
+  // (a hit that may be late, a timing too close to call). The AI would see
+  // the same evidence, so it isn't asked.
+  const unsettled = (p: AuditPoint) => !code[p.id] || (code[p.id].status === "unverified" && code[p.id].facts?.final !== true);
   const fallback = points.filter(p => p.decidedBy !== "ai" && unsettled(p) && !isBlocked(p));
   const toJudge = [...points.filter(p => p.decidedBy === "ai" && !isBlocked(p)), ...fallback];
   const hints = Object.fromEntries(fallback.map(p => [p.id, code[p.id]?.reason ?? "No code rule ran."]));

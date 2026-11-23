@@ -126,16 +126,25 @@ test("TRK-19 pass, fail and unverified", () => {
 });
 
 // ---- TRK-32 ----
-const timing = (over: Record<string, unknown> = {}) => withProbe({ hitTiming: { loaded: true, url: "https://x.com/", throttled: true, lcpMs: 3000, hits: [{ vendor: "ga4", name: "page_view", tMs: 1800 }, { vendor: "meta", name: "PageView", tMs: 2200 }], ...over } });
+const timing = (over: Record<string, unknown> = {}) => withProbe({ hitTiming: { loaded: true, url: "https://x.com/", throttled: true, lcpMs: 3000, hits: [{ vendor: "ga4", name: "page_view", tMs: 1800 }, { vendor: "meta", name: "PageView", tMs: 1500 }], ...over } });
 test("TRK-32 pass, fail and unverified", () => {
   assert.equal(status("TRK-32", timing()), "pass");
-  assert.equal(status("TRK-32", timing({ hits: [{ vendor: "ga4", name: "page_view", tMs: 1800 }, { vendor: "meta", name: "PageView", tMs: 3500 }] })), "fail");
+  assert.equal(status("TRK-32", timing({ hits: [{ vendor: "ga4", name: "page_view", tMs: 1800 }, { vendor: "meta", name: "PageView", tMs: 4500 }] })), "fail");
   assert.equal(status("TRK-32", timing({ hits: [{ vendor: "ga4", name: "page_view", tMs: 4100 }] })), "fail");
   assert.equal(status("TRK-32", timing({ hits: [{ vendor: "ga4", name: "page_view", tMs: 900 }, { vendor: "meta", name: "ViewContent", tMs: 9000 }] })), "pass", "only PageView counts for pixels");
   assert.equal(status("TRK-32", timing({ throttled: false })), "unverified");
   assert.equal(status("TRK-32", timing({ lcpMs: undefined })), "unverified");
   assert.equal(status("TRK-32", timing({ hits: [] })), "unverified");
   assert.equal(status("TRK-32", timing({ loaded: false })), "unverified");
+});
+
+test("TRK-32: a hit within the margin of the LCP is too close to call", () => {
+  // Regal run 20: GA4 at 6491 ms, LCP at 6876 ms.
+  const near = timing({ lcpMs: 6876, hits: [{ vendor: "ga4", name: "page_view", tMs: 6491 }] });
+  assert.equal(status("TRK-32", near), "unverified");
+  // Regal runs 16 and 19: clearly after the LCP.
+  assert.equal(status("TRK-32", timing({ lcpMs: 7508, hits: [{ vendor: "ga4", name: "page_view", tMs: 12643 }] })), "fail");
+  assert.equal(status("TRK-32", timing({ lcpMs: 5916, hits: [{ vendor: "ga4", name: "page_view", tMs: 16237 }] })), "fail");
 });
 
 // ---- LAND-06 ----

@@ -55,7 +55,9 @@ const trk17: Rule = ({ evidence: e }) => {
   const facts = { platforms: vendors, missing, dataLayer: ev.dataLayer, ga4: ev.ga4, pixels: ev.pixels };
   if (!missing.length) return { status: "pass", reason: `Our Add to Cart click filled the cart and ${vendors.join(", ")} each recorded an add to cart.`, facts };
   // A hit can arrive after our capture window, so a missing one is not proof.
-  return unverified(`Our click filled the cart, but no add to cart was seen from ${missing.join(", ")} within our capture window. It may be missing or late.`, facts);
+  // final: the AI gets the same evidence and can't know either (Regal run 21:
+  // it failed this from the same missing hit).
+  return unverified(`Our click filled the cart, but no add to cart was seen from ${missing.join(", ")} within our capture window. It may be missing or late.`, { ...facts, final: true });
 };
 
 // ---- PATH-03: top products can be bought ----
@@ -101,6 +103,25 @@ const pdp01: Rule = ({ evidence: e }) => {
   if (p.sticky) return { status: "pass", reason: `${inFold ? `Add to Cart shows in the first screen${price ? ` and the price sits ${price.box.y}px down` : ""}` : "Add to Cart is below the first screen"}; a sticky "${p.sticky}" button follows the shopper.`, facts: out };
   if (!price) return unverified("Add to Cart is in the first screen, but no price was found on the page (the price format may not have been recognised).", out);
   return { status: "fail", reason: `The price sits ${price.box.y}px down on a 844px phone screen, below the first screen, with no sticky buy bar.`, facts: out };
+};
+
+// ---- LAND-11: buy box reachable at once (code+ai) ----
+// Code decides the measured ends: the button on the first phone screen, or a
+// buy bar that follows the shopper, passes; a button more than two screens
+// down with no such bar fails (there is always body copy before it). A button
+// on the second screen is left to the AI: whether what sits above it is
+// "body copy" is a judgement (Regal, 23 Nov: judged both ways on the same page).
+const land11: Rule = ({ evidence: e }) => {
+  if (!e) return noVisit;
+  const l = page(e, "landing");
+  if (!l) return unverified("No landing page was visited.");
+  if (!l.cta) return unverified(`No buy button or form was found on ${l.url}.`);
+  const top = l.cta.box.y, bottom = l.cta.box.y + l.cta.box.h;
+  const facts = { url: l.url, buttonTop: top, buttonBottom: bottom, sticky: l.sticky ?? "not checked" };
+  if (bottom <= PHONE_HEIGHT) return { status: "pass", reason: `The buy button sits ${top}px down on ${l.url}, inside the first 844px phone screen.`, facts };
+  if (l.sticky) return { status: "pass", reason: `On ${l.url} a «${l.sticky}» buy bar follows the shopper, so buying needs no scrolling.`, facts };
+  if (l.sticky === null && top >= 2 * PHONE_HEIGHT) return { status: "fail", reason: `On ${l.url} the buy button starts ${top}px down, past the second phone screen, and no buy bar follows the shopper.`, facts };
+  return unverified(`On ${l.url} the buy button starts ${top}px down, on the second phone screen${l.sticky === null ? "" : "; whether a buy bar follows wasn't checked"}.`, facts);
 };
 
 // ---- PDP-11: photos zoom ----
@@ -212,6 +233,7 @@ export const VISIT_RULES: Record<string, Rule> = {
   "PATH-03": path03,
   "PATH-16": path16,
   "PDP-01": pdp01,
+  "LAND-11": land11,
   "PDP-11": pdp11,
   "NAV-02": nav02,
   "NAV-04": nav04,

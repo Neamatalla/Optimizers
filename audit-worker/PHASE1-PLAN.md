@@ -4,7 +4,18 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 23 Nov night — read this first
+## Update, 24 Nov early — read this first
+
+**Flips fixed.** Regal runs 28→29 and 29→30: **0 pass↔fail** (before: 2-3 per pair). What changed:
+- **LAND-11 is decided by code** where it can be measured (button on the first phone screen, or a buy bar that follows → pass; past 2 screens with no bar → fail). The visit now checks for a following buy bar on landing pages too. Only the screen-2 case goes to the AI, with a word-count guide.
+- **TRK-32:** a hit within 20% (min 1 s) of the LCP is too close to call → unchecked.
+- **`facts.final`:** when a code rule saw the evidence and still can't decide (TRK-17 missing hit, TRK-32 too close), the AI isn't asked. It had failed TRK-17 from the same missing hit.
+- **Guides** (`ai-guides.ts`) for PDP-19 (size, never colour), LAND-08 (only the page's own product's buttons), OFFER-17 (an open field fails, whatever its size: the rule says collapsed or behind a link), COL-01 (search the full name, fail only when the box shows it exactly), PATH-05 (guest option on the sign-in page), NAV-03 (offer pages are shopping links), TRUST-08 (a floating WhatsApp button counts).
+- **Visit hang:** the desktop step has its own 70 s cap. A hang there had timed out the whole visit 4 runs in a row (121 unchecked). The timeout error now names the step.
+- Still swinging between decided and unchecked: about 13 points per run pair (mostly picture and judge points). TRK-32 is unchecked when the extra probes don't get time (production doesn't run them).
+- The COL-01 "fail only when the box shows the full name" line was added after the last runs; not run-tested yet.
+
+## Update, 23 Nov night
 
 Rule (Adham): cost cuts never lower quality; credibility is the product.
 - **Cost, commit `902278c`:** 5-minute cache pinned (the API key's default; local runs used 1 hour and looked cheaper than production). The picture call now waits for the text call's answer to start, so it reads the cached evidence instead of writing it again (97K → 25-39K tokens written). Browser points run in batches of 5. Regal: **$0.50-0.57** per audit, against $0.64-0.67 for the same code before the fix.

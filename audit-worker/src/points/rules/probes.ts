@@ -138,6 +138,12 @@ const trk32: Rule = ({ evidence: e }) => {
   if (!ga4 && !pixel) return unverified("No GA4 hit or pixel PageView was seen on the throttled home load, so there is no send time to compare.");
   const rows = [ga4 && { label: "GA4", h: ga4 }, pixel && { label: `${pixel.vendor} PageView`, h: pixel }].filter((x): x is { label: string; h: typeof ga4 & {} } => Boolean(x));
   const facts: Record<string, string | number> = { lcpMs: p.lcpMs, ...(ga4 && { ga4Ms: ga4.tMs }), ...(pixel && { pixelMs: pixel.tMs, pixelVendor: pixel.vendor }) };
+  // Throttled timings move by seconds between loads (Regal, 23 Nov: GA4 at
+  // 12.6 s, 16.2 s and 6.5 s; LCP at 7.5 s, 5.9 s and 6.9 s). A hit this close
+  // to the LCP could land on either side next time, so it isn't decided.
+  const margin = Math.max(1000, Math.round(p.lcpMs * 0.2));
+  const close = rows.filter(r => Math.abs(r.h.tMs - p.lcpMs!) < margin);
+  if (close.length) return unverified(`On a throttled phone, ${close.map(r => `${r.label} went out at ${r.h.tMs} ms`).join(" and ")}, within ${margin} ms of the LCP at ${p.lcpMs} ms: too close to call, as these times move between loads.`, { ...facts, marginMs: margin, final: true });
   const late = rows.filter(r => r.h.tMs >= p.lcpMs!);
   const times = rows.map(r => `${r.label} ${r.h.tMs} ms`).join(", ");
   return late.length
