@@ -11,6 +11,7 @@ import type { Ga4Facts, SiteChecks } from "../types.js";
 import type { AuditPoint } from "./types.js";
 import type { RuleResult } from "./rules/types.js";
 import { parseGtm } from "./gtm.js";
+import { AI_GUIDES } from "./ai-guides.js";
 
 /**
  * The AI-judged points (decidedBy "code+ai" or "ai"): Claude reads what our
@@ -89,6 +90,8 @@ You cannot browse. The evidence is what our own phone visit (390px) captured, pl
 HOW TO DECIDE
 - "pass": the evidence shows the rule is met. "fail": the evidence clearly shows it is not met.
 - "unverified": the page or data the point needs is missing, or the evidence can't settle it. Never guess a pass or a fail.
+- Every part of the PASS line must be shown by the evidence. If you can see one part but not another (for example the price but not its change per variant), answer unverified. Never pass on the part you can see.
+- A point you can't prove either way is unverified. That is a good answer, not a failure: a browser step may test it next.
 - "n/a": the point genuinely doesn't apply to this store (for example no sizes, no paid traffic for a paid-traffic point).
 - Text may be Arabic, English or both. Missing English is not a fail if the Arabic says it.
 - Never invent facts, numbers or policies.
@@ -131,6 +134,7 @@ export function buildPointsAsk(points: AuditPoint[], hints: Record<string, strin
     `- ${p.id} — ${p.title} (pages: ${p.pages.join(", ")}; needs: ${p.needs.join(", ")})`,
     `  PASS when: ${p.rule}`,
     p.note ? `  Note: ${p.note}` : "",
+    AI_GUIDES[p.id] ? `  How to decide: ${AI_GUIDES[p.id]}` : "",
     hints[p.id] ? `  Our code check could not settle it: ${hints[p.id]} Judge it from the evidence and the pictures if you can; otherwise unverified.` : "",
   ].filter(Boolean).join(NL)).join(NL);
   const look = pictures.length
@@ -285,4 +289,113 @@ async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: s
   }
   for (const p of points) out[p.id] ??= { status: "unverified", reason: "The AI gave no verdict for this point." };
   return out;
+}
+
+// ---- Browser step ----
+// The points the evidence couldn't settle go to one more call that has a real
+// headless browser (chrome-devtools MCP). It may look, scroll, tap and read
+// the page code. It may type only a product name into the store's own search
+// box. It may not fill any other field or submit anything, so it can't create
+// an account, send a message or place an order.
+const BROWSER_TOOLS = [
+  "navigate_page", "new_page", "list_pages", "select_page", "close_page", "take_snapshot", "take_screenshot",
+  "click", "hover", "press_key", "wait_for", "resize_page", "emulate", "evaluate_script", "get_css_styles",
+  "list_network_requests", "get_network_request", "handle_dialog", "fill",
+].map(t => `mcp__chrome-devtools__${t}`);
+// Points per browser call, most severe first. Each one costs browsing turns.
+// 15 at effort low tried about one action per point (Regal, 23 Nov).
+export const BROWSER_MAX_POINTS = Number(process.env.POINTS_BROWSER_MAX ?? 8);
+const BROWSER_TIMEOUT_MS = 10 * 60 * 1000;
+
+export function browserStepOn(): boolean {
+  return (process.env.POINTS_BROWSER ?? "on").trim().toLowerCase() !== "off";
+}
+
+/** The points a browser could settle: unverified, about the store's pages, not tracking. */
+export function browsable(p: AuditPoint, r: RuleResult | undefined): boolean {
+  if (!r || r.status !== "unverified" || r.facts?.blockedBy) return false;
+  // Tracking and account points need GTM, GA4 or Clarity data, which this
+  // step doesn't get (Regal, 23 Nov: TRK-15, LAND-01, RISK-01 came back open).
+  if (p.category === "tracking" || p.needs.some(n => n === "ga4" || n === "gtm" || n === "clarity")) return false;
+  // A point that needs the checkout form can't be reached without typing.
+  if (p.pages.includes("checkout") && !p.pages.some(x => x === "cart" || x === "product")) return false;
+  return p.needs.some(n => n === "visit" || n === "crawl");
+}
+
+export function buildBrowserPrompt(website: string, points: AuditPoint[], reasons: Record<string, string>, extra = ""): string {
+  const list = points.map(p => [
+    `- ${p.id} — ${p.title} (pages: ${p.pages.join(", ")})`,
+    `  PASS when: ${p.rule}`,
+    AI_GUIDES[p.id] ? `  How to decide: ${AI_GUIDES[p.id]}` : "",
+    `  Why it is still open: ${reasons[p.id] ?? "the evidence didn't show it."}`,
+  ].filter(Boolean).join(NL)).join(NL);
+  return `You are a CRO auditor with a real browser. Our first pass couldn't settle the points below from the saved evidence. Open the store and test each one yourself.
+
+Store: ${website}
+${extra}
+HOW TO BROWSE
+- First call emulate with a 390x844 phone viewport (mobile, touch), then open the page each point needs.
+- Keep what you read small: every tool result is re-read on each later turn, so big ones cost a lot. To read a page, use evaluate_script that returns only the short text or numbers you need (under 2,000 characters). Use take_snapshot only to find something to tap, and take a screenshot only when the point is about how something looks.
+- You may scroll, tap buttons, open menus, drawers, tabs and variant options, look at images with a screenshot, and add one item to the cart.
+- The only typing allowed: a product name into the store's own search box, to test search.
+- Never type into any other field, fill a form, log in, submit anything or place an order. If a point needs that, answer unverified and say so.
+- Close pop-ups (press Escape or tap ×) when they block the page.
+- Do the test each point needs before you answer. "I did not check" or "I did not search" is never a reason: if the action is allowed, do it. Answer unverified only after you tried and couldn't see the answer.
+- Group points that use the same page, so you open each page once.
+
+HOW TO DECIDE
+- "pass" or "fail" only for what you saw yourself in the browser. Every part of the PASS line must be seen.
+- A fail needs proof too. If the rule allows several places (for example cart or checkout), check them all before failing. If your own tap or click didn't work, that is unverified, not a fail: our headless browser may be the cause.
+- "unverified" when you couldn't reach or see it. "n/a" when the point doesn't apply to this store.
+- Never guess and never invent wording, numbers or policies.
+
+WRITING
+- en: one or two short sentences (max 30 words): what you saw that decides it, quoting store wording with « ». Say it was seen in the browser.
+- ar: the same in plain Modern Standard Arabic.
+
+POINTS
+${list}
+
+OUTPUT
+When done, return ONLY a JSON object, no prose, no markdown fence. Never use the double-quote character inside text values.
+{"points": [{"id": "${points[0]?.id ?? "PATH-01"}", "status": "pass|fail|unverified|n/a", "en": "", "ar": ""}]}
+Exactly one entry per point (${points.map(p => p.id).join(", ")}).`;
+}
+
+const SEVERITY_ORDER = ["critical", "high", "medium", "low"];
+
+/** Tests the still-open page points in a real browser. Points it can't settle stay as they were. */
+export async function investigatePoints(points: AuditPoint[], reasons: Record<string, string>, ctx: { website: string; platform?: string | null }, jobId: string): Promise<Record<string, RuleResult>> {
+  if (!points.length) return {};
+  const picked = [...points].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)).slice(0, BROWSER_MAX_POINTS);
+  const mcp = await buildMcpConfig(`${jobId}-browse`, { ga4Admin: false, gtm: false, browser: true });
+  const ids = picked.map(p => p.id);
+  try {
+    const raw = await runClaudeHeadless({
+      prompt: buildBrowserPrompt(ctx.website, picked, reasons, ctx.platform ? `Platform: ${ctx.platform}${NL}` : ""),
+      mcpConfigPath: mcp.configPath,
+      allowedTools: BROWSER_TOOLS,
+      timeoutMs: BROWSER_TIMEOUT_MS,
+      effort: "medium",
+      model: "main",
+      label: `points-browser (${picked.length} points)`,
+    });
+    if (process.env.POINTS_DEBUG_DIR) await writeFile(path.join(process.env.POINTS_DEBUG_DIR, `points-browser-${jobId}.json`), raw, "utf8").catch(() => {});
+    let out: Record<string, RuleResult>;
+    try {
+      out = parsePointVerdicts(extractJsonPayload(raw), ids);
+    } catch {
+      const inner: unknown = JSON.parse(raw)?.result;
+      const text = typeof inner === "string" ? inner : "";
+      const s = text.indexOf("{"), end = text.lastIndexOf("}");
+      out = s >= 0 && end > s ? parsePointVerdicts(JSON.parse(repairJsonQuotes(text.slice(s, end + 1))), ids) : {};
+    }
+    for (const r of Object.values(out)) r.facts = { ...r.facts, seenIn: "browser" };
+    return out;
+  } catch (err) {
+    console.warn(`[audit-worker] Points browser step failed: ${err instanceof Error ? err.message : err}`);
+    return {};
+  } finally {
+    await mcp.cleanup();
+  }
 }

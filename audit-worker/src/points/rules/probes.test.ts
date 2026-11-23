@@ -51,8 +51,9 @@ test("probe rules are all unverified when no probe ran", () => {
 const cart = (over: Record<string, unknown> = {}) => withProbe({ emptyCart: { loaded: true, url: "https://x.com/cart", finalUrl: "https://x.com/cart", itemCount: 0, text: "Your cart is empty Continue shopping", links: [{ text: "Continue shopping", href: "https://x.com/collections/all" }], ...over } });
 test("PATH-15 pass, fail and unverified", () => {
   assert.equal(status("PATH-15", cart()), "pass");
-  assert.equal(status("PATH-15", cart({ links: [{ text: "Home", href: "https://x.com/" }] })), "fail");
-  assert.equal(status("PATH-15", cart({ links: [{ text: "Best sellers", href: "https://x.com/collections/best-sellers" }] })), "fail", "no continue button");
+  // Missing links are never a code fail: the link read can miss them.
+  assert.equal(status("PATH-15", cart({ links: [{ text: "Home", href: "https://x.com/" }] })), "unverified");
+  assert.equal(status("PATH-15", cart({ links: [{ text: "Best sellers", href: "https://x.com/collections/best-sellers" }] })), "unverified", "no continue button");
   assert.equal(status("PATH-15", cart({ text: "Your cart", links: [] })), "fail", "confirmed empty, no message");
   assert.equal(status("PATH-15", cart({ text: "Your cart", itemCount: null })), "unverified");
   assert.equal(status("PATH-15", cart({ itemCount: 2 })), "unverified");

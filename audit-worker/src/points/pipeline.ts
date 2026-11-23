@@ -8,7 +8,7 @@ import { runNetChecks, sameSite, type NetChecks } from "./net-checks.js";
 import { runRules } from "./rules/index.js";
 import type { RuleResult } from "./rules/types.js";
 import { renderFinding } from "./templates/render.js";
-import { judgePoints } from "./ai-judge.js";
+import { BROWSER_MAX_POINTS, browsable, browserStepOn, investigatePoints, judgePoints } from "./ai-judge.js";
 export { POINT_CATEGORY_LABELS } from "./pipeline-labels.js";
 
 /**
@@ -111,9 +111,21 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
     else if (a && a.status !== "unverified") results[p.id] = { ...a, facts: c?.facts, decidedBy: "ai" };
     else results[p.id] = { ...(c ?? a ?? { status: "unverified", reason: "No rule ran for this point." }), ...(a?.observation && { observation: a.observation }) };
   }
-  const settled = fallback.filter(p => results[p.id].decidedBy === "ai").length;
+  // Browser step: the page points still open get tested in a real browser.
+  const open = browserStepOn() ? points.filter(p => browsable(p, results[p.id])) : [];
+  let browsed = 0;
+  if (open.length) {
+    const reasons = Object.fromEntries(open.map(p => [p.id, results[p.id].observation?.en ?? results[p.id].reason]));
+    const seen = await investigatePoints(open, reasons, { website: input.website, platform: input.siteChecks?.platform }, input.id);
+    for (const [id, r] of Object.entries(seen)) {
+      if (r.status === "unverified") continue;
+      results[id] = { ...r, facts: { ...code[id]?.facts, ...r.facts }, decidedBy: "ai" };
+      browsed++;
+    }
+  }
   const count = (s: string) => Object.values(results).filter(r => r.status === s).length;
-  console.log(`[audit-worker] Points: ${points.length} for this reader (${points.length - toJudge.length + fallback.length} code, ${toJudge.length - fallback.length} AI, ${fallback.length} code points sent to AI as fallback, ${settled} settled by it): ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
+  const byCode = points.filter(p => results[p.id].decidedBy === "code").length;
+  console.log(`[audit-worker] Points: ${points.length} for this reader. Decided by code ${byCode}; sent to the AI ${toJudge.length}; browser step tried ${Math.min(open.length, BROWSER_MAX_POINTS)} of ${open.length} open and settled ${browsed}. Result: ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
   return { results, net };
 }
 

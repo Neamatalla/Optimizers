@@ -42,7 +42,9 @@ const path15: Rule = ({ evidence: e }) => {
   const facts = { url: p.url, onwardLinks: onward.slice(0, 3).map(l => l.href || l.text), continueButton: button[0]?.text ?? "none" };
   if (onward.length && button.length) return { status: "pass", reason: `The empty cart page says it is empty and offers "${button[0].text}" and a link to ${onward[0].href ? path(onward[0].href) : onward[0].text}.`, facts };
   const missing = [...(onward.length ? [] : ["a link to a collection or best sellers"]), ...(button.length ? [] : ["a continue-shopping button"])];
-  return { status: "fail", reason: `The empty cart page ${p.url} says it is empty but has no ${missing.join(" and no ")}.`, facts };
+  // Not a fail: the links are read once, and on Regal (23 Nov) the same page
+  // gave a collection link in one run and none in the next. The AI checks it.
+  return unverified(`The empty cart page ${p.url} says it is empty, but our read found no ${missing.join(" and no ")}. The read can miss links, so this isn't proof.`, facts);
 };
 
 // ---- PDP-12: picking a variant changes the photo ----

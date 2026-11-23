@@ -102,3 +102,18 @@ test("a log-in page in front of checkout blocks the checkout form points", async
   assert.equal(checkoutLoginBlocks(null), false);
   assert.ok(CHECKOUT_FORM_POINTS.has("PATH-13") && !CHECKOUT_FORM_POINTS.has("PATH-05"), "guest-option point is still judged");
 });
+
+test("browser step: only open page points go, and the prompt forbids typing and submitting", async () => {
+  const { browsable, buildBrowserPrompt } = await import("./ai-judge.js");
+  const { pointById } = await import("./index.js");
+  const pdp = pointById("PDP-19")!;
+  const trk = pointById("TRK-15")!;
+  assert.equal(browsable(pdp, { status: "unverified", reason: "x" }), true);
+  assert.equal(browsable(pdp, { status: "pass", reason: "x" }), false);
+  assert.equal(browsable(pdp, { status: "unverified", reason: "x", facts: { blockedBy: "login" } }), false, "log-in block stays");
+  assert.equal(browsable(trk, { status: "unverified", reason: "x" }), false, "tracking point");
+  const prompt = buildBrowserPrompt("https://x.com", [pdp], { "PDP-19": "colour unclear" });
+  assert.match(prompt, /Never type into any other field/);
+  assert.match(prompt, /colour unclear/);
+  assert.match(prompt, /How to decide/);
+});
