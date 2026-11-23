@@ -137,6 +137,8 @@ const CLOSE_POPUPS_JS = String.raw`(function () {
   return n;
 })()`;
 
+const SHOT_TIMEOUT_MS = 90_000;
+
 export async function captureSiteScreenshots(url: string): Promise<SiteScreenshots> {
   const executablePath = findChrome();
   if (!executablePath) {
@@ -212,10 +214,19 @@ export async function captureSiteScreenshots(url: string): Promise<SiteScreensho
     // logged instead of swallowed, so a missing mockup can be explained.
     const attempt = async (name: string, run: () => Promise<string>): Promise<string | null> => {
       for (let i = 1; i <= 2; i++) {
+        let timer: NodeJS.Timeout | undefined;
         try {
-          return await run();
+          // A ceiling per shot: a page call with no timeout of its own once
+          // hung for 12+ minutes (regal-honey.com, 2026-11-23). The browser
+          // is closed in finally, which ends the stuck call.
+          return await Promise.race([
+            run(),
+            new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`timed out after ${SHOT_TIMEOUT_MS / 1000}s`)), SHOT_TIMEOUT_MS); }),
+          ]);
         } catch (err) {
           console.warn(`[screenshots] ${name} shot failed (try ${i}/2): ${err instanceof Error ? err.message.slice(0, 160) : err}`);
+        } finally {
+          clearTimeout(timer);
         }
       }
       return null;
