@@ -942,13 +942,15 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
   // After the crops, so they show the page as it arrived. NAV-03: does the
   // phone menu open? PATH-09: do + and − in the cart change it?
   if (pageType === "home" && page.viewport()?.width === MOBILE.width) {
-    const menu = (await page.evaluate(MENU_TAP_JS).catch(() => null)) as { found: boolean; before: number } | null;
+    const menu = (await page.evaluate(MENU_TAP_JS).catch(() => null)) as { found: boolean; before: number; textBefore?: number } | null;
     let opened = false, linksShown = 0;
     if (menu?.found) {
-      await sleep(900);
+      await sleep(1500);
       const after = ((await page.evaluate(VISIBLE_LINKS_JS).catch(() => 0)) as number) ?? 0;
+      const textAfter = ((await page.evaluate("document.body.innerText.length").catch(() => 0)) as number) ?? 0;
       linksShown = Math.max(0, after - menu.before);
-      opened = linksShown >= 3;
+      // A panel sliding in shows new links, or at least new text.
+      opened = linksShown >= 3 || textAfter - (menu.textBefore ?? textAfter) > 40;
     }
     ev.interactions = { ...ev.interactions, menu: { found: Boolean(menu?.found), opened, linksShown } };
   }
@@ -980,20 +982,22 @@ const VISIBLE_LINKS_JS = String.raw`[].filter.call(document.querySelectorAll("a[
 // Taps the phone menu icon and returns how many links were on screen before.
 // Never follows a link.
 const MENU_TAP_JS = String.raw`(function () {
+  window.scrollTo(0, 0);
   var before = ` + VISIBLE_LINKS_JS + String.raw`;
-  var cands = [].slice.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=menu-toggle], [class*=nav-toggle], [aria-label*=\"menu\" i], [aria-label*=\"القائمة\"], button:has(svg[class*=burger])"));
+  var cands = [].slice.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=menu-toggle], [class*=nav-toggle], [aria-label*=\"menu\" i], [aria-label*=\"القائمة\"], button:has([class*=burger]), [class*=burger]"));
   var btn = cands.find(function (el) {
     var r = el.getBoundingClientRect();
     if (!r.width || !r.height || r.top > 160) return false;
     var cls = typeof el.className === "string" ? el.className : (el.className && el.className.baseVal) || "";
     var label = ((el.getAttribute("aria-label") || "") + " " + cls + " " + (el.textContent || "")).toLowerCase();
-    return /menu|hamburger|nav-toggle|القائمة|منيو/.test(label) && !/cart|search|سلة|بحث|account|حساب/.test(label);
+    return (/menu|hamburger|burger|nav-toggle|القائمة|منيو/.test(label) || !!el.querySelector("[class*=burger]")) && !/cart|search|سلة|بحث|account|حساب/.test(label);
   });
   if (!btn) return { found: false, before: before };
   var href = btn.tagName === "A" ? (btn.getAttribute("href") || "") : "";
   if (href && href !== "#" && !/^javascript:/i.test(href)) return { found: false, before: before };
-  btn.click();
-  return { found: true, before: before };
+  var textBefore = document.body.innerText.length;
+  (btn.closest("button, [role=button], a") || btn).click();
+  return { found: true, before: before, textBefore: textBefore };
 })()`;
 
 // Presses + (or −) on the first cart line; returns the main text before the
