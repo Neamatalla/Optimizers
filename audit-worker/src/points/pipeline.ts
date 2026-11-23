@@ -8,6 +8,7 @@ import { runNetChecks, sameSite, type NetChecks } from "./net-checks.js";
 import { runRules } from "./rules/index.js";
 import type { RuleResult } from "./rules/types.js";
 import { renderFinding } from "./templates/render.js";
+import { translateReasons } from "./translate-reasons.js";
 import { BROWSER_MAX_POINTS, browsable, browserStepOn, investigatePoints, judgePoints } from "./ai-judge.js";
 export { POINT_CATEGORY_LABELS } from "./pipeline-labels.js";
 
@@ -123,9 +124,11 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
       browsed++;
     }
   }
+  // Arabic for the English-only sentences (code rules, unchecked reasons).
+  const arabic = await translateReasons(results, input.id);
   const count = (s: string) => Object.values(results).filter(r => r.status === s).length;
   const byCode = points.filter(p => results[p.id].decidedBy === "code").length;
-  console.log(`[audit-worker] Points: ${points.length} for this reader. Decided by code ${byCode}; sent to the AI ${toJudge.length}; browser step tried ${Math.min(open.length, BROWSER_MAX_POINTS)} of ${open.length} open and settled ${browsed}. Result: ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
+  console.log(`[audit-worker] Points: ${points.length} for this reader. Decided by code ${byCode}; sent to the AI ${toJudge.length}; browser step tried ${Math.min(open.length, BROWSER_MAX_POINTS)} of ${open.length} open and settled ${browsed}; Arabic added for ${arabic}. Result: ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
   return { results, net };
 }
 

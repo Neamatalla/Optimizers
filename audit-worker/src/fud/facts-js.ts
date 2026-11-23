@@ -104,6 +104,25 @@ export const FACTS_JS = String.raw`
     nav.push(t);
   });
 
+  // The main menu as a whole, hidden phone drawers included: on a phone the
+  // header row shows no links, so nav above is empty even with a full menu
+  // (Regal, 23 Nov). Footer links don't count.
+  var menuSeen = {}, menuLinks = 0;
+  document.querySelectorAll("nav a, [role=navigation] a, [class*='menu' i] a, [class*='drawer' i] a, [class*='sidebar' i] a").forEach(function (a) {
+    if (a.closest("footer")) return;
+    var t = (a.textContent || "").replace(/\s+/g, " ").trim();
+    if (t.length < 2 || t.length > 40 || NOT_NAV.test(t) || menuSeen[t]) return;
+    menuSeen[t] = 1;
+    menuLinks++;
+  });
+  var menuIcon = [].some.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=burger], [aria-label*='menu' i], [aria-label*='القائمة']"), function (el) {
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.top > 160) return false;
+    var cls = typeof el.className === "string" ? el.className : (el.className && el.className.baseVal) || "";
+    var l = ((el.getAttribute("aria-label") || "") + " " + cls).toLowerCase();
+    return /menu|hamburger|burger|nav-toggle|القائمة/.test(l) && !/cart|search|سلة|بحث|account|حساب/.test(l);
+  });
+
   // Search
   // The text box itself, not the hidden inputs search forms carry.
   var sInput = [].filter.call(document.querySelectorAll('input[type="search"], input[name="q"], input[name="s"], [role="search"] input, form[action*="search"] input'), function (i) {
@@ -435,6 +454,8 @@ export const FACTS_JS = String.raw`
     h1: h1s.slice(0, 3),
     h1Count: h1s.length,
     nav: nav.slice(0, 20),
+    menuLinks: menuLinks,
+    menuIcon: menuIcon,
     search: search,
     media: { images: images, video: video, zoom: zoom },
     infoSections: { details: details, expanders: expanders },

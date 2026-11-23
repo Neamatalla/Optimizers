@@ -144,6 +144,10 @@ export interface PageEvidence {
   // Product pages: label of a buy button still on screen after scrolling
   // well past the main one (sticky add-to-cart), or null.
   sticky?: string | null;
+  // Product pages: the text of tabs, accordions and other sections that are
+  // closed on arrival (read from the page code, nothing clicked), so the
+  // description, details and shipping text can be judged. Max 6 x 1,200 chars.
+  hiddenSections?: Array<{ label: string; text: string }>;
   // Landing pages only: why we opened it (the GA4 campaign or landing report)
   // and, when the same URL was already visited as another page, which one.
   landing?: { source: string; sameAs?: FudPageType };
@@ -166,6 +170,10 @@ export interface PageFacts {
   h1Count: number;
   // Top-level header/menu link labels (from the desktop visit for nav rules).
   nav: string[];
+  // Links in the main menu, hidden phone drawer included (footer left out),
+  // and whether the header has a menu icon. Absent on older evidence.
+  menuLinks?: number;
+  menuIcon?: boolean;
   search: { present: boolean; visible: boolean; action: string; param: string };
   media: { images: number; video: boolean; zoom: boolean };
   infoSections: { details: number; expanders: number };

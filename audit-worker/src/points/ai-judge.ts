@@ -311,7 +311,9 @@ const BROWSER_TOOLS = [
 // Points per browser call, most severe first. Each one costs browsing turns.
 // 15 at effort low tried about one action per point (Regal, 23 Nov).
 // 8 points on Sonnet cost about $0.60 and settled 1 to 4 (Regal, 23 Nov).
-export const BROWSER_MAX_POINTS = Number(process.env.POINTS_BROWSER_MAX ?? 5);
+// 5 on the writer model cost about $0.04 (Regal, 23 Nov), so every open
+// point on the list can get a try.
+export const BROWSER_MAX_POINTS = Number(process.env.POINTS_BROWSER_MAX ?? 10);
 const BROWSER_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function browserStepOn(): boolean {
@@ -358,7 +360,7 @@ HOW TO BROWSE
 - Close pop-ups (press Escape or tap ×) when they block the page.
 - Do the test each point needs before you answer. "I did not check" or "I did not search" is never a reason: if the action is allowed, do it. Answer unverified only after you tried and couldn't see the answer.
 - Group points that use the same page, so you open each page once.
-- Budget: about 30 tool calls in total. Every call re-reads all earlier results, so stop when the budget is spent and answer unverified for what's left.
+- Budget: about 40 tool calls in total. Every call re-reads all earlier results, so stop when the budget is spent and answer unverified for what's left.
 
 HOW TO DECIDE
 - "pass" or "fail" only for what you saw yourself in the browser. Every part of the PASS line must be seen.

@@ -933,6 +933,10 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
     }
   }
   if (pageType === "product" && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
+  if (pageType === "product") {
+    const hidden = (await page.evaluate(HIDDEN_SECTIONS_JS).catch(() => null)) as Array<{ label: string; text: string }> | null;
+    if (hidden?.length) ev.hiddenSections = hidden;
+  }
   if (!withCrops) return ev;
   ev.crops.fold = await crop(page, { x: 0, y: 0, width: MOBILE.width, height: MOBILE.height });
   if (ev.cta) {
@@ -957,6 +961,33 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
   if (pageType === "cart") ev.interactions = { ...ev.interactions, quantity: await quantityTest(page) };
   return ev;
 }
+
+// Text of tabs, accordions and collapsed sections that are closed on arrival.
+// textContent is there even when the section is hidden, so nothing is
+// clicked. Visible sections are skipped: the page text already has them.
+const HIDDEN_SECTIONS_JS = String.raw`(function () {
+  var sel = "[role=tabpanel], details, .tab-pane, [class*='tab-content'] > *, [class*='tabs__panel'], [class*='tab-panel'], [class*='accordion'] [class*='content'], [class*='accordion'] [class*='body'], [class*='collapse'], [class*='collapsible'] [class*='content']";
+  var out = [], seen = {};
+  [].slice.call(document.querySelectorAll(sel)).forEach(function (el) {
+    if (out.length >= 6 || el.closest("header, nav, footer")) return;
+    var r = el.getBoundingClientRect();
+    var shown = r.width > 0 && r.height > 20 && getComputedStyle(el).visibility !== "hidden";
+    if (shown && el.tagName !== "DETAILS") return;
+    if (el.tagName === "DETAILS" && el.open) return;
+    var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (text.length < 20) return;
+    var key = text.slice(0, 80);
+    if (seen[key]) return;
+    seen[key] = 1;
+    var label = "";
+    var id = el.getAttribute("aria-labelledby");
+    if (id && document.getElementById(id)) label = document.getElementById(id).textContent;
+    else if (el.tagName === "DETAILS" && el.querySelector("summary")) label = el.querySelector("summary").textContent;
+    else if (el.id) { var t = document.querySelector("[href='#" + el.id + "'], [aria-controls='" + el.id + "'], [data-target='#" + el.id + "'], [data-bs-target='#" + el.id + "']"); if (t) label = t.textContent; }
+    out.push({ label: (label || "").replace(/\s+/g, " ").trim().slice(0, 60), text: text.slice(0, 1200) });
+  });
+  return out;
+})()`;
 
 // Buttons that reveal more of a product description ("read more").
 const EXPAND_JS = String.raw`(function () {

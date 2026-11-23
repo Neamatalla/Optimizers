@@ -74,8 +74,9 @@ export function renderFinding(pointId: string, result: RuleResult, opts: { role?
     const title = point?.roleCopy[opts.role ?? "store_owner"]?.title ?? point?.title ?? pointId;
     const head = result.status === "n/a" ? g.na : result.status === "unverified" ? g.unverified : title;
     return {
-      // The rule's own sentence is English; Arabic shows the generic line.
-      technical: { summary: useLang === "en" ? result.reason : head, detail: "" },
+      // English: the rule's own sentence. Arabic: its translation
+      // (translate-reasons.ts) or the AI's observation, else the generic line.
+      technical: { summary: useLang === "en" ? result.reason : result.observation?.ar ?? head, detail: "" },
       business: { summary: head, detail: result.status === "unverified" ? g.detail : "" },
       missingSlots: [],
       generic: !copies,

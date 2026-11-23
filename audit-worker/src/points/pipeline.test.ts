@@ -117,3 +117,19 @@ test("browser step: only open page points go, and the prompt forbids typing and 
   assert.match(prompt, /colour unclear/);
   assert.match(prompt, /How to decide/);
 });
+
+test("Arabic is asked only for English-only sentences; page text marks phone screens and closed tabs", async () => {
+  const { needsArabic } = await import("./translate-reasons.js");
+  assert.deepEqual(needsArabic({
+    A: { status: "pass", reason: "Code says so." },
+    B: { status: "fail", reason: "x", observation: { en: "x", ar: "س" } },
+    C: { status: "n/a", reason: "Not Shopify." },
+    D: { status: "unverified", reason: "Checkout not seen." },
+  }), ["A", "D"]);
+  const { pageBlock } = await import("../fud/judge.js");
+  const b = (id: string, y: number) => ({ id, text: id, tag: "p", box: { x: 0, y, w: 10, h: 10 }, aboveFold: y < 844 });
+  const text = pageBlock({ pageType: "home", url: "https://x.com", loaded: true, blocks: [b("a", 10), b("b", 900), b("c", 2000)], widgets: [], jsonLd: { types: [] }, policyLinks: [], crops: {}, hiddenSections: [{ label: "Shipping", text: "Ships in 2 days" }] } as never);
+  assert.match(text, /--- phone screen 2 \(from 844px\) ---\n\[b\]/);
+  assert.match(text, /--- phone screen 3 \(from 1688px\) ---\n\[c\]/);
+  assert.match(text, /«Shipping»: Ships in 2 days/);
+});
