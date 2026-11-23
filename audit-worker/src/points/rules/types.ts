@@ -23,6 +23,10 @@ export interface RuleResult {
   // build the report text from this and `facts`.
   reason: string;
   facts?: Record<string, string | number | boolean | string[]>;
+  // Points the AI judges (decidedBy "code+ai" or "ai"): what it saw on this
+  // store, in each report language. Templates show it through {observation};
+  // everything else in the text is fixed.
+  observation?: { en?: string; ar?: string };
 }
 
 // Everything a rule may read. All optional: each rule handles what's missing.

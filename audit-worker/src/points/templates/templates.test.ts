@@ -19,10 +19,10 @@ function texts(c: RoleCopies): string[] {
   return out;
 }
 
-test("templates exist only for active code-decided points", () => {
+test("templates exist only for active points", () => {
   for (const id of Object.keys(TEMPLATES)) {
     const p = pointById(id);
-    assert.ok(p && p.status === "active" && p.decidedBy === "code", id);
+    assert.ok(p && p.status === "active", id);
   }
 });
 
@@ -89,7 +89,8 @@ test("renderFinding: unverified and n/a get short generic text; a point with no 
   assert.equal(u.technical.summary, "No page loaded.");
   assert.match(u.business.summary, /Not checked/);
   assert.match(renderFinding("PATH-08", { status: "n/a", reason: "x" }, { lang: "ar" }).business.summary, /لا ينطبق/);
-  const none = renderFinding("COL-05", { status: "pass", reason: "All 5 cards ok." });
+  // TRK-34 is parked, so it never gets a template.
+  const none = renderFinding("TRK-34", { status: "pass", reason: "All 5 cards ok." });
   assert.equal(none.generic, true);
   assert.equal(none.technical.summary, "All 5 cards ok.");
 });
@@ -99,4 +100,37 @@ test("renderFinding: a missing slot falls back to the rule's sentence and is rep
   assert.ok(r.missingSlots.includes("buttonBottom"));
   assert.equal(r.technical.detail, "");
   assert.equal(r.technical.summary, "The price sits 925px down.");
+});
+
+test("a frame shows the AI's observation in the report's language, with fallbacks", () => {
+  const id = "TEST-FRAME";
+  const copy = (obs: string, extra: string) => ({
+    technical: { summary: obs, detail: extra }, business: { summary: extra, detail: extra }, step: extra, doneWhen: extra, protect: extra,
+  });
+  TEMPLATES[id] = {
+    en: { default: { pass: copy("{observation}", "Fixed."), fail: copy("{observation}", "Fixed.") } },
+    ar: { default: { pass: copy("{observation}", "ثابت."), fail: copy("{observation}", "ثابت.") } },
+  };
+  try {
+    const obs = { status: "fail" as const, reason: "Code sentence.", observation: { en: "The hero has no offer.", ar: "لا يوجد عرض في الواجهة." } };
+    assert.equal(renderFinding(id, obs).technical.summary, "The hero has no offer.");
+    assert.equal(renderFinding(id, obs, { lang: "ar" }).technical.summary, "لا يوجد عرض في الواجهة.");
+    // Code settled it (no observation): English shows the rule's sentence, Arabic the fixed business line.
+    const code = { status: "pass" as const, reason: "Code sentence." };
+    assert.equal(renderFinding(id, code).technical.summary, "Code sentence.");
+    assert.equal(renderFinding(id, code, { lang: "ar" }).technical.summary, "ثابت.");
+  } finally {
+    delete TEMPLATES[id];
+  }
+});
+
+test("frames for AI-judged points put the AI's finding in {observation}", () => {
+  for (const [id, t] of Object.entries(TEMPLATES)) {
+    if (pointById(id)?.decidedBy === "code") continue;
+    for (const lang of ["en", "ar"] as const) {
+      for (const s of ["pass", "fail"] as const) {
+        assert.ok(t[lang]!.default[s].technical.summary.includes("{observation}"), `${id} ${lang} ${s}: technical.summary needs {observation}`);
+      }
+    }
+  }
 });

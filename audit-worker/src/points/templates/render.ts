@@ -85,15 +85,24 @@ export function renderFinding(pointId: string, result: RuleResult, opts: { role?
   const status = result.status;
   const role = opts.role ?? undefined;
   const copy = merge(copies.default[status], role ? copies[role]?.[status] : undefined);
-  const values: Record<string, unknown> = { ...result.facts, reason: useLang === "en" ? result.reason : undefined };
+  const values: Record<string, unknown> = {
+    ...result.facts,
+    reason: useLang === "en" ? result.reason : undefined,
+    // The AI's observation in this language. In English, a point code settled
+    // (no observation) shows the rule's own sentence instead.
+    observation: useLang === "en" ? (result.observation?.en ?? result.reason) : result.observation?.ar,
+  };
   const f = (text: string | undefined) => (text ? fill(text, values, missing) : null);
+  const strip = (text: string) => text.replace(SLOT, "").replace(/\s{2,}/g, " ").trim();
+  const bizSummary = f(copy.business.summary) ?? strip(copy.business.summary);
 
   // A technical summary with a missing slot falls back to the rule's sentence
-  // (English) or the template line without the slot (Arabic).
-  const techSummary = f(copy.technical.summary) ?? (useLang === "en" ? result.reason : copy.technical.summary.replace(SLOT, "").replace(/\s{2,}/g, " ").trim());
+  // (English) or the template line without the slot (Arabic); an Arabic line
+  // that was only a slot falls back to the business summary.
+  const techSummary = f(copy.technical.summary) ?? (useLang === "en" ? result.reason : strip(copy.technical.summary) || bizSummary);
   const out: RenderedFinding = {
     technical: { summary: techSummary, detail: f(copy.technical.detail) ?? "" },
-    business: { summary: f(copy.business.summary) ?? copy.business.summary.replace(SLOT, "").replace(/\s{2,}/g, " ").trim(), detail: f(copy.business.detail) ?? "" },
+    business: { summary: bizSummary, detail: f(copy.business.detail) ?? "" },
     missingSlots: [...missing],
     generic: false,
   };

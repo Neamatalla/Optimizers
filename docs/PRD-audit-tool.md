@@ -106,8 +106,8 @@ How the team works:
 - **Staging first.** Changes are staged and reviewed in rounds (`ROUNDS-LOG.md`): before/after, how to check, decision.
 - **Migrations.** Applied to staging first; logged in `supabase/migrations` and the migration log commits.
 - **Tests.**
-  - Worker: `cd audit-worker && npm test`, 136 offline tests.
-  - Site and API: `npm test` in the root.
+  - Worker: `cd audit-worker && npm test`, 282 offline tests (22 Nov 2026).
+  - Site and API: `npm test` in the root, 166 offline tests (22 Nov 2026).
 - **Local end-to-end.** `npx tsx src/local-pipeline/run.ts <site> --role=… --tools=GA4,GTM` runs the real production job with database and email swapped for files (round 21).
 
 ---
@@ -310,7 +310,7 @@ Acceptance criteria are short. Each story cites the FR it depends on.
 - **US-DV-1.** As a developer, I want to run the real production pipeline locally without touching the database or sending email.
   - *Accept:* `src/local-pipeline/run.ts` writes the report, rows, progress and email to `output/` (round 21).
 - **US-DV-2.** As a developer, I want offline tests that catch regressions in parsing, scoring and rendering.
-  - *Accept:* `npm test` green (136 tests at checkpoint).
+  - *Accept:* `npm test` green (282 worker + 166 API tests on 22 Nov 2026).
 - **US-DV-3.** As a developer, I want previews with sample or saved data to iterate on the report fast.
   - *Accept:* `npm run preview-report -- …` with `--signal=`, `--checklist=`, `--ad=`.
 - **US-DV-4.** As a developer, I want every round documented with what changed, how to check and the decision.
@@ -319,6 +319,8 @@ Acceptance criteria are short. Each story cites the FR it depends on.
 ---
 
 ## 8. Non-functional requirements
+
+Testable scenarios and their status (what is covered by a test and what is not): [NFR-SCENARIOS-audit-tool.md](NFR-SCENARIOS-audit-tool.md).
 
 ### Cost
 | ID | Requirement |
@@ -391,7 +393,7 @@ Acceptance criteria are short. Each story cites the FR it depends on.
 | Email | Resend (client email, review email, digest, alerts). |
 | External data | Google OAuth + GA4 Data/Admin APIs + GTM API, PageSpeed Insights API, Microsoft Clarity, Intellia store check. |
 | Hosting | Vercel (site, API, `/blog` proxy to WordPress, `/apps/*` to other Vercel apps), Railway (worker), Supabase. |
-| Tests | Node test runner via tsx (`audit-worker`: 136 tests), root `npm test` for the API. |
+| Tests | Node test runner via tsx (`audit-worker`: 282 tests), root `npm test` for the API (166 tests). |
 | Key config | Worker: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `RESEND_API_KEY`, `PUBLIC_SITE_URL`, `AUDIT_REPORTS_BUCKET`, `AUDIT_REPORTS_TEST_BUCKET`, `GA4_*`/`GTM_*` MCP paths, `CLAUDE_BIN`, `CLAUDE_TIMEOUT_MS`, `CHROME_PATH`, `POLL_INTERVAL_MS`, `AUDIT_REVIEWER_EMAIL`, `DAILY_DIGEST_HOUR_UTC`, `REPORT_EDIT_API_KEY`, `REPORT_PREVIEW_SECRET`, `FUD_PASS` (off/test/all), `FUD_ALLOW_FAIL`, `CRO_CHECKLIST` (off to skip). Site: `SUPABASE_*`, `GOOGLE_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI`, `VITE_GOOGLE_OAUTH_ENABLED`, `INTELLIA_*`, `REPORT_EDIT_API_KEY`. |
 
 **Planned additions:**

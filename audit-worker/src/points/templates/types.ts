@@ -10,6 +10,11 @@ import type { AudienceRole } from "../../audience.js";
  * ", "), and {reason} by the rule's own sentence (English only). A slot the
  * rule didn't provide makes the renderer fall back (render.ts), so a raw
  * "{x}" never reaches a report.
+ *
+ * Points the AI judges (decidedBy "code+ai" or "ai") get a frame: the same
+ * shape, with {observation} where the AI's store-specific finding goes (in
+ * the report's language). Why it matters, the fix, done-when and each
+ * reader's version stay fixed.
  */
 
 export interface Voice {
