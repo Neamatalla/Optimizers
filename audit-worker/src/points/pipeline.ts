@@ -36,6 +36,8 @@ export interface PointsInput {
   clarity: unknown;
   role: AudienceRole | null;
   adContext?: { text: string | null; coupon: string | null } | null;
+  // The pages paid campaigns land on (ga4-facts.ts ga4Focus), for LAND-02.
+  paidLandingUrls?: string[];
 }
 
 /** Same-site links inside the home page's header, nav and footer (max 15), for the dead-link check. */
@@ -63,7 +65,7 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
     net = await runNetChecks({
       website: input.website,
       pages: pages.length ? pages : input.discoveredPages.slice(0, 3).map(url => ({ url })),
-      paidLandingUrls: input.ga4?.focus.paidLandingUrls,
+      paidLandingUrls: input.paidLandingUrls ?? input.ga4?.focus.paidLandingUrls,
       menuLinks: menuLinksFrom(input.homeHtml, input.website),
     });
   } catch (err) {
@@ -72,13 +74,25 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
 
   const points = activePoints(input.role ?? "store_owner");
   const code = runRules({ ga4: input.ga4, evidence: input.evidence, siteChecks: input.siteChecks, pageSpeed: input.pageSpeed, clarity: input.clarity as any, gtm: input.gtm, net });
-  const toJudge = points.filter(p => p.decidedBy !== "code");
-  const ai = await judgePoints(toJudge, { website: input.website, evidence: input.evidence, ga4: input.ga4, gtm: input.gtm, siteChecks: input.siteChecks, role: input.role, adContext: input.adContext }, input.id);
+  // The AI judges its own points, plus every code point the code couldn't
+  // settle (unverified), with the code's reason as a hint. No point is dropped.
+  const fallback = points.filter(p => p.decidedBy === "code" && (!code[p.id] || code[p.id].status === "unverified"));
+  const toJudge = [...points.filter(p => p.decidedBy !== "code"), ...fallback];
+  const hints = Object.fromEntries(fallback.map(p => [p.id, code[p.id]?.reason ?? "No code rule ran."]));
+  const ai = await judgePoints(toJudge, { website: input.website, evidence: input.evidence, ga4: input.ga4, gtm: input.gtm, siteChecks: input.siteChecks, role: input.role, adContext: input.adContext, hints }, input.id);
 
   const results: Record<string, RuleResult> = {};
-  for (const p of points) results[p.id] = code[p.id] ?? ai[p.id] ?? { status: "unverified", reason: "No rule ran for this point." };
+  for (const p of points) {
+    const c = code[p.id];
+    const a = ai[p.id];
+    // Code wins when it decided; the AI's answer fills in where it couldn't.
+    if (c && c.status !== "unverified") results[p.id] = { ...c, decidedBy: "code" };
+    else if (a && a.status !== "unverified") results[p.id] = { ...a, facts: c?.facts, decidedBy: "ai" };
+    else results[p.id] = { ...(c ?? a ?? { status: "unverified", reason: "No rule ran for this point." }), ...(a?.observation && { observation: a.observation }) };
+  }
+  const settled = fallback.filter(p => results[p.id].decidedBy === "ai").length;
   const count = (s: string) => Object.values(results).filter(r => r.status === s).length;
-  console.log(`[audit-worker] Points: ${points.length} for this reader (${points.length - toJudge.length} code, ${toJudge.length} AI): ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
+  console.log(`[audit-worker] Points: ${points.length} for this reader (${points.length - toJudge.length + fallback.length} code, ${toJudge.length - fallback.length} AI, ${fallback.length} code points sent to AI as fallback, ${settled} settled by it): ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
   return { results, net };
 }
 

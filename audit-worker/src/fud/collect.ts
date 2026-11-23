@@ -1001,7 +1001,7 @@ async function addToCartAndCapture(
   product: PageEvidence | undefined,
   cartUrl: string,
   counter: HitCounter,
-): Promise<{ cart: PageEvidence; atc: StoreEvidence["addToCart"]; atcEvents?: StoreEvidence["atcEvents"]; atcHits?: StoreEvidence["atcHits"] }> {
+): Promise<{ cart: PageEvidence; drawer?: PageEvidence; atc: StoreEvidence["addToCart"]; atcEvents?: StoreEvidence["atcEvents"]; atcHits?: StoreEvidence["atcHits"] }> {
   let atc: StoreEvidence["addToCart"] = { attempted: false, ok: false, reason: "no product page" };
   let atcEvents: StoreEvidence["atcEvents"];
   let atcHits: StoreEvidence["atcHits"];
@@ -1048,7 +1048,22 @@ async function addToCartAndCapture(
           ev.note = "cart drawer";
           ev.crops.cart = await crop(page, { x: 0, y: await page.evaluate("window.scrollY") as number, width: MOBILE.width, height: MOBILE.height });
           atc = ev.cart.empty ? { attempted: true, ok: false, reason: "atc_drawer_empty" } : { attempted: true, ok: true, via: "click", clickAdded: true };
-          if (!ev.cart.empty) return { cart: ev, atc, atcEvents, atcHits };
+          if (!ev.cart.empty) {
+            // Also open the cart page: the page-level checks (links, header
+            // count, layout, floating elements) need a full page. The drawer
+            // stays as drawer evidence, and its picture as the cart crop.
+            const full = await visit(page, "cart", cartUrl, "e").catch(() => null);
+            if (full?.loaded) {
+              const n = await cartCount(page);
+              if (!(n !== null ? n === 0 : isEmptyCart(full))) {
+                full.cart = { source: "page", empty: false };
+                full.note = "cart page (the cart also opens as a drawer after Add to Cart)";
+                if (ev.crops.cart) full.crops.cart = ev.crops.cart;
+                return { cart: full, drawer: ev, atc, atcEvents, atcHits };
+              }
+            }
+            return { cart: ev, atc, atcEvents, atcHits };
+          }
         }
       } else if (pathOf(page.url()) === before) {
         atc.reason = "atc_no_drawer";
@@ -1152,6 +1167,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     const context = await browser.createBrowserContext();
     const page = await preparePage(context, counter, MOBILE_PROFILE);
     const pages: PageEvidence[] = [];
+    let cartDrawer: PageEvidence | undefined;
 
     const findLinks = async (): Promise<{ product: string | null; collection: string | null }> =>
       ((await page.evaluate(FIND_LINKS_JS).catch(() => null)) as { product: string | null; collection: string | null } | null) ?? { product: null, collection: null };
@@ -1182,8 +1198,9 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     counter.page = undefined;
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
-    const { cart, atc, atcEvents, atcHits } = await addToCartAndCapture(page, product, cartUrl!, counter);
+    const { cart, drawer, atc, atcEvents, atcHits } = await addToCartAndCapture(page, product, cartUrl!, counter);
     pages.push(cart);
+    if (drawer) cartDrawer = drawer;
     // First checkout screen, right after the cart so the item is still in it.
     counter.page = "checkout";
     const checkout = await captureCheckout(page, Boolean(cart.loaded && cart.cart && !cart.cart.empty), homepage).catch(() => failed("checkout", homepage, "checkout did not load"));
@@ -1260,7 +1277,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     attachNet(pages, "phone");
     attachNet(desktop, "desktop");
     const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id, q }) => ({ page: p!, vendor, name, ...(id && { id }), ...(q && { q }) }));
-    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.

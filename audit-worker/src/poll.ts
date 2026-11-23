@@ -198,6 +198,7 @@ export async function processRequest(row: AuditRequestRow, workerId: string): Pr
       const run = await runPoints({
         id: row.id, website: row.website, homeHtml: crawl.html, discoveredPages, evidence, ga4: ga4Facts, gtm: row.gtm_oauth_data,
         siteChecks, pageSpeed, clarity: row.clarity_data ?? null, role, adContext: row.ad_context ?? null,
+        paidLandingUrls: focus?.paidLandingUrls,
       });
       Object.assign(progress, {
         categories: pointsToCategories(run.results, role), pointResults: run.results, discoveredPages, pageSpeed,

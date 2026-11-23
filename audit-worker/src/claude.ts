@@ -32,6 +32,8 @@ export interface ClaudeRunOptions {
   // that share it share one prompt-cache entry: the second reads what the
   // first wrote instead of writing it again (points/ai-judge.ts).
   systemPromptFile?: string;
+  // Extra folders the call may read from (--add-dir), e.g. page pictures.
+  addDirs?: string[];
 }
 
 // How much raw stdout to keep for error messages. stream-json writes every
@@ -235,6 +237,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   if (opts.systemPromptFile) {
     args.push("--append-system-prompt-file", opts.systemPromptFile);
   }
+  for (const dir of opts.addDirs ?? []) args.push("--add-dir", dir);
 
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"], env: childEnv(opts.promptCache) });

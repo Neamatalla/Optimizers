@@ -10,7 +10,7 @@
  */
 
 const USER_AGENT = "Mozilla/5.0 (compatible; OptimizersAuditBot/1.0; +https://optimizers.example)";
-export const MAX_REQUESTS = 30;
+export const MAX_REQUESTS = 60;
 const TIMEOUT_MS = 8_000;
 const MAX_HOPS = 4;
 const MAX_BODY = 400_000;

@@ -36,6 +36,8 @@ export interface JudgeContext {
   siteChecks: SiteChecks | null;
   role: AudienceRole | null;
   adContext?: { text: string | null; coupon: string | null } | null;
+  // Code points the rule couldn't settle: why, so the AI knows what's missing.
+  hints?: Record<string, string>;
 }
 
 function gtmBlock(raw: unknown): string {
@@ -73,7 +75,7 @@ function paidBlock(ga4: Ga4Facts | null): string {
  * the system prompt (a file), so the second call reads it from the prompt
  * cache instead of paying to write it again.
  */
-export function buildSharedPrompt(ctx: JudgeContext): string {
+export function buildSharedPrompt(ctx: JudgeContext, pictures: Array<{ file: string; what: string }> = []): string {
   const e = ctx.evidence;
   const ad = ctx.adContext?.text || ctx.adContext?.coupon ? `The reader's ad: headline/offer «${ctx.adContext?.text ?? ""}»${ctx.adContext?.coupon ? `, coupon «${ctx.adContext.coupon}»` : ""}.` : "";
 
@@ -113,16 +115,20 @@ ${trackingBlock(ctx.siteChecks)}
 STORE FACTS
 ${e ? storeBlock(e) : "No store visit."}
 
+PICTURES
+${pictures.length ? `Phone screenshots from the same visit. Before you judge, open every one with the Read tool (all in one go), and use them for anything the text can't show: layout, colours, contrast, button styling, what sits on the first screen.${NL}${pictures.map(p => `- ${p.file}: ${p.what}`).join(NL)}` : "None this run: judge visual points from the text, or unverified."}
+
 PAGES
-${e ? e.pages.map(pageBlock).join(NL) : "No pages: the store visit failed."}`;
+${e ? e.pages.map(pageBlock).join(NL) : "No pages: the store visit failed."}${e?.cartDrawer ? `${NL}CART DRAWER (what opened right after Add to Cart, before the full cart page above):${NL}${pageBlock(e.cartDrawer)}` : ""}`;
 }
 
 /** The part each batch asks: its own points. */
-export function buildPointsAsk(points: AuditPoint[]): string {
+export function buildPointsAsk(points: AuditPoint[], hints: Record<string, string> = {}): string {
   const list = points.map(p => [
     `- ${p.id} — ${p.title} (pages: ${p.pages.join(", ")}; needs: ${p.needs.join(", ")})`,
     `  PASS when: ${p.rule}`,
     p.note ? `  Note: ${p.note}` : "",
+    hints[p.id] ? `  Our code check could not settle it: ${hints[p.id]} Judge it from the evidence and the pictures if you can; otherwise unverified.` : "",
   ].filter(Boolean).join(NL)).join(NL);
   return `Judge these audit points from the evidence in your instructions.
 
@@ -148,9 +154,9 @@ export function parsePointVerdicts(raw: unknown, ids: string[]): Record<string, 
   return out;
 }
 
-async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId: string, label: string): Promise<Record<string, RuleResult>> {
+async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId: string, label: string, hints: Record<string, string> = {}, picturesDir: string | null = null): Promise<Record<string, RuleResult>> {
   const mcp = await buildMcpConfig(`${jobId}-points`, { ga4Admin: false, gtm: false, browser: false });
-  const prompt = buildPointsAsk(points);
+  const prompt = buildPointsAsk(points, hints);
   const ids = points.map(p => p.id);
   const model = process.env.POINTS_AI_MODEL === "writer" ? "writer" : "main";
   try {
@@ -158,7 +164,9 @@ async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId:
       const raw = await runClaudeHeadless({
         prompt,
         mcpConfigPath: mcp.configPath,
-        allowedTools: [],
+        // Read only, and only for the pictures folder.
+        allowedTools: picturesDir ? ["Read"] : [],
+        ...(picturesDir && { addDirs: [picturesDir] }),
         timeoutMs: TIMEOUT_MS,
         effort: "low",
         model,
@@ -202,19 +210,37 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
   // the first, once it has written the prompt cache, so they read it.
   const dir = await mkdtemp(path.join(os.tmpdir(), "points-judge-"));
   const shared = path.join(dir, "evidence.md");
-  await writeFile(shared, buildSharedPrompt(ctx), "utf8");
+  const pictures = await writePictures(ctx.evidence, dir);
+  await writeFile(shared, buildSharedPrompt(ctx, pictures), "utf8");
   try {
-    return await judgeAll(points, batches, shared, jobId);
+    return await judgeAll(points, batches, shared, jobId, ctx.hints ?? {}, pictures.length ? dir : null);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: string, jobId: string): Promise<Record<string, RuleResult>> {
+const CROP_LABEL: Record<string, string> = { fold: "first phone screen", cta: "around the main buy button", cart: "the cart after adding one item" };
+
+/** The visit's page crops (data URIs) as JPEG files the AI can open. */
+async function writePictures(e: StoreEvidence | null, dir: string): Promise<Array<{ file: string; what: string }>> {
+  const out: Array<{ file: string; what: string }> = [];
+  for (const p of e?.pages ?? []) {
+    for (const [kind, uri] of Object.entries(p.crops ?? {})) {
+      const m = typeof uri === "string" ? /^data:image\/(jpeg|png);base64,(.+)$/.exec(uri) : null;
+      if (!m) continue;
+      const file = path.join(dir, `${p.pageType}-${kind}.${m[1] === "png" ? "png" : "jpg"}`);
+      await writeFile(file, Buffer.from(m[2], "base64"));
+      out.push({ file, what: `${p.pageType} page, ${CROP_LABEL[kind] ?? kind}` });
+    }
+  }
+  return out;
+}
+
+async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: string, jobId: string, hints: Record<string, string>, picturesDir: string | null): Promise<Record<string, RuleResult>> {
   const n = batches.length;
   const settled = await Promise.allSettled(batches.map(async (b, i) => {
     if (i > 0) await new Promise(r => setTimeout(r, STAGGER_MS));
-    return judgeBatch(b, shared, `${jobId}-b${i + 1}`, n > 1 ? ` batch ${i + 1}/${n}` : "");
+    return judgeBatch(b, shared, `${jobId}-b${i + 1}`, n > 1 ? ` batch ${i + 1}/${n}` : "", hints, picturesDir);
   }));
   const out: Record<string, RuleResult> = {};
   settled.forEach((s, i) => {
@@ -227,7 +253,7 @@ async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: s
   if (left.length && left.length < points.length) {
     console.warn(`[audit-worker] Points judge left out ${left.length} points (${left.map(p => p.id).join(", ")}); asking again for those`);
     try {
-      Object.assign(out, await judgeBatch(left, shared, `${jobId}-missing`, " missing"));
+      Object.assign(out, await judgeBatch(left, shared, `${jobId}-missing`, " missing", hints, picturesDir));
     } catch (err) {
       console.warn(`[audit-worker] Points judge follow-up failed: ${err instanceof Error ? err.message : err}`);
     }

@@ -27,6 +27,9 @@ export interface RuleResult {
   // store, in each report language. Templates show it through {observation};
   // everything else in the text is fixed.
   observation?: { en?: string; ar?: string };
+  // Who settled it in the audit (points/pipeline.ts): the code rule, or the
+  // AI (its own points, or a code point the rule couldn't settle).
+  decidedBy?: "code" | "ai";
 }
 
 // Everything a rule may read. All optional: each rule handles what's missing.

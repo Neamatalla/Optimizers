@@ -64,3 +64,10 @@ test("menuLinksFrom reads same-site header, nav and footer links only", () => {
   const html = `<header><a href="/collections/all">All</a><a href="https://other.com/x">x</a></header><main><a href="/products/p">p</a></main><footer><a href="/pages/returns">Returns</a><a href="#top">top</a></footer>`;
   assert.deepEqual(menuLinksFrom(html, "https://shop.sa/"), ["https://shop.sa/collections/all", "https://shop.sa/pages/returns"]);
 });
+
+test("convertPegged converts GCC currencies and refuses floating ones", async () => {
+  const { convertPegged } = await import("../ga4-facts.js");
+  assert.equal(Math.round(convertPegged(40, "KWD", "SAR")!), 489);
+  assert.equal(convertPegged(100, "SAR", "SAR"), 100);
+  assert.equal(convertPegged(100, "EGP", "SAR"), null);
+});

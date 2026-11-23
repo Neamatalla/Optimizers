@@ -271,6 +271,9 @@ export interface StoreEvidence {
   // Every analytics/pixel hit seen while a page loaded (before any tap),
   // with the page and, for GA4 and Meta, the measurement / pixel ID.
   pageHits?: Array<{ page: string; vendor: string; name: string; id?: string; q?: HitParams }>;
+  // The cart drawer after Add to Cart, when the store has one and the full
+  // cart page was opened as well (that page is the "cart" in pages).
+  cartDrawer?: PageEvidence;
   // Pages the collector was pointed at by GA4 (ga4-facts.ts focus) instead
   // of the first ones discovery found.
   focusUrls?: { product?: string; collection?: string };

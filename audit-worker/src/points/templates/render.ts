@@ -99,7 +99,10 @@ export function renderFinding(pointId: string, result: RuleResult, opts: { role?
   // A technical summary with a missing slot falls back to the rule's sentence
   // (English) or the template line without the slot (Arabic); an Arabic line
   // that was only a slot falls back to the business summary.
-  const techSummary = f(copy.technical.summary) ?? (useLang === "en" ? result.reason : strip(copy.technical.summary) || bizSummary);
+  // An AI answer for a code point (the rule couldn't settle it) has no facts
+  // for the code template's slots: its observation stands in.
+  const obs = useLang === "en" ? result.observation?.en : result.observation?.ar;
+  const techSummary = f(copy.technical.summary) ?? obs ?? (useLang === "en" ? result.reason : strip(copy.technical.summary) || bizSummary);
   const out: RenderedFinding = {
     technical: { summary: techSummary, detail: f(copy.technical.detail) ?? "" },
     business: { summary: bizSummary, detail: f(copy.business.detail) ?? "" },
