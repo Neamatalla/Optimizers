@@ -149,6 +149,12 @@ export interface PageEvidence {
   landing?: { source: string; sameAs?: FudPageType };
   // Region crops, JPEG data URIs: "fold" (first screen), "cta", "cart".
   crops: Partial<Record<"fold" | "cta" | "cart", string>>;
+  // What happened when the visit tried the page's controls (collect.ts):
+  // home: tapping the phone menu icon; cart: + then − on the first line.
+  interactions?: {
+    menu?: { found: boolean; opened: boolean; linksShown: number };
+    quantity?: { plusFound: boolean; plusChanged: boolean; minusFound: boolean; minusChanged: boolean; removeFound: boolean };
+  };
 }
 
 export interface PageFacts {

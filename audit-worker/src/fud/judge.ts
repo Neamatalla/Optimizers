@@ -85,6 +85,10 @@ function factLines(p: PageEvidence): string[] {
       out.push(`organised info: ${f.infoSections.details} expandable sections, ${f.infoSections.expanders} tabs/toggles`);
     }
   }
+  const m = p.interactions?.menu;
+  if (m) out.push(m.found ? `phone menu test: tapped the menu icon, it ${m.opened ? `opened (${m.linksShown} more links on screen)` : "did not visibly open"}` : "phone menu test: no menu icon found in the header");
+  const q = p.interactions?.quantity;
+  if (q) out.push(`cart quantity test: + button ${q.plusFound ? (q.plusChanged ? "found, pressing it changed the cart" : "found, pressing it changed nothing") : "not found"}; − button ${q.minusFound ? (q.minusChanged ? "found, pressing it changed the cart" : "found, pressing it changed nothing") : "not found"}; remove control ${q.removeFound ? "found" : "not found"}`);
   if (p.sticky !== undefined) out.push(`sticky buy button after scrolling: ${p.sticky ? `yes («${p.sticky}»)` : "no"}`);
   if (p.popups) {
     out.push(

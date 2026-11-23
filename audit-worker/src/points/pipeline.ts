@@ -57,6 +57,34 @@ export function menuLinksFrom(html: string, website: string): string[] {
   return [...out];
 }
 
+/** Visible text of an HTML page, without scripts, styles, header, nav and footer. */
+export function pageText(html: string): string {
+  return html
+    .replace(/<(script|style|noscript|svg|header|nav|footer)[\s\S]*?<\/>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, "'").replace(/&#0?39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The store's returns and shipping policy pages (from the links the visit saw), as text for the AI. */
+export async function fetchPolicies(e: StoreEvidence | null, fetchImpl: typeof fetch = fetch): Promise<Array<{ kind: string; url: string; text: string }>> {
+  const links = new Map<string, string>();
+  for (const p of e?.pages ?? []) for (const l of p.policyLinks ?? []) if ((l.kind === "returns" || l.kind === "shipping") && l.href && !links.has(l.href)) links.set(l.href, l.kind);
+  const out: Array<{ kind: string; url: string; text: string }> = [];
+  for (const [url, kind] of [...links].slice(0, 3)) {
+    try {
+      const res = await fetchImpl(url, { signal: AbortSignal.timeout(15_000), headers: { "User-Agent": "Mozilla/5.0 (OptimizersAudit)" } });
+      if (!res.ok) continue;
+      const text = pageText(await res.text()).slice(0, 3000);
+      if (text.length > 80) out.push({ kind, url, text });
+    } catch {
+      // a policy page that won't load just isn't in the evidence
+    }
+  }
+  return out;
+}
+
 /** Runs every active point for this reader: net checks, code rules, then the AI points. */
 export async function runPoints(input: PointsInput): Promise<{ results: Record<string, RuleResult>; net: NetChecks | null }> {
   let net: NetChecks | null = null;
@@ -79,7 +107,8 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
   const fallback = points.filter(p => p.decidedBy === "code" && (!code[p.id] || code[p.id].status === "unverified"));
   const toJudge = [...points.filter(p => p.decidedBy !== "code"), ...fallback];
   const hints = Object.fromEntries(fallback.map(p => [p.id, code[p.id]?.reason ?? "No code rule ran."]));
-  const ai = await judgePoints(toJudge, { website: input.website, evidence: input.evidence, ga4: input.ga4, gtm: input.gtm, siteChecks: input.siteChecks, role: input.role, adContext: input.adContext, hints }, input.id);
+  const policies = await fetchPolicies(input.evidence);
+  const ai = await judgePoints(toJudge, { website: input.website, evidence: input.evidence, ga4: input.ga4, gtm: input.gtm, siteChecks: input.siteChecks, role: input.role, adContext: input.adContext, hints, policies }, input.id);
 
   const results: Record<string, RuleResult> = {};
   for (const p of points) {

@@ -28,9 +28,10 @@ export interface ClaudeRunOptions {
   model?: "main" | "writer";
   // Name for this call in the [claude-usage] log and run-metrics summary.
   label?: string;
-  // A file appended to the system prompt (--append-system-prompt-file). Calls
-  // that share it share one prompt-cache entry: the second reads what the
-  // first wrote instead of writing it again (points/ai-judge.ts).
+  // A file that REPLACES Claude Code's own system prompt (--system-prompt-file):
+  // its ~28K tokens of coding-agent instructions are no use to a judging call
+  // and cost a cache write each run. Calls that share the file share one
+  // prompt-cache entry (points/ai-judge.ts).
   systemPromptFile?: string;
   // Extra folders the call may read from (--add-dir), e.g. page pictures.
   addDirs?: string[];
@@ -235,7 +236,7 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
     args.push("--model", model);
   }
   if (opts.systemPromptFile) {
-    args.push("--append-system-prompt-file", opts.systemPromptFile);
+    args.push("--system-prompt-file", opts.systemPromptFile);
   }
   for (const dir of opts.addDirs ?? []) args.push("--add-dir", dir);
 

@@ -21,8 +21,9 @@ import { parseGtm } from "./gtm.js";
  */
 
 const TIMEOUT_MS = 8 * 60 * 1000;
-// Points per call. Two calls run side by side for the 82 points.
-const BATCH = 45;
+// Text points per call: one call for all of them, normally (the follow-up
+// call picks up any it leaves out). The visual points get their own call.
+const BATCH = 90;
 const NL = "\n";
 // How long later batches wait for the first to write the shared evidence to
 // the prompt cache (it is readable once the first answer starts).
@@ -38,6 +39,8 @@ export interface JudgeContext {
   adContext?: { text: string | null; coupon: string | null } | null;
   // Code points the rule couldn't settle: why, so the AI knows what's missing.
   hints?: Record<string, string>;
+  // The returns and shipping policy pages' text (pipeline.ts fetchPolicies).
+  policies?: Array<{ kind: string; url: string; text: string }>;
 }
 
 function gtmBlock(raw: unknown): string {
@@ -115,6 +118,9 @@ ${trackingBlock(ctx.siteChecks)}
 STORE FACTS
 ${e ? storeBlock(e) : "No store visit."}
 
+POLICY PAGES
+${ctx.policies?.length ? ctx.policies.map(p => `### ${p.kind.toUpperCase()} POLICY (${p.url})${NL}${p.text}`).join(NL + NL) : "Not opened (no returns or shipping link found, or the page didn't load)."}
+
 PAGES
 ${e ? e.pages.map(pageBlock).join(NL) : "No pages: the store visit failed."}${e?.cartDrawer ? `${NL}CART DRAWER (what opened right after Add to Cart, before the full cart page above):${NL}${pageBlock(e.cartDrawer)}` : ""}`;
 }
@@ -159,7 +165,11 @@ async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId:
   const mcp = await buildMcpConfig(`${jobId}-points`, { ga4Admin: false, gtm: false, browser: false });
   const prompt = buildPointsAsk(points, hints, pictures);
   const ids = points.map(p => p.id);
-  const model = process.env.POINTS_AI_MODEL === "writer" ? "writer" : "main";
+  // Text points on the writer model (CLAUDE_WRITER_MODEL, Haiku), the visual
+  // batch on the main one (Sonnet): reading pictures is where it pays.
+  // POINTS_AI_MODEL=main|writer puts every batch on one model.
+  const forced = process.env.POINTS_AI_MODEL;
+  const model = forced === "main" || forced === "writer" ? forced : picturesDir ? "main" : "writer";
   try {
     for (let attempt = 1; ; attempt++) {
       const raw = await runClaudeHeadless({

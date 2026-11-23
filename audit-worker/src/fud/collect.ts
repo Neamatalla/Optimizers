@@ -911,6 +911,8 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
     }
   }
   const popups = await settle(page);
+  // Product pages: open "read more" first, so the full description is read.
+  if (pageType === "product" && (await page.evaluate(EXPAND_JS).catch(() => 0))) await sleep(700);
   const x = await extract(page, null, prefix).catch(() => null);
   if (!x) return failed(pageType, url, "could not read the page");
   if (BOT_WALL.test(x.title) && x.blocks.length < 15) return failed(pageType, url, "blocked by a bot check");
@@ -937,7 +939,101 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
     const top = Math.max(0, ev.cta.box.y - 280);
     ev.crops.cta = await crop(page, { x: 0, y: top, width: MOBILE.width, height: Math.min(720, ev.cta.box.h + 560) });
   }
+  // After the crops, so they show the page as it arrived. NAV-03: does the
+  // phone menu open? PATH-09: do + and − in the cart change it?
+  if (pageType === "home" && page.viewport()?.width === MOBILE.width) {
+    const menu = (await page.evaluate(MENU_TAP_JS).catch(() => null)) as { found: boolean; before: number } | null;
+    let opened = false, linksShown = 0;
+    if (menu?.found) {
+      await sleep(900);
+      const after = ((await page.evaluate(VISIBLE_LINKS_JS).catch(() => 0)) as number) ?? 0;
+      linksShown = Math.max(0, after - menu.before);
+      opened = linksShown >= 3;
+    }
+    ev.interactions = { ...ev.interactions, menu: { found: Boolean(menu?.found), opened, linksShown } };
+  }
+  if (pageType === "cart") ev.interactions = { ...ev.interactions, quantity: await quantityTest(page) };
   return ev;
+}
+
+// Buttons that reveal more of a product description ("read more").
+const EXPAND_JS = String.raw`(function () {
+  var re = /^\s*(اقرأ المزيد|قراءة المزيد|اقرا المزيد|عرض المزيد|المزيد|read more|show more|see more|view more|more details)\s*$/i;
+  var n = 0;
+  [].slice.call(document.querySelectorAll("button, a, span, div[role=button]")).forEach(function (el) {
+    if (n >= 3 || !re.test(el.textContent || "")) return;
+    if (el.closest("header, nav, footer")) return;
+    var href = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
+    if (href && href !== "#" && !/^javascript:/i.test(href)) return;
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    try { el.click(); n++; } catch (e) {}
+  });
+  return n;
+})()`;
+
+const VISIBLE_LINKS_JS = String.raw`[].filter.call(document.querySelectorAll("a[href]"), function (a) {
+  var r = a.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0 && r.left < innerWidth && r.right > 0 && getComputedStyle(a).visibility !== "hidden";
+}).length`;
+
+// Taps the phone menu icon and returns how many links were on screen before.
+// Never follows a link.
+const MENU_TAP_JS = String.raw`(function () {
+  var before = ` + VISIBLE_LINKS_JS + String.raw`;
+  var cands = [].slice.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=menu-toggle], [class*=nav-toggle], [aria-label*=menu i], [aria-label*=القائمة]"));
+  var btn = cands.find(function (el) {
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.top > 160) return false;
+    var cls = typeof el.className === "string" ? el.className : (el.className && el.className.baseVal) || "";
+    var label = ((el.getAttribute("aria-label") || "") + " " + cls + " " + (el.textContent || "")).toLowerCase();
+    return /menu|hamburger|nav-toggle|القائمة|منيو/.test(label) && !/cart|search|سلة|بحث|account|حساب/.test(label);
+  });
+  if (!btn) return { found: false, before: before };
+  var href = btn.tagName === "A" ? (btn.getAttribute("href") || "") : "";
+  if (href && href !== "#" && !/^javascript:/i.test(href)) return { found: false, before: before };
+  btn.click();
+  return { found: true, before: before };
+})()`;
+
+// Presses + (or −) on the first cart line; returns the main text before the
+// press, or null when there is no such button. Nothing is typed.
+const QTY_PRESS_JS = (plus: boolean) => String.raw`(function () {
+  var re = ` + (plus ? String.raw`/^\s*\+\s*$|increase|increment|plus|زيادة|زياده/i` : String.raw`/^\s*[-−–]\s*$|decrease|decrement|minus|نقص|تقليل|انقاص/i`) + String.raw`;
+  var els = [].slice.call(document.querySelectorAll("button, [role=button], a, span, i, svg"));
+  var el = els.find(function (e) {
+    if (e.closest("header, nav, footer")) return false;
+    var r = e.getBoundingClientRect();
+    if (!r.width || !r.height || r.width > 80) return false;
+    var cls = typeof e.className === "string" ? e.className : "";
+    var label = (e.getAttribute("aria-label") || "") + " " + (e.getAttribute("title") || "") + " " + (e.getAttribute("data-action") || "") + " " + cls;
+    return re.test(label.trim()) || re.test((e.textContent || "").trim());
+  });
+  if (!el) return null;
+  var btn = el.closest("button, [role=button], a") || el;
+  var snap = (document.querySelector("main") || document.body).innerText.replace(/\s+/g, " ");
+  btn.click();
+  return snap;
+})()`;
+const MAIN_TEXT_JS = String.raw`(document.querySelector("main") || document.body).innerText.replace(/\s+/g, " ")`;
+const REMOVE_FOUND_JS = String.raw`[].some.call(document.querySelectorAll("button, a, [role=button], span, i, svg"), function (e) {
+  if (e.closest("header, nav, footer")) return false;
+  var cls = typeof e.className === "string" ? e.className : "";
+  var l = (e.getAttribute("aria-label") || "") + " " + (e.getAttribute("title") || "") + " " + cls;
+  return /remove|delete|trash|حذف|إزالة|ازالة/i.test(l);
+})`;
+
+async function quantityTest(page: Page): Promise<NonNullable<NonNullable<PageEvidence["interactions"]>["quantity"]>> {
+  const removeFound = ((await page.evaluate(REMOVE_FOUND_JS).catch(() => false)) as boolean) ?? false;
+  const before = (await page.evaluate(QTY_PRESS_JS(true)).catch(() => null)) as string | null;
+  if (before === null) return { plusFound: false, plusChanged: false, minusFound: false, minusChanged: false, removeFound };
+  await sleep(2500);
+  const plusChanged = ((await page.evaluate(MAIN_TEXT_JS).catch(() => "")) as string) !== before;
+  const beforeMinus = (await page.evaluate(QTY_PRESS_JS(false)).catch(() => null)) as string | null;
+  if (beforeMinus === null) return { plusFound: true, plusChanged, minusFound: false, minusChanged: false, removeFound };
+  await sleep(2500);
+  const minusChanged = ((await page.evaluate(MAIN_TEXT_JS).catch(() => "")) as string) !== beforeMinus;
+  return { plusFound: true, plusChanged, minusFound: true, minusChanged, removeFound };
 }
 
 function isEmptyCart(ev: PageEvidence): boolean {
@@ -982,8 +1078,9 @@ const dlPushesJs = (from: number) => `
 
 /** What the Add-to-Cart click itself sent: new dataLayer entries and blocked hits since the click. */
 async function eventsAfterClick(page: Page, counter: HitCounter, since: number, dlBefore: number): Promise<NonNullable<StoreEvidence["atcEvents"]> & { hits: NonNullable<StoreEvidence["atcHits"]> }> {
-  // Long enough for pixels that fire after the cart updates (round 19).
-  await sleep(2000);
+  // Long enough for pixels that fire after the cart updates (round 19), and
+  // for GA4, which batches events and can send them several seconds later.
+  await sleep(6000);
   const dataLayer = ((await page.evaluate(datalayerSince(dlBefore)).catch(() => [])) as string[]) ?? [];
   counter.dl.atc = (((await page.evaluate(dlPushesJs(dlBefore)).catch(() => [])) as DataLayerPush[]) ?? []).filter(x => x.event === "add_to_cart");
   const after = counter.events.filter(e => e.t >= since);
