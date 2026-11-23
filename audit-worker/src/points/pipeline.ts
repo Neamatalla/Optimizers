@@ -117,7 +117,7 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
   let browsed = 0;
   if (open.length) {
     const reasons = Object.fromEntries(open.map(p => [p.id, results[p.id].observation?.en ?? results[p.id].reason]));
-    const seen = await investigatePoints(open, reasons, { website: input.website, platform: input.siteChecks?.platform }, input.id);
+    const seen = await investigatePoints(open, reasons, { website: input.website, platform: input.siteChecks?.platform, pages: (input.evidence?.pages ?? []).filter(p => p.loaded && p.pageType !== "checkout").map(p => ({ type: p.pageType, url: p.url })) }, input.id);
     for (const [id, r] of Object.entries(seen)) {
       if (r.status === "unverified") continue;
       results[id] = { ...r, facts: { ...code[id]?.facts, ...r.facts }, decidedBy: "ai" };

@@ -239,7 +239,10 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
   try {
     const pictures = visual.length ? await writePictures(ctx.evidence, dir) : [];
     const all = visual.length ? [...batches, visual] : batches;
-    return await judgeAll(points, all, shared, jobId, ctx.hints ?? {}, visual.length ? { index: all.length - 1, pictures } : null);
+    const out = await judgeAll(points, all, shared, jobId, ctx.hints ?? {}, visual.length ? { index: all.length - 1, pictures } : null);
+    const dropped = checkQuotes(out, buildSharedPrompt(ctx));
+    if (dropped.length) console.warn(`[audit-worker] Points judge quoted text not in the evidence, now unchecked: ${dropped.join(", ")}`);
+    return out;
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -384,14 +387,19 @@ Exactly one entry per point (${points.map(p => p.id).join(", ")}).`;
 const SEVERITY_ORDER = ["critical", "high", "medium", "low"];
 
 /** Tests the still-open page points in a real browser. Points it can't settle stay as they were. */
-export async function investigatePoints(points: AuditPoint[], reasons: Record<string, string>, ctx: { website: string; platform?: string | null }, jobId: string): Promise<Record<string, RuleResult>> {
+export async function investigatePoints(points: AuditPoint[], reasons: Record<string, string>, ctx: { website: string; platform?: string | null; pages?: Array<{ type: string; url: string }> }, jobId: string): Promise<Record<string, RuleResult>> {
   if (!points.length) return {};
   const picked = [...points].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)).slice(0, BROWSER_MAX_POINTS);
   const mcp = await buildMcpConfig(`${jobId}-browse`, { ga4Admin: false, gtm: false, browser: true });
   const ids = picked.map(p => p.id);
   try {
     const raw = await runClaudeHeadless({
-      prompt: buildBrowserPrompt(ctx.website, picked, reasons, ctx.platform ? `Platform: ${ctx.platform}${NL}` : ""),
+      prompt: buildBrowserPrompt(ctx.website, picked, reasons, [
+        ctx.platform ? `Platform: ${ctx.platform}` : "",
+        // Regal run 14 (23 Nov): the browser judged PDP-14 on another product
+        // than the audited one. The audit is about these pages only.
+        ctx.pages?.length ? `The audit is about these exact pages. Open these, not other products or pages:${NL}${ctx.pages.map(p => `- ${p.type}: ${p.url}`).join(NL)}` : "",
+      ].filter(Boolean).join(NL) + NL),
       mcpConfigPath: mcp.configPath,
       allowedTools: BROWSER_TOOLS,
       timeoutMs: BROWSER_TIMEOUT_MS,
@@ -419,4 +427,38 @@ export async function investigatePoints(points: AuditPoint[], reasons: Record<st
   } finally {
     await mcp.cleanup();
   }
+}
+
+
+// ---- Quote check ----
+// Regal run 14 (23 Nov): the judge passed PDP-14 citing accordions
+// «الشحن و التوصيل» and «مواصفات المنتج» that exist nowhere on the store.
+// Every quote in a pass or fail must be found in the evidence the AI was
+// given; otherwise the verdict becomes unverified. Text read off a picture
+// can be lost this way: an unchecked point is better than an invented one.
+const norm = (t: string) => t
+  .normalize("NFKC")
+  .replace(/[ً-ٰٟـ]/g, "") // Arabic diacritics and tatweel
+  .replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+  .replace(/[^\p{L}\p{N}%.]+/gu, "")
+  .toLowerCase();
+
+/** The «…» quotes in a text. */
+export function quotesIn(text: string): string[] {
+  return [...text.matchAll(/«([^»]{2,200})»/g)].map(m => m[1].trim()).filter(q => norm(q).length >= 3);
+}
+
+/** Turns AI passes and fails whose quotes aren't in the evidence into unverified. Returns their ids. */
+export function checkQuotes(results: Record<string, RuleResult>, evidence: string): string[] {
+  const hay = norm(evidence);
+  const dropped: string[] = [];
+  for (const [id, r] of Object.entries(results)) {
+    if (r.status !== "pass" && r.status !== "fail") continue;
+    const missing = quotesIn(r.observation?.en ?? r.reason).filter(q => !hay.includes(norm(q)));
+    if (!missing.length) continue;
+    const en = `Not checked: the AI's answer quoted ${missing.slice(0, 2).map(q => `«${q}»`).join(" and ")}, which isn't in what our visit captured.`;
+    results[id] = { status: "unverified", reason: en, facts: { ...r.facts, quoteNotFound: missing.slice(0, 3) }, observation: { en, ar: `لم يتم الفحص: إجابة الذكاء الاصطناعي ذكرت ${missing.slice(0, 2).map(q => `«${q}»`).join(" و")}، وهذا غير موجود فيما التقطته زيارتنا.` } };
+    dropped.push(id);
+  }
+  return dropped;
 }

@@ -133,3 +133,17 @@ test("Arabic is asked only for English-only sentences; page text marks phone scr
   assert.match(text, /--- phone screen 3 \(from 1688px\) ---\n\[c\]/);
   assert.match(text, /«Shipping»: Ships in 2 days/);
 });
+
+test("quote check: a pass quoting text the evidence doesn't have becomes unverified", async () => {
+  const { checkQuotes } = await import("./ai-judge.js");
+  const r: Record<string, RuleResult> = {
+    A: { status: "pass", reason: "x", observation: { en: "Accordions «الشحن و التوصيل» are shown." } },
+    B: { status: "fail", reason: "x", observation: { en: "The button «أضف للسلّة» is grey." } },
+    C: { status: "unverified", reason: "x", observation: { en: "«غير موجود»" } },
+  };
+  const dropped = checkQuotes(r, "[b1|fold] أضف للسلة\n[b2] وصف المنتج");
+  assert.deepEqual(dropped, ["A"]);
+  assert.equal(r.A.status, "unverified");
+  assert.equal(r.B.status, "fail", "diacritics ignored");
+  assert.equal(r.C.status, "unverified");
+});
