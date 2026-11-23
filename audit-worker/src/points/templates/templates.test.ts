@@ -19,6 +19,14 @@ function texts(c: RoleCopies): string[] {
   return out;
 }
 
+test("every active point has an Arabic title, and no other id does", async () => {
+  const { TITLES_AR } = await import("../titles-ar.js");
+  const { activePoints } = await import("../index.js");
+  const active = activePoints().map(p => p.id).sort();
+  assert.deepEqual(Object.keys(TITLES_AR).sort(), active);
+  for (const [id, t] of Object.entries(TITLES_AR)) assert.ok(!t.includes("—") && !/[٠-٩]/.test(t), id);
+});
+
 test("templates exist only for active points", () => {
   for (const id of Object.keys(TEMPLATES)) {
     const p = pointById(id);

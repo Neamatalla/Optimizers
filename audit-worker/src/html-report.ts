@@ -2,7 +2,8 @@ import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingActi
 import { CHECK_GROUP_LABELS, GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type BaseChecklistPoint, type ChecklistPoint as ActionChecklistPoint } from "./checklist.js";
 import { LEGACY_GA4_CHECKLIST, LEGACY_GTM_CHECKLIST, LEGACY_WEBSITE_CHECKLIST, LEGACY_WEBSITE_CODE_CHECKLIST } from "./checklist-legacy.js";
 import { personaChecklistFor, personaOf, personaOfFindings } from "./persona-checklist.js";
-import { pointById } from "./points/index.js";
+import { pointById, pointForOldId } from "./points/index.js";
+import { TITLES_AR } from "./points/titles-ar.js";
 import { POINT_CATEGORY_LABELS } from "./points/pipeline-labels.js";
 import { PERSONA_SHARED_SOURCES } from "./checklist-persona-data.js";
 import { OPPORTUNITY_LABEL, OWNER_LABEL } from "./labels.js";
@@ -2085,19 +2086,30 @@ function questionsHtml(result: AuditResult): string {
   const role = result.audienceRole;
   if (!role) return "";
   const failed = failedRows(result);
+  const all = result.categories.flatMap(c => c.findings);
+  // A master-point report (POINTS_PIPELINE) carries master ids; the
+  // questions list old ids, so each is read through the point it now lives in.
+  const master = all.some(f => pointById(f.checklistId));
   const cards = READER_QUESTIONS[role].map(q => {
+    const masterIds = new Set([...q.points, ...(q.fud ?? [])].map(o => pointForOldId(o)?.id).filter((x): x is string => Boolean(x)));
+    const answers = (id: string) => q.points.includes(id) || masterIds.has(id) || (PERSONA_SHARED_SOURCES[id] ?? []).some(o => q.points.includes(o));
     let rows: FailedRow[];
     if (q.kind === "diy") rows = byMoney(failed.filter(r => isDiy(r.f)));
     // A persona point answers the question its shared source points answer.
-    else rows = byMoney(failed.filter(r => q.points.includes(r.f.checklistId) || (PERSONA_SHARED_SOURCES[r.f.checklistId] ?? []).some(id => q.points.includes(id))));
+    else rows = byMoney(failed.filter(r => answers(r.f.checklistId)));
     rows = dedupeFunnel(rows, result);
     const fud = q.kind === "diy" ? [] : fudIssues(result, q.fud);
-    const checked = q.kind === "diy" ? failed.length : q.points.length + (q.fud?.length ?? 0);
+    const mine = master && q.kind !== "diy" ? all.filter(f => masterIds.has(f.checklistId)) : [];
+    const unchecked = mine.filter(f => f.status === "unassessed").length;
+    const checked = q.kind === "diy" ? failed.length : master ? mine.length - unchecked : q.points.length + (q.fud?.length ?? 0);
     const found = rows.length + fud.length;
     const big = q.kind === "money" ? rows.find(r => r.f.action?.money) : undefined;
 
-    const verdict = found === 0
-      ? `<p class="qa-verdict qa-verdict--ok">${bi(`No problem found. ${q.cleanEn}`, `لا توجد مشكلة. ${q.cleanAr}`)} <span class="qa-n">${bi(`${checked} checks behind this answer`, `${checked} فحصًا وراء هذه الإجابة`)}</span></p>`
+    // Nothing behind the question was checked: say so, never "no problem".
+    const verdict = found === 0 && master && q.kind !== "diy" && checked === 0
+      ? `<p class="qa-verdict">${bi("We couldn't answer this from your data or our visit.", "لم نتمكن من الإجابة عن هذا من بياناتك أو زيارتنا.")}${unchecked ? ` <a class="qa-n" href="#not-checked">${bi(`${unchecked} checks couldn't be run`, `تعذّر فحص ${unchecked} بنود`)}</a>` : ""}</p>`
+      : found === 0
+      ? `<p class="qa-verdict qa-verdict--ok">${bi(`No problem found. ${q.cleanEn}`, `لا توجد مشكلة. ${q.cleanAr}`)} <span class="qa-n">${bi(`${checked} checks behind this answer`, `${checked} فحصًا وراء هذه الإجابة`)}</span>${unchecked ? ` <a class="qa-n" href="#not-checked">${bi(`${unchecked} more couldn't be checked`, `وتعذّر فحص ${unchecked} أخرى`)}</a>` : ""}</p>`
       : q.kind === "diy"
         ? `<p class="qa-verdict">${bi(`${found} ${found === 1 ? "fix needs" : "fixes need"} no developer. Start with these:`, `${found} إصلاحات ما تحتاج مطوّر. ابدأ بهذي:`)}</p>`
         : `<p class="qa-verdict">${bi(`Yes: ${found} ${found === 1 ? "problem" : "problems"} found.`, `نعم: وجدنا ${found} ${found === 1 ? "مشكلة" : "مشكلات"}.`)}${big ? ` <b class="qa-money">${bi(`Biggest: about ${moneyRange(big.f.action!.money!)} a month (GA4 estimate).`, `الأكبر: نحو ${moneyRange(big.f.action!.money!)} شهريًا (تقدير من GA4).`)}</b>` : ""}</p>`;
@@ -2951,7 +2963,7 @@ function notCheckedHtml(result: AuditResult): string {
   const role = result.audienceRole ?? "store_owner";
   const titleOf = (id: string) => { const p = pointById(id); return p?.roleCopy[role]?.title ?? p?.title ?? id; };
   const items = rows.map(f => `
-          <li><b class="i18n-en">${escapeHtml(titleOf(f.checklistId))}</b> <code>${escapeHtml(f.checklistId)}</code>
+          <li><b class="i18n-en">${escapeHtml(titleOf(f.checklistId))}</b><b class="i18n-ar" dir="rtl">${escapeHtml(TITLES_AR[f.checklistId] ?? titleOf(f.checklistId))}</b> <code>${escapeHtml(f.checklistId)}</code>
             <p class="i18n-en">${escapeHtml(f.business.summary)}</p>
             <p class="i18n-ar" dir="rtl">${escapeHtml(f.ar?.business?.summary ?? f.business.summary)}</p></li>`).join("");
   return `

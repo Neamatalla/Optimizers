@@ -4,7 +4,14 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 23 Nov evening — read this first
+## Update, 23 Nov late — read this first
+
+Branch pushed to GitHub (`origin/feature/deterministic-checks`); not on staging or main.
+- **Report fixes for the other readers:** "What you asked, answered" (owner, manager, agency) matched old ids only, so on a master-point report every question said "No problem found". It now reads each old id through its master point, and says so when nothing behind a question could be checked. Reader lanes and role severity (`audience.ts`) read master ids too; before, the media buyer saw every master point one step lower.
+- **Arabic titles** for all 163 active points (`points/titles-ar.ts`), used in the unchecked list.
+- **Where the $0.62 goes (Regal, run 16):** about 60% is writing the store's evidence into Claude's cache on Sonnet (text call ~60K tokens, picture call ~38K, at the CLI's 1-hour cache price); about 25% is Sonnet's answers (~11K + 5K tokens); browser + Arabic on Haiku about $0.05. The browser call once cost $0.25: a Haiku prompt over 100K tokens is billed at 5× (long page snapshots).
+
+## Update, 23 Nov evening
 
 Commits up to `183bc53` (local, not pushed). On top of the afternoon work below:
 - **Visit evidence:** page text marks where each phone screen starts; closed tab and accordion text is read from the page code (`hiddenSections`); the main menu is counted with the phone drawer (`menuLinks`, `menuIcon`).

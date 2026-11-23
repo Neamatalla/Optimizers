@@ -15,6 +15,15 @@
 // Null (rows from before the field) keeps the original store-owner report.
 
 import { PERSONA_LANE } from "./checklist-persona-data.js";
+import { pointById } from "./points/index.js";
+
+// A master id (POINTS_PIPELINE reports) is read through the old ids it
+// replaced, so the sets below, written in old ids, still apply to it.
+function idsOf(id: string): string[] {
+  const p = pointById(id);
+  return p ? [id, ...p.origin] : [id];
+}
+const inSet = (set: ReadonlySet<string>, id: string) => idsOf(id).some(x => set.has(x));
 
 export type AudienceRole = "store_owner" | "media_buyer" | "marketing_manager" | "agency";
 
@@ -119,9 +128,9 @@ function stepOf(role: AudienceRole, id: string): -1 | 0 | 1 {
       const lane = mediaBuyerLane(id);
       return lane === "other" ? -1 : 1;
     }
-    case "store_owner": return OWNER_UP.has(id) ? 1 : OWNER_DOWN.has(id) ? -1 : 0;
-    case "marketing_manager": return MANAGER_UP.has(id) ? 1 : MANAGER_DOWN.has(id) ? -1 : 0;
-    case "agency": return AGENCY_UP.has(id) ? 1 : AGENCY_DOWN.has(id) ? -1 : 0;
+    case "store_owner": return inSet(OWNER_UP, id) ? 1 : inSet(OWNER_DOWN, id) ? -1 : 0;
+    case "marketing_manager": return inSet(MANAGER_UP, id) ? 1 : inSet(MANAGER_DOWN, id) ? -1 : 0;
+    case "agency": return inSet(AGENCY_UP, id) ? 1 : inSet(AGENCY_DOWN, id) ? -1 : 0;
   }
 }
 
@@ -154,10 +163,18 @@ export const POST_CLICK_POINTS: ReadonlySet<string> = new Set([
 export type MediaBuyerLane = "signal" | "post_click" | "other";
 
 export function mediaBuyerLane(checklistId: string): MediaBuyerLane {
-  if (SIGNAL_POINTS.has(checklistId)) return "signal";
-  if (POST_CLICK_POINTS.has(checklistId)) return "post_click";
+  // A master point carries its media buyer lane in roleCopy.
+  const p = pointById(checklistId);
+  const own = p?.roleCopy.media_buyer?.lane;
+  if (own) return own;
+  if (inSet(SIGNAL_POINTS, checklistId)) return "signal";
+  if (inSet(POST_CLICK_POINTS, checklistId)) return "post_click";
   // The media buyer's own points carry their lane (checklist-persona-data.ts).
-  return PERSONA_LANE[checklistId] ?? "other";
+  for (const id of idsOf(checklistId)) if (PERSONA_LANE[id]) return PERSONA_LANE[id];
+  // A master point no old lane covers: tracking is what the platforms see;
+  // risk and findability aren't fixed through campaigns; the rest is the page.
+  if (p) return p.category === "tracking" ? "signal" : p.category === "risk" || p.category === "findability" ? "other" : "post_click";
+  return "other";
 }
 
 /**

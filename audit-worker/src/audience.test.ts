@@ -34,6 +34,20 @@ test("audience: a medium tracking problem outranks a critical one the buyer can'
   assert.ok(mediaBuyerRank("GA4-02", 0) < mediaBuyerRank("GTM-14", 2));
 });
 
+test("audience: a master id gets the lane and role severity of the old ids it replaced", async () => {
+  const { pointForOldId, POINTS } = await import("./points/index.js");
+  const { roleSeverity } = await import("./audience.js");
+  const sig = pointForOldId("GTM-03")!;
+  assert.equal(mediaBuyerLane(sig.id), "signal", sig.id);
+  // Owner sees money points one step up, and the master id keeps that.
+  const owner = pointForOldId("W-02")!;
+  assert.equal(roleSeverity("store_owner", owner.id, "medium"), roleSeverity("store_owner", "W-02", "medium"), owner.id);
+  // No master point is left in "other" by accident: only risk and findability are.
+  for (const p of POINTS.filter(x => x.status === "active")) {
+    if (mediaBuyerLane(p.id) === "other") assert.ok(["risk", "findability"].includes(p.category) || !p.roleCopy.media_buyer?.lane, p.id);
+  }
+});
+
 test("audit prompt: a role adds its brief at the end; no role keeps the default voice", async () => {
   const { buildPrompt } = await import("./audit-prompt.js");
   const crawl = { detected: {}, headers: {}, structuralSignals: {}, ids: { ga4MeasurementIds: [], gtmContainerIds: [] } } as never;
