@@ -26,7 +26,7 @@ test("every rule belongs to an active, code-decided master point", () => {
     const p = pointById(id);
     assert.ok(p, `${id} exists`);
     assert.equal(p!.status, "active", id);
-    assert.equal(p!.decidedBy, "code", id);
+    assert.notEqual(p!.decidedBy, "ai", id);
   }
 });
 

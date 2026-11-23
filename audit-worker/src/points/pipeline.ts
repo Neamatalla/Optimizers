@@ -76,8 +76,10 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
   const code = runRules({ ga4: input.ga4, evidence: input.evidence, siteChecks: input.siteChecks, pageSpeed: input.pageSpeed, clarity: input.clarity as any, gtm: input.gtm, net });
   // The AI judges its own points, plus every code point the code couldn't
   // settle (unverified), with the code's reason as a hint. No point is dropped.
-  const fallback = points.filter(p => p.decidedBy === "code" && (!code[p.id] || code[p.id].status === "unverified"));
-  const toJudge = [...points.filter(p => p.decidedBy !== "code"), ...fallback];
+  // A code+ai point goes to the AI only when its rule is missing or unverified.
+  const unsettled = (p: AuditPoint) => !code[p.id] || code[p.id].status === "unverified";
+  const fallback = points.filter(p => p.decidedBy !== "ai" && unsettled(p));
+  const toJudge = [...points.filter(p => p.decidedBy === "ai"), ...fallback];
   const hints = Object.fromEntries(fallback.map(p => [p.id, code[p.id]?.reason ?? "No code rule ran."]));
   const ai = await judgePoints(toJudge, { website: input.website, evidence: input.evidence, ga4: input.ga4, gtm: input.gtm, siteChecks: input.siteChecks, role: input.role, adContext: input.adContext, hints, policies: input.evidence?.policies }, input.id);
 
