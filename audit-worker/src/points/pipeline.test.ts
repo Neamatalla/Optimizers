@@ -71,3 +71,25 @@ test("convertPegged converts GCC currencies and refuses floating ones", async ()
   assert.equal(convertPegged(100, "SAR", "SAR"), 100);
   assert.equal(convertPegged(100, "EGP", "SAR"), null);
 });
+
+test("collection pages are found on Shopify, Zid, WooCommerce and Salla", async () => {
+  const { pageTypeOf } = await import("../discover-pages.js");
+  const home = "https://s.sa/";
+  for (const u of ["https://s.sa/collections/all", "https://s.sa/categories/1034544/honey", "https://s.sa/product-category/honey/", "https://s.sa/honey/c123456"]) assert.equal(pageTypeOf(u, home), "collection", u);
+  assert.equal(pageTypeOf("https://s.sa/categories", home), "other");
+});
+
+test("every visual point is an active AI-judged point", async () => {
+  const { VISUAL_POINTS } = await import("./ai-judge.js");
+  const { pointById } = await import("./index.js");
+  for (const id of VISUAL_POINTS) {
+    const p = pointById(id);
+    assert.ok(p && p.status === "active" && p.decidedBy !== "code", id);
+  }
+});
+
+test("only the visual ask tells the AI to open pictures", () => {
+  const pts = activePoints().filter(p => p.decidedBy !== "code").slice(0, 2);
+  assert.doesNotMatch(buildPointsAsk(pts), /Read tool/);
+  assert.match(buildPointsAsk(pts, {}, [{ file: "/tmp/x/home-fold.jpg", what: "home page, first phone screen" }]), /Read tool[\s\S]*home-fold\.jpg/);
+});
