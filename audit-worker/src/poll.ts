@@ -33,7 +33,8 @@ import { translateFindingsToArabic } from "./translate-ar.js";
 import { fudPassEnabled, isFudResult, runFrictionStage } from "./fud/index.js";
 import { collectStoreEvidence } from "./fud/collect.js";
 import type { StoreEvidence } from "./fud/evidence.js";
-import { collectorFocus, collectorLanding, computeGa4Facts, ga4Focus } from "./ga4-facts.js";
+import { collectorFocus, collectorLanding, computeGa4Facts, ga4Focus, ga4MetricsFromOAuth } from "./ga4-facts.js";
+import { pointsPipelineOn, pointsToCategories, runPoints } from "./points/pipeline.js";
 import { siteChecksFrom } from "./site-checks.js";
 import { computeClarityFacts } from "./clarity-facts.js";
 import { frictionWinsOf, topActionsOf, sendAuditEmail, sendInternalReviewEmail, sendDailyDigestEmail, sendAuditFailedEmail, sendClaudePausedEmail } from "./email.js";
@@ -168,7 +169,8 @@ export async function processRequest(row: AuditRequestRow, workerId: string): Pr
     // weakest product and a weak landing page are visited instead of the
     // first ones discovery found. Both best-effort.
     const focus = ga4Focus(row.ga4_oauth_data, row.website);
-    if (fudPassEnabled(row)) {
+    const points = pointsPipelineOn();
+    if (points || fudPassEnabled(row)) {
       try {
         evidence = await collectStoreEvidence(row.website, discoveredPages, { focus: collectorFocus(focus), landing: collectorLanding(focus) });
       } catch (err) {
@@ -186,42 +188,63 @@ export async function processRequest(row: AuditRequestRow, workerId: string): Pr
       console.log(`[audit-worker] GA4 facts: ${fails.length} failing (${fails.join(", ") || "none"}), focus ${ga4Facts.focus.page ?? "none"}${ga4Facts.focus.step ? ` (${ga4Facts.focus.step.from}>${ga4Facts.focus.step.to} ${Math.round(ga4Facts.focus.step.rate * 100)}%)` : ""}`);
     }
 
-    const needed = neededMcpServers({ tools: row.tools, ga4OAuthData: row.ga4_oauth_data, gtmOAuthData: row.gtm_oauth_data });
-    const mcp = await buildMcpConfig(row.id, needed);
-    let categories;
-    let ga4Metrics;
-    try {
-      ({ categories, ga4Metrics } = await runAudit({
-        website: row.website,
-        tools: row.tools,
-        discoveredPages,
-        crawl,
-        mcpConfigPath: mcp.configPath,
-        businessName: row.business_name,
-        userProvidedGa4Id: row.ga4_measurement_id,
-        userProvidedGtmId: row.gtm_container_id,
-        ga4OAuthData: row.ga4_oauth_data,
-        gtmOAuthData: row.gtm_oauth_data,
-        ga4Facts,
-        siteChecks,
-        clarityFacts,
-        adContext: row.ad_context ?? null,
-        audienceRole: audienceRoleOf(row.audience_role),
-      }));
-    } finally {
-      await mcp.cleanup();
-    }
-
-    const pageSpeed = await pageSpeedPromise;
-    if (pageSpeed.error) {
-      console.warn(`[audit-worker] PageSpeed unavailable for ${row.id}: ${pageSpeed.error}`);
+    // Master points (PHASE1-PLAN.md steps 5-6), POINTS_PIPELINE=on: code
+    // rules + one AI call + templates replace the main audit, the friction
+    // pass, the checklist and the translation. The text is already in both
+    // languages, so translate is marked done and the friction stage skips.
+    if (points) {
+      const pageSpeed = await pageSpeedPromise;
+      const role = audienceRoleOf(row.audience_role);
+      const run = await runPoints({
+        id: row.id, website: row.website, homeHtml: crawl.html, discoveredPages, evidence, ga4: ga4Facts, gtm: row.gtm_oauth_data,
+        siteChecks, pageSpeed, clarity: row.clarity_data ?? null, role, adContext: row.ad_context ?? null,
+      });
+      Object.assign(progress, {
+        categories: pointsToCategories(run.results, role), pointResults: run.results, discoveredPages, pageSpeed,
+        screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics: ga4MetricsFromOAuth(row.ga4_oauth_data),
+        ga4Facts, siteChecks, clarityFacts, fud: null, translated: true,
+      });
+      await save();
+      console.log(`[audit-worker] Saved master-point result for ${row.id}`);
+      auditDone();
     } else {
-      console.log(`[audit-worker] PageSpeed scored ${pageSpeed.pages.length} pages (avg mobile ${pageSpeed.average.mobile}, desktop ${pageSpeed.average.desktop})`);
+      const needed = neededMcpServers({ tools: row.tools, ga4OAuthData: row.ga4_oauth_data, gtmOAuthData: row.gtm_oauth_data });
+      const mcp = await buildMcpConfig(row.id, needed);
+      let categories;
+      let ga4Metrics;
+      try {
+        ({ categories, ga4Metrics } = await runAudit({
+          website: row.website,
+          tools: row.tools,
+          discoveredPages,
+          crawl,
+          mcpConfigPath: mcp.configPath,
+          businessName: row.business_name,
+          userProvidedGa4Id: row.ga4_measurement_id,
+          userProvidedGtmId: row.gtm_container_id,
+          ga4OAuthData: row.ga4_oauth_data,
+          gtmOAuthData: row.gtm_oauth_data,
+          ga4Facts,
+          siteChecks,
+          clarityFacts,
+          adContext: row.ad_context ?? null,
+          audienceRole: audienceRoleOf(row.audience_role),
+        }));
+      } finally {
+        await mcp.cleanup();
+      }
+
+      const pageSpeed = await pageSpeedPromise;
+      if (pageSpeed.error) {
+        console.warn(`[audit-worker] PageSpeed unavailable for ${row.id}: ${pageSpeed.error}`);
+      } else {
+        console.log(`[audit-worker] PageSpeed scored ${pageSpeed.pages.length} pages (avg mobile ${pageSpeed.average.mobile}, desktop ${pageSpeed.average.desktop})`);
+      }
+      Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics, ga4Facts, siteChecks, clarityFacts });
+      await save();
+      console.log(`[audit-worker] Saved audit result for ${row.id}`);
+      auditDone();
     }
-    Object.assign(progress, { categories, discoveredPages, pageSpeed, screenshots: { desktop: screenshots.desktop, mobile: screenshots.mobile }, ga4Metrics, ga4Facts, siteChecks, clarityFacts });
-    await save();
-    console.log(`[audit-worker] Saved audit result for ${row.id}`);
-    auditDone();
   }
 
   // 1b. purchase friction (FUD) pass — src/fud/, FUD-PASS-DESIGN.md. Runs

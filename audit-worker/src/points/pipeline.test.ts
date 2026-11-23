@@ -1,0 +1,64 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { activePoints } from "./index.js";
+import { menuLinksFrom, pointsToCategories, tabOf } from "./pipeline.js";
+import { buildPointsPrompt, parsePointVerdicts } from "./ai-judge.js";
+import { computeOverallPoints } from "../scoring.js";
+import type { RuleResult } from "./rules/types.js";
+
+test("pointsToCategories: n/a left out, unverified not scored, both languages filled", () => {
+  const [a, b, c] = activePoints("store_owner").filter(p => p.category !== "tracking");
+  const results: Record<string, RuleResult> = {
+    [a.id]: { status: "pass", reason: "ok" },
+    [b.id]: { status: "unverified", reason: "no page" },
+    [c.id]: { status: "n/a", reason: "no sizes" },
+  };
+  const cats = pointsToCategories(results, "store_owner");
+  assert.equal(cats.length, 1);
+  assert.equal(cats[0].category, "Website");
+  assert.deepEqual(cats[0].checklistTally, { total: 2, evaluated: 1, passed: 1 });
+  assert.equal(cats[0].findings.find(f => f.checklistId === b.id)?.status, "unassessed");
+  for (const f of cats[0].findings) assert.ok(f.ar?.business.summary, `${f.checklistId} has Arabic`);
+  assert.deepEqual(computeOverallPoints(cats), { earned: 1, possible: 1 });
+});
+
+test("pointsToCategories: a fail carries the fix and owners, an AI observation shows in both languages", () => {
+  const p = activePoints().find(x => x.decidedBy !== "code" && x.category !== "tracking")!;
+  const cats = pointsToCategories({ [p.id]: { status: "fail", reason: "x", observation: { en: "No returns line near the button.", ar: "لا يوجد سطر للإرجاع قرب الزر." } } }, null);
+  const f = cats[0].findings[0];
+  assert.equal(f.technical.summary, "No returns line near the button.");
+  assert.equal(f.ar?.technical.summary, "لا يوجد سطر للإرجاع قرب الزر.");
+  assert.ok(f.action?.step);
+});
+
+test("tracking points go to the GA4 or GTM tab, the rest to Website", () => {
+  for (const p of activePoints()) {
+    const tab = tabOf(p);
+    if (p.category !== "tracking") assert.equal(tab, "Website");
+    else assert.ok(tab === "GA4" || tab === "GTM");
+  }
+});
+
+test("parsePointVerdicts keeps only listed ids and known statuses", () => {
+  const out = parsePointVerdicts({ points: [
+    { id: "A", status: "pass", en: "Seen.", ar: "تم." },
+    { id: "B", status: "maybe", en: "?" },
+    { id: "Z", status: "fail", en: "not asked" },
+  ] }, ["A", "B"]);
+  assert.deepEqual(Object.keys(out), ["A"]);
+  assert.deepEqual(out.A.observation, { en: "Seen.", ar: "تم." });
+  assert.throws(() => parsePointVerdicts({}, ["A"]));
+});
+
+test("the AI prompt lists every point and says when data is missing", () => {
+  const pts = activePoints().filter(p => p.decidedBy !== "code").slice(0, 3);
+  const prompt = buildPointsPrompt(pts, { website: "https://x.sa", evidence: null, ga4: null, gtm: null, siteChecks: null, role: null });
+  for (const p of pts) assert.ok(prompt.includes(p.id));
+  assert.match(prompt, /No GA4 access/);
+  assert.match(prompt, /No GTM container access/);
+});
+
+test("menuLinksFrom reads same-site header, nav and footer links only", () => {
+  const html = `<header><a href="/collections/all">All</a><a href="https://other.com/x">x</a></header><main><a href="/products/p">p</a></main><footer><a href="/pages/returns">Returns</a><a href="#top">top</a></footer>`;
+  assert.deepEqual(menuLinksFrom(html, "https://shop.sa/"), ["https://shop.sa/collections/all", "https://shop.sa/pages/returns"]);
+});

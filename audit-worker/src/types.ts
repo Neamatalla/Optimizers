@@ -116,8 +116,12 @@ export interface JobProgress {
   // Stage 1b: the purchase-friction (FUD) pass (src/fud/). Best-effort and
   // separate from the 50 checks: `{ error }` means it ran and failed, so a
   // retry doesn't run it again and the report just omits the section.
-  // Undefined means it hasn't run (or FUD_PASS kept it off).
-  fud?: FudResult | { error: string };
+  // Undefined means it hasn't run (or FUD_PASS kept it off). Null: the
+  // master-point audit ran instead (POINTS_PIPELINE=on), so it never runs.
+  fud?: FudResult | { error: string } | null;
+  // Master-point audit (POINTS_PIPELINE=on): each point's raw result, kept
+  // for debugging and the compare. The report reads `categories`.
+  pointResults?: Record<string, import("./points/rules/types.js").RuleResult>;
   // Stage 3: report saved as rows (supabase.ts saveAuditReport).
   reportUrl?: string;
   slug?: string;

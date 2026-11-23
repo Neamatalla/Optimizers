@@ -2,6 +2,8 @@ import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingActi
 import { CHECK_GROUP_LABELS, GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type BaseChecklistPoint, type ChecklistPoint as ActionChecklistPoint } from "./checklist.js";
 import { LEGACY_GA4_CHECKLIST, LEGACY_GTM_CHECKLIST, LEGACY_WEBSITE_CHECKLIST, LEGACY_WEBSITE_CODE_CHECKLIST } from "./checklist-legacy.js";
 import { personaChecklistFor, personaOf, personaOfFindings } from "./persona-checklist.js";
+import { pointById } from "./points/index.js";
+import { POINT_CATEGORY_LABELS } from "./points/pipeline-labels.js";
 import { PERSONA_SHARED_SOURCES } from "./checklist-persona-data.js";
 import { OPPORTUNITY_LABEL, OWNER_LABEL } from "./labels.js";
 
@@ -241,6 +243,13 @@ function fontFace(family: string, weight: number, uri: string): string {
 // the curated 25-item WEBSITE_CODE_CHECKLIST alongside one tracking tool.
 // checklistTally.total already reflects which one ran.
 function checklistForDisplay(category: CategoryKey, total: number, findingIds: string[] = []): ChecklistPoint[] {
+  // A master-point audit (POINTS_PIPELINE): its own points, grouped by point category.
+  if (findingIds.length && findingIds.every(id => pointById(id))) {
+    return findingIds.map(id => {
+      const p = pointById(id)!;
+      return { id, title: p.title, expectedState: p.rule, commonFailure: "", validate: "", severity: p.severity, group: `pt-${p.category}`, ...(p.opportunity && { opportunity: p.opportunity }) };
+    });
+  }
   // A store owner's or media buyer's audit ran that reader's own points.
   const persona = personaOfFindings(findingIds);
   if (persona) return personaChecklistFor(persona, category, total === 50 ? [] : ["GA4"]).filter(p => persona !== "media_buyer" || !BUYER_HIDDEN_POINTS.has(p.id));
@@ -299,13 +308,15 @@ const CHECK_GROUPS: Record<CategoryKey, Array<{ en: string; ar: string; ids: str
   ],
 };
 
+const POINT_GROUP_LABELS: Record<string, { en: string; ar: string }> = Object.fromEntries(Object.entries(POINT_CATEGORY_LABELS).map(([k, v]) => [`pt-${k}`, v]));
+
 function groupChecklist(key: CategoryKey, checklist: ChecklistPoint[]) {
   // Action-point checklists carry their own section per point.
   if (checklist.some(p => p.group)) {
     const order = [...new Set(checklist.map(p => p.group ?? "other"))];
     return order.map(g => ({
-      en: CHECK_GROUP_LABELS[g]?.en ?? "Other checks",
-      ar: CHECK_GROUP_LABELS[g]?.ar ?? "بنود أخرى",
+      en: CHECK_GROUP_LABELS[g]?.en ?? POINT_GROUP_LABELS[g]?.en ?? "Other checks",
+      ar: CHECK_GROUP_LABELS[g]?.ar ?? POINT_GROUP_LABELS[g]?.ar ?? "بنود أخرى",
       points: checklist.filter(p => (p.group ?? "other") === g),
     }));
   }
