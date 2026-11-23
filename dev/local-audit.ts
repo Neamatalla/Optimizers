@@ -35,6 +35,12 @@ export function runLocalAudit(req: any, res: any, rootDir: string) {
   } catch (err) {
     console.warn('[dev form] could not save the form:', err)
   }
+  // LOCAL_AUDIT=off: only save the form (with the Google sign-in), start no
+  // audit. For running local-pipeline/run.ts --form=... yourself afterwards.
+  if (process.env.LOCAL_AUDIT === 'off') {
+    console.log('[dev form] LOCAL_AUDIT=off: form saved, no audit started.')
+    return res.status(200).json({ success: true, message: 'Form saved. No audit started (LOCAL_AUDIT=off).' })
+  }
   // Spawn node -> tsx's CLI entry directly, no npx/shell layer — shell:true
   // combined with fd-based stdio redirection is flaky on Windows and was
   // silently swallowing this process's output.
