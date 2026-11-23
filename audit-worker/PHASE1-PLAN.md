@@ -4,7 +4,18 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 23 Nov afternoon — read this first
+## Update, 23 Nov evening — read this first
+
+Commits up to `183bc53` (local, not pushed). On top of the afternoon work below:
+- **Visit evidence:** page text marks where each phone screen starts; closed tab and accordion text is read from the page code (`hiddenSections`); the main menu is counted with the phone drawer (`menuLinks`, `menuIcon`).
+- **Browser step:** up to 10 points, judged on the exact pages the visit used (it had judged PDP-14 on another product).
+- **Arabic:** one writer call translates the code's English sentences (about 70, $0.01), so Arabic readers see the store's details.
+- **Quote check:** an AI pass or fail that quotes text not in the evidence becomes unchecked (`checkQuotes`). On Regal it drops 1–2 points, both text read off a hero picture.
+- **Regal, runs 15 vs 16:** 9 points change, **0 pass↔fail**; all changes are decided↔unchecked. Cost about **$0.62** (text $0.32, pictures $0.24, browser $0.05, Arabic $0.01). 74 pass, 49 fail, 30 unchecked.
+- Local runs: the extra tracking probes (`COLLECT_PROBES=on`) sometimes don't run when the visit is slow; production doesn't run them at all.
+- **Next:** review the report with Adham (how unchecked points show), then staging.
+
+## Update, 23 Nov afternoon
 
 Commits `644fea7`, `3a6d0a9`, `a86320c`, `4ba91b2` (local, not pushed). Adham's rule: code decides only what it can detect for sure; anything that could fail wrongly goes to the AI, which must never invent and gets a browser to check.
 
