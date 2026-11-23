@@ -1,4 +1,5 @@
-import { writeFile } from "fs/promises";
+import { mkdtemp, rm, writeFile } from "fs/promises";
+import os from "os";
 import path from "path";
 import { extractJsonPayload, runClaudeHeadless } from "../claude.js";
 import { buildMcpConfig } from "../mcp-config.js";
@@ -22,6 +23,10 @@ import { parseGtm } from "./gtm.js";
 const TIMEOUT_MS = 8 * 60 * 1000;
 // Points per call. Two calls run side by side for the 82 points.
 const BATCH = 45;
+const NL = "\n";
+// How long later batches wait for the first to write the shared evidence to
+// the prompt cache (it is readable once the first answer starts).
+const STAGGER_MS = Number(process.env.POINTS_STAGGER_MS ?? 12_000);
 
 export interface JudgeContext {
   website: string;
@@ -63,21 +68,18 @@ function paidBlock(ga4: Ga4Facts | null): string {
   return `GA4 traffic by channel / source / medium / campaign (top 15):\n${rows.join("\n")}`;
 }
 
-export function buildPointsPrompt(points: AuditPoint[], ctx: JudgeContext): string {
+/**
+ * The part every batch shares: instructions and all the evidence. It goes in
+ * the system prompt (a file), so the second call reads it from the prompt
+ * cache instead of paying to write it again.
+ */
+export function buildSharedPrompt(ctx: JudgeContext): string {
   const e = ctx.evidence;
-  const list = points.map(p => [
-    `- ${p.id} — ${p.title} (pages: ${p.pages.join(", ")}; needs: ${p.needs.join(", ")})`,
-    `  PASS when: ${p.rule}`,
-    p.note ? `  Note: ${p.note}` : "",
-  ].filter(Boolean).join("\n")).join("\n");
   const ad = ctx.adContext?.text || ctx.adContext?.coupon ? `The reader's ad: headline/offer «${ctx.adContext?.text ?? ""}»${ctx.adContext?.coupon ? `, coupon «${ctx.adContext.coupon}»` : ""}.` : "";
 
-  return `You are a senior CRO and tracking auditor. Judge each audit point below for one e-commerce store, from the evidence only. The store sells in ${marketHint(ctx.website)}. Shoppers there expect cash on delivery, local instalments (Tabby, Tamara, valU), WhatsApp support and Arabic or bilingual copy: treat these as valid answers.
+  return `You are a senior CRO and tracking auditor. You judge audit points for one e-commerce store, from the evidence below only. The store sells in ${marketHint(ctx.website)}. Shoppers there expect cash on delivery, local instalments (Tabby, Tamara, valU), WhatsApp support and Arabic or bilingual copy: treat these as valid answers.
 
 You cannot browse. The evidence is what our own phone visit (390px) captured, plus the GA4 facts and the GTM container that code pulled from the store's accounts.
-
-POINTS TO JUDGE
-${list}
 
 HOW TO DECIDE
 - "pass": the evidence shows the rule is met. "fail": the evidence clearly shows it is not met.
@@ -90,7 +92,14 @@ WRITING
 - en: one or two short sentences (max 30 words) saying what you saw on THIS store that decides it: where, and the exact wording or value. Plain words. No advice, no "should": the fix is written elsewhere.
 - ar: the same in plain Modern Standard Arabic. Keep tool names in Latin script.${arabicRegisterRule(ctx.role) ? ` ${arabicRegisterRule(ctx.role)}` : ""}
 - Never write block ids in the text. Quote store wording with « ».
-${ad ? `\n${ad}\n` : ""}
+
+OUTPUT
+Return ONLY a JSON object, no prose, no markdown fence. Valid JSON: never use the double-quote character inside text values, no line breaks inside strings.
+{"points": [{"id": "PATH-01", "status": "pass|fail|unverified|n/a", "en": "", "ar": ""}]}
+Exactly one entry per point you are asked about.
+${ad ? `
+${ad}
+` : ""}
 GA4
 ${ctx.ga4 ? ga4FactsPromptBlock(ctx.ga4) : "No GA4 access for this store."}
 ${paidBlock(ctx.ga4)}
@@ -105,12 +114,22 @@ STORE FACTS
 ${e ? storeBlock(e) : "No store visit."}
 
 PAGES
-${e ? e.pages.map(pageBlock).join("\n") : "No pages: the store visit failed."}
+${e ? e.pages.map(pageBlock).join(NL) : "No pages: the store visit failed."}`;
+}
 
-OUTPUT
-Return ONLY a JSON object, no prose, no markdown fence. Valid JSON: never use the double-quote character inside text values, no line breaks inside strings.
-{"points": [{"id": "PATH-01", "status": "pass|fail|unverified|n/a", "en": "", "ar": ""}]}
-Exactly one entry per point listed above (${points.map(p => p.id).join(", ")}).`;
+/** The part each batch asks: its own points. */
+export function buildPointsAsk(points: AuditPoint[]): string {
+  const list = points.map(p => [
+    `- ${p.id} — ${p.title} (pages: ${p.pages.join(", ")}; needs: ${p.needs.join(", ")})`,
+    `  PASS when: ${p.rule}`,
+    p.note ? `  Note: ${p.note}` : "",
+  ].filter(Boolean).join(NL)).join(NL);
+  return `Judge these audit points from the evidence in your instructions.
+
+POINTS TO JUDGE
+${list}
+
+Return the JSON object, exactly one entry per point (${points.map(p => p.id).join(", ")}).`;
 }
 
 const STATUSES = new Set(["pass", "fail", "unverified", "n/a"]);
@@ -129,9 +148,9 @@ export function parsePointVerdicts(raw: unknown, ids: string[]): Record<string, 
   return out;
 }
 
-async function judgeBatch(points: AuditPoint[], ctx: JudgeContext, jobId: string, label: string): Promise<Record<string, RuleResult>> {
+async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId: string, label: string): Promise<Record<string, RuleResult>> {
   const mcp = await buildMcpConfig(`${jobId}-points`, { ga4Admin: false, gtm: false, browser: false });
-  const prompt = buildPointsPrompt(points, ctx);
+  const prompt = buildPointsAsk(points);
   const ids = points.map(p => p.id);
   const model = process.env.POINTS_AI_MODEL === "writer" ? "writer" : "main";
   try {
@@ -143,6 +162,7 @@ async function judgeBatch(points: AuditPoint[], ctx: JudgeContext, jobId: string
         timeoutMs: TIMEOUT_MS,
         effort: "low",
         model,
+        systemPromptFile,
         label: `points-judge (${points.length} points)${label}${attempt > 1 ? " retry" : ""}`,
       });
       // POINTS_DEBUG_DIR: keep Claude's raw answer, to see why a point got no verdict.
@@ -178,7 +198,24 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
   const n = Math.ceil(points.length / BATCH);
   const size = Math.ceil(points.length / n);
   const batches = Array.from({ length: n }, (_, i) => points.slice(i * size, (i + 1) * size));
-  const settled = await Promise.allSettled(batches.map((b, i) => judgeBatch(b, ctx, `${jobId}-b${i + 1}`, n > 1 ? ` batch ${i + 1}/${n}` : "")));
+  // The shared evidence, written once. Later batches start STAGGER_MS after
+  // the first, once it has written the prompt cache, so they read it.
+  const dir = await mkdtemp(path.join(os.tmpdir(), "points-judge-"));
+  const shared = path.join(dir, "evidence.md");
+  await writeFile(shared, buildSharedPrompt(ctx), "utf8");
+  try {
+    return await judgeAll(points, batches, shared, jobId);
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: string, jobId: string): Promise<Record<string, RuleResult>> {
+  const n = batches.length;
+  const settled = await Promise.allSettled(batches.map(async (b, i) => {
+    if (i > 0) await new Promise(r => setTimeout(r, STAGGER_MS));
+    return judgeBatch(b, shared, `${jobId}-b${i + 1}`, n > 1 ? ` batch ${i + 1}/${n}` : "");
+  }));
   const out: Record<string, RuleResult> = {};
   settled.forEach((s, i) => {
     if (s.status === "fulfilled") Object.assign(out, s.value);
@@ -190,7 +227,7 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
   if (left.length && left.length < points.length) {
     console.warn(`[audit-worker] Points judge left out ${left.length} points (${left.map(p => p.id).join(", ")}); asking again for those`);
     try {
-      Object.assign(out, await judgeBatch(left, ctx, `${jobId}-missing`, " missing"));
+      Object.assign(out, await judgeBatch(left, shared, `${jobId}-missing`, " missing"));
     } catch (err) {
       console.warn(`[audit-worker] Points judge follow-up failed: ${err instanceof Error ? err.message : err}`);
     }

@@ -28,6 +28,10 @@ export interface ClaudeRunOptions {
   model?: "main" | "writer";
   // Name for this call in the [claude-usage] log and run-metrics summary.
   label?: string;
+  // A file appended to the system prompt (--append-system-prompt-file). Calls
+  // that share it share one prompt-cache entry: the second reads what the
+  // first wrote instead of writing it again (points/ai-judge.ts).
+  systemPromptFile?: string;
 }
 
 // How much raw stdout to keep for error messages. stream-json writes every
@@ -227,6 +231,9 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   const model = opts.model === "writer" ? writerModel() : claudeModel();
   if (model) {
     args.push("--model", model);
+  }
+  if (opts.systemPromptFile) {
+    args.push("--append-system-prompt-file", opts.systemPromptFile);
   }
 
   return new Promise((resolve, reject) => {

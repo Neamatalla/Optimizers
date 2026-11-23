@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { activePoints } from "./index.js";
 import { menuLinksFrom, pointsToCategories, tabOf } from "./pipeline.js";
-import { buildPointsPrompt, parsePointVerdicts } from "./ai-judge.js";
+import { buildPointsAsk, buildSharedPrompt, parsePointVerdicts } from "./ai-judge.js";
 import { computeOverallPoints } from "../scoring.js";
 import type { RuleResult } from "./rules/types.js";
 
@@ -50,12 +50,14 @@ test("parsePointVerdicts keeps only listed ids and known statuses", () => {
   assert.throws(() => parsePointVerdicts({}, ["A"]));
 });
 
-test("the AI prompt lists every point and says when data is missing", () => {
+test("the AI prompt: shared evidence has no point ids, each ask lists its own points", () => {
   const pts = activePoints().filter(p => p.decidedBy !== "code").slice(0, 3);
-  const prompt = buildPointsPrompt(pts, { website: "https://x.sa", evidence: null, ga4: null, gtm: null, siteChecks: null, role: null });
-  for (const p of pts) assert.ok(prompt.includes(p.id));
-  assert.match(prompt, /No GA4 access/);
-  assert.match(prompt, /No GTM container access/);
+  const shared = buildSharedPrompt({ website: "https://x.sa", evidence: null, ga4: null, gtm: null, siteChecks: null, role: null });
+  assert.match(shared, /No GA4 access/);
+  assert.match(shared, /No GTM container access/);
+  for (const p of pts) assert.ok(!shared.includes(`${p.id} —`), "the shared part is the same for every batch");
+  const ask = buildPointsAsk(pts);
+  for (const p of pts) assert.ok(ask.includes(p.id));
 });
 
 test("menuLinksFrom reads same-site header, nav and footer links only", () => {
