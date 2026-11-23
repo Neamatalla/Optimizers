@@ -1,3 +1,5 @@
+import { writeFile } from "fs/promises";
+import path from "path";
 import { extractJsonPayload, runClaudeHeadless } from "../claude.js";
 import { buildMcpConfig } from "../mcp-config.js";
 import { ga4FactsPromptBlock } from "../ga4-facts.js";
@@ -143,6 +145,8 @@ async function judgeBatch(points: AuditPoint[], ctx: JudgeContext, jobId: string
         model,
         label: `points-judge (${points.length} points)${label}${attempt > 1 ? " retry" : ""}`,
       });
+      // POINTS_DEBUG_DIR: keep Claude's raw answer, to see why a point got no verdict.
+      if (process.env.POINTS_DEBUG_DIR) await writeFile(path.join(process.env.POINTS_DEBUG_DIR, `points-judge-${jobId}-${attempt}.json`), raw, "utf8").catch(() => {});
       try {
         return parsePointVerdicts(extractJsonPayload(raw), ids);
       } catch (err) {
@@ -180,6 +184,17 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
     if (s.status === "fulfilled") Object.assign(out, s.value);
     else console.warn(`[audit-worker] Points judge batch ${i + 1} failed: ${s.reason instanceof Error ? s.reason.message : s.reason}`);
   });
+  // One more call for the points an answer left out (a long answer can stop
+  // early), unless a whole batch failed for a reason a retry won't fix.
+  const left = points.filter(p => !out[p.id]);
+  if (left.length && left.length < points.length) {
+    console.warn(`[audit-worker] Points judge left out ${left.length} points (${left.map(p => p.id).join(", ")}); asking again for those`);
+    try {
+      Object.assign(out, await judgeBatch(left, ctx, `${jobId}-missing`, " missing"));
+    } catch (err) {
+      console.warn(`[audit-worker] Points judge follow-up failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
   for (const p of points) out[p.id] ??= { status: "unverified", reason: "The AI gave no verdict for this point." };
   return out;
 }
