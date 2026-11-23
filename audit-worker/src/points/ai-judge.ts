@@ -26,9 +26,9 @@ const TIMEOUT_MS = 8 * 60 * 1000;
 // call picks up any it leaves out). The visual points get their own call.
 const BATCH = 90;
 const NL = "\n";
-// How long later batches wait for the first to write the shared evidence to
-// the prompt cache (it is readable once the first answer starts).
-const STAGGER_MS = Number(process.env.POINTS_STAGGER_MS ?? 12_000);
+// The longest later batches wait for the first to write the shared evidence
+// to the prompt cache (judgeAll: they start as soon as its answer begins).
+const STAGGER_MAX_MS = Number(process.env.POINTS_STAGGER_MS ?? 90_000);
 
 export interface JudgeContext {
   website: string;
@@ -164,7 +164,7 @@ export function parsePointVerdicts(raw: unknown, ids: string[]): Record<string, 
   return out;
 }
 
-async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId: string, label: string, hints: Record<string, string> = {}, pictures: Picture[] = []): Promise<Record<string, RuleResult>> {
+async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId: string, label: string, hints: Record<string, string> = {}, pictures: Picture[] = [], onFirstAnswer?: () => void): Promise<Record<string, RuleResult>> {
   const picturesDir = pictures.length ? path.dirname(pictures[0].file) : null;
   const mcp = await buildMcpConfig(`${jobId}-points`, { ga4Admin: false, gtm: false, browser: false });
   const prompt = buildPointsAsk(points, hints, pictures);
@@ -190,6 +190,7 @@ async function judgeBatch(points: AuditPoint[], systemPromptFile: string, jobId:
         effort: "low",
         model,
         systemPromptFile,
+        ...(attempt === 1 && onFirstAnswer && { onFirstAnswer }),
         label: `points-judge (${points.length} points)${label}${attempt > 1 ? " retry" : ""}`,
       });
       // POINTS_DEBUG_DIR: keep Claude's raw answer, to see why a point got no verdict.
@@ -230,8 +231,8 @@ export async function judgePoints(points: AuditPoint[], ctx: JudgeContext, jobId
   const n = Math.ceil(rest.length / BATCH);
   const size = Math.ceil(rest.length / Math.max(n, 1));
   const batches = Array.from({ length: n }, (_, i) => rest.slice(i * size, (i + 1) * size));
-  // The shared evidence, written once. Later batches start STAGGER_MS after
-  // the first, once it has written the prompt cache, so they read it.
+  // The shared evidence, written once. Later batches start once the first
+  // has written it to the prompt cache, so they read it (judgeAll).
   const dir = await mkdtemp(path.join(os.tmpdir(), "points-judge-"));
   const shared = path.join(dir, "evidence.md");
   await writeFile(shared, buildSharedPrompt(ctx), "utf8");
@@ -275,10 +276,20 @@ async function writePictures(e: StoreEvidence | null, dir: string): Promise<Pict
 
 async function judgeAll(points: AuditPoint[], batches: AuditPoint[][], shared: string, jobId: string, hints: Record<string, string>, visual: { index: number; pictures: Picture[] } | null): Promise<Record<string, RuleResult>> {
   const n = batches.length;
+  // Later batches start once the first one's answer begins: the shared
+  // evidence is in the cache by then. A fixed 12 s wait was too short with a
+  // cold cache (Regal, 5-minute cache: the picture call wrote all the evidence
+  // again, 97K tokens instead of 38K). STAGGER_MAX_MS caps the wait.
+  let firstAnswered: () => void = () => {};
+  const firstStarted = new Promise<void>(r => { firstAnswered = r; });
   const settled = await Promise.allSettled(batches.map(async (b, i) => {
-    if (i > 0) await new Promise(r => setTimeout(r, STAGGER_MS));
+    if (i > 0) await Promise.race([firstStarted.then(() => new Promise(r => setTimeout(r, 2_000))), new Promise(r => setTimeout(r, STAGGER_MAX_MS))]);
     const pics = visual?.index === i ? visual.pictures : [];
-    return judgeBatch(b, shared, `${jobId}-b${i + 1}`, `${n > 1 ? ` batch ${i + 1}/${n}` : ""}${pics.length ? ` with ${pics.length} pictures` : ""}`, hints, pics);
+    try {
+      return await judgeBatch(b, shared, `${jobId}-b${i + 1}`, `${n > 1 ? ` batch ${i + 1}/${n}` : ""}${pics.length ? ` with ${pics.length} pictures` : ""}`, hints, pics, i === 0 ? firstAnswered : undefined);
+    } finally {
+      if (i === 0) firstAnswered();
+    }
   }));
   const out: Record<string, RuleResult> = {};
   settled.forEach((s, i) => {
@@ -317,6 +328,12 @@ const BROWSER_TOOLS = [
 // 5 on the writer model cost about $0.04 (Regal, 23 Nov), so every open
 // point on the list can get a try.
 export const BROWSER_MAX_POINTS = Number(process.env.POINTS_BROWSER_MAX ?? 10);
+// Points per browser call. Every turn re-reads the whole conversation, and a
+// Haiku prompt over 100K tokens costs 5x: 7 points in one call took 46 turns
+// and $0.25 (Regal, 23 Nov) against $0.04-0.09 for shorter ones. Batches of
+// 5, each with a fresh context, keep the per-point budget the same.
+export const BROWSER_BATCH = 5;
+const BROWSER_CALLS_PER_BATCH = 25;
 const BROWSER_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function browserStepOn(): boolean {
@@ -363,7 +380,7 @@ HOW TO BROWSE
 - Close pop-ups (press Escape or tap ×) when they block the page.
 - Do the test each point needs before you answer. "I did not check" or "I did not search" is never a reason: if the action is allowed, do it. Answer unverified only after you tried and couldn't see the answer.
 - Group points that use the same page, so you open each page once.
-- Budget: about 40 tool calls in total. Every call re-reads all earlier results, so stop when the budget is spent and answer unverified for what's left.
+- Budget: about ${BROWSER_CALLS_PER_BATCH} tool calls in total. Every call re-reads all earlier results, so stop when the budget is spent and answer unverified for what's left.
 
 HOW TO DECIDE
 - "pass" or "fail" only for what you saw yourself in the browser. Every part of the PASS line must be seen.
@@ -390,6 +407,24 @@ const SEVERITY_ORDER = ["critical", "high", "medium", "low"];
 export async function investigatePoints(points: AuditPoint[], reasons: Record<string, string>, ctx: { website: string; platform?: string | null; pages?: Array<{ type: string; url: string }> }, jobId: string): Promise<Record<string, RuleResult>> {
   if (!points.length) return {};
   const picked = [...points].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)).slice(0, BROWSER_MAX_POINTS);
+  const batches = browserBatches(picked);
+  // Each batch has its own Chrome (--isolated), so they run side by side.
+  const parts = await Promise.all(batches.map((b, i) => investigateBatch(b, reasons, ctx, batches.length > 1 ? `${jobId}-b${i + 1}` : jobId)));
+  return Object.assign({}, ...parts);
+}
+
+/** Splits points into batches of at most BROWSER_BATCH, keeping points on the same page together. */
+export function browserBatches(points: AuditPoint[]): AuditPoint[][] {
+  if (points.length <= BROWSER_BATCH) return points.length ? [points] : [];
+  const n = Math.ceil(points.length / BROWSER_BATCH);
+  const size = Math.ceil(points.length / n);
+  const byPage = [...points].sort((a, b) => (a.pages[0] ?? "").localeCompare(b.pages[0] ?? ""));
+  const out: AuditPoint[][] = [];
+  for (let i = 0; i < byPage.length; i += size) out.push(byPage.slice(i, i + size));
+  return out;
+}
+
+async function investigateBatch(picked: AuditPoint[], reasons: Record<string, string>, ctx: { website: string; platform?: string | null; pages?: Array<{ type: string; url: string }> }, jobId: string): Promise<Record<string, RuleResult>> {
   const mcp = await buildMcpConfig(`${jobId}-browse`, { ga4Admin: false, gtm: false, browser: true });
   const ids = picked.map(p => p.id);
   try {

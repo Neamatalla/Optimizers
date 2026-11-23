@@ -41,6 +41,9 @@ export interface ClaudeRunOptions {
   // null = the CLI default even with no allowed tools (keeps a prompt cache
   // shared with another call that has the built-ins).
   builtinTools?: string[] | null;
+  // Called once, when the model's first answer block arrives. By then the
+  // prompt is in the cache, so a call sharing it can start and read it.
+  onFirstAnswer?: () => void;
 }
 
 // How much raw stdout to keep for error messages. stream-json writes every
@@ -141,9 +144,20 @@ export function writerModel(env: NodeJS.ProcessEnv = process.env): string | unde
   return env.CLAUDE_WRITER_MODEL?.trim() || claudeModel(env);
 }
 
-/** The child's environment: with promptCache false, Claude Code's DISABLE_PROMPT_CACHING is set. */
+/**
+ * The child's environment. promptCache false sets DISABLE_PROMPT_CACHING.
+ * Otherwise the cache lives 5 minutes, as it does by default on the API key:
+ * an audit's calls reuse the cache within minutes, and a 1-hour write costs
+ * more (2x input vs 1.25x). A subscription login would default to 1 hour, so
+ * local runs would cost more than production. Set either variable to override.
+ */
 export function childEnv(promptCache: boolean | undefined, env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  return promptCache === false ? { ...env, DISABLE_PROMPT_CACHING: "1" } : env;
+  if (promptCache === false) return { ...env, DISABLE_PROMPT_CACHING: "1" };
+  return {
+    ...env,
+    CLAUDE_CODE_PROMPT_CACHE_TTL: env.CLAUDE_CODE_PROMPT_CACHE_TTL ?? "5m",
+    CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL: env.CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL ?? "5m",
+  };
 }
 
 export interface ApiKeyStatus {
@@ -299,6 +313,11 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       }
       const hadSource = info.authSource !== undefined;
       readStreamEvent(info, event);
+      if (event?.type === "assistant" && opts.onFirstAnswer) {
+        const cb = opts.onFirstAnswer;
+        opts.onFirstAnswer = undefined;
+        cb();
+      }
       // The worker must bill the API key. With the key set, the CLI always
       // uses it, so this only fires if something unexpected wins.
       if (!hadSource && info.authSource !== undefined && info.authSource !== "ANTHROPIC_API_KEY") {

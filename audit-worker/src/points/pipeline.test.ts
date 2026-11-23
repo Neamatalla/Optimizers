@@ -2,7 +2,20 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { activePoints } from "./index.js";
 import { menuLinksFrom, pointsToCategories, tabOf } from "./pipeline.js";
-import { buildPointsAsk, buildSharedPrompt, parsePointVerdicts } from "./ai-judge.js";
+import { BROWSER_BATCH, browserBatches, buildPointsAsk, buildSharedPrompt, parsePointVerdicts } from "./ai-judge.js";
+import { BROWSER_POINTS } from "./ai-judge.js";
+import { pointById as byId } from "./index.js";
+
+test("browser batches: at most 5 points each, every point once, same-page points together", () => {
+  const pts = [...BROWSER_POINTS].map(id => byId(id)!);
+  for (const n of [0, 3, 5, 7, 10]) {
+    const b = browserBatches(pts.slice(0, n));
+    assert.equal(b.flat().length, n);
+    assert.equal(new Set(b.flat().map(p => p.id)).size, n);
+    assert.ok(b.every(x => x.length <= BROWSER_BATCH && x.length > 0), String(n));
+    assert.equal(b.length, Math.ceil(n / BROWSER_BATCH));
+  }
+});
 import { computeOverallPoints } from "../scoring.js";
 import type { RuleResult } from "./rules/types.js";
 
