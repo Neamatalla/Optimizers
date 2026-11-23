@@ -57,6 +57,19 @@ export function menuLinksFrom(html: string, website: string): string[] {
   return [...out];
 }
 
+// The points that read the first checkout screen's own form. A log-in page in
+// front of checkout blocks them: they stay unchecked with one clear reason
+// and the AI isn't asked. Points the log-in page itself can settle (guest
+// option, express pay) are not in this set.
+export const CHECKOUT_FORM_POINTS = new Set(["PATH-11", "PATH-12", "PATH-13", "PATH-16"]);
+export const LOGIN_BLOCK_REASON = "Checkout sits behind a log-in page, so our visit couldn't see the checkout form. This point wasn't checked.";
+export const LOGIN_BLOCK_REASON_AR = "صفحة الدفع خلف صفحة تسجيل دخول، فلم تستطع زيارتنا رؤية نموذج الدفع. لم يتم فحص هذه النقطة.";
+
+/** True when our visit hit a log-in page where checkout should start. */
+export function checkoutLoginBlocks(e: StoreEvidence | null): boolean {
+  return Boolean(e?.pages.some(p => p.pageType === "checkout" && p.loaded && /log-in page/i.test(p.note ?? "")));
+}
+
 /** Runs every active point for this reader: net checks, code rules, then the AI points. */
 export async function runPoints(input: PointsInput): Promise<{ results: Record<string, RuleResult>; net: NetChecks | null }> {
   let net: NetChecks | null = null;
@@ -77,14 +90,20 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
   // The AI judges its own points, plus every code point the code couldn't
   // settle (unverified), with the code's reason as a hint. No point is dropped.
   // A code+ai point goes to the AI only when its rule is missing or unverified.
+  const blocked = checkoutLoginBlocks(input.evidence);
+  const isBlocked = (p: AuditPoint) => blocked && CHECKOUT_FORM_POINTS.has(p.id);
   const unsettled = (p: AuditPoint) => !code[p.id] || code[p.id].status === "unverified";
-  const fallback = points.filter(p => p.decidedBy !== "ai" && unsettled(p));
-  const toJudge = [...points.filter(p => p.decidedBy === "ai"), ...fallback];
+  const fallback = points.filter(p => p.decidedBy !== "ai" && unsettled(p) && !isBlocked(p));
+  const toJudge = [...points.filter(p => p.decidedBy === "ai" && !isBlocked(p)), ...fallback];
   const hints = Object.fromEntries(fallback.map(p => [p.id, code[p.id]?.reason ?? "No code rule ran."]));
   const ai = await judgePoints(toJudge, { website: input.website, evidence: input.evidence, ga4: input.ga4, gtm: input.gtm, siteChecks: input.siteChecks, role: input.role, adContext: input.adContext, hints, policies: input.evidence?.policies }, input.id);
 
   const results: Record<string, RuleResult> = {};
   for (const p of points) {
+    if (isBlocked(p)) {
+      results[p.id] = { status: "unverified", reason: LOGIN_BLOCK_REASON, facts: { blockedBy: "login" }, observation: { en: LOGIN_BLOCK_REASON, ar: LOGIN_BLOCK_REASON_AR } };
+      continue;
+    }
     const c = code[p.id];
     const a = ai[p.id];
     // Code wins when it decided; the AI's answer fills in where it couldn't.

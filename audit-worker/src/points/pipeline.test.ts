@@ -93,3 +93,12 @@ test("only the visual ask tells the AI to open pictures", () => {
   assert.doesNotMatch(buildPointsAsk(pts), /Read tool/);
   assert.match(buildPointsAsk(pts, {}, [{ file: "/tmp/x/home-fold.jpg", what: "home page, first phone screen" }]), /Read tool[\s\S]*home-fold\.jpg/);
 });
+
+test("a log-in page in front of checkout blocks the checkout form points", async () => {
+  const { checkoutLoginBlocks, CHECKOUT_FORM_POINTS } = await import("./pipeline.js");
+  const page = (note: string) => ({ pages: [{ pageType: "checkout", loaded: true, note }] }) as never;
+  assert.equal(checkoutLoginBlocks(page("first checkout screen only, nothing typed: the store sent us to a log-in page before checkout")), true);
+  assert.equal(checkoutLoginBlocks(page("first checkout screen only: nothing was typed, chosen or submitted")), false);
+  assert.equal(checkoutLoginBlocks(null), false);
+  assert.ok(CHECKOUT_FORM_POINTS.has("PATH-13") && !CHECKOUT_FORM_POINTS.has("PATH-05"), "guest-option point is still judged");
+});
