@@ -4,7 +4,27 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 24 Nov evening — Phase 1 closed (read this first)
+## Phase 1 done, 24 Nov 2026 (read this first)
+
+**The big plan (ClickUp, Engineering > Audit Tool, safety net):** 1. move AI judgement into code (done, below); 2. test suite and store simulation with fake GA4/GTM data as a quality gate; 3. cost optimization.
+
+**Where Phase 1 ended:** 162 active points: code 81, code+ai 50 (every one has a code rule), ai 31. Code decides 89 points on Regal; the AI judges 64.
+- **`rules/mixed.ts`:** 42 code rules for the code+ai points. Each settles only what the data proves, mostly the pass (the words are there, by the button) or n/a, plus clear fails: Arabic page laid out left-to-right (NAV-08), open discount field in the cart (OFFER-17), main menu on a landing page (LAND-03), "Submit"-style landing buttons (LAND-09), currency not in 3 capitals (TRK-44), staging host in GA4 (TRK-26), email in GA4 page paths (RISK-01), two currencies in one store (NAV-12), bar and cart naming different free-shipping amounts (OFFER-10), body text under 16px or under 4.5:1 contrast (RISK-11). A missing match is never a fail: the point goes to the AI with what the code saw.
+- **Visit:** reads body text size and colours (`facts-js.ts` bodyText) for RISK-11.
+- **Arabic:** every code verdict of a code+ai point carries its own Arabic sentence (mixed.ts, tracking.ts, LAND-11), so no AI writes it. The AI translation call stays for the store details added to code points' templates and for unchecked reasons: wording only, no verdicts.
+- **The 31 ai points** need judgement (headline states a benefit, reviews look real, Arabic reads naturally, photos show the product in use) or data the visit doesn't have yet (PATH-11/13 behind Regal's log-in, COL-01 full-name search, NAV-03 menu tap, OFFER-02 variant price change, LAND-08 CTA count, COL-06 filter counts, RISK-08 empty gaps). Collecting that data is visit work best built against the Phase 2 store simulation.
+- **Checks that held:** each new rule was replayed on Regal's saved visit before any live run; wrong passes found that way were fixed (secure badge counted as a guarantee, "quick view" as quick add, Arabic checkout wording, a soft-photo fail that the headless browser's image choice could fake: PDP-03 left to the AI). RISK-11's 13px home body text was confirmed on the live site.
+- **Regal runs 35, 36, 37:** 0 pass↔fail flips between any two; 5-6 points move between decided and unchecked per pair (was about 13). Run 37: 73 pass, 50 fail, 29 unchecked, 7 n/a; 123 of 152 checks decided.
+- **Cost:** run 37 $0.51 (picture call read its cache); runs 35-36 $0.67 (it didn't). The likely cause and fix are under Phase 3.
+- **Report for Omar:** `reports-for-review/regal-honey-audit-media-buyer-2026-11-24.html` (run 37, media buyer, real site links; not in git: client data).
+
+**Decided by Adham (24 Nov):** one score. No cap for unchecked points: the report shows coverage under the score ("Based on 123 of 152 checks", a warning under 80%) and groups the unchecked list by why (blocked by a log-in page, an account not shared, a manual look). `POINTS_PIPELINE=on` stays off staging for now.
+
+**Phase 3, cost optimization:** the picture call sometimes misses the cache (likely: its second request carries all pictures at once, past the API's ~20-block cache lookback; fix to try: send the pictures in the first message); send each AI point only its evidence.
+
+**Later cleanup:** one finding for "checkout behind log-in", TRK-17 / TRK-28 gaps, retiring the old list files (when the flag becomes the default).
+
+## Update, 24 Nov evening (first pass)
 
 **Phase 1's goal is met:** every active point has one owner. Code decides every side it can prove (81 code points, plus a code rule for all 39 code+ai points); the AI decides only the rest.
 - **`rules/mixed.ts`:** 31 new rules for the code+ai page points. Each settles only what the visit proves, mostly the pass (the words are there, next to the button) or n/a (no options, no Arabic pages). A few clear fails: Arabic page laid out left-to-right (NAV-08), open discount field in the cart (OFFER-17, per its guide), main menu on the landing page (LAND-03), "Submit"-style landing buttons (LAND-09), currency not in 3 capitals (TRK-44), staging/dev hostname in GA4 (TRK-26). A missing match is never a fail: it goes to the AI with what the code saw.
@@ -15,12 +35,7 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 - **Regal runs 35 and 36 (live):** code decides 83-85 points (was 72-74), the AI judges 69-71 (was 81-83). **0 pass↔fail flips** against run 34 and between 35 and 36; only 5 points changed between 35 and 36 (was about 13 per pair), all decided↔unchecked. Result: 75 pass, 50 fail, 27 unchecked, 7 n/a (run 34: 72 / 47 / 34 / 7).
 - **Cost went up, not down: about $0.67 per audit (run 34: about $0.53).** The text call is the same ($0.29), but the picture call stopped reading the text call's cached evidence: it writes about 100K tokens again instead of about 40K ($0.32 vs $0.17), on both runs. The shared prefix (`buildSharedPrompt`) and the call timing look unchanged. Likely cause (not proven): the picture call is 2-3 requests; the first reads the cached evidence (about 75K, same as before), but the second, which carries all the pictures at once (24+ new blocks, past the API's ~20-block cache lookback), misses and writes everything again. It depends on how the model batches its picture reads, not on the new rules. Fix to try: send the pictures in the first message instead of Read calls. Moved to Phase 3 (cost optimization).
 
-**The big plan (ClickUp, Engineering > Audit Tool, safety net):** 1. move AI judgement into code (this phase); 2. test suite and store simulation with fake GA4/GTM data as a quality gate; 3. cost optimization.
-**Still Phase 1 (deterministic work left):** code sides for about 13 of the 42 ai points from data we already collect (TRK-15, RISK-01, SPEED-08, RISK-08, PDP-03, NAV-12, OFFER-10, HOME-04, HOME-09, OFFER-11, TRUST-21, PATH-10, COL-01); collect the data behind the 12 "our visit didn't collect it" unchecked points; Arabic sentences per code rule (today the code's English reasons, about 80 per report, are translated by an AI call). Later cleanup: remaining decided↔unchecked swings, one finding for "checkout behind log-in", TRK-17 / TRK-28 gaps, retiring the old list files (they go when the flag becomes the default).
-**Phase 3, cost optimization:** the picture call's cache miss above; send each AI point only its evidence.
 
-**Decided by Adham (24 Nov):** one score. `POINTS_PIPELINE=on` doesn't go on staging for now.
-Unchecked points don't cap the score. The report shows coverage under it ("Based on 125 of 152 checks", a warning under 80%) and groups the unchecked list by why: blocked by a log-in page, an account not shared, a manual look (commit b0f36d8).
 
 ## Update, 24 Nov morning
 

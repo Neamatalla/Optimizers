@@ -8,7 +8,7 @@ One list of audit points to replace the old 731 (the shared 50 checks, the store
 
 ## What's in it (22 Nov 2026)
 
-- **201 points:** 162 active (code 81, code+ai 39, ai 42) and 39 parked. Every code+ai point has a code rule (`rules/mixed.ts`, `rules/tracking.ts`, LAND-11); points with no sure code side are labelled ai. Parked points keep their reason and don't run. Set `status: "active"` to bring one back.
+- **201 points:** 162 active (code 81, code+ai 50, ai 31) and 39 parked. Every code+ai point has a code rule (`rules/mixed.ts`, `rules/tracking.ts`, LAND-11); points with no sure code side are labelled ai. Parked points keep their reason and don't run. Set `status: "active"` to bring one back.
 - **217 dropped old points**, each with a reason, how many past reports showed it, and whether past reports show the AI guessed a verdict for it.
 - **Every one of the 731 old ids is in exactly one place:** a point's `origin` or the dropped list. `points.test.ts` checks this against the live old lists.
 
