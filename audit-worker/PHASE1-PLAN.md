@@ -17,7 +17,8 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Moved to Phase 2 (not Phase 1's goal):** cost per audit (send each AI point only its evidence), remaining decided↔unchecked swings, one finding for "checkout behind log-in", TRK-17 / TRK-28 rule gaps, GA4 rules handing over names for Arabic templates, retiring the old list files (they still run when the flag is off, so they go when the flag becomes the default).
 
-**Waiting on Adham:** one score or three; whether unchecked points cap the score; when to turn `POINTS_PIPELINE=on` on staging.
+**Decided by Adham (24 Nov):** one score. `POINTS_PIPELINE=on` doesn't go on staging for now.
+**Still open:** how unchecked points show next to the score (no cap, or a cap).
 
 ## Update, 24 Nov morning
 
