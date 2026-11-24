@@ -1,4 +1,4 @@
-import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingAction, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4CampaignRow, Ga4FunnelEvent, Handoff, Opportunity, SiteChecks } from "./types.js";
+import type { ActionOwner, AuditResult, CategoryKey, CategoryResult, FindingAction, FindingSeverity, FudBand, FudFinding, FudPageType, Ga4CampaignRow, Ga4FunnelEvent, Handoff, Opportunity, SiteChecks, CategoryFinding, UncheckedWhy } from "./types.js";
 import { CHECK_GROUP_LABELS, GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST, WEBSITE_CODE_CHECKLIST, type BaseChecklistPoint, type ChecklistPoint as ActionChecklistPoint } from "./checklist.js";
 import { LEGACY_GA4_CHECKLIST, LEGACY_GTM_CHECKLIST, LEGACY_WEBSITE_CHECKLIST, LEGACY_WEBSITE_CODE_CHECKLIST } from "./checklist-legacy.js";
 import { personaChecklistFor, personaOf, personaOfFindings } from "./persona-checklist.js";
@@ -2245,6 +2245,19 @@ function scopeStripHtml(result: AuditResult, buyer: boolean): string {
         </div>`;
 }
 
+// Under the score: how much of the audit it stands on (Adham, 24 Nov: no cap
+// for unchecked points; show coverage, warn under 80%).
+function coverageHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>): string {
+  const unchecked = result.categories.reduce((n, c) => n + c.findings.filter(f => f.status === "unassessed").length, 0);
+  if (!unchecked) return "";
+  const all = counts.total + unchecked;
+  const low = counts.total / all < 0.8;
+  return `<p class="coverage-line${low ? " coverage-line--low" : ""}"><a href="#not-checked">${bi(
+    `Based on ${counts.total} of ${all} checks. ${unchecked} couldn't be checked${low ? ": fewer than 8 in 10 checks ran, so read this score with care" : ""}.`,
+    `مبنية على ${counts.total} من ${all} ${arChecksNoun(all)}. تعذّر فحص ${unchecked}${low ? "، أي أقل من 8 من كل 10، فاقرأ النتيجة بحذر" : ""}.`,
+  )}</a></p>`;
+}
+
 // The small score line: the pass count is a fact here, not the headline
 // (PRODUCT.md anti-reference: no hero score).
 function scoreLineHtml(result: AuditResult, counts: ReturnType<typeof resultCounts>, ar: (n: number, t: number) => string): string {
@@ -2256,7 +2269,7 @@ function scoreLineHtml(result: AuditResult, counts: ReturnType<typeof resultCoun
     .filter(s => s === "pass" || s === "warn" || s === "fail");
   const passed = counts.passed + fud.filter(s => s === "pass").length;
   const total = counts.total + fud.length;
-  return `<p class="score-line"><a href="#checks">${bi(`Passed ${passed} of ${total} checks`, ar(passed, total))}</a></p>`;
+  return `<p class="score-line"><a href="#checks">${bi(`Passed ${passed} of ${total} checks`, ar(passed, total))}</a></p>${coverageHtml(result, counts)}`;
 }
 
 
@@ -2859,6 +2872,7 @@ function buyerHeroHtml(result: AuditResult, counts: ReturnType<typeof resultCoun
           `${counts.passed} of ${counts.total} checks passed${fud.length ? ` · ${fudPassed} of ${fud.length} site rules passed` : ""} ↓`,
           `${counts.passed} من ${counts.total} بند نجحوا${fud.length ? ` · ${fudPassed} من ${fud.length} قواعد الموقع نجحت` : ""} ↓`,
         )}</a></p>
+        ${coverageHtml(result, counts)}
       </section>`;
 }
 
@@ -2952,6 +2966,12 @@ function buyerClarityHtml(result: AuditResult): string {
       </section>`;
 }
 
+const UNCHECKED_GROUPS: Array<{ why: UncheckedWhy; en: string; ar: string; leadEn: string; leadAr: string }> = [
+  { why: "blocked", en: "We couldn't reach the page", ar: "تعذّر علينا الوصول إلى الصفحة", leadEn: "The store put a log-in page in front of these pages, so our visit couldn't see them.", leadAr: "وضع المتجر صفحة تسجيل دخول أمام هذه الصفحات، فلم تستطع زيارتنا رؤيتها." },
+  { why: "account", en: "Connect your accounts to check these", ar: "اربط حساباتك لفحص هذه البنود", leadEn: "These need access to GA4, GTM or Clarity that we didn't have for this audit.", leadAr: "تحتاج هذه البنود إلى صلاحية على GA4 أو GTM أو Clarity لم تكن متاحة لنا في هذا التدقيق." },
+  { why: "manual", en: "Needs a manual look", ar: "تحتاج مراجعة يدوية", leadEn: "Our visit and your data couldn't prove these either way. Each says what was missing.", leadAr: "لم تثبت زيارتنا ولا بياناتك هذه البنود في أي اتجاه. كل بند يذكر ما كان ناقصًا." },
+];
+
 // How the audit works (#3 authority with substance, #51, #52 expectations):
 // sources, what "estimated" means, what we can't see.
 // Every check we couldn't settle this run, with why, in one place (Adham,
@@ -2962,16 +2982,25 @@ function notCheckedHtml(result: AuditResult): string {
   if (!rows.length) return "";
   const role = result.audienceRole ?? "store_owner";
   const titleOf = (id: string) => { const p = pointById(id); return p?.roleCopy[role]?.title ?? p?.title ?? id; };
-  const items = rows.map(f => `
+  const item = (f: CategoryFinding) => `
           <li><b class="i18n-en">${escapeHtml(titleOf(f.checklistId))}</b><b class="i18n-ar" dir="rtl">${escapeHtml(TITLES_AR[f.checklistId] ?? titleOf(f.checklistId))}</b> <code>${escapeHtml(f.checklistId)}</code>
             <p class="i18n-en">${escapeHtml(f.business.summary)}</p>
-            <p class="i18n-ar" dir="rtl">${escapeHtml(f.ar?.business?.summary ?? f.business.summary)}</p></li>`).join("");
+            <p class="i18n-ar" dir="rtl">${escapeHtml(f.ar?.business?.summary ?? f.business.summary)}</p></li>`;
+  // Grouped by why (master-point reports); older reports have one group.
+  const groups = UNCHECKED_GROUPS.map(g => ({ ...g, rows: rows.filter(f => (f.unchecked ?? "manual") === g.why) })).filter(g => g.rows.length);
+  const items = groups.length === 1
+    ? `<ul class="not-checked-list">${groups[0].rows.map(item).join("")}
+        </ul>`
+    : groups.map(g => `
+        <h3 class="not-checked-group">${bi(`${g.en} (${g.rows.length})`, `${g.ar} (${g.rows.length})`)}</h3>
+        <p class="section-lead">${bi(g.leadEn, g.leadAr)}</p>
+        <ul class="not-checked-list">${g.rows.map(item).join("")}
+        </ul>`).join("");
   return `
       <section class="doc-section" id="not-checked">
         <h2>${bi(`What we couldn't check, and why (${rows.length})`, `اللي ما قدرناش نفحصه، وليه (${rows.length})`)}</h2>
         <p class="section-lead">${bi("We only pass or fail a check when our visit or your data shows it. These need a manual look: each says what was missing.", "إحنا بنحكم على البند بس لما زيارتنا أو بياناتك توضّحه. دول محتاجين نظرة يدوية: كل واحد مكتوب جنبه إيه اللي كان ناقص.")}</p>
-        <ul class="not-checked-list">${items}
-        </ul>
+        ${items}
       </section>`;
 }
 
@@ -5264,6 +5293,10 @@ html.dw-open{overflow:hidden}
 .scope-h{font-size:13px; font-weight:600; color:var(--ink)}
 .score-line,.status-line{display:flex; flex-wrap:wrap; gap:6px 10px; margin-top:16px; font-size:14px; color:var(--ink-3)}
 .score-line a{color:var(--ink-2)}
+.coverage-line{margin-top:4px; font-size:13px; color:var(--ink-3)}
+.coverage-line a{color:inherit}
+.coverage-line--low{color:var(--amber-ink); font-weight:600}
+.not-checked-group{margin:28px 0 0; font-size:17px}
 .status-line span[aria-hidden]{color:var(--line-strong)}
 .q-cols{display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:8px}
 .q-col .hero-h2{margin-top:28px}

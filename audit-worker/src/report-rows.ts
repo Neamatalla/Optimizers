@@ -1,4 +1,4 @@
-import type { AuditResult, CategoryFinding, CategoryKey, CategoryResult, FudFinding, FudResult, JobProgress, AuditRequestRow } from "./types.js";
+import type { AuditResult, CategoryFinding, CategoryKey, CategoryResult, FudFinding, FudResult, JobProgress, AuditRequestRow, UncheckedWhy } from "./types.js";
 import { audienceRoleOf } from "./audience.js";
 import { computeOverallPoints } from "./scoring.js";
 import { frictionScore, sortFindings } from "./fud/score.js";
@@ -71,7 +71,9 @@ export interface FindingRow {
   action: CategoryFinding["action"] | null;
   protect: string | null;
   criteria: string | null;
-  details: FrictionDetails | null;
+  // Friction rows: the rule's extra fields. Check rows: why an unassessed
+  // point couldn't be checked ({ unchecked }), else null.
+  details: FrictionDetails | { unchecked: UncheckedWhy } | null;
 }
 
 export function toRows(result: AuditResult): { report: ReportRow; findings: FindingRow[] } {
@@ -127,7 +129,7 @@ function checkRows(categories: CategoryResult[]): FindingRow[] {
         action: f.action ?? null,
         protect: f.protect ?? null,
         criteria: f.criteria ?? null,
-        details: null,
+        details: f.unchecked ? { unchecked: f.unchecked } : null,
       });
     }
   }
@@ -226,6 +228,7 @@ function checkFinding(r: FindingRow): CategoryFinding {
   } as CategoryFinding;
   if (r.ar) f.ar = r.ar as CategoryFinding["ar"];
   if (r.criteria !== null) f.criteria = r.criteria;
+  if (r.details && "unchecked" in r.details) f.unchecked = (r.details as { unchecked: UncheckedWhy }).unchecked;
   if (r.opportunity) f.opportunity = r.opportunity as CategoryFinding["opportunity"];
   if (r.action) f.action = r.action;
   if (r.protect !== null) f.protect = r.protect;

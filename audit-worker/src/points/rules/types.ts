@@ -30,6 +30,8 @@ export interface RuleResult {
   // Who settled it in the audit (points/pipeline.ts): the code rule, or the
   // AI (its own points, or a code point the rule couldn't settle).
   decidedBy?: "code" | "ai";
+  // Unverified only: why, for the report's grouping (points/pipeline.ts).
+  unchecked?: import("../../types.js").UncheckedWhy;
 }
 
 // Everything a rule may read. All optional: each rule handles what's missing.

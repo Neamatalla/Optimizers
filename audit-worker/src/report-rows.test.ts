@@ -113,3 +113,12 @@ test("rows saved before category_tallies existed still count from the rows", () 
   const back = fromRows(request, { ...report, category_tallies: null }, findings);
   assert.deepEqual(back.categories, result.categories);
 });
+
+test("an unassessed check keeps why it wasn't checked through the rows", () => {
+  const f: CategoryFinding = { ...check("PATH-12", "pass"), status: "unassessed", unchecked: "blocked" };
+  delete f.protect;
+  const r: AuditResult = { ...result, categories: [{ category: "Website", score: 0, checklistTally: { total: 1, evaluated: 0, passed: 0 }, findings: [f] }], overallScore: 0, possiblePoints: 0, fud: null };
+  const { report, findings } = toRows(r);
+  assert.deepEqual(findings[0].details, { unchecked: "blocked" });
+  assert.equal(fromRows(request, report, findings).categories[0].findings[0].unchecked, "blocked");
+});

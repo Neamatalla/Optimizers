@@ -1,7 +1,7 @@
 import type { AudienceRole } from "../audience.js";
 import type { StoreEvidence } from "../fud/evidence.js";
 import type { PageSpeedResult } from "../pagespeed.js";
-import type { CategoryFinding, CategoryKey, CategoryResult, Ga4Facts, SiteChecks } from "../types.js";
+import type { CategoryFinding, CategoryKey, CategoryResult, Ga4Facts, SiteChecks, UncheckedWhy } from "../types.js";
 import { activePoints, pointById } from "./index.js";
 import type { AuditPoint, PointCategory } from "./types.js";
 import { runNetChecks, sameSite, type NetChecks } from "./net-checks.js";
@@ -127,12 +127,25 @@ export async function runPoints(input: PointsInput): Promise<{ results: Record<s
       browsed++;
     }
   }
+  for (const p of points) {
+    const r = results[p.id];
+    if (r.status === "unverified") r.unchecked = uncheckedWhy(p, r, { blocked: isBlocked(p), ga4: Boolean(input.ga4), gtm: Boolean(input.gtm), clarity: Boolean(input.clarity) });
+  }
   // Arabic for the English-only sentences (code rules, unchecked reasons).
   const arabic = await translateReasons(results, input.id);
   const count = (s: string) => Object.values(results).filter(r => r.status === s).length;
   const byCode = points.filter(p => results[p.id].decidedBy === "code").length;
   console.log(`[audit-worker] Points: ${points.length} for this reader. Decided by code ${byCode}; sent to the AI ${toJudge.length}; browser step tried ${Math.min(open.length, BROWSER_MAX_POINTS)} of ${open.length} open and settled ${browsed}; Arabic added for ${arabic}. Result: ${count("pass")} pass, ${count("fail")} fail, ${count("unverified")} unverified, ${count("n/a")} n/a`);
   return { results, net };
+}
+
+const LOGIN_WALL = /log-?in page|behind a log-?in|sign-?in page/i;
+
+/** Why an unverified point couldn't be checked: the store blocked us, an account wasn't shared, or it needs a person to look. */
+export function uncheckedWhy(p: AuditPoint, r: RuleResult, have: { blocked: boolean; ga4: boolean; gtm: boolean; clarity: boolean }): UncheckedWhy {
+  if (have.blocked || r.facts?.blockedBy === "login" || LOGIN_WALL.test(`${r.reason} ${r.observation?.en ?? ""}`)) return "blocked";
+  if ((p.needs.includes("ga4") && !have.ga4) || (p.needs.includes("gtm") && !have.gtm) || (p.needs.includes("clarity") && !have.clarity)) return "account";
+  return "manual";
 }
 
 // Report tab per point: GA4 and GTM tracking points sit with their tool,
@@ -176,6 +189,7 @@ export function pointsToCategories(results: Record<string, RuleResult>, role: Au
         ...(ar.protect && { protect: ar.protect }),
       },
     };
+    if (status === "unassessed" && r.unchecked) f.unchecked = r.unchecked;
     if (status === "fail" && en.step) f.action = { step: en.step, doneWhen: en.doneWhen ?? "", owners: p.owners ?? [] };
     if (status === "pass" && en.protect) f.protect = en.protect;
     const tab = tabOf(p);

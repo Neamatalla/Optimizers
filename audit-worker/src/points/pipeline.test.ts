@@ -160,3 +160,15 @@ test("quote check: a pass quoting text the evidence doesn't have becomes unverif
   assert.equal(r.B.status, "fail", "diacritics ignored");
   assert.equal(r.C.status, "unverified");
 });
+
+test("unchecked points say why: blocked by a log-in page, an account not shared, or a manual look", async () => {
+  const { uncheckedWhy } = await import("./pipeline.js");
+  const none = { blocked: false, ga4: true, gtm: true, clarity: true };
+  const u = (reason: string) => ({ status: "unverified" as const, reason });
+  assert.equal(uncheckedWhy(byId("PATH-12")!, u("x"), { ...none, blocked: true }), "blocked");
+  assert.equal(uncheckedWhy(byId("RISK-02")!, u("Every page is https, but checkout sat behind a log-in page."), none), "blocked");
+  assert.equal(uncheckedWhy(byId("LAND-05")!, u("Clarity isn't connected."), { ...none, clarity: false }), "account");
+  assert.equal(uncheckedWhy(byId("PDP-03")!, u("Can't tell from the gallery."), none), "manual");
+  const cats = pointsToCategories({ "PDP-03": { ...u("Can't tell."), unchecked: "manual" } }, "store_owner");
+  assert.equal(cats[0].findings[0].unchecked, "manual");
+});

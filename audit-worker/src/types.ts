@@ -209,7 +209,15 @@ export interface CategoryFinding {
   opportunity?: Opportunity;
   action?: FindingAction;
   protect?: string;
+  // Unassessed points only (master-point reports): why it couldn't be
+  // checked, so the report can group them. Absent on older results.
+  unchecked?: UncheckedWhy;
 }
+
+// "blocked": the store kept our visit out (a log-in page in front of checkout).
+// "account": the point needs GA4, GTM or Clarity access we didn't have.
+// "manual": our visit or data couldn't prove it either way.
+export type UncheckedWhy = "blocked" | "account" | "manual";
 
 // The four ways a point pays: more sales from current traffic, money that
 // is leaking now, a risk avoided, or a non-revenue benefit.
