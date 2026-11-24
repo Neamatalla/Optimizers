@@ -2,46 +2,6 @@ import type { PointTemplate } from "./types.js";
 
 // Frames for AI-judged points: fixed text, the AI's finding in {observation} (types.ts).
 export const FRAMES_LANDING: Record<string, PointTemplate> = {
-  // Top-3 paid campaigns (50+ sessions): landing page add-to-cart rate >= 70% of the paid average. Media buyer only.
-  "LAND-01": {
-    en: {
-      default: {
-        pass: {
-          technical: { summary: "{observation}", detail: "For each of the top 3 paid campaigns with 50+ sessions in GA4, the add-to-cart rate of its main landing page against the add-to-cart rate of all paid sessions. Each reaches at least 70% of the paid average." },
-          business: { summary: "The top paid campaigns land on pages that turn visits into add to carts.", detail: "Paid clicks reach pages that convert close to the rest of the paid traffic, so the spend gets a fair chance to sell." },
-          protect: "Re-check the landing page's add-to-cart rate in GA4 whenever a campaign gets a new destination URL or the page is redesigned.",
-        },
-        fail: {
-          technical: { summary: "{observation}", detail: "For each of the top 3 paid campaigns with 50+ sessions in GA4, the add-to-cart rate of its main landing page against the add-to-cart rate of all paid sessions. At least one campaign lands on a page under 70% of that average." },
-          business: { summary: "At least one top paid campaign lands on a page that turns few visits into add to carts.", detail: "Its clicks cost the same as the rest but convert below the paid average. Common causes are a page that doesn't show the product or offer from the ad, or a general page used for an ad about one product." },
-          step: "Point each weak campaign at the product or collection page it advertises. If it has to keep the same page, ask the store owner to put that product or offer and a clear headline on the page's first screen.",
-          doneWhen: "In GA4 over 14 days, each top paid campaign's main landing page has an add-to-cart rate of at least 70% of the paid average.",
-        },
-      },
-      media_buyer: {
-        fail: { business: { summary: "A top campaign sends paid clicks to a page that converts well under the paid average, so CVR is lower and CAC higher than the traffic deserves.", detail: "The same spend buys fewer add to carts, so that campaign's ROAS drops and the platform gets fewer conversion events to learn from. Change the destination URL to the product or collection the ad sells; changes to the page itself go to the store owner." } },
-      },
-    },
-    ar: {
-      default: {
-        pass: {
-          technical: { summary: "{observation}", detail: "لكل حملة من أعلى 3 حملات مدفوعة لديها 50 جلسة أو أكثر في GA4، قورن معدل الإضافة للسلة في صفحة الهبوط الرئيسية بمعدل الإضافة للسلة لكل الجلسات المدفوعة. كل حملة تبلغ 70% على الأقل من المتوسط المدفوع." },
-          business: { summary: "أهم الحملات المدفوعة تصل إلى صفحات تحوّل الزيارات إلى إضافات للسلة.", detail: "النقرات المدفوعة تصل إلى صفحات تحقق نتائج قريبة من بقية الزيارات المدفوعة، فيحصل الإنفاق على فرصة عادلة للبيع." },
-          protect: "أعد فحص معدل الإضافة للسلة لصفحة الهبوط في GA4 كلما تغيّر رابط وجهة حملة أو أُعيد تصميم الصفحة.",
-        },
-        fail: {
-          technical: { summary: "{observation}", detail: "لكل حملة من أعلى 3 حملات مدفوعة لديها 50 جلسة أو أكثر في GA4، قورن معدل الإضافة للسلة في صفحة الهبوط الرئيسية بمعدل كل الجلسات المدفوعة. حملة واحدة على الأقل تصل إلى صفحة أقل من 70% من هذا المتوسط." },
-          business: { summary: "حملة مدفوعة رئيسية واحدة على الأقل تصل إلى صفحة يضيف فيها قليل من الزوار إلى السلة.", detail: "نقراتها تكلف مثل غيرها لكنها تحقق أقل من المتوسط المدفوع. من الأسباب الشائعة صفحة لا تعرض المنتج أو العرض الذي ذكره الإعلان، أو صفحة عامة لإعلان عن منتج واحد." },
-          step: "وجّه كل حملة ضعيفة إلى صفحة المنتج أو المجموعة التي تعلن عنها. وإن لزم بقاء الصفحة نفسها، اطلب من صاحب المتجر وضع ذلك المنتج أو العرض وعنوان واضح في الشاشة الأولى من الصفحة.",
-          doneWhen: "في GA4 خلال 14 يومًا، معدل الإضافة للسلة في صفحة الهبوط الرئيسية لكل حملة مدفوعة رئيسية يبلغ 70% على الأقل من المتوسط المدفوع.",
-        },
-      },
-      media_buyer: {
-        fail: { business: { summary: "حملة من أهم الحملات بتودّي الكليكات المدفوعة لصفحة بتحوّل أقل بكتير من متوسط الـ paid، فالـ CVR أقل والـ CAC أعلى من اللي الترافيك يستاهله.", detail: "نفس الصرف بيجيب add to cart أقل، فالـ ROAS بتاع الحملة دي بينزل والمنصة بتاخد conversion events أقل تتعلم منها. غيّر الـ destination URL لصفحة المنتج أو الـ collection اللي الإعلان بيبيعها، وأي تعديل في الصفحة نفسها يروح لصاحب المتجر." } },
-      },
-    },
-  },
-
   // No main menu, at most 2 header links, one main offer, every main button leads to the same action.
   "LAND-03": {
     en: {

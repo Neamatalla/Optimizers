@@ -754,7 +754,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Consent setup not hiding Gulf visitors",
     "rule": "The GTM consent defaults are region-specific, or none deny ad_storage and analytics_storage for GCC countries (SA, AE, KW, QA, BH, OM).",
     "severity": "critical",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -2631,7 +2631,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Express pay buttons offered",
     "rule": "Apple Pay, Google Pay, Shop Pay or PayPal buttons show in the cart or at the top of the first checkout screen, where the platform supports them.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "cart",
       "checkout"
@@ -2709,7 +2709,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Order summary visible on checkout",
     "rule": "The first checkout screen shows items, quantities, discounts, shipping and total, or one tap expands them on phone.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "checkout"
     ],
@@ -2734,7 +2734,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Cart lines show item details",
     "rule": "Each cart line shows image, name, chosen variant and price (with old price if on sale).",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "cart"
     ],
@@ -2811,7 +2811,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Drawer header shows 'Your cart (N items)' and an obvious close (×); on mobile it covers the full width",
     "rule": "Count + close visible; full width.",
     "severity": "critical",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product",
       "cart"
@@ -2838,7 +2838,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Leftover scripts from removed apps",
     "rule": "No scripts from apps that no longer do anything.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home",
       "collection",
@@ -2972,7 +2972,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Product has enough distinct, sharp photos",
     "rule": "Gallery has 4 or more distinct image URLs, at least one showing the product in use or a close detail, each with natural width at least 1.5x displayed width.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -3337,7 +3337,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Details split into labelled sections or tabs",
     "rule": "Description, details and shipping sit in labelled tabs or accordions, not one long text block, covering the main buying questions.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -3370,7 +3370,7 @@ export const POINTS: AuditPoint[] = [
     "title": "What is included is stated",
     "rule": "For bundles and sets, a list or line names every item in the package. Not applicable for single items.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -3547,7 +3547,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Search finds the right product",
     "rule": "A search field or icon is visible in the header on phone and desktop, and searching a real product's exact name returns it in the top 3 results.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -3902,7 +3902,7 @@ export const POINTS: AuditPoint[] = [
     "title": "First screen says what you sell",
     "rule": "On a 390x844 phone, the first screen has an H1, a product image or hero, one primary CTA, and the H1 or image makes clear what is sold.",
     "severity": "critical",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home"
     ],
@@ -3991,7 +3991,7 @@ export const POINTS: AuditPoint[] = [
     "title": "One clear primary hero button",
     "rule": "First screen has one solid, high-contrast, large primary button; other buttons are visibly secondary.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home"
     ],
@@ -4083,7 +4083,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Benefits listed near the top",
     "rule": "Home has a section under a benefit heading with 3 or more items, each with an icon or image and short text, within the first 2 phone screens.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home"
     ],
@@ -4141,7 +4141,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Announcement bar with a concrete reason",
     "rule": "A bar above the header on all pages states a concrete current reason: free-shipping threshold, active sale, delivery promise or guarantee.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home",
       "sitewide"
@@ -4257,7 +4257,7 @@ export const POINTS: AuditPoint[] = [
     "title": "The value proposition says why THIS brand is different (unique mechanism, origin, quality proof, guarantee)",
     "rule": "No — it is specific to this brand.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home"
     ],
@@ -4365,7 +4365,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Menu opens fast and links work",
     "rule": "The phone menu opens on first tap and lists main categories first.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -4661,7 +4661,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Language switch and prices in the right currency",
     "rule": "A language switch (Arabic/English) is easy to find on the phone, and prices show in the store currency (for example SAR) the same way on product, cart and collection; if a currency switch exists it works.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -4796,7 +4796,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Reviews look real",
     "rule": "Reviews come from a review app, are dated, include some customer photos, and not every review is 5 stars.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -5013,7 +5013,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Reviews show text, names, dates and breakdown",
     "rule": "Reviews section shows total count, star breakdown, sort or filter, and individual reviews with text, name and date.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -5123,7 +5123,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Customer photos and videos shown",
     "rule": "At least 3 real customer photos or videos show on product pages, with some on home.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home",
       "product"
@@ -5220,7 +5220,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Press, certification or partner logos",
     "rule": "Home page shows at least one recognised press, certification or partner logo (image alt or text) above the footer.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home"
     ],
@@ -5303,7 +5303,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Price clear with local currency and variant updates",
     "rule": "Price sits next to the title in local currency ('From X' when variants differ) and updates when the variant changes.",
     "severity": "critical",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -5635,7 +5635,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Offers match across site and cart",
     "rule": "The offer and free-shipping amount in the cart equal those in the announcement bar.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home",
       "cart",
@@ -5666,7 +5666,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Bundle or multi-buy saving is quantified",
     "rule": "A bundle or quantity offer sits next to the price or button and states the exact saving (amount or %), not only 2x1.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -5700,7 +5700,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Add-ons suggested, one tap to add",
     "rule": "The product page or cart suggests 2-3 relevant add-ons, each with image, price and a one-tap Add button.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product",
       "cart"
@@ -5770,7 +5770,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Only one offer message at a time",
     "rule": "On the product page one offer message is visible; promo bar, floating discount tab and pop-up do not compete.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "product"
     ],
@@ -6144,7 +6144,8 @@ export const POINTS: AuditPoint[] = [
     "roles": [
       "media_buyer"
     ],
-    "status": "active",
+    "status": "parked",
+    "parkedReason": "Needs a GA4 report of add-to-cart rate by campaign and landing page, which is not pulled yet; until it is, nothing can decide it without guessing. Paid landing pages that do not convert stay covered by TRK-21 and LAND-02.",
     "roleCopy": {
       "media_buyer": {
         "title": "Top paid campaigns: landing page conversion and what the page offers",
@@ -6373,7 +6374,7 @@ export const POINTS: AuditPoint[] = [
     "title": "CTA repeats down the page",
     "rule": "On a landing page longer than 4 phone screens, the main CTA appears at least 4 times, including after the hero and at the close.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "landing"
     ],
@@ -6894,7 +6895,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Heavy tags on every page",
     "rule": "Only core tags fire on All Pages.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "home"
     ],
@@ -7259,7 +7260,7 @@ export const POINTS: AuditPoint[] = [
     "title": "No customer emails or phones sent to trackers",
     "rule": "No email or phone number appears in page URLs, GA4 page paths, query strings of pixel or GA4 hits, or as plain text in any GTM tag parameter.",
     "severity": "critical",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -7353,7 +7354,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Consent banner choice is respected",
     "rule": "Where a banner shows: the consent default fires on Consent Initialization; after refusing, no ad pixel hits are sent; after accepting, consent signals are granted. If we cannot click the buttons, that part is unassessed.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -7559,7 +7560,7 @@ export const POINTS: AuditPoint[] = [
     "title": "No broken images or empty gaps",
     "rule": "After scrolling each audited page, no visible image has naturalWidth 0 and no empty block over 600px tall.",
     "severity": "medium",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],
@@ -7650,7 +7651,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Text readable on phone",
     "rule": "Body text is at least 16px on phone and its contrast meets 4.5:1.",
     "severity": "low",
-    "decidedBy": "code+ai",
+    "decidedBy": "ai",
     "pages": [
       "sitewide"
     ],

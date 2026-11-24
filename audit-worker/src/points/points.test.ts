@@ -4,7 +4,7 @@ import { GA4_CHECKLIST, GTM_CHECKLIST, WEBSITE_CHECKLIST } from "../checklist.js
 import { PERSONA_CHECKLISTS } from "../checklist-persona-data.js";
 import { FUD_RULES } from "../fud/rules.js";
 import { MANUAL_CHECKPOINTS } from "../fud/manual-checklist-data.js";
-import { QUESTION_FUD_IDS, QUESTION_IDS } from "../reader-questions.js";
+import { QUESTION_FUD_IDS, QUESTION_IDS, READER_QUESTIONS } from "../reader-questions.js";
 import { AUDIENCE_ROLES } from "../audience.js";
 import { DROPPED, POINTS, activePoints, droppedOldId, pointById, pointForOldId } from "./index.js";
 
@@ -84,5 +84,17 @@ test("lookups: old id to master point, dropped reason, active points per role", 
 test("every old id the reader questions point to still resolves", () => {
   for (const id of [...QUESTION_IDS, ...QUESTION_FUD_IDS]) {
     assert.ok(pointForOldId(id) || droppedOldId(id), `${id} resolves`);
+  }
+});
+
+// Dropped ids in a question (GA4-01, GTM-14, W-06, W-33, W-34, W-35) were cut
+// on purpose; the question stays answerable through its other points.
+test("every reader question keeps at least one active master point", () => {
+  for (const [role, qs] of Object.entries(READER_QUESTIONS)) {
+    for (const q of qs) {
+      const ids = [...q.points, ...(q.fud ?? [])];
+      if (!ids.length) continue;
+      assert.ok(ids.some(id => pointForOldId(id)?.status === "active"), `${role} "${q.id}" has a live point`);
+    }
   }
 });
