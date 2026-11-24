@@ -4,7 +4,22 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 **Goal:** one master point list (`src/points/`) with one rule per point and role labels. Code decides every point it can decide with certainty. The AI writes only where judgement is needed. The report keeps its current structure: only the changes the new list forces.
 
-## Update, 24 Nov morning — read this first
+## Update, 24 Nov evening — Phase 1 closed (read this first)
+
+**Phase 1's goal is met:** every active point has one owner. Code decides every side it can prove (81 code points, plus a code rule for all 39 code+ai points); the AI decides only the rest.
+- **`rules/mixed.ts`:** 31 new rules for the code+ai page points. Each settles only what the visit proves, mostly the pass (the words are there, next to the button) or n/a (no options, no Arabic pages). A few clear fails: Arabic page laid out left-to-right (NAV-08), open discount field in the cart (OFFER-17, per its guide), main menu on the landing page (LAND-03), "Submit"-style landing buttons (LAND-09), currency not in 3 capitals (TRK-44), staging/dev hostname in GA4 (TRK-26). A missing match is never a fail: it goes to the AI with what the code saw.
+- **Relabelled ai:** 32 points with no sure code side (e.g. HOME-01 "says what you sell", TRUST-03 "reviews look real", PDP-03 photo quality, PATH-10 express pay that loads in frames). Counts now: 162 active = code 81, code+ai 39, ai 42.
+- **LAND-01 parked:** it needs add-to-cart by campaign and landing page, which GA4 isn't asked for. Nothing could decide it without guessing. TRK-21 and LAND-02 still cover paid landing pages.
+- **Reader questions:** no remap needed. The dropped ids in them (GA4-01, GTM-14, W-06, W-33, W-34, W-35) were cut on purpose; each question keeps 2-18 live points. A test now guards that.
+- **Checked against Regal's saved visit** (run 34 evidence, no AI cost): every code pass quotes the text that proves it. Three wrong passes found and fixed before commit: a secure-payment badge counted as a guarantee, "quick view" counted as quick add, "متابعة الطلب" not read as checkout wording.
+- **Regal runs 35 and 36 (live):** code decides 83-85 points (was 72-74), the AI judges 69-71 (was 81-83). **0 pass↔fail flips** against run 34 and between 35 and 36; only 5 points changed between 35 and 36 (was about 13 per pair), all decided↔unchecked. Result: 75 pass, 50 fail, 27 unchecked, 7 n/a (run 34: 72 / 47 / 34 / 7).
+- **Cost went up, not down: about $0.67 per audit (run 34: about $0.53).** The text call is the same ($0.29), but the picture call stopped reading the text call's cached evidence: it writes about 100K tokens again instead of about 40K ($0.32 vs $0.17), on both runs. The shared prefix (`buildSharedPrompt`) and the call timing look unchanged; the cause isn't found yet. First item for Phase 2.
+
+**Moved to Phase 2 (not Phase 1's goal):** cost per audit (send each AI point only its evidence), remaining decided↔unchecked swings, one finding for "checkout behind log-in", TRK-17 / TRK-28 rule gaps, GA4 rules handing over names for Arabic templates, retiring the old list files (they still run when the flag is off, so they go when the flag becomes the default).
+
+**Waiting on Adham:** one score or three; whether unchecked points cap the score; when to turn `POINTS_PIPELINE=on` on staging.
+
+## Update, 24 Nov morning
 
 - **Probes on with the new audit:** `POINTS_PIPELINE=on` turns on the extra visit probes (TRK-19, TRK-23, TRK-31, TRK-32, PATH-15, PDP-12) unless `COLLECT_PROBES=off`. Visit budget 360 s. On Regal they settled TRK-23, TRK-31 and TRK-32 when they got time.
 - **Probes run last, on the time left.** When Regal is slow (it is at random: one landing page took 200 s, the desktop step hung), they get skipped and their points stay unchecked with that reason. Each landing page is now capped at 45 s and desktop at 70 s, so one slow page can't take all their time.
@@ -104,11 +119,11 @@ Target after 1–2: about $0.25–0.35 per audit, steadier verdicts, far fewer "
 
 1. **Finish the list.** Done 22 Nov: 201 points (163 active, 38 parked), 217 old points dropped with reasons.
 2. **Registry in code, no behaviour change.** Done 22 Nov: `src/points/` plus `points.test.ts`, which checks that every old id maps once.
-3. **Code rules.** Done 22 Nov for the 81 `code` points. **Not done: the code part of the 72 `code+ai` points** (next step 1 above). Thresholds are first drafts.
+3. **Code rules.** Done 22 Nov for the 81 `code` points; done 24 Nov for all 39 `code+ai` points (the other 33 relabelled ai or parked). Thresholds are first drafts.
 4. **Templates.** Done 23 Nov: all 163 active points have English and Arabic text (code points with slots; AI points with an `{observation}` slot).
 5. **New results behind a flag.** Built 23 Nov (`POINTS_PIPELINE=on`), local only. Not compared on saved reports yet; no migration was needed.
 6. **Wire the report.** Built 23 Nov: the report recognises master ids. The separate friction and checklist sections don't show in a master-point report (their points are inside the Website tab).
-7. **Retire the old list files** once everything in them lives in the registry (role data is already carried in `roleCopy`).
+7. **Retire the old list files** once everything in them lives in the registry (role data is already carried in `roleCopy`). Moved to Phase 2: they still run while the flag is off.
 
 ## Open, not decided here
 
