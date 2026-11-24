@@ -431,6 +431,30 @@ export const FACTS_JS = String.raw`
     });
   });
 
+  // Body text (RISK-11): paragraphs of 40+ characters outside header, nav and
+  // footer. Median font size, and the first one's colour on the first solid
+  // background behind it (null when an image or gradient sits behind it).
+  var bodySizes = [], bodyColor = null;
+  document.querySelectorAll("main p, main li, article p, p").forEach(function (el) {
+    if (bodySizes.length >= 40 || el.closest("header, nav, footer, [role=banner], [role=contentinfo]")) return;
+    var t = (el.innerText || "").replace(/\s+/g, " ").trim();
+    var r = el.getBoundingClientRect();
+    if (t.length < 40 || r.width < 120 || r.height < 10) return;
+    var cs = getComputedStyle(el);
+    bodySizes.push(parseFloat(cs.fontSize) || 0);
+    if (bodyColor) return;
+    var bgEl = el, bg = null, complex = false;
+    while (bgEl && bgEl.nodeType === 1) {
+      var bcs = getComputedStyle(bgEl);
+      if (bcs.backgroundImage && bcs.backgroundImage !== "none") { complex = true; break; }
+      if (bcs.backgroundColor && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/.test(bcs.backgroundColor)) { bg = bcs.backgroundColor; break; }
+      bgEl = bgEl.parentElement;
+    }
+    bodyColor = { fg: cs.color, bg: complex ? "" : (bg || "rgb(255, 255, 255)"), bgComplex: complex, text: t.slice(0, 60) };
+  });
+  bodySizes.sort(function (a, b) { return a - b; });
+  var bodyText = bodySizes.length ? { fs: bodySizes[Math.floor(bodySizes.length / 2)], n: bodySizes.length, color: bodyColor } : null;
+
   return {
     inputs: inputs,
     header: { found: !!hdr, cart: hdrCart, menu: hdrMenu, search: hdrSearch },
@@ -462,5 +486,6 @@ export const FACTS_JS = String.raw`
     heroButtons: heroButtons.slice(0, 6),
     hero: hero ? { kind: hero.tagName.toLowerCase(), src: heroSrc.slice(0, 200), alt: (hero.getAttribute && hero.getAttribute("alt") || "").slice(0, 120), coverPct: Math.round((heroArea / (vw * vh)) * 100) } : null,
     capture: { email: emailCapture, phone: phoneCapture, account: account },
+    bodyText: bodyText,
   };
 })()`;

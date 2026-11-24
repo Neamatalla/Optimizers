@@ -118,9 +118,9 @@ const land11: Rule = ({ evidence: e }) => {
   if (!l.cta) return unverified(`No buy button or form was found on ${l.url}.`);
   const top = l.cta.box.y, bottom = l.cta.box.y + l.cta.box.h;
   const facts = { url: l.url, buttonTop: top, buttonBottom: bottom, sticky: l.sticky ?? "not checked" };
-  if (bottom <= PHONE_HEIGHT) return { status: "pass", reason: `The buy button sits ${top}px down on ${l.url}, inside the first 844px phone screen.`, facts };
-  if (l.sticky) return { status: "pass", reason: `On ${l.url} a «${l.sticky}» buy bar follows the shopper, so buying needs no scrolling.`, facts };
-  if (l.sticky === null && top >= 2 * PHONE_HEIGHT) return { status: "fail", reason: `On ${l.url} the buy button starts ${top}px down, past the second phone screen, and no buy bar follows the shopper.`, facts };
+  if (bottom <= PHONE_HEIGHT) return { observation: { ar: `زر الشراء على بعد ${top}px من الأعلى في صفحة الهبوط، ضمن أول شاشة في الجوال.` }, status: "pass", reason: `The buy button sits ${top}px down on ${l.url}, inside the first 844px phone screen.`, facts };
+  if (l.sticky) return { observation: { ar: `في صفحة الهبوط شريط شراء «${l.sticky}» يتبع المتسوق، فلا يحتاج إلى التمرير للشراء.` }, status: "pass", reason: `On ${l.url} a «${l.sticky}» buy bar follows the shopper, so buying needs no scrolling.`, facts };
+  if (l.sticky === null && top >= 2 * PHONE_HEIGHT) return { observation: { ar: `في صفحة الهبوط يبدأ زر الشراء على بعد ${top}px، بعد الشاشة الثانية على الجوال، ولا يوجد شريط شراء يتبع المتسوق.` }, status: "fail", reason: `On ${l.url} the buy button starts ${top}px down, past the second phone screen, and no buy bar follows the shopper.`, facts };
   return unverified(`On ${l.url} the buy button starts ${top}px down, on the second phone screen${l.sticky === null ? "" : "; whether a buy bar follows wasn't checked"}.`, facts);
 };
 

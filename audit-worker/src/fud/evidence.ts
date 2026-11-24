@@ -219,6 +219,10 @@ export interface PageFacts {
   // when the list was cut.
   images?: PageImage[];
   imagesTotal?: number;
+  // Body paragraphs (40+ characters, outside header/nav/footer): median font
+  // size in px, how many were read, and the first one's colours. Null when
+  // none was found; absent on older evidence.
+  bodyText?: { fs: number; n: number; color: { fg: string; bg: string; bgComplex: boolean; text: string } | null } | null;
 }
 
 export interface FactInput {

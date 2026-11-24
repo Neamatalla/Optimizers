@@ -754,7 +754,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Consent setup not hiding Gulf visitors",
     "rule": "The GTM consent defaults are region-specific, or none deny ad_storage and analytics_storage for GCC countries (SA, AE, KW, QA, BH, OM).",
     "severity": "critical",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "sitewide"
     ],
@@ -2631,7 +2631,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Express pay buttons offered",
     "rule": "Apple Pay, Google Pay, Shop Pay or PayPal buttons show in the cart or at the top of the first checkout screen, where the platform supports them.",
     "severity": "medium",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "cart",
       "checkout"
@@ -4141,7 +4141,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Announcement bar with a concrete reason",
     "rule": "A bar above the header on all pages states a concrete current reason: free-shipping threshold, active sale, delivery promise or guarantee.",
     "severity": "low",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "home",
       "sitewide"
@@ -4661,7 +4661,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Language switch and prices in the right currency",
     "rule": "A language switch (Arabic/English) is easy to find on the phone, and prices show in the store currency (for example SAR) the same way on product, cart and collection; if a currency switch exists it works.",
     "severity": "medium",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "sitewide"
     ],
@@ -5220,7 +5220,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Press, certification or partner logos",
     "rule": "Home page shows at least one recognised press, certification or partner logo (image alt or text) above the footer.",
     "severity": "low",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "home"
     ],
@@ -5635,7 +5635,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Offers match across site and cart",
     "rule": "The offer and free-shipping amount in the cart equal those in the announcement bar.",
     "severity": "medium",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "home",
       "cart",
@@ -5666,7 +5666,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Bundle or multi-buy saving is quantified",
     "rule": "A bundle or quantity offer sits next to the price or button and states the exact saving (amount or %), not only 2x1.",
     "severity": "medium",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "product"
     ],
@@ -6072,7 +6072,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Delivery details: specific timing ('Order in 3h → delivered Thursday'), estimated duration, and free-shipping threshold BELOW the delivery time",
     "rule": "Delivery estimate + shipping cost/free threshold.",
     "severity": "low",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "product",
       "collection"
@@ -6895,7 +6895,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Heavy tags on every page",
     "rule": "Only core tags fire on All Pages.",
     "severity": "medium",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "home"
     ],
@@ -7260,7 +7260,7 @@ export const POINTS: AuditPoint[] = [
     "title": "No customer emails or phones sent to trackers",
     "rule": "No email or phone number appears in page URLs, GA4 page paths, query strings of pixel or GA4 hits, or as plain text in any GTM tag parameter.",
     "severity": "critical",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "sitewide"
     ],
@@ -7651,7 +7651,7 @@ export const POINTS: AuditPoint[] = [
     "title": "Text readable on phone",
     "rule": "Body text is at least 16px on phone and its contrast meets 4.5:1.",
     "severity": "low",
-    "decidedBy": "ai",
+    "decidedBy": "code+ai",
     "pages": [
       "sitewide"
     ],

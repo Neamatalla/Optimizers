@@ -158,3 +158,71 @@ test("TRK-26: only dev-looking hosts fail", () => {
   assert.equal(run("TRK-26", undefined, ga4("fail", "translate.goog (40 visits) send data into this property besides shop.com: 1% of visits in 28 days.")).status, "pass");
   assert.equal(run("TRK-26", undefined, ga4("pass", "Every hostname is the store's own.")).status, "pass");
 });
+
+// ---- second batch (24 Nov evening) ----
+test("RISK-01: a clear email in GA4 page paths fails; a clean scan stays open", () => {
+  const ga4 = (status: "pass" | "fail", en: string) => ({ facts: { "GA4-24": { id: "GA4-24", status, en } } }) as unknown as Ga4Facts;
+  assert.equal(run("RISK-01", undefined, ga4("fail", "Personal data appears in page paths sent to GA4, e.g. /thanks?email=…@….")).status, "fail");
+  assert.equal(run("RISK-01", undefined, ga4("fail", "Personal data appears in page paths sent to GA4, e.g. /x?phone=….")).status, "unverified");
+  assert.equal(run("RISK-01", undefined, ga4("pass", "No email or phone found.")).status, "unverified");
+});
+
+test("TRK-15 / SPEED-08 read the GTM container", () => {
+  const all = ["2147479553"];
+  const gtm = (tags: object[]) => ({ liveVersion: { tags, triggers: [] } });
+  const ga = { name: "GA4", type: "googtag", firingTriggerId: all };
+  const none = RULES["TRK-15"]({ gtm: gtm([ga]) });
+  assert.equal(none.status, "unverified");
+  assert.equal(none.facts?.final, true, "no consent setup: the AI isn't asked");
+  const cmp = RULES["TRK-15"]({ gtm: gtm([ga, { name: "Cookiebot CMP", type: "cvt_123", firingTriggerId: all }]) });
+  assert.notEqual(cmp.facts?.final, true, "a consent setup goes to the AI");
+  assert.equal(RULES["SPEED-08"]({ gtm: gtm([ga]) }).status, "pass");
+  assert.equal(RULES["SPEED-08"]({ gtm: gtm([ga, { name: "Hotjar", type: "html", firingTriggerId: all, parameter: [{ key: "html", value: "<script src=hotjar></script>" }] }]) }).status, "unverified");
+});
+
+test("HOME-09 / OFFER-10: top bar with free shipping, same amount in the cart", () => {
+  const bar = block("Free shipping over 200 SAR", 10);
+  const e = store([pg("home", { blocks: [bar] }), pg("product", { blocks: [block("Free shipping over 200 SAR", 10)] }), cart({ blocks: [block("Free shipping on orders over 200 SAR", 300)] })]);
+  assert.equal(status("HOME-09", e), "pass");
+  assert.equal(status("OFFER-10", e), "pass");
+  const off = store([pg("home", { blocks: [bar] }), cart({ blocks: [block("Free shipping over 300 SAR", 300)] })]);
+  assert.equal(status("OFFER-10", off), "fail");
+  const cur = store([pg("home", { blocks: [bar] }), cart({ blocks: [block("Free shipping over 50 KWD", 300)] })]);
+  assert.equal(status("OFFER-10", cur), "unverified");
+});
+
+test("NAV-12: switch in the header and one currency passes; two currencies fail", () => {
+  const home = pg("home", { facts: facts({ langAt: "header" }) });
+  const one = store([home, pg("product", { blocks: [block("SAR 120", 300)] }), cart({ blocks: [block("SAR 120", 300)] }), pg("collection", { blocks: [block("SAR 90", 300)] })]);
+  assert.equal(status("NAV-12", one), "pass");
+  const two = store([home, pg("product", { blocks: [block("SAR 120", 300)] }), cart({ blocks: [block("AED 120", 300)] }), pg("collection", { blocks: [block("SAR 90", 300)] })]);
+  assert.equal(status("NAV-12", two), "fail");
+});
+
+test("RISK-11: small body text fails, 16px with good contrast passes", () => {
+  const body = (fs: number, fg = "rgb(20, 20, 20)") => facts({ bodyText: { fs, n: 5, color: { fg, bg: "rgb(255, 255, 255)", bgComplex: false, text: "x" } } });
+  assert.equal(status("RISK-11", store([pg("home", { facts: body(14) })])), "fail");
+  assert.equal(status("RISK-11", store([pg("home", { facts: body(16) })])), "pass");
+  assert.equal(status("RISK-11", store([pg("home", { facts: body(16, "rgb(180, 180, 180)") })])), "fail");
+  assert.equal(status("RISK-11", store([pg("home", { facts: facts() })])), "unverified");
+});
+
+test("OFFER-11 / OFFER-23 / TRUST-21 / PATH-10: text that proves the pass", () => {
+  assert.equal(status("OFFER-11", store([withCta("product", "Add to cart", 700, [block("Bundle of 3: save 20%", 760)])])), "pass");
+  assert.equal(status("OFFER-23", store([withCta("product", "Add to cart", 700, [block("Delivery in 2-3 days", 760), block("Free shipping over 200 SAR", 800)])])), "pass");
+  assert.equal(status("OFFER-23", store([withCta("product", "Add to cart", 700, [block("Free shipping over 200 SAR", 700), block("Delivery in 2-3 days", 800)])])), "unverified");
+  assert.equal(status("TRUST-21", store([pg("home", { blocks: [block("Halal certified", 900)] })])), "pass");
+  const c = withCta("cart", "Checkout", 600, [block("Apple Pay", 660, "button")], { cart: { source: "page", empty: false } });
+  assert.equal(status("PATH-10", store([c])), "pass");
+  const icon = withCta("cart", "Checkout", 600, [block("Apple Pay", 660, "img")], { cart: { source: "page", empty: false } });
+  assert.equal(status("PATH-10", store([icon])), "unverified");
+});
+
+test("code verdicts carry their own Arabic sentence; unverified ones don't", () => {
+  const p = withCta("product", "Add to cart", 700, [block("30-day money-back guarantee", 760)]);
+  const r = run("TRUST-05", store([p]));
+  assert.equal(r.status, "pass");
+  assert.match(r.observation?.ar ?? "", /«30-day money-back guarantee»/);
+  assert.equal(run("TRUST-05", store([withCta("product", "Add to cart", 700, [])])).observation, undefined);
+  assert.ok(run("NAV-08", store([pg("home", { facts: facts({ lang: "ar", dir: "ltr" }) })])).observation?.ar);
+});
