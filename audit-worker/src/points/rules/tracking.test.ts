@@ -11,10 +11,10 @@ const gtm = (tags: unknown[]) => ({ liveVersion: { tags, triggers: [{ triggerId:
 const metaHtml = (ev: string) => tag(`Meta ${ev}`, "html", { parameter: [{ key: "html", value: `fbq('track','${ev}')` }] });
 const ev = (over: Partial<StoreEvidence>) => ({ website: "https://x.com", pages: [], addToCart: { attempted: true, ok: true, via: "click", clickAdded: true }, ...over }) as StoreEvidence;
 
-test("TRK-05: google/cpc without any Ads tag or link fails; with tag and linker passes; no google traffic is n/a", () => {
+test("TRK-05: google/cpc without any Ads tag or link fails; the conversion tag alone passes (the linker is TRK-48); no google traffic is n/a", () => {
   const g = ga4([row("google", "cpc", 100, "Paid Search")]);
   assert.equal(R["TRK-05"]({ ga4: g, gtm: gtm([tag("Other", "gaawe")]) }).status, "fail");
-  assert.equal(R["TRK-05"]({ ga4: g, gtm: gtm([tag("Conv", "awct"), tag("Linker", "gclidw")]) }).status, "pass");
+  assert.equal(R["TRK-05"]({ ga4: g, gtm: gtm([tag("Conv", "awct")]) }).status, "pass");
   assert.equal(R["TRK-05"]({ ga4: ga4([row("facebook", "paid")]), gtm: gtm([]) }).status, "n/a");
   assert.equal(R["TRK-05"]({ ga4: g }).status, "unverified");
   const linked = ga4([row("google", "cpc", 100, "Paid Search")], { "GA4-21": { id: "GA4-21", status: "pass", en: "linked" } });
@@ -57,4 +57,49 @@ test("TRK-29: a second ID or a paused tag fails", () => {
 test("TRK-43 follows the GA4 Ads-link fact", () => {
   assert.equal(R["TRK-43"]({ ga4: ga4([], { "GA4-21": { id: "GA4-21", status: "fail", en: "none" } }) }).status, "fail");
   assert.equal(R["TRK-43"]({ ga4: ga4([]) }).status, "unverified");
+});
+
+const home = { pageType: "home", url: "https://x.com", loaded: true } as StoreEvidence["pages"][number];
+const product = { pageType: "product", url: "https://x.com/p", loaded: true } as StoreEvidence["pages"][number];
+const probe = (cookies: string[] | undefined, consentBanner = false) => ({ campaignParams: { loaded: true, requestedUrl: "https://x.com/?gclid=1", params: [], ga4: [], cookies, consentBanner } }) as StoreEvidence["probes"];
+
+test("TRK-39: a recorder seen passes; none fails; a consent banner or an old visit is unverified", () => {
+  assert.equal(R["TRK-39"]({ evidence: ev({ pages: [home], recorders: ["Microsoft Clarity"] }) }).status, "pass");
+  assert.equal(R["TRK-39"]({ evidence: ev({ pages: [home], recorders: [] }) }).status, "fail");
+  assert.equal(R["TRK-39"]({ evidence: ev({ pages: [home], recorders: [] }), gtm: gtm([tag("Hotjar", "html")]) }).status, "pass", "a recorder tag in GTM");
+  assert.equal(R["TRK-39"]({ evidence: ev({ pages: [home], recorders: [], probes: probe([], true) }) }).status, "unverified");
+  assert.equal(R["TRK-39"]({ evidence: ev({ pages: [home] }) }).status, "unverified");
+});
+
+test("TRK-40: a pasted Meta pixel fails; known hosts pass; an unknown host is left to the AI", () => {
+  const html = (name: string, body: string) => tag(name, "html", { parameter: [{ key: "html", value: body }] });
+  assert.equal(R["TRK-40"]({ gtm: gtm([metaHtml("PageView")]) }).status, "fail");
+  assert.equal(R["TRK-40"]({ gtm: gtm([html("gtag", "<script src='https://www.googletagmanager.com/gtag/js?id=G-1'></script>")]) }).status, "fail");
+  assert.equal(R["TRK-40"]({ gtm: gtm([html("Clarity", "<script src='https://www.clarity.ms/tag/abc'></script>")]) }).status, "pass");
+  assert.equal(R["TRK-40"]({ gtm: gtm([html("Odd", "<script src='https://cdn.weird-tracker.io/x.js'></script>")]) }).status, "unverified");
+  assert.equal(R["TRK-40"]({ gtm: gtm([tag("GA4", "gaawe")]) }).status, "pass", "no Custom HTML at all");
+  assert.equal(R["TRK-40"]({}).status, "unverified");
+});
+
+test("TRK-41: pushes cleared in between pass; a push right after another fails; no ecommerce pushes is n/a", () => {
+  assert.equal(R["TRK-41"]({ evidence: ev({ pages: [product], dlEcommerce: ["null", "view_item", "null", "add_to_cart"] }) }).status, "pass");
+  assert.equal(R["TRK-41"]({ evidence: ev({ pages: [product], dlEcommerce: ["view_item", "null", "add_to_cart"] }) }).status, "pass", "the first push needs no clear");
+  const bad = R["TRK-41"]({ evidence: ev({ pages: [product], dlEcommerce: ["view_item", "add_to_cart"] }) });
+  assert.equal(bad.status, "fail");
+  assert.match(bad.reason, /add_to_cart/);
+  assert.equal(R["TRK-41"]({ evidence: ev({ pages: [product], dlEcommerce: [] }) }).status, "n/a");
+  assert.equal(R["TRK-41"]({ evidence: ev({ pages: [product], dlEcommerce: ["view_item"] }) }).status, "unverified");
+  assert.equal(R["TRK-41"]({ evidence: ev({ pages: [product] }) }).status, "unverified", "older visit");
+});
+
+test("TRK-48: click-ID cookies per platform run; missing fails unless a consent banner shows; no platform is n/a", () => {
+  const both = ga4([row("google", "cpc", 100, "Paid Search"), row("facebook", "paid")]);
+  assert.equal(R["TRK-48"]({ ga4: both, evidence: ev({ probes: probe(["_gcl_aw", "_fbc", "_ga"]) }) }).status, "pass");
+  const miss = R["TRK-48"]({ ga4: both, evidence: ev({ probes: probe(["_gcl_aw", "_ga"]) }) });
+  assert.equal(miss.status, "fail");
+  assert.match(miss.reason, /_fbc/);
+  assert.equal(R["TRK-48"]({ ga4: both, evidence: ev({ probes: probe(["_ga"], true) }) }).status, "unverified");
+  assert.equal(R["TRK-48"]({ ga4: ga4([row("tiktok", "paid")]), evidence: ev({ probes: probe(["_ga"]) }) }).status, "n/a");
+  assert.equal(R["TRK-48"]({ evidence: ev({ pageHits: [{ page: "home", vendor: "meta", name: "PageView" }], probes: probe(["_fbc"]) }) }).status, "pass", "Meta seen without GA4");
+  assert.equal(R["TRK-48"]({ ga4: both, evidence: ev({ probes: probe(undefined) }) }).status, "unverified", "older visit");
 });

@@ -7,9 +7,10 @@
 //   marketing_manager  ICP3  marketing director / manager, "show my CEO and team"
 //   agency             ICP4  agency / consultant, "a deliverable for my client"
 //
-// Every role gets the same 50 points, statuses and numbers: the store is the
-// same whoever reads about it, which keeps scores comparable and the GA4
-// facts deterministic. What a role changes is the voice of the business text
+// Every role gets the same GA4 and GTM checks (25 each in master-point
+// reports), statuses and numbers: the store is the same whoever reads about
+// it, which keeps scores comparable and the GA4 facts deterministic. Some
+// Website points serve only some roles (points/registry.ts). What a role changes is the voice of the business text
 // (a reader brief in icp/), the report's first section and highlighted
 // metrics, the copy around the checks, the email, and the Arabic register.
 // Null (rows from before the field) keeps the original store-owner report.

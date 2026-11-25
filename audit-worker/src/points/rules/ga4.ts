@@ -66,4 +66,7 @@ export const GA4_RULES: Record<string, Rule> = {
   "TRK-37": fromFacts("GA4-13"),
   "TRK-38": fromFacts("GA4-22"),
   "OFFER-04": fromFacts("GA4-11"),
+  "TRK-45": fromFacts("GA4-23"),
+  "TRK-46": fromFacts("GA4-P17"),
+  "TRK-47": fromFacts("GA4-16"),
 };

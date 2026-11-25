@@ -31,6 +31,10 @@ export interface GtmTag {
   sendsOrderId: boolean;
   sendsEventId: boolean;
   htmlCut: boolean;
+  // Custom HTML only: hosts of the scripts and pixels it loads (TRK-40).
+  scriptHosts: string[];
+  // Custom HTML that loads gtag.js by hand (TRK-40).
+  pastedGtag: boolean;
 }
 
 export interface GtmSummary {
@@ -104,6 +108,13 @@ function orderIdOf(tag: RawTag, platform: GtmPlatform, text: string): boolean {
   return /order_?id|transaction_?id|content_ids|eventID|event_id/i.test(text);
 }
 
+// Hosts a Custom HTML body loads from: script src, image pixels, and any
+// absolute URL in the code.
+export function hostsIn(html: string): string[] {
+  const hosts = [...html.matchAll(/(?:https?:)?\/\/([a-z0-9.-]+\.[a-z]{2,})(?=[/:"'?\s]|$)/gi)].map(m => m[1].toLowerCase());
+  return [...new Set(hosts)];
+}
+
 const eventIdOf = (platform: GtmPlatform, text: string): boolean =>
   platform === "snap" ? /client_dedup_id/i.test(text) : /eventID|event_id|eventId/.test(text);
 
@@ -125,6 +136,8 @@ export function parseGtm(data: unknown): GtmSummary | null {
       sendsOrderId: orderIdOf(t, platform, text),
       sendsEventId: eventIdOf(platform, text),
       htmlCut: t.type === "html" && html.endsWith("…"),
+      scriptHosts: t.type === "html" ? hostsIn(html) : [],
+      pastedGtag: t.type === "html" && /gtag\(|googletagmanager\.com\/gtag\/js/.test(html),
     };
   });
   const live = tags.filter(t => !t.paused);

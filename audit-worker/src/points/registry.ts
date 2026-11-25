@@ -9,6 +9,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-01",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Product views that turn into add to cart",
     "rule": "Over 28 days, with 50+ view_item users: add_to_cart users are at least 8% of view_item users. Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
@@ -56,6 +57,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-02",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Carts that reach checkout",
     "rule": "Over 28 days, with 50+ add_to_cart users: begin_checkout users are at least 50% of them (if begin_checkout is missing but add_shipping_info exists, add_shipping_info at least 40%). Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
@@ -102,6 +104,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-03",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Started checkouts that end in a sale",
     "rule": "Over 28 days, with 50+ begin_checkout users: purchase users are at least 50% of them (if begin_checkout is missing, at least 60% of add_shipping_info users). Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
@@ -148,6 +151,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-04",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Paid campaign with visits but no sales",
     "rule": "No paid campaign with at least 150 sessions (and 2% of all sessions) converts below a quarter of the store average in 28 days; a failing campaign is named with its top landing page.",
     "severity": "critical",
@@ -201,8 +205,9 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-05",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Google Ads receives your sales",
-    "rule": "If GA4 shows google/cpc sessions: a Google Ads conversion tag plus Conversion Linker exist in GTM, or the account is known to import GA4 purchases (otherwise unassessed, not fail).",
+    "rule": "If GA4 shows google/cpc sessions: a live Google Ads conversion tag exists in GTM, or the account is linked to GA4 and may import GA4 purchases (otherwise unassessed, not fail). Saving the click ID (Conversion Linker) is TRK-48.",
     "severity": "critical",
     "decidedBy": "code+ai",
     "pages": [
@@ -255,6 +260,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-06",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Payment pages or own domains taking credit",
     "rule": "No payment gateway (Tabby, Tamara, KNET, MyFatoorah and others) is a session source with 5+ sessions in 28 days, and the store's own domain never appears as a referral source.",
     "severity": "critical",
@@ -310,6 +316,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-07",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Tracking live with no sudden drop",
     "rule": "Fails when: realtime shows no users while the store averages 5+ visits per 30 minutes; nothing was recorded in the last 7 days; visits fell over 40% week on week (prior week 200+); or a day in the last 28 had a spike of unengaged visits.",
     "severity": "critical",
@@ -364,6 +371,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-08",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Every buying step is recorded",
     "rule": "view_item, add_to_cart, begin_checkout (or add_shipping_info) and purchase all record events in 28 days, and no funnel step shows a tracking gap. Fails as a tracking gap when the later step has over 5% more users than the earlier one, or sits under 30% of its benchmark.",
     "severity": "critical",
@@ -421,6 +429,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-09",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Each order counted once",
     "rule": "No order ID is counted on more than one purchase event, purchase events and transactions are within 10% of each other, and purchases carry revenue and a currency.",
     "severity": "critical",
@@ -474,6 +483,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-10",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Purchases carry revenue and products",
     "rule": "Purchases carry a non-zero value in one currency (none unset), at most 5% of items sold have no product name, and item revenue is within 5% of order revenue.",
     "severity": "critical",
@@ -529,6 +539,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-11",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Conversion tags fire only on the purchase event",
     "rule": "Every purchase or conversion tag fires on a dataLayer custom-event trigger, never on All Pages or a thank-you URL page view, and sends transaction_id.",
     "severity": "critical",
@@ -583,6 +594,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-12",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Pixel live for every ad platform you run",
     "rule": "For each platform with paid sessions in GA4 (Meta, TikTok, Snap, Google Ads), its pixel loads and sends PageView and AddToCart hits, not blocked, during our visit.",
     "severity": "critical",
@@ -639,6 +651,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-13",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Purchase events set for each paid platform",
     "rule": "For each platform with paid sessions in GA4, GTM has purchase and add-to-cart tags on matching event triggers, or a store-app integration sends them.",
     "severity": "critical",
@@ -695,6 +708,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-14",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Each event sent once",
     "rule": "During our visit each GA4 ID and pixel sends one page_view/PageView per page load and one add-to-cart hit per click; gtag.js loads once per measurement ID.",
     "severity": "critical",
@@ -751,6 +765,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-15",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Consent setup not hiding Gulf visitors",
     "rule": "The GTM consent defaults are region-specific, or none deny ad_storage and analytics_storage for GCC countries (SA, AE, KW, QA, BH, OM).",
     "severity": "critical",
@@ -805,6 +820,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-16",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Shopify checkout events tracked",
     "rule": "Store is not Shopify, or begin_checkout and purchase come from a Shopify Customer Events pixel or native app, not GTM tags.",
     "severity": "critical",
@@ -859,6 +875,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-17",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Our add to cart reaches GA4 and pixels",
     "rule": "If our Add to Cart click fills the cart, the dataLayer gets add_to_cart and GA4 and each pixel send at least one add-to-cart hit; else unassessed.",
     "severity": "critical",
@@ -914,6 +931,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-18",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Shopping events carry value and products",
     "rule": "view_item and add_to_cart pushes and hits carry a numeric value, a 3-letter currency, and items with item_id, item_name, price and quantity.",
     "severity": "critical",
@@ -971,6 +989,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-19",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Tracking on every page type",
     "rule": "The same GTM container ID we read (or the GA4 tag) loads on home, collection, product and cart, on phone and desktop.",
     "severity": "critical",
@@ -1027,6 +1046,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-20",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Phone shoppers convert close to desktop",
     "rule": "With 200+ sessions on both phone and desktop and at least one desktop sale in 28 days, phone conversion rate is at least 60% of desktop's.",
     "severity": "medium",
@@ -1080,6 +1100,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-21",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Busy landing pages with no sales",
     "rule": "No landing page with at least 200 sessions (or 3% of all sessions) converts below one third of the store average in 28 days; the biggest such page is named.",
     "severity": "medium",
@@ -1134,6 +1155,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-22",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Popular products viewed but not added",
     "rule": "No product page with at least 100 views (or 2% of all product views) adds to cart at under half the store average in 28 days; the worst one is named.",
     "severity": "medium",
@@ -1188,6 +1210,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-23",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Campaign tags survive redirects",
     "rule": "Home opened with test utm_ values and gclid/fbclid/ttclid keeps all of them in the first GA4 page_view page_location after any redirect.",
     "severity": "medium",
@@ -1241,6 +1264,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-24",
     "category": "tracking",
+    "tab": "GTM",
     "title": "No campaign tags on internal links",
     "rule": "No link on home, collection, product or cart pointing to the store's own domain carries utm_ parameters.",
     "severity": "medium",
@@ -1253,7 +1277,10 @@ export const POINTS: AuditPoint[] = [
       "visit"
     ],
     "roles": [
-      "media_buyer"
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "active",
     "roleCopy": {
@@ -1278,6 +1305,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-25",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Visits with no known source",
     "rule": "Unassigned, (not set) and (other) sessions are at most 10% of sessions in 28 days, and paid-medium traffic sits in a paid channel group.",
     "severity": "medium",
@@ -1332,6 +1360,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-26",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Test sites mixed into live numbers",
     "rule": "No hostname with 5+ sessions in GA4 is staging, preview, theme-editor, localhost or a dev domain; other hosts not on the store's own domains are listed for review.",
     "severity": "medium",
@@ -1344,7 +1373,9 @@ export const POINTS: AuditPoint[] = [
     ],
     "roles": [
       "store_owner",
-      "media_buyer"
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "active",
     "roleCopy": {
@@ -1374,6 +1405,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-27",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Only real sales count as key events",
     "rule": "purchase is a key event; none of page_view, scroll, session_start, first_visit, user_engagement, click, view_item or form_start is; and every key event recorded data in the last 90 days.",
     "severity": "medium",
@@ -1427,6 +1459,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-28",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Ad pixels can match browser and server sales",
     "rule": "Where a Meta, Snap or TikTok purchase or add-to-cart tag exists, it sends event_id (Snap: client_dedup_id); advice-level unless a Conversions API setup is detected.",
     "severity": "medium",
@@ -1484,6 +1517,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-29",
     "category": "tracking",
+    "tab": "GTM",
     "title": "One ID per platform, all your own",
     "rule": "Each platform uses one ID across all container tags and live hits; any second ID is shown for review; no paused or triggerless tags remain.",
     "severity": "medium",
@@ -1531,6 +1565,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-30",
     "category": "tracking",
+    "tab": "GTM",
     "title": "WhatsApp and call taps counted",
     "rule": "If the visit finds wa.me, api.whatsapp.com or tel: links, a GTM tag fires on clicks to them, or GA4 has a whatsapp/call click event in 28 days.",
     "severity": "medium",
@@ -1585,6 +1620,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-31",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Pages without reload still counted",
     "rule": "If the store changes pages without a full reload, each in-app navigation in our visit sends a new GA4 page_view; otherwise not applicable.",
     "severity": "medium",
@@ -1598,7 +1634,9 @@ export const POINTS: AuditPoint[] = [
     ],
     "roles": [
       "store_owner",
-      "media_buyer"
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "active",
     "roleCopy": {
@@ -1628,6 +1666,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-32",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Page view hits go out early",
     "rule": "On a throttled phone, the home page sends its first GA4 hit and first ad pixel PageView before the LCP time.",
     "severity": "medium",
@@ -1640,7 +1679,9 @@ export const POINTS: AuditPoint[] = [
     ],
     "roles": [
       "store_owner",
-      "media_buyer"
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "active",
     "roleCopy": {
@@ -1670,6 +1711,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-33",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Script errors do not break tracking",
     "rule": "No uncaught console error on product or cart is followed by a missing view_item or add_to_cart event.",
     "severity": "medium",
@@ -1682,7 +1724,10 @@ export const POINTS: AuditPoint[] = [
       "visit"
     ],
     "roles": [
-      "media_buyer"
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "active",
     "roleCopy": {
@@ -1706,6 +1751,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-34",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Standard ecommerce event names",
     "rule": "Ecommerce events use standard names: view_item_list, view_item, add_to_cart for GA4; ViewContent, AddToCart for Meta.",
     "severity": "medium",
@@ -1718,7 +1764,10 @@ export const POINTS: AuditPoint[] = [
       "visit"
     ],
     "roles": [
-      "media_buyer"
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "parked",
     "parkedReason": "Covered by TRK-18 event presence check",
@@ -1743,6 +1792,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-35",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Visits from countries with no sales",
     "rule": "Countries other than the top one, each with 3%+ of sessions and zero purchases, add up to under 5% of sessions in 28 days.",
     "severity": "low",
@@ -1796,6 +1846,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-36",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Bringing past visitors back",
     "rule": "With 200+ new and 50+ returning sessions, returning visitors convert at 2x new visitors or more; if not, the visit finds an email or phone signup field.",
     "severity": "low",
@@ -1852,6 +1903,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-37",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Site searches recorded with the term",
     "rule": "If the phone homepage has a search box, GA4 records search events in 28 days and the box is visible on phones, not hidden behind the menu. Fails if GA4 records searches but no search box was found.",
     "severity": "low",
@@ -1902,6 +1954,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-38",
     "category": "tracking",
+    "tab": "GA4",
     "title": "GA4 uses your currency and time zone",
     "rule": "GA4 property currency and time zone match the country with the most sessions (one of the markets the code knows).",
     "severity": "low",
@@ -1947,6 +2000,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-39",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Session recordings installed",
     "rule": "A session-recording script (Microsoft Clarity, Hotjar, Mouseflow, Smartlook, Lucky Orange or FullStory) loads on the live home page.",
     "severity": "low",
@@ -1955,8 +2009,8 @@ export const POINTS: AuditPoint[] = [
       "sitewide"
     ],
     "needs": [
-      "crawl",
-      "visit"
+      "visit",
+      "gtm"
     ],
     "roles": [
       "store_owner",
@@ -1964,8 +2018,7 @@ export const POINTS: AuditPoint[] = [
       "marketing_manager",
       "agency"
     ],
-    "status": "parked",
-    "parkedReason": "Tool presence, not a store problem",
+    "status": "active",
     "roleCopy": {
       "store_owner": {
         "title": "Session recordings installed to check your fixes",
@@ -1982,11 +2035,12 @@ export const POINTS: AuditPoint[] = [
       "GTM-15",
       "SO-GTM-24"
     ],
-    "note": "Review: Fails stores using another recorder (Mouseflow, Smartlook, Lucky Orange, FullStory). Name them or a fail is not certain."
+    "note": "Code: a recorder's script or hits seen during our visit, or a recorder tag live in GTM, is a pass. No recorder and a consent banner showing is unverified (it may wait for consent); otherwise a fail. Un-parked 25 Nov for 25 GTM checks."
   },
   {
     "id": "TRK-40",
     "category": "tracking",
+    "tab": "GTM",
     "title": "No hand-pasted pixels or unknown scripts",
     "rule": "Every Custom HTML tag loads scripts only from a known-vendor domain list, and no Meta, Snap, TikTok or gtag pixel sits in Custom HTML where an official template exists.",
     "severity": "low",
@@ -2003,8 +2057,7 @@ export const POINTS: AuditPoint[] = [
       "marketing_manager",
       "agency"
     ],
-    "status": "parked",
-    "parkedReason": "Container hygiene; rarely changes conversion",
+    "status": "active",
     "roleCopy": {
       "store_owner": {
         "title": "No unknown scripts running on your store",
@@ -2028,13 +2081,14 @@ export const POINTS: AuditPoint[] = [
       "SO-GTM-18",
       "MB-GTM-20"
     ],
-    "note": "Vendor list needs upkeep. Review: A 'known vendor' list will miss real vendors, so an unknown domain is not proof of a problem. Code proves the pass; unknown domains go to AI."
+    "note": "Code: a Meta, TikTok, Snap or gtag pixel inside a live Custom HTML tag is a fail (an official template exists). Scripts only from known vendors is a pass. An unknown script host goes to the AI. Un-parked 25 Nov for 25 GTM checks."
   },
   {
     "id": "TRK-41",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Ecommerce data cleared between events",
-    "rule": "Each new ecommerce dataLayer push is preceded by an ecommerce: null push.",
+    "rule": "On the product page, every dataLayer push carrying an ecommerce object after the first one is preceded by an ecommerce: null push. n/a when the store pushes no ecommerce objects to the dataLayer.",
     "severity": "low",
     "decidedBy": "code",
     "pages": [
@@ -2046,11 +2100,12 @@ export const POINTS: AuditPoint[] = [
       "gtm"
     ],
     "roles": [
+      "store_owner",
       "media_buyer",
-      "store_owner"
+      "marketing_manager",
+      "agency"
     ],
-    "status": "parked",
-    "parkedReason": "Niche dataLayer detail, little shop-owner value",
+    "status": "active",
     "roleCopy": {
       "media_buyer": {
         "title": "Old cart items attached to new events",
@@ -2072,11 +2127,13 @@ export const POINTS: AuditPoint[] = [
     "origin": [
       "MB-WC-23",
       "SO-WC-25"
-    ]
+    ],
+    "note": "Un-parked 25 Nov for 25 GTM checks."
   },
   {
     "id": "TRK-42",
     "category": "tracking",
+    "tab": "GTM",
     "title": "Home banners send view and select events",
     "rule": "If home has banners, GA4 has view_promotion and select_promotion events in 28 days, or GTM has tags for both.",
     "severity": "low",
@@ -2088,7 +2145,10 @@ export const POINTS: AuditPoint[] = [
       "visit"
     ],
     "roles": [
-      "store_owner"
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "parked",
     "parkedReason": "Promotion events rarely used by GCC stores",
@@ -2113,6 +2173,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-43",
     "category": "tracking",
+    "tab": "GA4",
     "title": "Google Ads linked",
     "rule": "Google Ads is linked to this property.",
     "severity": "critical",
@@ -2162,6 +2223,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRK-44",
     "category": "tracking",
+    "tab": "GTM",
     "title": "The value sent matches the price shown on the page",
     "rule": "The value sent with view_item and add_to_cart equals the price shown on the product page (times quantity), and currency is the store's three-letter code in capitals (for example SAR).",
     "severity": "critical",
@@ -2175,7 +2237,9 @@ export const POINTS: AuditPoint[] = [
     ],
     "roles": [
       "store_owner",
-      "media_buyer"
+      "media_buyer",
+      "marketing_manager",
+      "agency"
     ],
     "status": "active",
     "roleCopy": {
@@ -2205,6 +2269,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-01",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Add to cart really adds the item",
     "rule": "Our phone tap on Add to Cart opens a drawer or message with the item, or the cart count rises, within 2 seconds, and the cart page lists it.",
     "severity": "critical",
@@ -2261,6 +2326,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-02",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Cart and checkout load without errors",
     "rule": "Cart page (and first checkout screen) loads on phone and desktop with no uncaught script errors.",
     "severity": "critical",
@@ -2307,6 +2373,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-03",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Top products can actually be bought",
     "rule": "Hero and first-row products on home and collections are in stock; on the product page, Add to cart is active for the first in-stock variant.",
     "severity": "critical",
@@ -2358,6 +2425,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-04",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Cart checkout button is clear on phone",
     "rule": "Phone cart has one checkout button with checkout wording (checkout, إتمام الطلب, الدفع), inside the first screen or sticky, not covered by popups, chat or upsells.",
     "severity": "critical",
@@ -2404,6 +2472,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-05",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Guest checkout, no forced sign-in",
     "rule": "Checkout opens in one click from the cart and the first checkout screen allows guest or phone-number entry, with no login wall.",
     "severity": "critical",
@@ -2444,6 +2513,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-06",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Script errors on product and cart pages",
     "rule": "With 100+ sessions on the page, product and cart script-error and error-click session shares are at or below the site-wide shares.",
     "severity": "medium",
@@ -2479,6 +2549,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-07",
     "category": "buying-path",
+    "tab": "Website",
     "title": "No failed files on money pages",
     "rule": "No request returns 404, 500 or a network error on home, collection, product or cart, including third-party app scripts.",
     "severity": "medium",
@@ -2535,6 +2606,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-08",
     "category": "buying-path",
+    "tab": "Website",
     "title": "WhatsApp and call links work",
     "rule": "Every wa.me, api.whatsapp.com and tel: link uses a full international number with country code, or the store has none.",
     "severity": "medium",
@@ -2588,6 +2660,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-09",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Cart quantity and remove controls work",
     "rule": "In the cart, changing quantity updates the line and total with no error, and an item can be removed.",
     "severity": "medium",
@@ -2628,6 +2701,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-10",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Express pay buttons offered",
     "rule": "Apple Pay, Google Pay, Shop Pay or PayPal buttons show in the cart or at the top of the first checkout screen, where the platform supports them.",
     "severity": "medium",
@@ -2656,6 +2730,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-11",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Checkout field labels are clear",
     "rule": "Every field on the first checkout screen has a visible label in the page language saying what to type, and local address needs (city, area, landmark) are covered.",
     "severity": "medium",
@@ -2681,6 +2756,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-12",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Checkout fields use right phone keyboards",
     "rule": "On the first checkout screen, phone fields use a numeric keyboard, email fields an email keyboard, autocomplete attributes are set, and fields are at least 44px tall.",
     "severity": "medium",
@@ -2706,6 +2782,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-13",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Order summary visible on checkout",
     "rule": "The first checkout screen shows items, quantities, discounts, shipping and total, or one tap expands them on phone.",
     "severity": "medium",
@@ -2731,6 +2808,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-14",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Cart lines show item details",
     "rule": "Each cart line shows image, name, chosen variant and price (with old price if on sale).",
     "severity": "low",
@@ -2756,6 +2834,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-15",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Empty cart offers a way forward",
     "rule": "An empty cart says it is empty and links to a collection or best sellers, with a continue-shopping button.",
     "severity": "low",
@@ -2783,6 +2862,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-16",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Checkout has no distractions",
     "rule": "The first checkout screen has no main menu, no popups and at most a logo and a back link leading out.",
     "severity": "low",
@@ -2808,6 +2888,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-17",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Drawer header shows 'Your cart (N items)' and an obvious close (×); on mobile it covers the full width",
     "rule": "Count + close visible; full width.",
     "severity": "critical",
@@ -2835,6 +2916,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PATH-18",
     "category": "buying-path",
+    "tab": "Website",
     "title": "Leftover scripts from removed apps",
     "rule": "No scripts from apps that no longer do anything.",
     "severity": "medium",
@@ -2884,6 +2966,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-01",
     "category": "product-page",
+    "tab": "Website",
     "title": "Add to cart reachable on first phone screen",
     "rule": "On a 390x844 phone, price and Add to cart show in the first screen, or a sticky bar with price and Add to cart appears once the button scrolls away.",
     "severity": "critical",
@@ -2934,6 +3017,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-02",
     "category": "product-page",
+    "tab": "Website",
     "title": "Dead and rage taps on top product",
     "rule": "On the most-visited product page, dead-click and rage-click session shares are each at or below the site-wide share.",
     "severity": "medium",
@@ -2969,6 +3053,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-03",
     "category": "product-page",
+    "tab": "Website",
     "title": "Product has enough distinct, sharp photos",
     "rule": "Gallery has 4 or more distinct image URLs, at least one showing the product in use or a close detail, each with natural width at least 1.5x displayed width.",
     "severity": "medium",
@@ -3016,6 +3101,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-04",
     "category": "product-page",
+    "tab": "Website",
     "title": "Options are tiles or swatches with clear state",
     "rule": "Every option (size, colour, scent) is a visible button or swatch, not a dropdown; the selected one is highlighted and sold-out ones are marked, not hidden.",
     "severity": "medium",
@@ -3056,6 +3142,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-05",
     "category": "product-page",
+    "tab": "Website",
     "title": "Floating widgets do not cover buying controls",
     "rule": "On phone product page and cart, no chat, WhatsApp, discount tab or banner overlaps the options, price, Add to cart or checkout button.",
     "severity": "medium",
@@ -3096,6 +3183,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-06",
     "category": "product-page",
+    "tab": "Website",
     "title": "Benefit line under the product name",
     "rule": "In the first phone screen, a line of 120 characters or fewer under the product name states a benefit or result, not just a feature.",
     "severity": "medium",
@@ -3127,6 +3215,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-07",
     "category": "product-page",
+    "tab": "Website",
     "title": "Description covers size, material and key benefits",
     "rule": "Product description, in the page language, covers material or specs, size or fit, usage and what is included.",
     "severity": "medium",
@@ -3168,6 +3257,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-08",
     "category": "product-page",
+    "tab": "Website",
     "title": "Quantity selector and clear Add to cart button",
     "rule": "Quantity selector sits next to a full-width Add to cart button with text-to-background contrast of at least 3:1.",
     "severity": "medium",
@@ -3194,6 +3284,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-09",
     "category": "product-page",
+    "tab": "Website",
     "title": "Buy button looks the same everywhere",
     "rule": "Primary buy button has the same background colour and font on product page, cart and collection quick add.",
     "severity": "low",
@@ -3224,6 +3315,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-10",
     "category": "product-page",
+    "tab": "Website",
     "title": "Product video available",
     "rule": "The product page gallery or the area near the top has a product video (demo or customer).",
     "severity": "low",
@@ -3250,6 +3342,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-11",
     "category": "product-page",
+    "tab": "Website",
     "title": "Photos zoom on click or pinch",
     "rule": "The product gallery supports zoom by click, tap or pinch.",
     "severity": "low",
@@ -3276,6 +3369,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-12",
     "category": "product-page",
+    "tab": "Website",
     "title": "Picking a variant changes the photo",
     "rule": "Selecting a different colour or option switches the main gallery image to that variant's image.",
     "severity": "low",
@@ -3302,6 +3396,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-13",
     "category": "product-page",
+    "tab": "Website",
     "title": "Size or fit guide next to options",
     "rule": "Where sizes or fit matter, a size guide link or pop-up sits next to the option selector. Not applicable if no size options.",
     "severity": "low",
@@ -3334,6 +3429,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-14",
     "category": "product-page",
+    "tab": "Website",
     "title": "Details split into labelled sections or tabs",
     "rule": "Description, details and shipping sit in labelled tabs or accordions, not one long text block, covering the main buying questions.",
     "severity": "low",
@@ -3367,6 +3463,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-15",
     "category": "product-page",
+    "tab": "Website",
     "title": "What is included is stated",
     "rule": "For bundles and sets, a list or line names every item in the package. Not applicable for single items.",
     "severity": "low",
@@ -3399,6 +3496,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-16",
     "category": "product-page",
+    "tab": "Website",
     "title": "How to use is shown",
     "rule": "Where use is not obvious, the page has simple usage steps or a short video.",
     "severity": "low",
@@ -3425,6 +3523,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-17",
     "category": "product-page",
+    "tab": "Website",
     "title": "Product page has an FAQ",
     "rule": "The product page has an FAQ with 5 or more questions with short, specific answers, covering shipping, returns and use.",
     "severity": "low",
@@ -3458,6 +3557,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-18",
     "category": "product-page",
+    "tab": "Website",
     "title": "Repeat buy button further down the page",
     "rule": "On long pages, a buy button repeats after the details or reviews and near the page end; a sticky bar alone does not count.",
     "severity": "low",
@@ -3491,6 +3591,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-19",
     "category": "product-page",
+    "tab": "Website",
     "title": "The primary call-to-action colour is used only for buying actions and stands out from everything else",
     "rule": "Add-to-cart / checkout is the most visually dominant element above the fold.",
     "severity": "low",
@@ -3517,6 +3618,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "PDP-20",
     "category": "product-page",
+    "tab": "Website",
     "title": "Key actions (add to cart, checkout) sit in the lower, easy-to-reach part of the screen",
     "rule": "Main CTAs reachable one-handed.",
     "severity": "low",
@@ -3544,6 +3646,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-01",
     "category": "collection",
+    "tab": "Website",
     "title": "Search finds the right product",
     "rule": "A search field or icon is visible in the header on phone and desktop, and searching a real product's exact name returns it in the top 3 results.",
     "severity": "medium",
@@ -3585,6 +3688,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-02",
     "category": "collection",
+    "tab": "Website",
     "title": "Sold-out items are marked and placed last",
     "rule": "Sold-out products on collection pages carry a clear label and sit after in-stock ones, or are hidden.",
     "severity": "medium",
@@ -3624,6 +3728,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-03",
     "category": "collection",
+    "tab": "Website",
     "title": "Filter, sort or category chips are visible",
     "rule": "On a phone, filter and sort controls or category chips are visible above the product grid; sort defaults to best selling or featured.",
     "severity": "medium",
@@ -3664,6 +3769,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-04",
     "category": "collection",
+    "tab": "Website",
     "title": "Products show on the first screen",
     "rule": "On a phone, the top of the first product row is visible in the first screen, not pushed down by banner or filters.",
     "severity": "medium",
@@ -3692,6 +3798,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-05",
     "category": "collection",
+    "tab": "Website",
     "title": "Product cards show image, name, price and rating",
     "rule": "Every product card shows image, name and price with currency ('From X' for variants); rating handled by TRUST-01@cro-a.",
     "severity": "medium",
@@ -3731,6 +3838,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-06",
     "category": "collection",
+    "tab": "Website",
     "title": "Filters show counts, clear in one tap, never empty",
     "rule": "Collection filters show option counts and offer a one-tap clear; filter types fit the catalogue (size, price, type).",
     "severity": "low",
@@ -3758,6 +3866,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-07",
     "category": "collection",
+    "tab": "Website",
     "title": "Cards have quick add to cart",
     "rule": "Product cards on home and collections show an Add to cart button, or a quick-pick button for variant products.",
     "severity": "low",
@@ -3786,6 +3895,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-08",
     "category": "collection",
+    "tab": "Website",
     "title": "Card titles name the product in words",
     "rule": "Of 10 card titles, none is a bare SKU code and at least 8 name the product type in words.",
     "severity": "low",
@@ -3812,6 +3922,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-09",
     "category": "collection",
+    "tab": "Website",
     "title": "Cards use badges like best seller or new",
     "rule": "Some cards carry badges such as Best seller, Selling fast or New.",
     "severity": "low",
@@ -3847,6 +3958,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-10",
     "category": "collection",
+    "tab": "Website",
     "title": "Collection grid is 2 columns on phone",
     "rule": "The phone collection grid shows 2 columns.",
     "severity": "low",
@@ -3873,6 +3985,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "COL-11",
     "category": "collection",
+    "tab": "Website",
     "title": "Page title or breadcrumb shows location",
     "rule": "The collection page has a clear H1 title or a breadcrumb showing its place in the store.",
     "severity": "low",
@@ -3899,6 +4012,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-01",
     "category": "homepage",
+    "tab": "Website",
     "title": "First screen says what you sell",
     "rule": "On a 390x844 phone, the first screen has an H1, a product image or hero, one primary CTA, and the H1 or image makes clear what is sold.",
     "severity": "critical",
@@ -3934,6 +4048,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-02",
     "category": "homepage",
+    "tab": "Website",
     "title": "Headline states a benefit",
     "rule": "Home H1 names an outcome or reason to buy, not only the brand name, a sale or a new-product announcement.",
     "severity": "medium",
@@ -3960,6 +4075,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-03",
     "category": "homepage",
+    "tab": "Website",
     "title": "Hero claims carry proof",
     "rule": "At least 2 claims in the hero and benefit blocks include a number, named study or named certification in the same block; no medical cure claims.",
     "severity": "medium",
@@ -3988,6 +4104,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-04",
     "category": "homepage",
+    "tab": "Website",
     "title": "One clear primary hero button",
     "rule": "First screen has one solid, high-contrast, large primary button; other buttons are visibly secondary.",
     "severity": "medium",
@@ -4020,6 +4137,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-05",
     "category": "homepage",
+    "tab": "Website",
     "title": "Best sellers shown high on home",
     "rule": "A product grid appears within the first 2 phone screens, each card showing image, name and price (rating if the store has reviews).",
     "severity": "medium",
@@ -4046,6 +4164,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-06",
     "category": "homepage",
+    "tab": "Website",
     "title": "Button labels say what happens",
     "rule": "The primary CTA label is not a generic phrase such as Shop now, Shop all or the Arabic equivalents; it names a product, category or outcome.",
     "severity": "low",
@@ -4080,6 +4199,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-07",
     "category": "homepage",
+    "tab": "Website",
     "title": "Benefits listed near the top",
     "rule": "Home has a section under a benefit heading with 3 or more items, each with an icon or image and short text, within the first 2 phone screens.",
     "severity": "low",
@@ -4112,6 +4232,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-08",
     "category": "homepage",
+    "tab": "Website",
     "title": "Hero text readable over image",
     "rule": "Text over a hero image has clear contrast (overlay or dark/light background) and no key promo text is baked into the image.",
     "severity": "low",
@@ -4138,6 +4259,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-09",
     "category": "homepage",
+    "tab": "Website",
     "title": "Announcement bar with a concrete reason",
     "rule": "A bar above the header on all pages states a concrete current reason: free-shipping threshold, active sale, delivery promise or guarantee.",
     "severity": "low",
@@ -4173,6 +4295,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-10",
     "category": "homepage",
+    "tab": "Website",
     "title": "USP strip under the header",
     "rule": "A strip under the header lists 3 or more store promises such as shipping, returns, quality or support; a one-line ticker on phone counts.",
     "severity": "low",
@@ -4200,6 +4323,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-11",
     "category": "homepage",
+    "tab": "Website",
     "title": "No long phone stretch without a button",
     "rule": "On phone home, no stretch longer than 1,200px lacks a CTA button.",
     "severity": "low",
@@ -4227,6 +4351,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-12",
     "category": "homepage",
+    "tab": "Website",
     "title": "FAQ before the footer",
     "rule": "Home has an FAQ accordion of 5 or more questions before the footer, covering ordering, shipping, returns and payment.",
     "severity": "low",
@@ -4254,6 +4379,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "HOME-13",
     "category": "homepage",
+    "tab": "Website",
     "title": "The value proposition says why THIS brand is different (unique mechanism, origin, quality proof, guarantee)",
     "rule": "No — it is specific to this brand.",
     "severity": "medium",
@@ -4280,6 +4406,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-01",
     "category": "navigation",
+    "tab": "Website",
     "title": "No dead menu or footer links",
     "rule": "Every menu and footer link returns a working page, and the 404 page offers search or product links.",
     "severity": "medium",
@@ -4327,6 +4454,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-02",
     "category": "navigation",
+    "tab": "Website",
     "title": "Short main menu",
     "rule": "Top-level menu has 6 links or fewer, and weak links such as Blog are not placed ahead of buying links.",
     "severity": "medium",
@@ -4362,6 +4490,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-03",
     "category": "navigation",
+    "tab": "Website",
     "title": "Menu opens fast and links work",
     "rule": "The phone menu opens on first tap and lists main categories first.",
     "severity": "medium",
@@ -4389,6 +4518,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-04",
     "category": "navigation",
+    "tab": "Website",
     "title": "Search easy to find in header",
     "rule": "A search icon or bar is visible in the header on phone and desktop without opening the menu.",
     "severity": "medium",
@@ -4426,6 +4556,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-05",
     "category": "navigation",
+    "tab": "Website",
     "title": "Cart icon with item count",
     "rule": "Header shows a cart icon at all times, with an item count after adding a product, and it opens the cart drawer or page.",
     "severity": "medium",
@@ -4466,6 +4597,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-06",
     "category": "navigation",
+    "tab": "Website",
     "title": "Language switch easy to find",
     "rule": "On phone, a language switch is visible in the header or first menu level.",
     "severity": "medium",
@@ -4492,6 +4624,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-07",
     "category": "navigation",
+    "tab": "Website",
     "title": "Footer has contact and policy links",
     "rule": "Footer contains contact details (phone, WhatsApp or email) and links to shipping, returns, privacy and terms.",
     "severity": "medium",
@@ -4519,6 +4652,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-08",
     "category": "navigation",
+    "tab": "Website",
     "title": "Arabic layout mirrors correctly",
     "rule": "Arabic pages have html lang=ar and dir=rtl, containers compute rtl, text is right-aligned, arrows face the right way, and nothing overflows 390px.",
     "severity": "medium",
@@ -4556,6 +4690,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-09",
     "category": "navigation",
+    "tab": "Website",
     "title": "Arabic version reads naturally",
     "rule": "Arabic pages are fully translated: product titles, menus and buttons are in Arabic, with natural wording and no spelling errors or leftover English.",
     "severity": "medium",
@@ -4595,6 +4730,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-10",
     "category": "navigation",
+    "tab": "Website",
     "title": "No popup in the way on arrival",
     "rule": "No popup, discount teaser or chat bubble covers the headline, main button or buy button in the first seconds; any popup closes with one tap or Escape.",
     "severity": "medium",
@@ -4628,6 +4764,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-11",
     "category": "navigation",
+    "tab": "Website",
     "title": "Header and footer same on all key pages",
     "rule": "Announcement bar, header and footer (including USP strip) are the same on home, collection and product pages.",
     "severity": "low",
@@ -4658,6 +4795,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "NAV-12",
     "category": "navigation",
+    "tab": "Website",
     "title": "Language switch and prices in the right currency",
     "rule": "A language switch (Arabic/English) is easy to find on the phone, and prices show in the store currency (for example SAR) the same way on product, cart and collection; if a currency switch exists it works.",
     "severity": "medium",
@@ -4692,6 +4830,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-01",
     "category": "trust",
+    "tab": "Website",
     "title": "Return policy is easy to find",
     "rule": "A returns page loads from the footer of home, product and cart, states the time window and who pays, and the product page or cart mentions returns.",
     "severity": "critical",
@@ -4741,6 +4880,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-02",
     "category": "trust",
+    "tab": "Website",
     "title": "Ratings show on cards and product page",
     "rule": "If the store has reviews, a star rating with review count shows near the product title, linking to reviews, and on at least half of collection cards.",
     "severity": "medium",
@@ -4793,6 +4933,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-03",
     "category": "trust",
+    "tab": "Website",
     "title": "Reviews look real",
     "rule": "Reviews come from a review app, are dated, include some customer photos, and not every review is 5 stars.",
     "severity": "medium",
@@ -4826,6 +4967,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-04",
     "category": "trust",
+    "tab": "Website",
     "title": "Proof on the first phone screen",
     "rule": "Home first phone screen shows a star rating with number or customer count, or a short named testimonial.",
     "severity": "medium",
@@ -4861,6 +5003,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-05",
     "category": "trust",
+    "tab": "Website",
     "title": "Guarantee or returns next to buy button",
     "rule": "A money-back, return or exchange guarantee line sits within the buy box, next to Add to cart.",
     "severity": "medium",
@@ -4894,6 +5037,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-06",
     "category": "trust",
+    "tab": "Website",
     "title": "Trust signals in the cart",
     "rule": "Near the cart checkout button, at least 2 of: returns note, guarantee, delivery promise, secure payment icons, support contact.",
     "severity": "medium",
@@ -4926,6 +5070,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-07",
     "category": "trust",
+    "tab": "Website",
     "title": "Shipping policy states cost and time",
     "rule": "Shipping policy page states cost, delivery time per region and couriers, and is linked from the footer.",
     "severity": "medium",
@@ -4951,6 +5096,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-08",
     "category": "trust",
+    "tab": "Website",
     "title": "Phone, WhatsApp and email easy to find",
     "rule": "A real phone or WhatsApp number and an email or form are reachable in one tap from the header, footer or contact page.",
     "severity": "medium",
@@ -4985,6 +5131,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-09",
     "category": "trust",
+    "tab": "Website",
     "title": "No template or placeholder content",
     "rule": "No page shows Lorem ipsum, demo addresses, theme-demo links or placeholder text.",
     "severity": "medium",
@@ -5010,6 +5157,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-10",
     "category": "trust",
+    "tab": "Website",
     "title": "Reviews show text, names, dates and breakdown",
     "rule": "Reviews section shows total count, star breakdown, sort or filter, and individual reviews with text, name and date.",
     "severity": "medium",
@@ -5036,6 +5184,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-11",
     "category": "trust",
+    "tab": "Website",
     "title": "Landing page has a guarantee",
     "rule": "The landing page states a guarantee or returns promise within 300px of the main CTA.",
     "severity": "medium",
@@ -5061,6 +5210,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-12",
     "category": "trust",
+    "tab": "Website",
     "title": "Trust badges beside landing CTAs",
     "rule": "The main landing CTA has a lock or security line, payment icons or a trust seal within 300px.",
     "severity": "medium",
@@ -5089,6 +5239,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-13",
     "category": "trust",
+    "tab": "Website",
     "title": "Testimonials are named and specific",
     "rule": "Testimonials show name, photo and a specific outcome, not just praise; an aggregate rating with count follows the testimonials section.",
     "severity": "low",
@@ -5120,6 +5271,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-14",
     "category": "trust",
+    "tab": "Website",
     "title": "Customer photos and videos shown",
     "rule": "At least 3 real customer photos or videos show on product pages, with some on home.",
     "severity": "low",
@@ -5156,6 +5308,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-15",
     "category": "trust",
+    "tab": "Website",
     "title": "About page and real business shown",
     "rule": "An About page names the business, shows real people or photos, and gives a physical address or registration where it exists.",
     "severity": "low",
@@ -5188,6 +5341,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-16",
     "category": "trust",
+    "tab": "Website",
     "title": "Logo or USP trust bar on landing page",
     "rule": "Within the first two phone screens, a bar shows real press or partner logos, or 3-4 icon promises.",
     "severity": "low",
@@ -5217,6 +5371,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "TRUST-21",
     "category": "trust",
+    "tab": "Website",
     "title": "Press, certification or partner logos",
     "rule": "Home page shows at least one recognised press, certification or partner logo (image alt or text) above the footer.",
     "severity": "low",
@@ -5250,6 +5405,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-01",
     "category": "offers",
+    "tab": "Website",
     "title": "Shipping cost and total shown before checkout",
     "rule": "The product page or cart states the shipping cost, how it is worked out, or the free-shipping rule before the checkout button.",
     "severity": "critical",
@@ -5300,6 +5456,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-02",
     "category": "offers",
+    "tab": "Website",
     "title": "Price clear with local currency and variant updates",
     "rule": "Price sits next to the title in local currency ('From X' when variants differ) and updates when the variant changes.",
     "severity": "critical",
@@ -5325,6 +5482,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-03",
     "category": "offers",
+    "tab": "Website",
     "title": "Cart price matches product page",
     "rule": "After our add, the cart unit price and currency equal the product page price, and a sale price keeps its old price.",
     "severity": "critical",
@@ -5362,6 +5520,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-04",
     "category": "offers",
+    "tab": "GA4",
     "title": "Free-delivery threshold vs average order",
     "rule": "A free-delivery threshold found on the visited pages sits at 1.1 to 1.6 times the GA4 average order value.",
     "severity": "medium",
@@ -5420,6 +5579,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-05",
     "category": "offers",
+    "tab": "Website",
     "title": "Delivery time shown before buying",
     "rule": "The product page (or collection cards) states a delivery time estimate in days, a date or by city, near the buy box.",
     "severity": "medium",
@@ -5466,6 +5626,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-06",
     "category": "offers",
+    "tab": "Website",
     "title": "Instalment price shown near price",
     "rule": "If Tabby, Tamara or valU is offered, an instalment line (for example 4 payments of X) shows within 300px of the product price and in the cart.",
     "severity": "medium",
@@ -5505,6 +5666,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-07",
     "category": "offers",
+    "tab": "Website",
     "title": "Local payment methods shown before checkout",
     "rule": "Icons or text for GCC payment methods (mada, Apple Pay, Tabby or Tamara, cash on delivery) and a secure-checkout line sit by Add to cart and the cart checkout button, not only the footer.",
     "severity": "medium",
@@ -5558,6 +5720,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-08",
     "category": "offers",
+    "tab": "Website",
     "title": "Sale price and saving are clear",
     "rule": "Discounted products show old and new price on the card; the product page also shows the saving (amount or %), with currency.",
     "severity": "medium",
@@ -5599,6 +5762,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-09",
     "category": "offers",
+    "tab": "Website",
     "title": "Free-shipping progress bar in cart",
     "rule": "The cart shows a progress bar or line naming the exact amount left for free shipping or a free gift, and the product page shows it too if possible.",
     "severity": "medium",
@@ -5632,6 +5796,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-10",
     "category": "offers",
+    "tab": "Website",
     "title": "Offers match across site and cart",
     "rule": "The offer and free-shipping amount in the cart equal those in the announcement bar.",
     "severity": "medium",
@@ -5663,6 +5828,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-11",
     "category": "offers",
+    "tab": "Website",
     "title": "Bundle or multi-buy saving is quantified",
     "rule": "A bundle or quantity offer sits next to the price or button and states the exact saving (amount or %), not only 2x1.",
     "severity": "medium",
@@ -5697,6 +5863,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-12",
     "category": "offers",
+    "tab": "Website",
     "title": "Add-ons suggested, one tap to add",
     "rule": "The product page or cart suggests 2-3 relevant add-ons, each with image, price and a one-tap Add button.",
     "severity": "medium",
@@ -5740,6 +5907,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-13",
     "category": "offers",
+    "tab": "Website",
     "title": "Main offer in one clear sentence",
     "rule": "Main offer is stated in one sentence of 25 words or fewer: what you get, the saving as a number, and the end or condition.",
     "severity": "low",
@@ -5767,6 +5935,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-14",
     "category": "offers",
+    "tab": "Website",
     "title": "Only one offer message at a time",
     "rule": "On the product page one offer message is visible; promo bar, floating discount tab and pop-up do not compete.",
     "severity": "low",
@@ -5792,6 +5961,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-15",
     "category": "offers",
+    "tab": "Website",
     "title": "Orders contain more than one item",
     "rule": "GA4 item units per order average 1.2 or more over the last 28 days (item units sold ÷ transactions).",
     "severity": "low",
@@ -5829,6 +5999,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-16",
     "category": "offers",
+    "tab": "Website",
     "title": "Cart shows what shopper saved",
     "rule": "When a discount applies, the cart shows a You saved line or crossed-out prices.",
     "severity": "low",
@@ -5859,6 +6030,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-17",
     "category": "offers",
+    "tab": "Website",
     "title": "Discount code field is present but quiet",
     "rule": "A discount code field exists in the cart or checkout, collapsed or behind a small link, not a large open box.",
     "severity": "low",
@@ -5901,6 +6073,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-18",
     "category": "offers",
+    "tab": "Website",
     "title": "Stock or sale-end message near price",
     "rule": "If a stock or sale-end message exists, it sits within 200px of the price. No message is not a fail.",
     "severity": "low",
@@ -5927,6 +6100,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-19",
     "category": "offers",
+    "tab": "Website",
     "title": "Value is framed per use or day",
     "rule": "The product page has a per-unit, per-day or days-of-supply line within 300px of the price.",
     "severity": "low",
@@ -5959,6 +6133,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-20",
     "category": "offers",
+    "tab": "Website",
     "title": "Email or WhatsApp signup with incentive",
     "rule": "A signup form or WhatsApp link states a clear incentive (discount, early access) in the first load or footer.",
     "severity": "low",
@@ -5990,6 +6165,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-21",
     "category": "offers",
+    "tab": "Website",
     "title": "Loyalty, referral or subscription visible",
     "rule": "The site shows a loyalty, referral or subscribe-and-save programme link or banner before purchase.",
     "severity": "low",
@@ -6022,6 +6198,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-22",
     "category": "offers",
+    "tab": "Website",
     "title": "Cart shows the full cost clearly",
     "rule": "Subtotal plus clear shipping handling, and a discount field or note, before the checkout button.",
     "severity": "critical",
@@ -6069,6 +6246,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-23",
     "category": "offers",
+    "tab": "Website",
     "title": "Delivery details: specific timing ('Order in 3h → delivered Thursday'), estimated duration, and free-shipping threshold BELOW the delivery time",
     "rule": "Delivery estimate + shipping cost/free threshold.",
     "severity": "low",
@@ -6096,6 +6274,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "OFFER-24",
     "category": "offers",
+    "tab": "Website",
     "title": "Reassurance right under the button",
     "rule": "One or more short reassurance lines sit directly by the CTA.",
     "severity": "medium",
@@ -6130,6 +6309,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-01",
     "category": "landing",
+    "tab": "Website",
     "title": "Paid campaigns land on pages that convert",
     "rule": "Each top-3 paid campaign (50+ sessions) lands on a page with add-to-cart rate at least 70% of the paid average.",
     "severity": "critical",
@@ -6169,6 +6349,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-02",
     "category": "landing",
+    "tab": "Website",
     "title": "Paid landing pages do not show not-found",
     "rule": "No landing page getting paid sessions returns an error or not-found page, and the 404 page offers search or a way back.",
     "severity": "critical",
@@ -6207,6 +6388,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-03",
     "category": "landing",
+    "tab": "Website",
     "title": "Landing page stays focused on one goal",
     "rule": "The landing page has no main menu, at most 2 header links, one main offer, and every main button leads to the same action.",
     "severity": "critical",
@@ -6237,6 +6419,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-04",
     "category": "landing",
+    "tab": "Website",
     "title": "First screen has benefit headline and CTA",
     "rule": "The first phone screen shows a benefit-led headline, 3 short benefit points and one clear CTA.",
     "severity": "critical",
@@ -6267,6 +6450,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-05",
     "category": "landing",
+    "tab": "Website",
     "title": "Quick-backs on the top landing page",
     "rule": "With 100+ sessions on the top landing page, its quick-back share is at or below the site-wide share.",
     "severity": "medium",
@@ -6305,6 +6489,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-06",
     "category": "landing",
+    "tab": "Website",
     "title": "Landing page matches shopper's language",
     "rule": "Landing page lang and dir match its visible text language, an Arabic version with a visible switcher exists, and Arabic-language GA4 sessions land on Arabic pages.",
     "severity": "medium",
@@ -6342,6 +6527,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-07",
     "category": "landing",
+    "tab": "Website",
     "title": "Landing page shows named customer proof",
     "rule": "The page shows a star rating with count or at least 2 testimonials with first and last name, within the first two phone screens.",
     "severity": "medium",
@@ -6371,6 +6557,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-08",
     "category": "landing",
+    "tab": "Website",
     "title": "CTA repeats down the page",
     "rule": "On a landing page longer than 4 phone screens, the main CTA appears at least 4 times, including after the hero and at the close.",
     "severity": "medium",
@@ -6398,6 +6585,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-09",
     "category": "landing",
+    "tab": "Website",
     "title": "CTA labels say what the visitor gets",
     "rule": "Main buttons carry a specific benefit or next-step label, not Submit, Click here or Learn more.",
     "severity": "medium",
@@ -6424,6 +6612,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-10",
     "category": "landing",
+    "tab": "Website",
     "title": "Lead form is short",
     "rule": "The landing page form asks 3 fields or fewer (4 with an optional question), each with a visible label.",
     "severity": "medium",
@@ -6451,6 +6640,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-11",
     "category": "landing",
+    "tab": "Website",
     "title": "Form or buy box reachable at once",
     "rule": "The form or buy box shows in the first phone screen, or comes directly after the headline, with no scrolling past body copy.",
     "severity": "medium",
@@ -6479,6 +6669,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-12",
     "category": "landing",
+    "tab": "Website",
     "title": "Multi-step forms show progress and time",
     "rule": "A multi-step form shows a progress bar or step count and states how long it takes.",
     "severity": "low",
@@ -6509,6 +6700,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "LAND-13",
     "category": "landing",
+    "tab": "Website",
     "title": "Landing page answers questions with FAQ",
     "rule": "A FAQ block with at least 3 questions sits before the closing CTA.",
     "severity": "low",
@@ -6537,6 +6729,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-01",
     "category": "speed",
+    "tab": "Website",
     "title": "Main content shows fast (LCP)",
     "rule": "LCP is under 2.5s on a throttled phone, on the product page and home.",
     "severity": "critical",
@@ -6593,6 +6786,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-02",
     "category": "speed",
+    "tab": "Website",
     "title": "Page does not jump while loading",
     "rule": "CLS is under 0.1 on a phone on home, collection and product.",
     "severity": "medium",
@@ -6648,6 +6842,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-03",
     "category": "speed",
+    "tab": "Website",
     "title": "Taps respond without lag",
     "rule": "Total Blocking Time is under 200 ms while home and product load on a throttled phone.",
     "severity": "medium",
@@ -6702,6 +6897,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-04",
     "category": "speed",
+    "tab": "Website",
     "title": "No render-blocking files",
     "rule": "No third-party script in the head lacks async/defer, and render-blocking resources delay first paint by under 0.5s.",
     "severity": "medium",
@@ -6744,6 +6940,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-05",
     "category": "speed",
+    "tab": "Website",
     "title": "Images are light and lazy",
     "rule": "At least 90% of content images (not SVG, not under 48px) have natural width up to 2x display width and are WebP or AVIF; images below the first screen use loading=lazy.",
     "severity": "medium",
@@ -6792,6 +6989,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-06",
     "category": "speed",
+    "tab": "Website",
     "title": "Third-party apps stay light",
     "rule": "Third-party transfer (excluding the store's own domains and image CDN) is under 50% of home page bytes, and no single app domain exceeds 20%.",
     "severity": "medium",
@@ -6846,6 +7044,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-07",
     "category": "speed",
+    "tab": "Website",
     "title": "No autoplay video on phone first screen",
     "rule": "No autoplay video larger than 1 MB is in the phone first screen of home.",
     "severity": "low",
@@ -6892,6 +7091,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SPEED-08",
     "category": "speed",
+    "tab": "GTM",
     "title": "Heavy tags on every page",
     "rule": "Only core tags fire on All Pages.",
     "severity": "medium",
@@ -6933,6 +7133,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-01",
     "category": "findability",
+    "tab": "Website",
     "title": "Product and collection pages indexable",
     "rule": "Product and collection pages are allowed in robots.txt and carry no noindex or nofollow.",
     "severity": "critical",
@@ -6972,6 +7173,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-02",
     "category": "findability",
+    "tab": "Website",
     "title": "Page titles unique and short",
     "rule": "Each page title is unique, under 60 characters and holds the product or category name.",
     "severity": "medium",
@@ -7006,6 +7208,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-03",
     "category": "findability",
+    "tab": "Website",
     "title": "Canonical tags point to themselves",
     "rule": "Product and collection pages have a canonical URL pointing to their own clean address.",
     "severity": "medium",
@@ -7041,6 +7244,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-04",
     "category": "findability",
+    "tab": "Website",
     "title": "robots.txt and sitemap work",
     "rule": "robots.txt is valid and lists a sitemap URL that returns 200.",
     "severity": "medium",
@@ -7073,6 +7277,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-05",
     "category": "findability",
+    "tab": "Website",
     "title": "Product pages carry Product schema",
     "rule": "Product pages have Product schema with an Offer holding price and availability.",
     "severity": "medium",
@@ -7104,6 +7309,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-06",
     "category": "findability",
+    "tab": "Website",
     "title": "Schema price and stock match the page",
     "rule": "When the product page clearly shows one price, schema price equals it; when it shows stock status, availability matches it.",
     "severity": "medium",
@@ -7149,6 +7355,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-07",
     "category": "findability",
+    "tab": "Website",
     "title": "Language tags and hreflang correct",
     "rule": "If the store has English and Arabic versions: html lang and dir match each page, hreflang pairs reciprocally, and Arabic pages have no noindex.",
     "severity": "medium",
@@ -7182,6 +7389,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-08",
     "category": "findability",
+    "tab": "Website",
     "title": "Shared links show picture and title",
     "rule": "Home and product pages have og:title, og:image and og:description.",
     "severity": "low",
@@ -7230,6 +7438,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "SEO-09",
     "category": "findability",
+    "tab": "Website",
     "title": "Collection page has helpful text below the grid",
     "rule": "A text block of at least 100 words below the product grid explains the collection and is not keyword stuffing.",
     "severity": "low",
@@ -7257,6 +7466,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-01",
     "category": "risk",
+    "tab": "GA4",
     "title": "No customer emails or phones sent to trackers",
     "rule": "No email or phone number appears in page URLs, GA4 page paths, query strings of pixel or GA4 hits, or as plain text in any GTM tag parameter.",
     "severity": "critical",
@@ -7307,6 +7517,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-02",
     "category": "risk",
+    "tab": "Website",
     "title": "HTTPS everywhere, no mixed content",
     "rule": "All pages including checkout load on HTTPS with no mixed-content requests.",
     "severity": "critical",
@@ -7351,6 +7562,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-03",
     "category": "risk",
+    "tab": "GTM",
     "title": "Consent banner choice is respected",
     "rule": "Where a banner shows: the consent default fires on Consent Initialization; after refusing, no ad pixel hits are sent; after accepting, consent signals are granted. If we cannot click the buttons, that part is unassessed.",
     "severity": "medium",
@@ -7399,6 +7611,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-04",
     "category": "risk",
+    "tab": "Website",
     "title": "No exposed source files",
     "rule": "Source maps, .env, .git and backup files at standard paths do not return a real file body (a 404 or the HTML shell is a pass).",
     "severity": "medium",
@@ -7432,6 +7645,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-05",
     "category": "risk",
+    "tab": "Website",
     "title": "Price and buy buttons readable",
     "rule": "Price text and Add to Cart button pass WCAG AA contrast (4.5:1 text, 3:1 large).",
     "severity": "medium",
@@ -7464,6 +7678,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-06",
     "category": "risk",
+    "tab": "Website",
     "title": "Tap targets at least 44px",
     "rule": "Primary controls (CTA, quantity, swatches, menu, cart, search, checkout) are at least 44x44px on phone with spacing between them; the main CTA is near full width.",
     "severity": "medium",
@@ -7509,6 +7724,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-07",
     "category": "risk",
+    "tab": "Website",
     "title": "No sideways scroll on small phones",
     "rule": "At 390px and 360px, home, collection, product and cart have no horizontal scrolling.",
     "severity": "medium",
@@ -7557,6 +7773,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-08",
     "category": "risk",
+    "tab": "Website",
     "title": "No broken images or empty gaps",
     "rule": "After scrolling each audited page, no visible image has naturalWidth 0 and no empty block over 600px tall.",
     "severity": "medium",
@@ -7583,6 +7800,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-09",
     "category": "risk",
+    "tab": "Website",
     "title": "Icon buttons have names",
     "rule": "Cart, menu and search icon buttons each have an aria-label or visible text name.",
     "severity": "low",
@@ -7615,6 +7833,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-10",
     "category": "risk",
+    "tab": "Website",
     "title": "Form fields have labels",
     "rule": "Every input on visited forms has a label or aria-label.",
     "severity": "low",
@@ -7648,6 +7867,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-11",
     "category": "risk",
+    "tab": "Website",
     "title": "Text readable on phone",
     "rule": "Body text is at least 16px on phone and its contrast meets 4.5:1.",
     "severity": "low",
@@ -7674,6 +7894,7 @@ export const POINTS: AuditPoint[] = [
   {
     "id": "RISK-12",
     "category": "risk",
+    "tab": "Website",
     "title": "Form fields do not zoom on tap",
     "rule": "Form inputs use font size 16px or more and the right keyboard type (tel, email), so the page does not zoom on tap.",
     "severity": "low",
@@ -7696,5 +7917,172 @@ export const POINTS: AuditPoint[] = [
     "origin": [
       "MB-008"
     ]
+  },
+  {
+    "id": "TRK-45",
+    "category": "tracking",
+    "tab": "GA4",
+    "severity": "low",
+    "status": "active",
+    "roles": [
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
+    ],
+    "title": "Data kept long enough",
+    "rule": "GA4 event data retention is longer than 2 months (GA4 Admin > Data retention).",
+    "decidedBy": "code",
+    "pages": [
+      "sitewide"
+    ],
+    "needs": [
+      "ga4"
+    ],
+    "roleCopy": {},
+    "opportunity": "benefit",
+    "owners": [
+      "marketing"
+    ],
+    "defaultAction": "Set event data retention to 14 months. Then you can compare Ramadan and White Friday year on year.",
+    "doneWhen": "GA4 Admin > Data retention shows 14 months.",
+    "origin": [
+      "GA4-23"
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-23 (restored 25 Nov for 25 GA4 checks)."
+  },
+  {
+    "id": "TRK-46",
+    "category": "tracking",
+    "tab": "GA4",
+    "severity": "medium",
+    "status": "active",
+    "roles": [
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
+    ],
+    "title": "Refunds and cancelled orders reach GA4",
+    "rule": "With purchases in the last 90 days, GA4 also recorded at least one refund event. Unverified when the 90-day event list is cut off.",
+    "decidedBy": "code",
+    "pages": [
+      "checkout"
+    ],
+    "needs": [
+      "ga4"
+    ],
+    "roleCopy": {
+      "media_buyer": {
+        "title": "Returned and cancelled orders reach GA4",
+        "whyItMatters": "Without refunds, GA4 revenue and paid ROAS in GA4 count orders the store never got paid for; with COD refusals this gap can be large, and campaigns that bring many refused orders look better than they are.",
+        "adEffect": "inflated",
+        "lane": "signal"
+      }
+    },
+    "opportunity": "risk",
+    "owners": [
+      "dev"
+    ],
+    "defaultAction": "Forward to the developer: send a GA4 refund event with the transaction_id when an order is returned, refused on delivery or cancelled (the store platform's GA4 app, or the Measurement Protocol from the order system).",
+    "doneWhen": "GA4 shows refund events for the store's returned and cancelled orders.",
+    "origin": [
+      "MB-GA4-26"
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-P17 (restored 25 Nov for 25 GA4 checks)."
+  },
+  {
+    "id": "TRK-47",
+    "category": "tracking",
+    "tab": "GA4",
+    "severity": "low",
+    "status": "active",
+    "roles": [
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
+    ],
+    "title": "Hours and days that convert",
+    "rule": "Over 28 days, with 30+ sales: no hour or weekday block converts far above or below the store's average with enough visits to act on (ga4-facts.ts GA4-16).",
+    "decidedBy": "code",
+    "pages": [
+      "sitewide"
+    ],
+    "needs": [
+      "ga4"
+    ],
+    "roleCopy": {
+      "store_owner": {
+        "title": "Hours and days your store sells best",
+        "whyItMatters": "Putting your budget and messages where shoppers buy gets more sales from the same spend."
+      },
+      "media_buyer": {
+        "title": "Hours and days that convert",
+        "whyItMatters": "Spend in hours that rarely convert raises CAC; moving it is expected to lower CAC on the same budget.",
+        "adEffect": "cost",
+        "lane": "post_click"
+      }
+    },
+    "opportunity": "revenue_loss",
+    "owners": [
+      "marketing"
+    ],
+    "defaultAction": "Shift budget or set an ad schedule toward the hours and days that convert, where the platform allows it.",
+    "doneWhen": "Ad schedule or budget split set to match in the ad accounts.",
+    "origin": [
+      "GA4-16",
+      "MB-GA4-24",
+      "SO-GA4-25"
+    ],
+    "note": "Rule matches ga4-facts.ts GA4-16 (restored 25 Nov for 25 GA4 checks)."
+  },
+  {
+    "id": "TRK-48",
+    "category": "tracking",
+    "tab": "GTM",
+    "severity": "low",
+    "status": "active",
+    "roles": [
+      "store_owner",
+      "media_buyer",
+      "marketing_manager",
+      "agency"
+    ],
+    "title": "Ad click IDs saved",
+    "rule": "Home opened with test gclid and fbclid: for each of Google Ads and Meta that the store runs, its click-ID cookie is set after load (_gcl_aw for Google Ads, _fbc for Meta). Unverified when a consent banner is showing and the cookie is missing.",
+    "decidedBy": "code",
+    "pages": [
+      "home"
+    ],
+    "needs": [
+      "visit",
+      "ga4",
+      "gtm"
+    ],
+    "roleCopy": {
+      "store_owner": {
+        "title": "Ad click IDs are saved so ad platforms can match sales",
+        "whyItMatters": "When the click is not stored, sales show up as unknown, and you cannot tell which ads sell."
+      },
+      "media_buyer": {
+        "title": "Click IDs saved in first-party cookies",
+        "whyItMatters": "Without the click ID cookie, a buyer who comes back later is no longer tied to the ad, so returning buyers show as direct and reported ROAS reads lower than real.",
+        "adEffect": "deflated",
+        "lane": "signal"
+      }
+    },
+    "opportunity": "benefit",
+    "owners": [
+      "dev"
+    ],
+    "defaultAction": "Have your developer add the Conversion Linker for Google Ads and let the Meta pixel store fbclid in the _fbc cookie.",
+    "doneWhen": "Our test visit with click IDs leaves _gcl_aw and _fbc cookies for the platforms the store runs.",
+    "origin": [
+      "GTM-14",
+      "SO-GTM-15",
+      "MB-GTM-16"
+    ],
+    "note": "Restored 25 Nov for 25 GTM checks. TikTok's ttclid cookie isn't checked: its name isn't documented well enough to fail on. The Conversion Linker clause moved here from TRK-05."
   }
 ];

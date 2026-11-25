@@ -193,16 +193,6 @@ export const DROPPED: DroppedPoint[] = [
     "shownInPastReports": 6
   },
   {
-    "id": "GA4-16",
-    "reason": "Low-value, vague; hour/day patterns rarely actionable",
-    "shownInPastReports": 6
-  },
-  {
-    "id": "GA4-23",
-    "reason": "Low-value; retention setting",
-    "shownInPastReports": 6
-  },
-  {
     "id": "GA4-25",
     "reason": "low-value",
     "shownInPastReports": 6
@@ -210,11 +200,6 @@ export const DROPPED: DroppedPoint[] = [
   {
     "id": "GTM-12",
     "reason": "Low-value; lead signups minor for stores",
-    "shownInPastReports": 6
-  },
-  {
-    "id": "GTM-14",
-    "reason": "Low-value; pixels and linker store click IDs",
     "shownInPastReports": 6
   },
   {
@@ -673,21 +658,6 @@ export const DROPPED: DroppedPoint[] = [
     "shownInPastReports": 10
   },
   {
-    "id": "MB-GA4-24",
-    "reason": "Low-value; hour/day patterns rarely actionable",
-    "shownInPastReports": 10
-  },
-  {
-    "id": "MB-GA4-26",
-    "reason": "low-value",
-    "shownInPastReports": 2
-  },
-  {
-    "id": "MB-GTM-16",
-    "reason": "low-value",
-    "shownInPastReports": 10
-  },
-  {
     "id": "MB-GTM-18",
     "reason": "Low-value, vague; late consent attribution edge case",
     "shownInPastReports": 10
@@ -866,11 +836,6 @@ export const DROPPED: DroppedPoint[] = [
     "shownInPastReports": 2
   },
   {
-    "id": "SO-GA4-25",
-    "reason": "Low-value, vague; hour/day patterns rarely actionable",
-    "shownInPastReports": 2
-  },
-  {
     "id": "SO-GTM-09",
     "reason": "Low-value; official templates handle load order",
     "shownInPastReports": 2
@@ -883,11 +848,6 @@ export const DROPPED: DroppedPoint[] = [
   {
     "id": "SO-GTM-14",
     "reason": "Low-value; lead signups minor for stores",
-    "shownInPastReports": 2
-  },
-  {
-    "id": "SO-GTM-15",
-    "reason": "Low-value; pixels and linker store click IDs",
     "shownInPastReports": 2
   },
   {

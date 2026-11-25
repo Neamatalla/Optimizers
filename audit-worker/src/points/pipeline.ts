@@ -148,19 +148,20 @@ export function uncheckedWhy(p: AuditPoint, r: RuleResult, have: { blocked: bool
   return "manual";
 }
 
-// Report tab per point: GA4 and GTM tracking points sit with their tool,
-// everything else under Website.
+// Report tab per point: set on each point in registry.ts (the tool the
+// check is about), not worked out from the data it needs.
 export function tabOf(p: AuditPoint): CategoryKey {
-  if (p.category !== "tracking") return "Website";
-  if (p.needs.includes("gtm") && !p.needs.includes("ga4")) return "GTM";
-  if (p.needs.includes("ga4")) return "GA4";
-  return "GTM";
+  return p.tab;
 }
 
 
 const CATEGORY_ORDER: PointCategory[] = ["tracking", "buying-path", "product-page", "collection", "homepage", "navigation", "trust", "offers", "landing", "speed", "findability", "risk"];
 
-/** The point results as report categories. n/a points are left out; unverified ones are "unassessed" (not scored). */
+/**
+ * The point results as report categories. Every point is listed, so GA4 and
+ * GTM always show their 25: n/a points stay as "Doesn't apply" rows, and
+ * unverified ones are "unassessed". Neither is scored (score = passed / evaluated).
+ */
 export function pointsToCategories(results: Record<string, RuleResult>, role: AudienceRole | null): CategoryResult[] {
   const byTab = new Map<CategoryKey, CategoryFinding[]>();
   const ids = Object.keys(results)
@@ -169,10 +170,9 @@ export function pointsToCategories(results: Record<string, RuleResult>, role: Au
     .sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
   for (const p of ids) {
     const r = results[p.id];
-    if (r.status === "n/a") continue;
     const en = renderFinding(p.id, r, { role, lang: "en" });
     const ar = renderFinding(p.id, r, { role, lang: "ar" });
-    const status = r.status === "pass" ? "pass" : r.status === "fail" ? "fail" : "unassessed";
+    const status = r.status === "pass" ? "pass" : r.status === "fail" ? "fail" : r.status === "n/a" ? "n/a" : "unassessed";
     const f: CategoryFinding = {
       checklistId: p.id,
       status,
@@ -198,7 +198,7 @@ export function pointsToCategories(results: Record<string, RuleResult>, role: Au
   const order: CategoryKey[] = ["GA4", "GTM", "Website"];
   return order.filter(k => byTab.has(k)).map(k => {
     const findings = byTab.get(k)!;
-    const evaluated = findings.filter(f => f.status !== "unassessed").length;
+    const evaluated = findings.filter(f => f.status === "pass" || f.status === "fail").length;
     const passed = findings.filter(f => f.status === "pass").length;
     return { category: k, score: evaluated ? Math.round((passed / evaluated) * 100) : 0, checklistTally: { total: findings.length, evaluated, passed }, findings };
   });

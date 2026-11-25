@@ -78,7 +78,8 @@ export function renderFinding(pointId: string, result: RuleResult, opts: { role?
     // AI's observation; the generic line only when there is none. Adham,
     // 23 Nov: an unchecked row says why, not "couldn't check" 30 times.
     const why = useLang === "en" ? result.observation?.en ?? result.reason : result.observation?.ar;
-    const line = result.status === "unverified" && why ? why : head;
+    // n/a rows show in the report too ("Doesn't apply"), so they say why as well.
+    const line = (result.status === "unverified" || result.status === "n/a") && why ? why : head;
     return {
       technical: { summary: useLang === "en" ? result.reason : result.observation?.ar ?? head, detail: "" },
       business: { summary: line, detail: result.status === "unverified" ? g.detail : "" },

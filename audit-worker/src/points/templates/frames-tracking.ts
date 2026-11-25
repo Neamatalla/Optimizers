@@ -6,14 +6,14 @@ export const FRAMES_TRACKING: Record<string, PointTemplate> = {
     en: {
       default: {
         pass: {
-          technical: { summary: "{observation}", detail: "GA4 shows google/cpc sessions, and GTM has a Google Ads conversion tag with a Conversion Linker, or the account imports GA4 purchases." },
+          technical: { summary: "{observation}", detail: "GA4 shows google/cpc sessions, and GTM has a live Google Ads conversion tag, or the account imports GA4 purchases." },
           business: { summary: "Google Ads receives the store's sales.", detail: "Smart Bidding sees which clicks became orders, so it can look for more shoppers like those buyers." },
           protect: "Check the conversion status in Google Ads after any change to the checkout, the thank-you page or GTM.",
         },
         fail: {
-          technical: { summary: "{observation}", detail: "GA4 shows google/cpc sessions, but GTM has no Google Ads conversion tag, or the tag runs without a Conversion Linker, and no GA4 purchase import is known. Without the linker the click ID is not stored, so many sales can't be matched to the click." },
+          technical: { summary: "{observation}", detail: "GA4 shows google/cpc sessions, but GTM has no live Google Ads conversion tag, and Google Ads isn't linked to GA4, so no GA4 purchase import is possible. Saving the click ID (Conversion Linker) is a separate check." },
           business: { summary: "Google Ads doesn't see all the sales its clicks bring.", detail: "The store pays for Google clicks, but Google bids without knowing which ones became orders. It then spends on shoppers less likely to buy, and its reports show fewer sales than the store made." },
-          step: "The developer adds a Google Ads purchase conversion tag and a Conversion Linker on All Pages in GTM, and turns on enhanced conversions. If the account imports GA4 purchases instead, confirm the import is set as the primary conversion.",
+          step: "The developer adds a Google Ads purchase conversion tag in GTM and turns on enhanced conversions. If the account imports GA4 purchases instead, confirm the import is set as the primary conversion.",
           doneWhen: "Google Ads shows the purchase conversion as recording, and a test order appears in it.",
         },
       },
@@ -21,7 +21,7 @@ export const FRAMES_TRACKING: Record<string, PointTemplate> = {
         fail: { business: { summary: "Google Ads doesn't see all the sales its clicks bring to your store.", detail: "You pay for every Google click, but Google can't tell which ones bought. It keeps spending on shoppers less likely to order, and its reports show fewer sales than you made." } },
       },
       media_buyer: {
-        fail: { business: { summary: "Google Ads is missing purchases, so reported ROAS reads lower than real and Smart Bidding learns from fewer sales.", detail: "No conversion tag or no Conversion Linker means many Google-driven sales are never credited. Winning campaigns can look weak and get cut, and tROAS or tCPA bidding works from a thin signal. The store's developer adds the tag and linker in GTM." } },
+        fail: { business: { summary: "Google Ads is missing purchases, so reported ROAS reads lower than real and Smart Bidding learns from fewer sales.", detail: "With no conversion tag, Google-driven sales are never credited. Winning campaigns can look weak and get cut, and tROAS or tCPA bidding works from a thin signal. The store's developer adds the tag in GTM." } },
       },
       agency: {
         fail: { business: { summary: "Google Ads doesn't see all the sales its clicks bring to the store.", detail: "The store pays for Google clicks, but Google bids without knowing which ones became orders. Its reports undercount sales, so campaign results look weaker than they are." } },
@@ -30,14 +30,14 @@ export const FRAMES_TRACKING: Record<string, PointTemplate> = {
     ar: {
       default: {
         pass: {
-          technical: { summary: "{observation}", detail: "يظهر في GA4 زيارات google/cpc، وفي GTM وسم تحويل Google Ads مع Conversion Linker، أو أن الحساب يستورد مشتريات GA4." },
+          technical: { summary: "{observation}", detail: "يظهر في GA4 زيارات google/cpc، وفي GTM وسم تحويل Google Ads يعمل، أو أن الحساب يستورد مشتريات GA4." },
           business: { summary: "Google Ads يستقبل مبيعات المتجر.", detail: "المزايدة الذكية ترى أي النقرات تحولت إلى طلبات، فتبحث عن متسوقين يشبهون هؤلاء المشترين." },
           protect: "تحقق من حالة التحويل في Google Ads بعد أي تغيير في الدفع أو صفحة الشكر أو GTM.",
         },
         fail: {
-          technical: { summary: "{observation}", detail: "يظهر في GA4 زيارات google/cpc، لكن لا يوجد في GTM وسم تحويل Google Ads، أو يعمل الوسم بدون Conversion Linker، ولا يُعرف استيراد لمشتريات GA4. بدون Linker لا يُحفظ معرّف النقرة، فلا تُربط مبيعات كثيرة بالنقرة." },
+          technical: { summary: "{observation}", detail: "يظهر في GA4 زيارات google/cpc، لكن لا يوجد في GTM وسم تحويل Google Ads يعمل، وGoogle Ads غير مربوط بـ GA4، فلا يمكن استيراد مشتريات GA4. حفظ معرّف النقرة (Conversion Linker) بند منفصل." },
           business: { summary: "Google Ads لا يرى كل المبيعات التي تأتي من نقراته.", detail: "المتجر يدفع مقابل نقرات Google، لكن Google يزايد دون أن يعرف أيها تحول إلى طلب. فيصرف على متسوقين أقل احتمالًا للشراء، وتُظهر تقاريره مبيعات أقل من الحقيقية." },
-          step: "يضيف المطوّر في GTM وسم تحويل شراء من Google Ads و Conversion Linker على كل الصفحات، ويفعّل التحويلات المحسّنة. وإذا كان الحساب يستورد مشتريات GA4، تأكد أن الاستيراد مضبوط كتحويل أساسي.",
+          step: "يضيف المطوّر في GTM وسم تحويل شراء من Google Ads، ويفعّل التحويلات المحسّنة. وإذا كان الحساب يستورد مشتريات GA4، تأكد أن الاستيراد مضبوط كتحويل أساسي.",
           doneWhen: "يعرض Google Ads تحويل الشراء بحالة تسجيل، ويظهر فيه طلب تجريبي.",
         },
       },
@@ -45,7 +45,7 @@ export const FRAMES_TRACKING: Record<string, PointTemplate> = {
         fail: { business: { summary: "Google Ads ما يشوف كل المبيعات اللي تجي من إعلاناته في متجرك.", detail: "أنت تدفع على كل ضغطة من Google، بس Google ما يعرف مين اشترى. فيكمل يصرف على ناس أقل احتمال يطلبون، وتقاريره تبين مبيعات أقل من اللي صارت فعلًا." } },
       },
       media_buyer: {
-        fail: { business: { summary: "Google Ads مش شايف كل الـ purchases، فالـ ROAS المعروض أقل من الحقيقي والـ Smart Bidding بيتعلم من مبيعات أقل.", detail: "من غير conversion tag أو Conversion Linker، مبيعات كتير جاية من Google مش بتتحسب. حملات كسبانة ممكن تبان ضعيفة وتتقفل، والـ tROAS أو tCPA بيشتغل على signal ضعيف. مطوّر المتجر يضيف الـ tag والـ linker في GTM." } },
+        fail: { business: { summary: "Google Ads مش شايف كل الـ purchases، فالـ ROAS المعروض أقل من الحقيقي والـ Smart Bidding بيتعلم من مبيعات أقل.", detail: "من غير conversion tag، المبيعات الجاية من Google مش بتتحسب. حملات كسبانة ممكن تبان ضعيفة وتتقفل، والـ tROAS أو tCPA بيشتغل على signal ضعيف. مطوّر المتجر يضيف الـ tag في GTM." } },
       },
       agency: {
         fail: { business: { summary: "Google Ads لا يرى كل المبيعات التي تأتي من نقراته إلى المتجر.", detail: "المتجر يدفع مقابل نقرات Google، لكن Google يزايد دون أن يعرف أيها تحول إلى طلب. وتقاريره تُظهر مبيعات أقل، فتبدو نتائج الحملات أضعف مما هي عليه." } },

@@ -1,6 +1,6 @@
 import type { AudienceRole } from "../audience.js";
 import type { AdEffect } from "../ad-impact.js";
-import type { ActionOwner, FindingSeverity, Opportunity } from "../types.js";
+import type { ActionOwner, CategoryKey, FindingSeverity, Opportunity } from "../types.js";
 
 /**
  * The master audit point list (master-points/README.md). One entry per issue
@@ -9,8 +9,7 @@ import type { ActionOwner, FindingSeverity, Opportunity } from "../types.js";
  * Conversion review rules (fud/rules*.ts) and the manual CRO checklist
  * (fud/manual-checklist-data.ts).
  *
- * Not wired into the audit yet: the old lists still run. This is the data the
- * next steps build on (code rules, templates).
+ * Runs with POINTS_PIPELINE=on (points/pipeline.ts); off by default.
  */
 
 export type PointCategory =
@@ -46,6 +45,10 @@ export interface AuditPoint {
   // Stable, never reused. Prefix = category (TRK, PATH, PDP…).
   id: string;
   category: PointCategory;
+  // The report tab it shows in: the tool the check is about. GA4 and GTM
+  // hold 25 active points each, for every role (pipeline.test.ts). A point
+  // sits in one tab only, so a check is never repeated across tabs.
+  tab: CategoryKey;
   title: string;
   // The one pass line. Two reviewers should agree on it.
   rule: string;
@@ -53,9 +56,10 @@ export interface AuditPoint {
   decidedBy: Decider;
   pages: PageKind[];
   needs: DataNeed[];
-  // Roles this point serves. Built from its origins: a point built from a
-  // shared check, a Conversion review rule or a manual checkpoint serves all
-  // roles; one built only from SO-/MB- points serves only those roles.
+  // Roles this point serves. GA4 and GTM points serve every role. A Website
+  // point built from a shared check, a Conversion review rule or a manual
+  // checkpoint serves all roles; one built only from SO-/MB- points serves
+  // only those roles.
   roles: AudienceRole[];
   status: PointStatus;
   parkedReason?: string;

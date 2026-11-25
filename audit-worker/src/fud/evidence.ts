@@ -286,6 +286,13 @@ export interface StoreEvidence {
   // view_item (product page, before the click) and add_to_cart (the click)
   // pushes to the dataLayer, money fields only.
   dlPushes?: { view?: DataLayerPush[]; atc?: DataLayerPush[] };
+  // The product page's dataLayer entries that carry an ecommerce key, in
+  // order, after the Add-to-Cart click when there was one: "null" for a
+  // clear, else the push's event name (TRK-41). Absent on older visits.
+  dlEcommerce?: string[];
+  // Session-recording tools whose script or hits loaded during the visit
+  // (TRK-39). Absent on older visits.
+  recorders?: string[];
   // Every analytics/pixel hit seen while a page loaded (before any tap),
   // with the page and, for GA4 and Meta, the measurement / pixel ID.
   pageHits?: Array<{ page: string; vendor: string; name: string; id?: string; q?: HitParams }>;

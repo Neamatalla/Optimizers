@@ -630,7 +630,23 @@ interface HitCounter {
   // What the browser logged per page, keyed "phone|product" / "desktop|home".
   net: Record<string, PageNet>;
   // dataLayer shopping pushes: product page (view_item) and the click (add_to_cart).
-  dl: { view?: DataLayerPush[]; atc?: DataLayerPush[] };
+  // seq: the product page's ecommerce pushes in order (TRK-41).
+  dl: { view?: DataLayerPush[]; atc?: DataLayerPush[]; seq?: string[] };
+  // Session-recording tools whose script or hits we saw (TRK-39).
+  recorders: Set<string>;
+}
+
+// Session-recording tools by script or hit host (TRK-39).
+const RECORDERS: Array<[string, RegExp]> = [
+  ["Microsoft Clarity", /\.clarity\.ms\//],
+  ["Hotjar", /hotjar\.(?:com|io)\//],
+  ["Mouseflow", /mouseflow\.com\//],
+  ["Smartlook", /smartlook\.(?:com|cloud)\//],
+  ["Lucky Orange", /luckyorange\.(?:com|net)\//],
+  ["FullStory", /fullstory\.com\//],
+];
+export function recorderOf(url: string): string | undefined {
+  return RECORDERS.find(([, re]) => re.test(url))?.[0];
 }
 
 // The page's own state: which logical page its log lines belong to. visit()
@@ -797,6 +813,8 @@ async function preparePage(browserContext: Awaited<ReturnType<Browser["createBro
   page.on("request", req => {
     if (req.isInterceptResolutionHandled()) return;
     const url = req.url();
+    const recorder = recorderOf(url);
+    if (recorder) counter.recorders.add(recorder);
     if (isBlockedHit(url)) {
       counter.blocked++;
       // Page and time now: the body may arrive after the next page started.
@@ -1100,6 +1118,19 @@ const datalayerSince = (n: number) => `
   return out;
 })()`;
 
+// The dataLayer's ecommerce entries in order (TRK-41): "null" for a clear
+// ({ ecommerce: null }), else the event name of a push carrying an ecommerce object.
+const DL_ECOMMERCE_SEQ_JS = `
+(function () {
+  var dl = window.dataLayer || [], out = [];
+  for (var i = 0; i < dl.length && out.length < 40; i++) {
+    var e = dl[i];
+    if (!e || typeof e !== "object" || !("ecommerce" in e)) continue;
+    out.push(e.ecommerce === null ? "null" : String(e.event || "(no event)"));
+  }
+  return out;
+})()`;
+
 // Shopping pushes (view_item, add_to_cart) from dataLayer entry `from` on,
 // as GA4 or gtag() entries: money fields and which item fields exist, never values of items.
 const dlPushesJs = (from: number) => `
@@ -1127,6 +1158,8 @@ async function eventsAfterClick(page: Page, counter: HitCounter, since: number, 
   await sleep(6000);
   const dataLayer = ((await page.evaluate(datalayerSince(dlBefore)).catch(() => [])) as string[]) ?? [];
   counter.dl.atc = (((await page.evaluate(dlPushesJs(dlBefore)).catch(() => [])) as DataLayerPush[]) ?? []).filter(x => x.event === "add_to_cart");
+  const seq = (await page.evaluate(DL_ECOMMERCE_SEQ_JS).catch(() => null)) as string[] | null;
+  if (seq) counter.dl.seq = seq;
   const after = counter.events.filter(e => e.t >= since);
   const uniq = (xs: string[]) => [...new Set(xs)].slice(0, 15);
   return {
@@ -1300,7 +1333,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
   const executablePath = findChrome();
   if (!executablePath) throw new Error("no Chrome/Chromium found — set CHROME_PATH");
 
-  const counter: HitCounter = { blocked: 0, leaked: [], events: [], seen: new Set(), net: {}, dl: {} };
+  const counter: HitCounter = { blocked: 0, leaked: [], events: [], seen: new Set(), net: {}, dl: {}, recorders: new Set() };
   let browser: Browser | undefined;
   // The step in progress, named in the timeout error.
   let step = "launch";
@@ -1346,6 +1379,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // with the product page and not with the Add-to-Cart tap (round 19).
     if (product.loaded) await sleep(3000);
     if (product.loaded) counter.dl.view = (((await page.evaluate(dlPushesJs(0)).catch(() => [])) as DataLayerPush[]) ?? []).filter(x => x.event === "view_item");
+    if (product.loaded) counter.dl.seq = ((await page.evaluate(DL_ECOMMERCE_SEQ_JS).catch(() => null)) as string[] | null) ?? undefined;
     counter.page = undefined;
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
@@ -1475,7 +1509,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     attachNet(desktop, "desktop");
     const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id, q }) => ({ page: p!, vendor, name, ...(id && { id }), ...(q && { q }) }));
     at("done");
-    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), ...(policies.length && { policies }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt, stepMs };
+    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), ...(counter.dl.seq && { dlEcommerce: counter.dl.seq }), recorders: [...counter.recorders], pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), ...(policies.length && { policies }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt, stepMs };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.

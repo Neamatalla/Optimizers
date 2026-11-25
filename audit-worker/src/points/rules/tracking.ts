@@ -56,13 +56,13 @@ const trk05: Rule = ({ ga4, gtm }) => {
   if (!g) return { observation: { ar: `لا يُظهر GA4 أي زيارات من google/cpc، فالمتجر لا يشغّل إعلانات Google Ads.` }, status: "n/a", reason: "GA4 shows no google/cpc visits, so the store isn't running Google Ads.", facts: { paid: paid.map(p => p.platform) } };
   const s = parseGtm(gtm);
   if (!s) return unverified(`GA4 shows ${g.sessions} google/cpc visits, but no GTM container was shared, so the Ads conversion tag can't be checked.`, { googleCpcSessions: g.sessions });
+  // The Conversion Linker (saving the click ID) is judged by TRK-48.
   const conv = s.tags.filter(t => !t.paused && t.type === "awct");
-  const linker = s.tags.some(t => !t.paused && t.type === "gclidw");
-  const facts = { googleCpcSessions: g.sessions, conversionTags: conv.map(t => t.name), conversionLinker: linker };
-  if (conv.length && linker) return { observation: { ar: `في GTM وسم تحويل Google Ads ووسم Conversion Linker.` }, status: "pass", reason: `GTM has a Google Ads conversion tag (${join(conv.map(t => `"${t.name}"`))}) and a Conversion Linker.`, facts };
+  const facts = { googleCpcSessions: g.sessions, conversionTags: conv.map(t => t.name) };
+  if (conv.length) return { observation: { ar: `في GTM وسم تحويل Google Ads.` }, status: "pass", reason: `GTM has a Google Ads conversion tag (${join(conv.map(t => `"${t.name}"`))}).`, facts };
   const linked = ga4.facts["GA4-21"]?.status === "pass";
-  if (linked) return unverified(`GTM has no ${conv.length ? "Conversion Linker" : "Google Ads conversion tag"}, but Google Ads is linked to GA4 and may import purchases from it.`, facts);
-  return { observation: { ar: `إعلانات Google Ads تجلب ${g.sessions} زيارة، لكن GTM ليس فيه ${conv.length ? "وسم Conversion Linker" : "وسم تحويل Google Ads"}، وGoogle Ads غير مربوط بـ GA4، فلا ترى الإعلانات المبيعات.` }, status: "fail", reason: `Google Ads brings ${g.sessions} visits, but GTM has no ${conv.length ? "Conversion Linker" : "Google Ads conversion tag"} and Ads isn't linked to GA4, so Ads can't see sales.`, facts };
+  if (linked) return unverified("GTM has no Google Ads conversion tag, but Google Ads is linked to GA4 and may import purchases from it.", facts);
+  return { observation: { ar: `إعلانات Google Ads تجلب ${g.sessions} زيارة، لكن GTM ليس فيه وسم تحويل Google Ads، وGoogle Ads غير مربوط بـ GA4، فلا ترى الإعلانات المبيعات.` }, status: "fail", reason: `Google Ads brings ${g.sessions} visits, but GTM has no Google Ads conversion tag and Ads isn't linked to GA4, so Ads can't see sales.`, facts };
 };
 
 const PAGE_VIEW = /^page_?view$/i;
@@ -175,7 +175,98 @@ const trk30: Rule = ({ siteChecks, gtm }) => {
   return unverified(`The store has ${links.length} WhatsApp/call link(s); no GTM tag clearly counts their clicks, and we can't read GA4 event names here.`, { links: links.length });
 };
 
+// ---- TRK-39: session recordings installed ----
+const RECORDER_TAG = /clarity|hotjar|mouseflow|smartlook|lucky ?orange|fullstory/i;
+
+const trk39: Rule = ({ evidence: e, gtm }) => {
+  if (!e) return unverified("No visit data this run.");
+  if (!e.recorders) return unverified("This visit was recorded before we read recorder scripts.");
+  if (e.recorders.length) return { status: "pass", reason: `${join(e.recorders)} loaded during our visit.`, facts: { recorders: e.recorders } };
+  const tag = parseGtm(gtm)?.tags.find(t => !t.paused && (RECORDER_TAG.test(t.name) || t.scriptHosts.some(h => RECORDER_TAG.test(h))));
+  if (tag) return { status: "pass", reason: `GTM has a live session-recording tag ("${tag.name}").`, facts: { tag: tag.name } };
+  const home = e.pages.find(p => p.pageType === "home");
+  if (!home?.loaded) return unverified("The home page didn't load, so no recorder could be seen.");
+  if (e.probes?.campaignParams?.consentBanner || e.probes?.tagCoverage?.pages.some(p => p.consentBanner)) return unverified("No session-recording script loaded, but a consent banner was showing, so a recorder may be waiting for a choice.");
+  return { status: "fail", reason: "No session-recording tool (Microsoft Clarity, Hotjar, Mouseflow, Smartlook, Lucky Orange or FullStory) loaded during our visit, and none is set up in GTM.", facts: { recorders: [] } };
+};
+
+// ---- TRK-40: no hand-pasted pixels or unknown scripts in GTM ----
+// Hosts a Custom HTML tag may load from without a question.
+const KNOWN_HOSTS = /(^|\.)(googletagmanager\.com|google-analytics\.com|google\.com|googleadservices\.com|doubleclick\.net|gstatic\.com|googleapis\.com|facebook\.net|facebook\.com|tiktok\.com|snapchat\.com|sc-static\.net|clarity\.ms|hotjar\.com|hotjar\.io|klaviyo\.com|pinterest\.com|pinimg\.com|twitter\.com|ads-twitter\.com|t\.co|linkedin\.com|licdn\.com|bing\.com|tabby\.ai|tamara\.co|zid\.sa|salla\.sa|salla\.network|shopify\.com|shopifycdn\.com|cloudflare\.com|jsdelivr\.net|unpkg\.com|jquery\.com|wa\.me|whatsapp\.com|criteo\.com|criteo\.net|taboola\.com|outbrain\.com|yandex\.ru|youtube\.com|w3\.org|schema\.org)$/i;
+const PASTED: Partial<Record<GtmPlatform, string>> = { meta: "Meta", tiktok: "TikTok", snap: "Snapchat" };
+
+const trk40: Rule = ({ gtm }) => {
+  const s = parseGtm(gtm);
+  if (!s) return unverified("No GTM container was shared, so its Custom HTML tags can't be read.");
+  const html = s.tags.filter(t => !t.paused && t.type === "html");
+  if (!html.length) return { observation: { ar: `لا يوجد في حاوية GTM أي وسم Custom HTML يعمل.` }, status: "pass", reason: "The GTM container has no live Custom HTML tags.", facts: { customHtml: 0 } };
+  const pasted = html.filter(t => PASTED[t.platform] || t.pastedGtag);
+  if (pasted.length) {
+    const list = pasted.map(t => `"${t.name}" (${PASTED[t.platform] ?? "gtag"})`);
+    return { observation: { ar: `في GTM بكسلات ملصوقة يدويًا في وسوم Custom HTML: ${pasted.map(t => t.name).join("، ")}، مع أن لها قوالب رسمية.` }, status: "fail", reason: `Pixels are pasted by hand into Custom HTML tags where an official template exists: ${join(list)}.`, facts: { pasted: pasted.map(t => t.name) } };
+  }
+  const unknown = [...new Set(html.flatMap(t => t.scriptHosts).filter(h => !KNOWN_HOSTS.test(h)))];
+  const cut = html.filter(t => t.htmlCut).map(t => t.name);
+  if (unknown.length) return unverified(`Custom HTML tags load from hosts we don't know: ${join(unknown.slice(0, 8))}.`, { unknownHosts: unknown, customHtml: html.length });
+  if (cut.length) return unverified(`${cut.length} Custom HTML tag(s) were too long to read in full (${join(cut.slice(0, 5))}).`, { cut });
+  return { observation: { ar: `وسوم Custom HTML في GTM (${html.length}) تحمّل من جهات معروفة فقط، ولا يوجد بكسل ملصوق يدويًا.` }, status: "pass", reason: `The ${html.length} live Custom HTML tag(s) load only from known vendors, and none is a hand-pasted pixel.`, facts: { customHtml: html.length } };
+};
+
+// ---- TRK-41: ecommerce data cleared between pushes ----
+const trk41: Rule = ({ evidence: e }) => {
+  if (!e) return unverified("No visit data this run.");
+  const product = e.pages.find(p => p.pageType === "product");
+  if (!product?.loaded) return unverified("The product page didn't load, so its dataLayer wasn't read.");
+  const seq = e.dlEcommerce;
+  if (!seq) return unverified("This visit was recorded before we read the dataLayer order.");
+  const pushes = seq.filter(x => x !== "null");
+  if (!pushes.length) return { status: "n/a", reason: "The store pushes no ecommerce objects to the dataLayer on the product page.", facts: { sequence: seq } };
+  // A push needs a clear right before it once an earlier ecommerce push could merge into it.
+  const uncleared: string[] = [];
+  let seen = false;
+  seq.forEach((x, i) => {
+    if (x === "null") return;
+    if (seen && seq[i - 1] !== "null") uncleared.push(x);
+    seen = true;
+  });
+  const facts = { sequence: seq.slice(0, 20), pushes: pushes.length, uncleared };
+  if (pushes.length < 2) return unverified(`Only one ecommerce push (${pushes[0]}) was seen on the product page, so clearing between pushes can't be judged.`, facts);
+  if (uncleared.length) return { status: "fail", reason: `On the product page, ${join(uncleared)} went to the dataLayer with no ecommerce: null push right before, so values from the earlier push can leak in.`, facts };
+  return { status: "pass", reason: `Each of the ${pushes.length} ecommerce pushes on the product page after the first comes right after an ecommerce: null push.`, facts };
+};
+
+// ---- TRK-48: ad click IDs saved ----
+const CLICK_COOKIES = [["ads", "_gcl_aw", "Google Ads"], ["meta", "_fbc", "Meta"]] as const;
+
+const trk48: Rule = ({ evidence: e, ga4, gtm }) => {
+  const probe = e?.probes?.campaignParams;
+  if (!probe) return unverified("The campaign link check didn't run this time.");
+  if (!probe.loaded) return unverified(`Home didn't load with the test click IDs${probe.note ? ` (${probe.note})` : ""}.`);
+  const cookies = probe.cookies;
+  if (!cookies) return unverified("This visit was recorded before we read cookies.");
+  const paid = paidPlatforms(ga4?.campaigns);
+  const s = parseGtm(gtm);
+  const hits = e?.pageHits ?? [];
+  const runs = {
+    ads: Boolean(paid?.some(p => p.platform === "ads") || s?.tags.some(t => !t.paused && (t.type === "awct" || t.type === "gclidw"))),
+    meta: Boolean(paid?.some(p => p.platform === "meta") || hits.some(h => h.vendor === "meta") || (s && liveTags(s, "meta").length)),
+  };
+  const want = CLICK_COOKIES.filter(([k]) => runs[k]);
+  if (!want.length) return { status: "n/a", reason: "We found no sign the store runs Google Ads or Meta, so no click-ID cookie is expected.", facts: { cookies: cookies.length } };
+  const label = (x: (typeof CLICK_COOKIES)[number]) => `${x[2]} (${x[1]})`;
+  const missing = want.filter(([, c]) => !cookies.includes(c));
+  const facts = { checked: want.map(label), missing: missing.map(([, c]) => c) };
+  if (!missing.length) return { status: "pass", reason: `After landing with test click IDs, the click-ID cookie was set for ${join(want.map(label))}.`, facts };
+  const list = join(missing.map(label));
+  if (probe.consentBanner) return unverified(`After landing with test click IDs, no click-ID cookie was set for ${list}, but a consent banner was showing, so it may wait for a choice.`, facts);
+  return { status: "fail", reason: `After landing with test click IDs, no click-ID cookie was set for ${list}, so a buyer who comes back later can't be tied to the ad click.`, facts };
+};
+
 export const TRACKING_RULES: Record<string, Rule> = {
+  "TRK-39": trk39,
+  "TRK-40": trk40,
+  "TRK-41": trk41,
+  "TRK-48": trk48,
   "TRK-05": trk05,
   "TRK-12": trk12,
   "TRK-13": trk13,

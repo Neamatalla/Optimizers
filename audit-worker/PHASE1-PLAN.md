@@ -6,6 +6,8 @@ Part of the 32h safety-net plan (ClickUp, Audit Feature list). Re-planned on 22 
 
 ## Phase 1 done, 24 Nov 2026 (read this first)
 
+**25 Nov: GA4 and GTM back to 25 checks each** (Adham, after the Regal review with Omar). Each point now has an explicit `tab`. Moves: TRK-05, 12, 13 to GTM; OFFER-04 and RISK-01 to GA4; SPEED-08 and RISK-03 to GTM. Un-parked TRK-39, 40, 41. Restored TRK-45 (retention), TRK-46 (refunds), TRK-47 (hours and days), TRK-48 (click-ID cookies). Every GA4/GTM point serves all four roles. n/a points stay listed as "Doesn't apply". Counts now: 169 active = code 87, code+ai 51, ai 31.
+
 **The big plan (ClickUp, Engineering > Audit Tool, safety net):** 1. move AI judgement into code (done, below); 2. test suite and store simulation with fake GA4/GTM data as a quality gate; 3. cost optimization.
 
 **Where Phase 1 ended:** 162 active points: code 81, code+ai 50 (every one has a code rule), ai 31. Code decides 89 points on Regal; the AI judges 64.
@@ -66,7 +68,7 @@ Rule (Adham): cost cuts never lower quality; credibility is the product.
 
 Branch pushed to GitHub (`origin/feature/deterministic-checks`); not on staging or main.
 - **Report fixes for the other readers:** "What you asked, answered" (owner, manager, agency) matched old ids only, so on a master-point report every question said "No problem found". It now reads each old id through its master point, and says so when nothing behind a question could be checked. Reader lanes and role severity (`audience.ts`) read master ids too; before, the media buyer saw every master point one step lower.
-- **Arabic titles** for all 163 active points (`points/titles-ar.ts`), used in the unchecked list.
+- **Arabic titles** for all 163 active points were written for the unchecked list; that list and the file (`points/titles-ar.ts`) were removed in Nov 2026.
 - **Where the $0.62 goes (Regal, run 16):** about 60% is writing the store's evidence into Claude's cache on Sonnet (text call ~60K tokens, picture call ~38K, at the CLI's 1-hour cache price); about 25% is Sonnet's answers (~11K + 5K tokens); browser + Arabic on Haiku about $0.05. The browser call once cost $0.25: a Haiku prompt over 100K tokens is billed at 5× (long page snapshots).
 
 ## Update, 23 Nov evening

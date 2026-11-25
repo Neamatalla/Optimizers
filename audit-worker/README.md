@@ -224,8 +224,14 @@ checklist and translation stages don't run. Instead:
    search, never fill a form, log in or order.
 4. **Arabic** for the code's English sentences (one writer call).
 
-Points nothing could settle show in the report with their reason, and in
-"What we couldn't check, and why". On Regal (Nov 2026) an audit costs about
+**Report tabs:** each point's `tab` in `registry.ts` puts it under GA4, GTM
+or Website. GA4 and GTM always list 25 checks each, for every reader role.
+A check that doesn't apply stays in the list as a grey "Doesn't apply" row with
+its reason, and the tab header counts it apart, e.g. "25 checks · 18 of 22
+passed · 3 don't apply". Only pass and fail count in the score.
+
+Points nothing could settle show in the report with their reason, and the
+score line says how many checks it stands on. On Regal (Nov 2026) an audit costs about
 $0.50-0.57.
 
 ## Test mode

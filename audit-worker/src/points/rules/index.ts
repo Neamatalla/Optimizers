@@ -19,7 +19,7 @@ export const RULES: Record<string, Rule> = { ...GA4_RULES, ...VISIT_RULES, ...SP
 /**
  * Runs every code rule for the active points. A rule that throws is
  * reported as unverified with the error, so one bad rule never stops the rest.
- * Not wired into the audit yet (PHASE1-PLAN.md step 5).
+ * Called by points/pipeline.ts.
  */
 export function runRules(input: RuleInput): Record<string, RuleResult> {
   const out: Record<string, RuleResult> = {};

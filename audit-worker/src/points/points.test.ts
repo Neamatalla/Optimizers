@@ -51,10 +51,13 @@ test("every point is well-formed", () => {
   }
 });
 
+// GA4 and GTM checks serve every role, so each reader gets the same 25 + 25
+// (the store's tracking is the same whoever reads about it). Website points
+// keep the roles of their origins.
 test("roles follow the origins: role-only points come only from SO-/MB- points", () => {
   for (const p of POINTS) {
     const shared = p.origin.some(o => !ROLE_ONLY.test(o));
-    if (shared) assert.equal(p.roles.length, AUDIENCE_ROLES.length, `${p.id} serves every role`);
+    if (shared || p.tab !== "Website") assert.equal(p.roles.length, AUDIENCE_ROLES.length, `${p.id} serves every role`);
     else {
       const want = new Set(p.origin.map(o => (o.startsWith("SO") ? "store_owner" : "media_buyer")));
       assert.deepEqual(new Set(p.roles), want, p.id);

@@ -75,6 +75,10 @@ export interface CampaignParamsProbe {
   // The test parameters we added.
   params: string[];
   ga4: Ga4HitSeen[];
+  // Cookie names on the store's domain after the landing (TRK-48: were the
+  // click IDs saved?). Names only, never values. Absent on older visits.
+  cookies?: string[];
+  consentBanner?: boolean;
 }
 
 export interface NavStep {
@@ -536,7 +540,9 @@ export async function probeCampaignParams(input: ProbeInput): Promise<CampaignPa
     const start = Date.now();
     while (Date.now() - start < 8000 && !sink.hits.some(h => h.vendor === "ga4" && h.name === "page_view")) await sleep(400);
     await sleep(800);
-    return { ...out, loaded: true, finalUrl: page.url(), ga4: sink.hits.filter(h => h.vendor === "ga4").slice(0, 20).map(h => ({ t: h.t, name: h.name, ...(h.tid && { tid: h.tid }), ...(h.dl && { dl: h.dl.slice(0, 600) }) })) };
+    const cookies = ((await page.cookies().catch(() => [])) as Array<{ name: string }>).map(c => c.name).slice(0, 80);
+    const consentBanner = (await ev<boolean>(page, CONSENT_JS)) === true;
+    return { ...out, loaded: true, finalUrl: page.url(), cookies, consentBanner, ga4: sink.hits.filter(h => h.vendor === "ga4").slice(0, 20).map(h => ({ t: h.t, name: h.name, ...(h.tid && { tid: h.tid }), ...(h.dl && { dl: h.dl.slice(0, 600) }) })) };
   });
 }
 

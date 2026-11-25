@@ -16,7 +16,7 @@ const TIMEOUT_MS = 4 * 60 * 1000;
 /** The points whose Arabic text has no store detail: an English sentence with no Arabic observation. */
 export function needsArabic(results: Record<string, RuleResult>): string[] {
   return Object.entries(results)
-    .filter(([, r]) => r.status !== "n/a" && !r.observation?.ar && Boolean(r.observation?.en ?? r.reason))
+    .filter(([, r]) => !r.observation?.ar && Boolean(r.observation?.en ?? r.reason))
     .map(([id]) => id);
 }
 

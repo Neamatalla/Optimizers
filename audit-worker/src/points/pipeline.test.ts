@@ -17,9 +17,10 @@ test("browser batches: at most 5 points each, every point once, same-page points
   }
 });
 import { computeOverallPoints } from "../scoring.js";
+import { AUDIENCE_ROLES } from "../audience.js";
 import type { RuleResult } from "./rules/types.js";
 
-test("pointsToCategories: n/a left out, unverified not scored, both languages filled", () => {
+test("pointsToCategories: n/a and unverified are listed but not scored, both languages filled", () => {
   const [a, b, c] = activePoints("store_owner").filter(p => p.category !== "tracking");
   const results: Record<string, RuleResult> = {
     [a.id]: { status: "pass", reason: "ok" },
@@ -29,8 +30,11 @@ test("pointsToCategories: n/a left out, unverified not scored, both languages fi
   const cats = pointsToCategories(results, "store_owner");
   assert.equal(cats.length, 1);
   assert.equal(cats[0].category, "Website");
-  assert.deepEqual(cats[0].checklistTally, { total: 2, evaluated: 1, passed: 1 });
+  assert.deepEqual(cats[0].checklistTally, { total: 3, evaluated: 1, passed: 1 });
   assert.equal(cats[0].findings.find(f => f.checklistId === b.id)?.status, "unassessed");
+  const na = cats[0].findings.find(f => f.checklistId === c.id);
+  assert.equal(na?.status, "n/a");
+  assert.equal(na?.business.summary, "no sizes", "an n/a row says why");
   for (const f of cats[0].findings) assert.ok(f.ar?.business.summary, `${f.checklistId} has Arabic`);
   assert.deepEqual(computeOverallPoints(cats), { earned: 1, possible: 1 });
 });
@@ -44,11 +48,29 @@ test("pointsToCategories: a fail carries the fix and owners, an AI observation s
   assert.ok(f.action?.step);
 });
 
-test("tracking points go to the GA4 or GTM tab, the rest to Website", () => {
+test("GA4 and GTM hold exactly 25 checks each for every role; each point sits in one tab", () => {
+  for (const role of AUDIENCE_ROLES) {
+    const pts = activePoints(role);
+    for (const tab of ["GA4", "GTM"] as const) assert.equal(pts.filter(p => tabOf(p) === tab).length, 25, `${role} ${tab}`);
+  }
   for (const p of activePoints()) {
-    const tab = tabOf(p);
-    if (p.category !== "tracking") assert.equal(tab, "Website");
-    else assert.ok(tab === "GA4" || tab === "GTM");
+    assert.ok(["GA4", "GTM", "Website"].includes(tabOf(p)), p.id);
+    if (p.category === "tracking") assert.notEqual(tabOf(p), "Website", `${p.id} is a tracking point`);
+  }
+});
+
+test("a role's report always lists all 25 GA4 and 25 GTM checks, whatever their status", () => {
+  const pts = activePoints("media_buyer");
+  const statuses = ["pass", "fail", "unverified", "n/a"] as const;
+  const results = Object.fromEntries(pts.map((p, i) => [p.id, { status: statuses[i % 4], reason: "x" } as RuleResult]));
+  const cats = pointsToCategories(results, "media_buyer");
+  for (const tab of ["GA4", "GTM"] as const) {
+    const cat = cats.find(c => c.category === tab)!;
+    assert.equal(cat.findings.length, 25, tab);
+    assert.equal(cat.checklistTally.total, 25, tab);
+    const na = cat.findings.filter(f => f.status === "n/a").length;
+    const open = cat.findings.filter(f => f.status === "unassessed").length;
+    assert.equal(cat.checklistTally.evaluated, 25 - na - open, tab);
   }
 });
 
@@ -138,7 +160,7 @@ test("Arabic is asked only for English-only sentences; page text marks phone scr
     B: { status: "fail", reason: "x", observation: { en: "x", ar: "س" } },
     C: { status: "n/a", reason: "Not Shopify." },
     D: { status: "unverified", reason: "Checkout not seen." },
-  }), ["A", "D"]);
+  }), ["A", "C", "D"]);
   const { pageBlock } = await import("../fud/judge.js");
   const b = (id: string, y: number) => ({ id, text: id, tag: "p", box: { x: 0, y, w: 10, h: 10 }, aboveFold: y < 844 });
   const text = pageBlock({ pageType: "home", url: "https://x.com", loaded: true, blocks: [b("a", 10), b("b", 900), b("c", 2000)], widgets: [], jsonLd: { types: [] }, policyLinks: [], crops: {}, hiddenSections: [{ label: "Shipping", text: "Ships in 2 days" }] } as never);
