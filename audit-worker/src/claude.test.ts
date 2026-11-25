@@ -14,9 +14,12 @@ test("API key check: set, blank or missing", () => {
 test("promptCache false turns caching off for that call only", () => {
   const env = { PATH: "x" };
   assert.deepEqual(childEnv(false, env), { PATH: "x", DISABLE_PROMPT_CACHING: "1" });
-  assert.equal(childEnv(true, env), env);
-  assert.equal(childEnv(undefined, env), env);
+  const five = { PATH: "x", CLAUDE_CODE_PROMPT_CACHE_TTL: "5m", CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL: "5m" };
+  assert.deepEqual(childEnv(true, env), five);
+  assert.deepEqual(childEnv(undefined, env), five);
   assert.equal("DISABLE_PROMPT_CACHING" in env, false);
+  // An explicit TTL in the worker's env wins.
+  assert.equal(childEnv(true, { CLAUDE_CODE_PROMPT_CACHE_TTL: "1h" }).CLAUDE_CODE_PROMPT_CACHE_TTL, "1h");
 });
 
 test("model comes from CLAUDE_MODEL, blank means the CLI default", () => {

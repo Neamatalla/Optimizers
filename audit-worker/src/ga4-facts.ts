@@ -1,6 +1,6 @@
 import type { StoreEvidence } from "./fud/evidence.js";
 import { formatMoney, formatPct, fromOAuth, rowsOf, salesIn, STEP_BENCHMARKS, type Normalized } from "./fud/insights.js";
-import { freeShippingThreshold } from "./fud/rules-cro.js";
+import { freeShippingOffer } from "./fud/rules-cro.js";
 import type { FudPageType, Ga4Fact, Ga4Facts, Ga4Focus, Ga4Metrics, Handoff } from "./types.js";
 
 /**
@@ -372,14 +372,33 @@ function productFact(ctx: Ctx): { fact: Ga4Fact; url?: string } {
   };
 }
 
+// Units per US dollar for the GCC currencies, all pegged (or, KWD, tied to a
+// basket that barely moves). EGP floats, so it is left out on purpose.
+const PEGGED_PER_USD: Record<string, number> = { USD: 1, SAR: 3.75, AED: 3.6725, QAR: 3.64, BHD: 0.376, OMR: 0.3845, KWD: 0.307 };
+
+/** Converts between pegged GCC currencies; null when either one floats or is unknown. */
+export function convertPegged(amount: number, from: string, to: string): number | null {
+  const a = PEGGED_PER_USD[from.toUpperCase()], b = PEGGED_PER_USD[to.toUpperCase()];
+  return a && b ? (amount / a) * b : null;
+}
+
 function thresholdFact(ctx: Ctx): Ga4Fact {
   if (!ctx.aov) return { id: "GA4-11", status: "no_data", en: "No average order value in the GA4 data." };
   const aovText = formatMoney(ctx.aov, ctx.d.currency);
   if (!ctx.evidence) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. The store's pages weren't visited this run, so the free-shipping threshold is unknown.` };
-  const threshold = freeShippingThreshold(ctx.evidence);
-  if (threshold === null) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. No free-shipping threshold was found on the pages we visited.` };
+  const offer = freeShippingOffer(ctx.evidence);
+  if (!offer) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. No free-shipping threshold was found on the pages we visited.` };
+  let threshold = offer.amount;
+  let shown = formatMoney(threshold, ctx.d.currency);
+  if (offer.currency && ctx.d.currency && offer.currency !== ctx.d.currency) {
+    // GCC currencies are pegged to the US dollar, so a fixed rate converts them.
+    const converted = convertPegged(offer.amount, offer.currency, ctx.d.currency);
+    if (converted === null) return { id: "GA4-11", status: "no_data", en: `Average order value is ${aovText}. Free shipping starts at ${offer.amount} ${offer.currency}, a different currency from GA4's, so the two can't be compared.` };
+    threshold = converted;
+    shown = `${offer.amount} ${offer.currency} (about ${formatMoney(converted, ctx.d.currency)})`;
+  }
   const ratio = threshold / ctx.aov;
-  const line = `Free shipping starts at ${formatMoney(threshold, ctx.d.currency)}, ${ratio.toFixed(2)}× your average order value of ${aovText}.`;
+  const line = `Free shipping starts at ${shown}, ${ratio.toFixed(2)}× your average order value of ${aovText}.`;
   if (ratio >= 1.1 && ratio <= 1.6) return { id: "GA4-11", status: "pass", en: `${line} That nudges orders up without feeling out of reach.` };
   return {
     id: "GA4-11",
@@ -1294,6 +1313,7 @@ export function computeGa4Facts(oauth: unknown, website: string, evidence: Store
       campaignLandingUrl: campaign.url,
     },
     facts: Object.fromEntries(list.map(f => [f.id, f])),
+    itemsPerOrder: itemsPerOrderOf(ctx),
     ...(campaigns ? { campaigns } : {}),
   };
 }
@@ -1323,6 +1343,14 @@ export function ga4MetricsFromOAuth(oauth: unknown): Ga4Metrics | null {
       .filter((x): x is typeof x & { name: "new" | "returning" } => x.name === "new" || x.name === "returning")
       .map(x => ({ name: x.name, sessions: x.sessions, conversionRate: rate(x.purchases, x.sessions) })),
   };
+}
+
+// Item units per order (OFFER-15): itemSales units over transactions.
+function itemsPerOrderOf(ctx: Ctx): number | null {
+  if (!got(ctx.rd.itemSales)) return null;
+  const units = totalsOf(ctx.rd.itemSales)?.[1];
+  const orders = purchaseCounts(ctx)?.tx;
+  return units && orders ? Math.round((units / orders) * 100) / 100 : null;
 }
 
 /** The prompt block: one line per fact, numbers and status fixed. */

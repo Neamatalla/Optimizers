@@ -58,3 +58,10 @@ test("compactGtm turns parameter lists into key/value objects, nested ones too, 
 });
 
 test("json is compact", () => assert.equal(json({ a: [1, 2] }), '{"a":[1,2]}'));
+
+test("compactGtm cuts long values to 400 characters for the prompt (the API keeps more Custom HTML for the code rules)", () => {
+  const html = "<script>" + "x".repeat(5000) + "</script>";
+  const c = compactGtm({ liveVersion: { tags: [{ name: "Pixels", type: "html", parameter: [{ key: "html", type: "template", value: html }] }] } }) as { liveVersion: { tags: Array<{ parameter: Record<string, string> }> } };
+  assert.equal(c.liveVersion.tags[0].parameter.html.length, 401);
+  assert.ok(c.liveVersion.tags[0].parameter.html.endsWith("…"));
+});

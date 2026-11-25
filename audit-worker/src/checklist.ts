@@ -19,7 +19,10 @@ import { personaPoint } from "./persona-checklist.js";
  * the prompt quotes them, and computeCategoryResult enforces the status.
  * Points marked `browser: true` read what the friction collector saw on the
  * live store (site-checks.ts) — our own Add-to-Cart click, the events it
- * produced, the contact links — when that collection ran.
+ * produced, the contact links — when that collection ran. Where those facts
+ * are certain, browser-facts.ts sets the status and computeCategoryResult
+ * enforces it, as for the GA4 facts (W-01, W-07, W-08, W-17, W-22 and the
+ * reader points rewritten from them).
  *
  * The checklists in use before this rewrite live in checklist-legacy.ts so
  * older saved results still render.

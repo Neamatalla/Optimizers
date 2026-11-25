@@ -116,8 +116,12 @@ export interface JobProgress {
   // Stage 1b: the purchase-friction (FUD) pass (src/fud/). Best-effort and
   // separate from the 50 checks: `{ error }` means it ran and failed, so a
   // retry doesn't run it again and the report just omits the section.
-  // Undefined means it hasn't run (or FUD_PASS kept it off).
-  fud?: FudResult | { error: string };
+  // Undefined means it hasn't run (or FUD_PASS kept it off). Null: the
+  // master-point audit ran instead (POINTS_PIPELINE=on), so it never runs.
+  fud?: FudResult | { error: string } | null;
+  // Master-point audit (POINTS_PIPELINE=on): each point's raw result, kept
+  // for debugging and the compare. The report reads `categories`.
+  pointResults?: Record<string, import("./points/rules/types.js").RuleResult>;
   // Stage 3: report saved as rows (supabase.ts saveAuditReport).
   reportUrl?: string;
   slug?: string;
@@ -148,7 +152,9 @@ export type FindingSeverity = "critical" | "medium" | "low";
 // renders a finding's own text, for pass or fail, never checklist.ts's.
 // "unassessed" = the model returned nothing for this check (audit-prompt.ts
 // fills it in). Not a pass: it is left out of passed and of the score.
-export type FindingStatus = "pass" | "fail" | "unassessed";
+// "n/a" = the check doesn't apply to this store (master-point reports only):
+// listed as "Doesn't apply" with its reason, left out of passed and the score.
+export type FindingStatus = "pass" | "fail" | "unassessed" | "n/a";
 
 /**
  * One check, told twice — the same finding in two registers, so the report
@@ -205,7 +211,15 @@ export interface CategoryFinding {
   opportunity?: Opportunity;
   action?: FindingAction;
   protect?: string;
+  // Unassessed points only (master-point reports): why it couldn't be
+  // checked, so the report can group them. Absent on older results.
+  unchecked?: UncheckedWhy;
 }
+
+// "blocked": the store kept our visit out (a log-in page in front of checkout).
+// "account": the point needs GA4, GTM or Clarity access we didn't have.
+// "manual": our visit or data couldn't prove it either way.
+export type UncheckedWhy = "blocked" | "account" | "manual";
 
 // The four ways a point pays: more sales from current traffic, money that
 // is leaking now, a risk avoided, or a non-revenue benefit.
@@ -241,8 +255,9 @@ export interface CategoryResult {
   score: number;
   // total = every check in this category's checklist (checklist.ts).
   // evaluated = total minus the checks the model returned nothing for (status
-  // "unassessed"). Normally equal to total. Those checks count neither as
-  // passed nor in the score's denominator.
+  // "unassessed") and, in master-point reports, the checks that don't apply
+  // ("n/a"). Those checks count neither as passed nor in the score's
+  // denominator.
   // passed = count of findings below with status "pass" — every check is
   // worth exactly 1 in the overall audit tally (see scoring.ts's
   // computeOverallPoints); a "21/25 checks passed" figure IS the count, not
@@ -519,6 +534,10 @@ export interface Ga4Facts {
   aov: number | null;
   focus: Ga4Focus;
   facts: Record<string, Ga4Fact>;
+  // Item units sold per order over the period (itemSales units ÷
+  // transactions), for OFFER-15. Not a fact, so it stays out of the prompt.
+  // Absent on older results or when either report is missing.
+  itemsPerOrder?: number | null;
   // Visits, engaged visits, cart adds, sales and revenue per channel /
   // source / medium / campaign (trafficSources, top 40 by visits), for the
   // buyer's campaign cards. Optional: runs before 2026-11-02 don't have it,

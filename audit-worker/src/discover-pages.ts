@@ -24,7 +24,9 @@ const MAX_DISCOVERED_PAGES = 5;
  */
 const PAGE_CATEGORIES: Array<{ name: string; test: (pathname: string) => boolean }> = [
   { name: "product", test: p => p.includes("/products/") },
-  { name: "collection", test: p => p.includes("/collections/") },
+  // Shopify /collections/, Zid /categories/<id>/<name>, WooCommerce
+  // /product-category/, Salla /<name>/c<id>.
+  { name: "collection", test: p => p.includes("/collections/") || /\/categories\/[^/]+/.test(p) || p.includes("/product-category/") || /\/c\d+\/?$/.test(p) },
   { name: "cart", test: p => p === "/cart" || p.startsWith("/cart/") },
   { name: "blog", test: p => p.includes("/blogs/") },
 ];

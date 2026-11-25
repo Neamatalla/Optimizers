@@ -28,6 +28,7 @@
 
 import type { AudienceRole } from "./audience.js";
 import { PERSONA_AD_EFFECT } from "./checklist-persona-data.js";
+import { pointById } from "./points/index.js";
 import type { AuditResult, FindingAction } from "./types.js";
 
 export type AdEffect = "performance" | "aov" | "cost" | "inflated" | "deflated" | "optimization";
@@ -61,7 +62,11 @@ export const AD_EFFECT_ROLES: ReadonlySet<AudienceRole> = new Set(["media_buyer"
 
 export function adEffectOf(checklistId: string): AdEffect | null {
   // Media buyer points carry their own direction (checklist-persona-data.ts).
-  return AD_EFFECT[checklistId] ?? PERSONA_AD_EFFECT[checklistId] ?? null;
+  // Master points (POINTS_PIPELINE) carry it per reader in roleCopy; the
+  // media buyer's own first. Without this, every master-point fail dropped
+  // out of the buyer summary, which then read "all fine" (Regal, 23 Nov).
+  const rc = pointById(checklistId)?.roleCopy;
+  return AD_EFFECT[checklistId] ?? PERSONA_AD_EFFECT[checklistId] ?? rc?.media_buyer?.adEffect ?? rc?.marketing_manager?.adEffect ?? rc?.agency?.adEffect ?? null;
 }
 
 /** The sentence Claude gets for the point (direction only). */

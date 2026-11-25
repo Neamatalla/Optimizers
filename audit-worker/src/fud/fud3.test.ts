@@ -157,3 +157,17 @@ test("insights read the raw GA4 OAuth reports when present", () => {
   assert.ok(ins.lines.some(l => l.kind === "landing" && l.en.includes("/products/a")));
   assert.ok(ins.lines.find(l => l.kind === "new_returning")!.tone === "good"); // 4% vs 1.3%
 });
+
+// regal-honey.com, 22 Nov: "free shipping over 40 KD" was missed (numbers
+// under 50 were ignored), and GA4 reports that store in SAR.
+test("free-shipping threshold: small dinar amounts count, and the currency is recorded", async () => {
+  const { freeShippingOffer } = await import("./rules-cro.js");
+  const { ruleById } = await import("./rules.js");
+  const ev = (text: string, currency: string | null) => ({ website: "x", pages: [{ pageType: "home", url: "x", loaded: true, blocks: [{ id: "b", text, tag: "p", box: { x: 0, y: 0, w: 1, h: 1 }, aboveFold: true }], widgets: [], jsonLd: { types: [] }, policyLinks: [], crops: {} }], addToCart: { attempted: false, ok: false }, blockedHits: 0, durationMs: 0, context: { aov: 30, currency } }) as never;
+  assert.deepEqual(freeShippingOffer(ev("كود خصم R26 + شحن مجاني للطلبات فوق 40 دينار كويتي", "KWD")), { amount: 40, currency: "KWD" });
+  assert.deepEqual(freeShippingOffer(ev("Free shipping on orders over 299 SAR", "SAR")), { amount: 299, currency: "SAR" });
+  assert.equal(freeShippingOffer(ev("Free delivery in 2 days", null)), null);
+  // M3 compares only like with like: KWD threshold, SAR average order → unknown.
+  assert.equal(ruleById("M3")!.signal(ev("شحن مجاني للطلبات فوق 40 دينار كويتي", "KWD")), "present");
+  assert.equal(ruleById("M3")!.signal(ev("شحن مجاني للطلبات فوق 40 دينار كويتي", "SAR")), "unknown");
+});

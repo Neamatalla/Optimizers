@@ -1,6 +1,6 @@
 import { pageOf, type PageEvidence, type StoreEvidence } from "./evidence.js";
 import type { FudRule } from "./rules.js";
-import { hasWidget, matches, nearCta, normalize, pageText, type PatternKey } from "./signals.js";
+import { currencyIn, hasWidget, matches, moneyAmounts, nearCta, normalize, pageText, type PatternKey } from "./signals.js";
 
 /**
  * The CRO rules beyond trust and cost (added in rule set fud-2.0.0; the
@@ -23,18 +23,30 @@ function desktopOf(e: StoreEvidence, type: "home" | "product"): PageEvidence | u
 }
 
 /** First number after a free-shipping phrase, e.g. 1399 from "شحن مجاني من ١٣٩٩ جنيه". */
-export function freeShippingThreshold(e: StoreEvidence): number | null {
+/**
+ * The free-shipping threshold the store shows, and its currency when the text
+ * names one. Amounts written next to a currency come first, so small dinar
+ * thresholds count ("فوق 40 دينار كويتي" on regal-honey.com, 22 Nov 2026,
+ * was missed by the old 50-or-more floor). Without a currency, a bare number
+ * of 50 or more is still taken, as before.
+ */
+export function freeShippingOffer(e: StoreEvidence): { amount: number; currency: string | null } | null {
   for (const type of ["product", "cart", "home"] as const) {
     const p = pageOf(e, type);
     if (!p) continue;
     for (const b of p.blocks) {
       const t = normalize(b.text);
       if (!matches("freeShipping", t) && !matches("shippingThreshold", t)) continue;
-      const nums = (t.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map(n => Number(n.replace(/,/g, ""))).filter(n => n >= 50 && n <= 100000);
-      if (nums.length) return Math.max(...nums);
+      const money = moneyAmounts(t).filter(n => n <= 100000);
+      const nums = money.length ? money : (t.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map(n => Number(n.replace(/,/g, ""))).filter(n => n >= 50 && n <= 100000);
+      if (nums.length) return { amount: Math.max(...nums), currency: currencyIn(t) };
     }
   }
   return null;
+}
+
+export function freeShippingThreshold(e: StoreEvidence): number | null {
+  return freeShippingOffer(e)?.amount ?? null;
 }
 
 export const CRO_RULES: FudRule[] = [
@@ -279,9 +291,11 @@ export const CRO_RULES: FudRule[] = [
     applies: e => Boolean(e.context?.aov) && freeShippingThreshold(e) !== null,
     signal: e => {
       const aov = e.context?.aov;
-      const threshold = freeShippingThreshold(e);
-      if (!aov || threshold === null) return "unknown";
-      const ratio = threshold / aov;
+      const offer = freeShippingOffer(e);
+      if (!aov || !offer) return "unknown";
+      // A threshold in another currency than GA4's can't be compared.
+      if (offer.currency && e.context?.currency && offer.currency !== e.context.currency) return "unknown";
+      const ratio = offer.amount / aov;
       return ratio >= 1.05 && ratio <= 1.6 ? "present" : "elsewhere";
     },
   },

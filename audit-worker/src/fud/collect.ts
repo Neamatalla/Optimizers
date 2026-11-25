@@ -2,7 +2,8 @@ import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import { pageTypeOf } from "../discover-pages.js";
 import { findChrome } from "../screenshots.js";
 import type { FudPageType } from "../types.js";
-import type { HitParams, PageEvidence, StoreEvidence, TextBlock } from "./evidence.js";
+import type { DataLayerPush, HitParams, ItemFields, PageEvidence, PageNet, StoreEvidence, TextBlock } from "./evidence.js";
+import { runProbes } from "./collect-probes.js";
 import { widgetsIn } from "./signals.js";
 import { FACTS_JS, POPUPS_JS, STICKY_JS } from "./facts-js.js";
 import type { PageFacts } from "./evidence.js";
@@ -37,8 +38,20 @@ const DESKTOP_PROFILE: Profile = {
 };
 const MOBILE = MOBILE_PROFILE.viewport;
 const NAV_TIMEOUT_MS = 25_000;
+// Desktop home + product, text and positions only.
+const DESKTOP_MAX_MS = 70_000;
+// One GA4 landing page.
+const LANDING_MAX_MS = 45_000;
 // Round 19 added up to two landing pages and the first checkout screen.
-const TOTAL_TIMEOUT_MS = 230_000;
+// The interaction probes (collect-probes.ts) feed 6 master-point code rules
+// (src/points/rules/probes.ts). On with the new audit (POINTS_PIPELINE=on)
+// unless COLLECT_PROBES=off; COLLECT_PROBES=on forces them on.
+const probesEnv = (process.env.COLLECT_PROBES ?? "").trim().toLowerCase();
+const PROBES_ON = probesEnv === "on" || (probesEnv !== "off" && (process.env.POINTS_PIPELINE ?? "").trim().toLowerCase() === "on");
+// The probes run on the time left at the end, so they get an extra minute:
+// at 300 s they were skipped on slow Regal visits (23 Nov). A full Regal
+// visit with probes took 205 s.
+const TOTAL_TIMEOUT_MS = PROBES_ON ? 360_000 : 230_000;
 const DRAWER_WAIT_MS = 8_000;
 const MAX_TEXT_PER_PAGE = 12_000;
 
@@ -195,7 +208,7 @@ const EXTRACT_JS = String.raw`
   }
 
   // schema.org essentials.
-  var ld = { types: [] };
+  var ld = { types: [], offer: false };
   var walk = function (o) {
     if (!o || typeof o !== "object") return;
     if (Array.isArray(o)) { o.forEach(walk); return; }
@@ -204,14 +217,23 @@ const EXTRACT_JS = String.raw`
     var ar = o.aggregateRating;
     if (ar && ld.ratingValue === undefined) { ld.ratingValue = parseFloat(ar.ratingValue) || undefined; ld.reviewCount = parseInt(ar.reviewCount || ar.ratingCount, 10) || undefined; }
     var of = o.offers;
-    if (of && !ld.availability) { var o1 = [].concat(of)[0]; if (o1 && o1.availability) ld.availability = String(o1.availability).replace(/^https?:\/\/schema\.org\//, ""); }
+    if (of) [].concat(of).forEach(function (o1) {
+      if (!o1 || typeof o1 !== "object") return;
+      ld.offer = true;
+      if (!ld.availability && o1.availability) ld.availability = String(o1.availability).replace(/^https?:\/\/schema\.org\//, "");
+      var ps = o1.priceSpecification || {};
+      var pn = parseFloat(o1.price !== undefined ? o1.price : (o1.lowPrice !== undefined ? o1.lowPrice : ps.price));
+      if (ld.price === undefined && isFinite(pn)) ld.price = pn;
+      var pc = o1.priceCurrency || ps.priceCurrency;
+      if (!ld.priceCurrency && pc) ld.priceCurrency = String(pc).toUpperCase().slice(0, 3);
+    });
     if (o["@graph"]) walk(o["@graph"]);
   };
   document.querySelectorAll('script[type="application/ld+json"]').forEach(function (s) { try { walk(JSON.parse(s.textContent || "")); } catch (e) {} });
 
   // Policy / identity links, anywhere on the page (usually the footer).
   var KINDS = [
-    ["returns", /return|refund|exchange|الاسترجاع|الاسترداد|الاستبدال|ارجاع|إرجاع/i],
+    ["returns", /return|refund|exchange|ال[اإ]سترجاع|ال[اإ]سترداد|ال[اإ]ستبدال|[اإ]رجاع|استرجاع|استبدال/i],
     ["shipping", /shipping|delivery|الشحن|التوصيل/i],
     ["contact", /contact|تواصل|اتصل/i],
     ["about", /about|our story|who we are|من نحن|قصتنا|عن المتجر|عنا/i],
@@ -249,6 +271,50 @@ const EXTRACT_JS = String.raw`
     if (SIZE.test(lab) || /\b(xs|s|m|l|xl|xxl)\b/i.test(vals)) { hasSize = true; control = "pills"; }
   });
 
+  var PRICE = /[\d٠-٩][\d٠-٩,.٬]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|kd|د\.?\s?ك|دينار|qar|ر\.?\s?ق|bhd|د\.?\s?ب|omr|ر\.?\s?ع|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|kd|qar|bhd|omr|usd|ر\.?\s?س|د\.?\s?إ|د\.?\s?ك|ر\.?\s?ق|د\.?\s?ب|ر\.?\s?ع|\$|€|£)\s?[\d٠-٩]/i;
+
+  // Prices with a line through them (del, s, strike, text-decoration): the
+  // "was" price of a sale. Elements kept so listing cards can be counted.
+  var struckEls = [], struck = [];
+  var sw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  var sn;
+  while ((sn = sw.nextNode()) && struckEls.length < 200) {
+    var stx = (sn.nodeValue || "").replace(/\s+/g, " ").trim();
+    if (stx.length < 1 || !/[\d٠-٩]/.test(stx)) continue;
+    var se = sn.parentElement, shit = null, sdepth = 0;
+    while (se && sdepth < 4 && se !== root.parentElement) {
+      var scs = getComputedStyle(se);
+      if (/^(DEL|S|STRIKE)$/.test(se.tagName) || (scs.textDecorationLine || scs.textDecoration || "").indexOf("line-through") >= 0) { shit = se; break; }
+      se = se.parentElement; sdepth++;
+    }
+    if (!shit || struckEls.indexOf(shit) >= 0) continue;
+    var sr = visible(shit);
+    if (!sr || !PRICE.test((shit.parentElement && shit.parentElement.innerText) || shit.innerText || "")) continue;
+    struckEls.push(shit);
+    if (struck.length < 40) struck.push({ text: (shit.innerText || stx).replace(/\s+/g, " ").trim().slice(0, 40), y: Math.round(sr.top + sy) });
+  }
+
+  // A link to the product's reviews (the rating summary under the title).
+  var reviewAnchor = null;
+  root.querySelectorAll('a[href^="#"], a[href*="review" i], a[href*="rating" i]').forEach(function (ra) {
+    var rl = (ra.innerText || ra.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+    var rh = ra.getAttribute("href") || "";
+    if (!/review|rating|تقييم|مراجع|آراء|اراء/i.test(rl + " " + rh)) return;
+    var rr = visible(ra);
+    if (!rr) return;
+    var ry = Math.round(rr.top + sy);
+    if (!reviewAnchor || ry < reviewAnchor.y) reviewAnchor = { text: rl.slice(0, 60), y: ry, href: rh.slice(0, 80) };
+  });
+
+  // Visible videos: autoplay flag and source (the size comes from the network log).
+  var videos = [];
+  root.querySelectorAll("video").forEach(function (v) {
+    var rv = visible(v);
+    if (!rv || videos.length >= 5) return;
+    var vs = v.querySelector("source");
+    videos.push({ autoplay: !!(v.autoplay || v.hasAttribute("autoplay")), muted: !!(v.muted || v.hasAttribute("muted")), src: (v.currentSrc || v.src || (vs && vs.src) || "").slice(0, 300), y: Math.round(rv.top + sy), w: Math.round(rv.width), h: Math.round(rv.height) });
+  });
+
   // Collection/listing pages: what each product card shows.
   var listing = null;
   var seenHref = {}, cards = [];
@@ -281,12 +347,31 @@ const EXTRACT_JS = String.raw`
     cards.push(card);
   });
   if (cards.length >= 4) {
-    var PRICE = /\d[\d,.]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|qar|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|usd|\$|€|£)\s?\d/i;
     var QUICK = /add to (cart|bag|basket)|quick (add|buy|shop|view)|choose options|select options|buy now|اضف|أضف|إضافة|اضافة|اشتر|اختر|اختاري|عرض سريع/i;
     var withPrice = 0, withRating = 0, quickAdd = 0, labels = {};
+    var withImage = 0, withName = 0, withStrike = 0, withSaleText = 0, soldFlags = [];
+    var SOLD = /sold.?out|out of stock|نفذ|نفدت|غير متوفر|غير متاح/i;
+    var SALE = /-\s?\d{1,3}\s?%|\d{1,3}\s?%\s?(?:off|خصم)|\bsave\b|\bsale\b|وفر|تخفيض|خصم/i;
     cards.forEach(function (c2) {
       var txt = c2.innerText || "";
       if (PRICE.test(txt)) withPrice++;
+      if (SALE.test(txt)) withSaleText++;
+      if (struckEls.some(function (se2) { return c2.contains(se2); })) withStrike++;
+      var sold = SOLD.test(txt);
+      if (!sold) {
+        var sbs = c2.querySelectorAll('[class*="sold-out" i], [class*="soldout" i], [class*="sold_out" i], [class*="out-of-stock" i], [class*="outofstock" i]');
+        for (var sbi = 0; sbi < sbs.length; sbi++) if (visible(sbs[sbi])) { sold = true; break; }
+      }
+      soldFlags.push(sold);
+      var hasImg = false, imgs = c2.querySelectorAll("img, picture, video, [style*='background-image']");
+      for (var ii = 0; ii < imgs.length; ii++) { var ri = imgs[ii].getBoundingClientRect(); if (ri.width >= 40 && ri.height >= 40) { hasImg = true; break; } }
+      if (hasImg) withImage++;
+      var hasName = false, nels = c2.querySelectorAll('a[href*="/product"], h1, h2, h3, h4, h5, [class*="title" i], [class*="name" i]');
+      for (var ni = 0; ni < nels.length; ni++) {
+        var nt = (nels[ni].innerText || nels[ni].getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+        if (nt.length >= 3 && /[A-Za-z\u0600-\u06FF]{2}/.test(nt) && !PRICE.test(nt) && !/^(add to|quick|choose|select|sold|اضف|أضف)/i.test(nt)) { hasName = true; break; }
+      }
+      if (hasName) withName++;
       if (/★|⭐/.test(txt) || c2.querySelector('[class*="rating" i], [class*="star" i], [class*="review" i], [class*="jdgm" i], [class*="loox" i], [class*="yotpo" i]')) withRating++;
       var btn = [].filter.call(c2.querySelectorAll("button, a, [role=button], input[type=submit]"), function (b2) {
         var l = (b2.innerText || b2.value || b2.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
@@ -295,13 +380,34 @@ const EXTRACT_JS = String.raw`
       if (btn) { quickAdd++; labels[(btn.innerText || btn.value || btn.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim().toLowerCase()] = 1; }
     });
     var FILTER = /filter|refine|فلتر|تصفية|فلترة|تصفيه/i, SORT = /sort|ترتيب|فرز|رتب/i;
-    var hasFilter = false, hasSort = false;
+    var hasFilter = false, hasSort = false, controlsTop = null;
     document.querySelectorAll("button, summary, select, label, [role=button], facet-filters-form").forEach(function (el2) {
       var l2 = ((el2.innerText || "").slice(0, 60) + " " + (el2.getAttribute("aria-label") || "") + " " + (el2.getAttribute("name") || "") + " " + (typeof el2.className === "string" ? el2.className : "")).toLowerCase();
-      if (!visible(el2)) return;
-      if (FILTER.test(l2)) hasFilter = true;
-      if (SORT.test(l2)) hasSort = true;
+      var r7 = visible(el2);
+      if (!r7) return;
+      var isF = FILTER.test(l2), isS = SORT.test(l2);
+      if (isF) hasFilter = true;
+      if (isS) hasSort = true;
+      if ((isF || isS) && (controlsTop === null || r7.top + sy < controlsTop)) controlsTop = Math.round(r7.top + sy);
     });
+    // The sort the page opened with: a select's chosen option, a checked
+    // radio, or the sort_by in the address.
+    var sortSel = "";
+    document.querySelectorAll("select").forEach(function (s2) {
+      if (sortSel) return;
+      var lab2 = ((s2.getAttribute("name") || "") + " " + (s2.id || "") + " " + (s2.getAttribute("aria-label") || "") + " " + (typeof s2.className === "string" ? s2.className : "")).toLowerCase();
+      if (!/sort|orderby|ترتيب|فرز/.test(lab2)) return;
+      var op2 = s2.options[s2.selectedIndex];
+      if (op2) sortSel = ((op2.text || "").replace(/\s+/g, " ").trim() + "|" + (op2.value || "")).toLowerCase().slice(0, 80);
+    });
+    if (!sortSel) document.querySelectorAll("input[type=radio]:checked").forEach(function (r8) {
+      if (sortSel || !/sort/i.test(r8.name || "")) return;
+      var lb = r8.id ? document.querySelector('label[for="' + r8.id + '"]') : null;
+      sortSel = (((lb && lb.innerText) || "").replace(/\s+/g, " ").trim() + "|" + (r8.value || "")).toLowerCase().slice(0, 80);
+    });
+    if (!sortSel) { var sq = /[?&]sort_by=([^&]+)/.exec(location.search); if (sq) sortSel = "|" + decodeURIComponent(sq[1]).toLowerCase(); }
+    var boxes = cards.map(function (c4) { var rb = c4.getBoundingClientRect(); return { x: Math.round(rb.left), y: Math.round(rb.top + sy), w: Math.round(rb.width), h: Math.round(rb.height) }; });
+    boxes.sort(function (a3, b3) { return a3.y - b3.y || a3.x - b3.x; });
     var firstTop = Math.min.apply(null, cards.map(function (c3) { return c3.getBoundingClientRect().top + sy; }));
     var pills = 0, pillSeen = {};
     document.querySelectorAll('a[href*="/collections/"], a[href*="/product-category/"], a[href*="/category/"]').forEach(function (a2) {
@@ -311,12 +417,17 @@ const EXTRACT_JS = String.raw`
       var l3 = (a2.innerText || "").trim();
       if (top > 140 && top < firstTop && l3.length > 1 && l3.length <= 30 && !pillSeen[h2]) { pillSeen[h2] = 1; pills++; }
     });
-    listing = { cards: cards.length, withPrice: withPrice, withRating: withRating, quickAdd: quickAdd, quickAddLabels: Object.keys(labels).slice(0, 6), hasFilter: hasFilter, hasSort: hasSort, pills: pills };
+    listing = { cards: cards.length, withPrice: withPrice, withRating: withRating, quickAdd: quickAdd, quickAddLabels: Object.keys(labels).slice(0, 6), hasFilter: hasFilter, hasSort: hasSort, pills: pills, withImage: withImage, withName: withName, withStrike: withStrike, withSaleText: withSaleText, soldOutFlags: soldFlags, firstCardTop: Math.round(firstTop), cardBoxes: boxes.slice(0, 12) };
+    if (sortSel) listing.sort = sortSel;
+    if (controlsTop !== null) listing.controlsTop = controlsTop;
   }
 
   var srcs = [].map.call(document.scripts, function (s) { return s.src || ""; }).join(" ");
   return {
     listing: listing,
+    struck: struck,
+    reviewAnchor: reviewAnchor,
+    videos: videos,
     title: document.title || "",
     blocks: blocks,
     cta: cta,
@@ -434,7 +545,7 @@ const FIND_LINKS_JS = String.raw`
   var here = location.origin + location.pathname.replace(/\/$/, "");
   var LISTING = /(^|\/)(shop|store|collections?|categor(y|ies)|product-category|products|all-products|catalog|best-selling|newest|offers)(\/[^\/]*)?\/?$/i;
   var PRODUCTISH = /\/(products?|p|item|items)\/[^\/]+\/?$/i;
-  var PRICE = /\d[\d,.]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|qar|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|usd|\$|€|£)\s?\d/i;
+  var PRICE = /[\d٠-٩][\d٠-٩,.٬]*\s?(?:egp|le|l\.e|ج\.?\s?م|جنيه|sar|ر\.?\s?س|ريال|aed|د\.?\s?إ|درهم|kwd|د\.?\s?ك|دينار|qar|ر\.?\s?ق|bhd|د\.?\s?ب|omr|ر\.?\s?ع|usd|\$|€|£)|(?:egp|le|l\.e|sar|aed|kwd|qar|bhd|omr|usd|ر\.?\s?س|د\.?\s?إ|د\.?\s?ك|ر\.?\s?ق|د\.?\s?ب|ر\.?\s?ع|\$|€|£)\s?[\d٠-٩]/i;
   var product = null, productByPath = null, collection = null;
   var links = document.querySelectorAll("a[href]");
   for (var i = 0; i < links.length; i++) {
@@ -495,6 +606,9 @@ interface Extracted {
   policyLinks: PageEvidence["policyLinks"];
   variants: NonNullable<PageEvidence["variants"]>;
   listing: PageEvidence["listing"] | null;
+  struck?: PageEvidence["struck"];
+  reviewAnchor?: PageEvidence["reviewAnchor"];
+  videos?: PageEvidence["videos"];
   html: string;
 }
 
@@ -513,7 +627,33 @@ interface HitCounter {
   page?: string;
   // Retry keys of hits already counted (Hit.k).
   seen: Set<string>;
+  // What the browser logged per page, keyed "phone|product" / "desktop|home".
+  net: Record<string, PageNet>;
+  // dataLayer shopping pushes: product page (view_item) and the click (add_to_cart).
+  // seq: the product page's ecommerce pushes in order (TRK-41).
+  dl: { view?: DataLayerPush[]; atc?: DataLayerPush[]; seq?: string[] };
+  // Session-recording tools whose script or hits we saw (TRK-39).
+  recorders: Set<string>;
 }
+
+// Session-recording tools by script or hit host (TRK-39).
+const RECORDERS: Array<[string, RegExp]> = [
+  ["Microsoft Clarity", /\.clarity\.ms\//],
+  ["Hotjar", /hotjar\.(?:com|io)\//],
+  ["Mouseflow", /mouseflow\.com\//],
+  ["Smartlook", /smartlook\.(?:com|cloud)\//],
+  ["Lucky Orange", /luckyorange\.(?:com|net)\//],
+  ["FullStory", /fullstory\.com\//],
+];
+export function recorderOf(url: string): string | undefined {
+  return RECORDERS.find(([, re]) => re.test(url))?.[0];
+}
+
+// The page's own state: which logical page its log lines belong to. visit()
+// sets the key; the listeners in preparePage read it.
+const PAGE_STATE = new WeakMap<Page, { side: "phone" | "desktop"; key: string }>();
+
+const hostIn = (text: string | undefined): string | undefined => /https?:\/\/([^/:\s)]+)/.exec(text ?? "")?.[1];
 
 // k: what makes a hit the same hit when the tag retries it by another route
 // after we block it (GA4 hit sequence _s, Meta eid, TikTok event_id). Used
@@ -531,6 +671,13 @@ function fieldsOf(url: string, body: string | undefined): Map<string, string> {
     else if (!/^\s*[[{]/.test(body)) { try { new URLSearchParams(body).forEach((v, k) => add(k, v)); } catch { /* not a form */ } }
   }
   return out;
+}
+
+/** Which GA4 item fields one product string (pr1=id…~nm…~pr…~qt…) carries. */
+export function ga4ItemFields(raw: string): ItemFields {
+  const parts = raw.split("~");
+  const has = (re: RegExp) => parts.some(t => re.test(t));
+  return { id: has(/^id.+/), name: has(/^nm.+/), price: has(/^pr\d/), qty: has(/^qt\d/) };
 }
 
 const num = (v: unknown): number | undefined => {
@@ -574,6 +721,7 @@ export function hitEvents(url: string, body: string | undefined): Hit[] {
         value: num(f.get("epn.value") ?? f.get("ep.value")),
         currency: f.get("cu") ?? f.get("ep.currency"),
         items: items || undefined,
+        itemFields: items ? [...f].filter(([k]) => /^pr\d+$/.test(k)).slice(0, 10).map(([, v]) => ga4ItemFields(v)) : undefined,
       }));
     });
   } else if (/facebook\.com\/tr|facebook\.net\/tr/.test(url)) {
@@ -623,9 +771,50 @@ async function preparePage(browserContext: Awaited<ReturnType<Browser["createBro
   await page.setViewport(profile.viewport);
   await page.setUserAgent(profile.userAgent);
   await page.setRequestInterception(true);
+  const state = { side: (profile === DESKTOP_PROFILE ? "desktop" : "phone") as "phone" | "desktop", key: "home" };
+  PAGE_STATE.set(page, state);
+  const netOf = (): PageNet => (counter.net[`${state.side}|${state.key}`] ??= { errors: [], failed: [], http: [], gtag: {}, media: [] });
+  // What the browser logs about each page: script errors, failed files,
+  // http:// requests, gtag.js loads. Requests we abort on purpose are skipped.
+  page.on("pageerror", err => {
+    const n = netOf();
+    if (n.errors.length >= 10) return;
+    const e = err as Error;
+    n.errors.push({ msg: String(e?.message ?? err).slice(0, 200), ...(hostIn(e?.stack) && { host: hostIn(e?.stack) }) });
+  });
+  page.on("request", req => {
+    const url = req.url();
+    const n = netOf();
+    if (url.startsWith("http://") && n.http.length < 15) n.http.push(`${req.resourceType()} ${url.slice(0, 160)}`);
+    const g = /googletagmanager\.com\/gtag\/js\?(?:[^#]*&)?id=([A-Za-z0-9-]+)/.exec(url);
+    if (g) n.gtag[g[1]] = (n.gtag[g[1]] ?? 0) + 1;
+  });
+  page.on("response", res => {
+    const n = netOf();
+    const status = res.status();
+    const url = res.url();
+    const type = res.request().resourceType();
+    if (type === "media" && n.media.length < 10) {
+      const h = res.headers();
+      // 206: the total is after the slash of Content-Range; 200: Content-Length.
+      const total = num(/\/(\d+)$/.exec(h["content-range"] ?? "")?.[1] ?? (status === 200 ? h["content-length"] : undefined));
+      n.media.push({ url: url.slice(0, 300), status, ...(total !== undefined && { bytes: total }) });
+    }
+    if (status >= 400 && !url.startsWith("data:") && n.failed.length < 30) n.failed.push({ url: url.slice(0, 200), type, status });
+  });
+  page.on("requestfailed", req => {
+    const url = req.url();
+    const error = (req.failure()?.errorText ?? "").replace(/^net::/, "");
+    // Our own aborts (blocked hits) and navigations cut short are not failures.
+    if (/^(ERR_ABORTED|ERR_BLOCKED_BY_CLIENT)$/.test(error) || isBlockedHit(url) || url.startsWith("data:")) return;
+    const n = netOf();
+    if (n.failed.length < 30) n.failed.push({ url: url.slice(0, 200), type: req.resourceType(), error });
+  });
   page.on("request", req => {
     if (req.isInterceptResolutionHandled()) return;
     const url = req.url();
+    const recorder = recorderOf(url);
+    if (recorder) counter.recorders.add(recorder);
     if (isBlockedHit(url)) {
       counter.blocked++;
       // Page and time now: the body may arrive after the next page started.
@@ -720,7 +909,11 @@ function toEvidence(pageType: FudPageType, url: string, x: Extracted): PageEvide
     jsonLd: x.jsonLd,
     policyLinks: x.policyLinks,
     variants: pageType === "product" ? x.variants : undefined,
-    listing: pageType === "collection" ? x.listing ?? undefined : undefined,
+    // The home page's product grid is read the same way (HOME-05).
+    listing: pageType === "collection" || pageType === "home" ? x.listing ?? undefined : undefined,
+    ...(x.struck?.length && { struck: x.struck }),
+    ...(pageType === "product" && { reviewAnchor: x.reviewAnchor ?? null }),
+    ...(x.videos?.length && { videos: x.videos }),
     crops: {},
   };
 }
@@ -730,6 +923,8 @@ function failed(pageType: FudPageType, url: string, note: string): PageEvidence 
 }
 
 async function visit(page: Page, pageType: FudPageType, url: string, prefix: string, withCrops = true): Promise<PageEvidence> {
+  const st = PAGE_STATE.get(page);
+  if (st) st.key = prefix === "s" ? "search" : pageType;
   // One retry: a single dropped connection (seen as net::ERR_NO_BUFFER_SPACE
   // on Windows) shouldn't cost a whole page's rules.
   for (let attempt = 1; ; attempt++) {
@@ -742,20 +937,165 @@ async function visit(page: Page, pageType: FudPageType, url: string, prefix: str
     }
   }
   const popups = await settle(page);
+  // Product pages: open "read more" first, so the full description is read.
+  if (pageType === "product" && (await page.evaluate(EXPAND_JS).catch(() => 0))) await sleep(700);
   const x = await extract(page, null, prefix).catch(() => null);
   if (!x) return failed(pageType, url, "could not read the page");
   if (BOT_WALL.test(x.title) && x.blocks.length < 15) return failed(pageType, url, "blocked by a bot check");
   const ev = toEvidence(pageType, page.url(), x);
   ev.popups = popups;
   ev.facts = ((await page.evaluate(FACTS_JS).catch(() => null)) as PageFacts | null) ?? undefined;
-  if (pageType === "product" && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
+  // RISK-07: re-read sideways overflow on a 360px phone, then restore 390px
+  // before any crop. Part of the extra probes, so off unless COLLECT_PROBES=on.
+  if (PROBES_ON && ev.facts && page.viewport()?.width === MOBILE.width) {
+    try {
+      await page.setViewport({ ...MOBILE, width: 360 });
+      const narrow = (await page.evaluate(FACTS_JS).catch(() => null)) as PageFacts | null;
+      if (narrow?.overflow) ev.facts.overflow360 = narrow.overflow;
+    } catch {
+      // Best effort: RISK-07 stays unverified without it.
+    } finally {
+      await page.setViewport(MOBILE).catch(() => {});
+    }
+  }
+  // Landing pages too: LAND-11 counts a buy bar that follows the shopper.
+  if ((pageType === "product" || pageType === "landing") && ev.cta) ev.sticky = ((await page.evaluate(STICKY_JS).catch(() => null)) as string | null) ?? null;
+  if (pageType === "product") {
+    const hidden = (await page.evaluate(HIDDEN_SECTIONS_JS).catch(() => null)) as Array<{ label: string; text: string }> | null;
+    if (hidden?.length) ev.hiddenSections = hidden;
+  }
   if (!withCrops) return ev;
   ev.crops.fold = await crop(page, { x: 0, y: 0, width: MOBILE.width, height: MOBILE.height });
   if (ev.cta) {
     const top = Math.max(0, ev.cta.box.y - 280);
     ev.crops.cta = await crop(page, { x: 0, y: top, width: MOBILE.width, height: Math.min(720, ev.cta.box.h + 560) });
   }
+  // After the crops, so they show the page as it arrived. NAV-03: does the
+  // phone menu open? PATH-09: do + and − in the cart change it?
+  if (pageType === "home" && page.viewport()?.width === MOBILE.width) {
+    const menu = (await page.evaluate(MENU_TAP_JS).catch(() => null)) as { found: boolean; before: number; textBefore?: number } | null;
+    let opened = false, linksShown = 0;
+    if (menu?.found) {
+      await sleep(1500);
+      const after = ((await page.evaluate(VISIBLE_LINKS_JS).catch(() => 0)) as number) ?? 0;
+      const textAfter = ((await page.evaluate("document.body.innerText.length").catch(() => 0)) as number) ?? 0;
+      linksShown = Math.max(0, after - menu.before);
+      // A panel sliding in shows new links, or at least new text.
+      opened = linksShown >= 3 || textAfter - (menu.textBefore ?? textAfter) > 40;
+    }
+    ev.interactions = { ...ev.interactions, menu: { found: Boolean(menu?.found), opened, linksShown } };
+  }
+  if (pageType === "cart") ev.interactions = { ...ev.interactions, quantity: await quantityTest(page) };
   return ev;
+}
+
+// Text of tabs, accordions and collapsed sections that are closed on arrival.
+// textContent is there even when the section is hidden, so nothing is
+// clicked. Visible sections are skipped: the page text already has them.
+const HIDDEN_SECTIONS_JS = String.raw`(function () {
+  var sel = "[role=tabpanel], details, .tab-pane, [class*='tab-content'] > *, [class*='tabs__panel'], [class*='tab-panel'], [class*='accordion'] [class*='content'], [class*='accordion'] [class*='body'], [class*='collapse'], [class*='collapsible'] [class*='content']";
+  var out = [], seen = {};
+  [].slice.call(document.querySelectorAll(sel)).forEach(function (el) {
+    if (out.length >= 6 || el.closest("header, nav, footer")) return;
+    var r = el.getBoundingClientRect();
+    var shown = r.width > 0 && r.height > 20 && getComputedStyle(el).visibility !== "hidden";
+    if (shown && el.tagName !== "DETAILS") return;
+    if (el.tagName === "DETAILS" && el.open) return;
+    var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (text.length < 20) return;
+    var key = text.slice(0, 80);
+    if (seen[key]) return;
+    seen[key] = 1;
+    var label = "";
+    var id = el.getAttribute("aria-labelledby");
+    if (id && document.getElementById(id)) label = document.getElementById(id).textContent;
+    else if (el.tagName === "DETAILS" && el.querySelector("summary")) label = el.querySelector("summary").textContent;
+    else if (el.id) { var t = document.querySelector("[href='#" + el.id + "'], [aria-controls='" + el.id + "'], [data-target='#" + el.id + "'], [data-bs-target='#" + el.id + "']"); if (t) label = t.textContent; }
+    out.push({ label: (label || "").replace(/\s+/g, " ").trim().slice(0, 60), text: text.slice(0, 1200) });
+  });
+  return out;
+})()`;
+
+// Buttons that reveal more of a product description ("read more").
+const EXPAND_JS = String.raw`(function () {
+  var re = /^\s*(اقرأ المزيد|قراءة المزيد|اقرا المزيد|عرض المزيد|المزيد|read more|show more|see more|view more|more details)\s*$/i;
+  var n = 0;
+  [].slice.call(document.querySelectorAll("button, a, span, div[role=button]")).forEach(function (el) {
+    if (n >= 3 || !re.test(el.textContent || "")) return;
+    if (el.closest("header, nav, footer")) return;
+    var href = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
+    if (href && href !== "#" && !/^javascript:/i.test(href)) return;
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    try { el.click(); n++; } catch (e) {}
+  });
+  return n;
+})()`;
+
+const VISIBLE_LINKS_JS = String.raw`[].filter.call(document.querySelectorAll("a[href]"), function (a) {
+  var r = a.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0 && r.left < innerWidth && r.right > 0 && getComputedStyle(a).visibility !== "hidden";
+}).length`;
+
+// Taps the phone menu icon and returns how many links were on screen before.
+// Never follows a link.
+const MENU_TAP_JS = String.raw`(function () {
+  window.scrollTo(0, 0);
+  var before = ` + VISIBLE_LINKS_JS + String.raw`;
+  var cands = [].slice.call(document.querySelectorAll("header button, header [role=button], header a, [class*=hamburger], [class*=menu-toggle], [class*=nav-toggle], [aria-label*=\"menu\" i], [aria-label*=\"القائمة\"], button:has([class*=burger]), [class*=burger]"));
+  var btn = cands.find(function (el) {
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.top > 160) return false;
+    var cls = typeof el.className === "string" ? el.className : (el.className && el.className.baseVal) || "";
+    var label = ((el.getAttribute("aria-label") || "") + " " + cls + " " + (el.textContent || "")).toLowerCase();
+    return (/menu|hamburger|burger|nav-toggle|القائمة|منيو/.test(label) || !!el.querySelector("[class*=burger]")) && !/cart|search|سلة|بحث|account|حساب/.test(label);
+  });
+  if (!btn) return { found: false, before: before };
+  var href = btn.tagName === "A" ? (btn.getAttribute("href") || "") : "";
+  if (href && href !== "#" && !/^javascript:/i.test(href)) return { found: false, before: before };
+  var textBefore = document.body.innerText.length;
+  (btn.closest("button, [role=button], a") || btn).click();
+  return { found: true, before: before, textBefore: textBefore };
+})()`;
+
+// Presses + (or −) on the first cart line; returns the main text before the
+// press, or null when there is no such button. Nothing is typed.
+const QTY_PRESS_JS = (plus: boolean) => String.raw`(function () {
+  var re = ` + (plus ? String.raw`/^\s*\+\s*$|increase|increment|plus|زيادة|زياده/i` : String.raw`/^\s*[-−–]\s*$|decrease|decrement|minus|نقص|تقليل|انقاص/i`) + String.raw`;
+  var els = [].slice.call(document.querySelectorAll("button, [role=button], a, span, i, svg"));
+  var el = els.find(function (e) {
+    if (e.closest("header, nav, footer")) return false;
+    var r = e.getBoundingClientRect();
+    if (!r.width || !r.height || r.width > 80) return false;
+    var cls = typeof e.className === "string" ? e.className : "";
+    var label = (e.getAttribute("aria-label") || "") + " " + (e.getAttribute("title") || "") + " " + (e.getAttribute("data-action") || "") + " " + cls;
+    return re.test(label.trim()) || re.test((e.textContent || "").trim());
+  });
+  if (!el) return null;
+  var btn = el.closest("button, [role=button], a") || el;
+  var snap = (document.querySelector("main") || document.body).innerText.replace(/\s+/g, " ");
+  btn.click();
+  return snap;
+})()`;
+const MAIN_TEXT_JS = String.raw`(document.querySelector("main") || document.body).innerText.replace(/\s+/g, " ")`;
+const REMOVE_FOUND_JS = String.raw`[].some.call(document.querySelectorAll("button, a, [role=button], span, i, svg"), function (e) {
+  if (e.closest("header, nav, footer")) return false;
+  var cls = typeof e.className === "string" ? e.className : "";
+  var l = (e.getAttribute("aria-label") || "") + " " + (e.getAttribute("title") || "") + " " + cls;
+  return /remove|delete|trash|حذف|إزالة|ازالة/i.test(l);
+})`;
+
+async function quantityTest(page: Page): Promise<NonNullable<NonNullable<PageEvidence["interactions"]>["quantity"]>> {
+  const removeFound = ((await page.evaluate(REMOVE_FOUND_JS).catch(() => false)) as boolean) ?? false;
+  const before = (await page.evaluate(QTY_PRESS_JS(true)).catch(() => null)) as string | null;
+  if (before === null) return { plusFound: false, plusChanged: false, minusFound: false, minusChanged: false, removeFound };
+  await sleep(2500);
+  const plusChanged = ((await page.evaluate(MAIN_TEXT_JS).catch(() => "")) as string) !== before;
+  const beforeMinus = (await page.evaluate(QTY_PRESS_JS(false)).catch(() => null)) as string | null;
+  if (beforeMinus === null) return { plusFound: true, plusChanged, minusFound: false, minusChanged: false, removeFound };
+  await sleep(2500);
+  const minusChanged = ((await page.evaluate(MAIN_TEXT_JS).catch(() => "")) as string) !== beforeMinus;
+  return { plusFound: true, plusChanged, minusFound: true, minusChanged, removeFound };
 }
 
 function isEmptyCart(ev: PageEvidence): boolean {
@@ -778,11 +1118,48 @@ const datalayerSince = (n: number) => `
   return out;
 })()`;
 
+// The dataLayer's ecommerce entries in order (TRK-41): "null" for a clear
+// ({ ecommerce: null }), else the event name of a push carrying an ecommerce object.
+const DL_ECOMMERCE_SEQ_JS = `
+(function () {
+  var dl = window.dataLayer || [], out = [];
+  for (var i = 0; i < dl.length && out.length < 40; i++) {
+    var e = dl[i];
+    if (!e || typeof e !== "object" || !("ecommerce" in e)) continue;
+    out.push(e.ecommerce === null ? "null" : String(e.event || "(no event)"));
+  }
+  return out;
+})()`;
+
+// Shopping pushes (view_item, add_to_cart) from dataLayer entry `from` on,
+// as GA4 or gtag() entries: money fields and which item fields exist, never values of items.
+const dlPushesJs = (from: number) => `
+(function () {
+  var dl = window.dataLayer || [], out = [];
+  function fields(it) {
+    return { id: !!(it && (it.item_id || it.id || it.sku)), name: !!(it && (it.item_name || it.name)), price: !!(it && it.price !== undefined && it.price !== null && it.price !== ""), qty: !!(it && (it.quantity !== undefined || it.qty !== undefined)) };
+  }
+  for (var i = ${from}; i < dl.length && out.length < 10; i++) {
+    var e = dl[i], ev = null, p = null;
+    if (!e || typeof e !== "object") continue;
+    if (typeof e.event === "string") { ev = e.event; p = e.ecommerce || e; }
+    else if (e[0] === "event" && typeof e[1] === "string") { ev = e[1]; p = e[2] || {}; }
+    if (ev !== "view_item" && ev !== "add_to_cart") continue;
+    var v = parseFloat(p.value);
+    out.push({ event: ev, value: isFinite(v) ? v : undefined, currency: typeof p.currency === "string" ? p.currency : undefined, items: (Array.isArray(p.items) ? p.items : []).slice(0, 10).map(fields) });
+  }
+  return out;
+})()`;
+
 /** What the Add-to-Cart click itself sent: new dataLayer entries and blocked hits since the click. */
 async function eventsAfterClick(page: Page, counter: HitCounter, since: number, dlBefore: number): Promise<NonNullable<StoreEvidence["atcEvents"]> & { hits: NonNullable<StoreEvidence["atcHits"]> }> {
-  // Long enough for pixels that fire after the cart updates (round 19).
-  await sleep(2000);
+  // Long enough for pixels that fire after the cart updates (round 19), and
+  // for GA4, which batches events and can send them several seconds later.
+  await sleep(6000);
   const dataLayer = ((await page.evaluate(datalayerSince(dlBefore)).catch(() => [])) as string[]) ?? [];
+  counter.dl.atc = (((await page.evaluate(dlPushesJs(dlBefore)).catch(() => [])) as DataLayerPush[]) ?? []).filter(x => x.event === "add_to_cart");
+  const seq = (await page.evaluate(DL_ECOMMERCE_SEQ_JS).catch(() => null)) as string[] | null;
+  if (seq) counter.dl.seq = seq;
   const after = counter.events.filter(e => e.t >= since);
   const uniq = (xs: string[]) => [...new Set(xs)].slice(0, 15);
   return {
@@ -798,7 +1175,7 @@ async function addToCartAndCapture(
   product: PageEvidence | undefined,
   cartUrl: string,
   counter: HitCounter,
-): Promise<{ cart: PageEvidence; atc: StoreEvidence["addToCart"]; atcEvents?: StoreEvidence["atcEvents"]; atcHits?: StoreEvidence["atcHits"] }> {
+): Promise<{ cart: PageEvidence; drawer?: PageEvidence; atc: StoreEvidence["addToCart"]; atcEvents?: StoreEvidence["atcEvents"]; atcHits?: StoreEvidence["atcHits"] }> {
   let atc: StoreEvidence["addToCart"] = { attempted: false, ok: false, reason: "no product page" };
   let atcEvents: StoreEvidence["atcEvents"];
   let atcHits: StoreEvidence["atcHits"];
@@ -845,7 +1222,22 @@ async function addToCartAndCapture(
           ev.note = "cart drawer";
           ev.crops.cart = await crop(page, { x: 0, y: await page.evaluate("window.scrollY") as number, width: MOBILE.width, height: MOBILE.height });
           atc = ev.cart.empty ? { attempted: true, ok: false, reason: "atc_drawer_empty" } : { attempted: true, ok: true, via: "click", clickAdded: true };
-          if (!ev.cart.empty) return { cart: ev, atc, atcEvents, atcHits };
+          if (!ev.cart.empty) {
+            // Also open the cart page: the page-level checks (links, header
+            // count, layout, floating elements) need a full page. The drawer
+            // stays as drawer evidence, and its picture as the cart crop.
+            const full = await visit(page, "cart", cartUrl, "e").catch(() => null);
+            if (full?.loaded) {
+              const n = await cartCount(page);
+              if (!(n !== null ? n === 0 : isEmptyCart(full))) {
+                full.cart = { source: "page", empty: false };
+                full.note = "cart page (the cart also opens as a drawer after Add to Cart)";
+                if (ev.crops.cart) full.crops.cart = ev.crops.cart;
+                return { cart: full, drawer: ev, atc, atcEvents, atcHits };
+              }
+            }
+            return { cart: ev, atc, atcEvents, atcHits };
+          }
         }
       } else if (pathOf(page.url()) === before) {
         atc.reason = "atc_no_drawer";
@@ -941,19 +1333,29 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
   const executablePath = findChrome();
   if (!executablePath) throw new Error("no Chrome/Chromium found — set CHROME_PATH");
 
-  const counter: HitCounter = { blocked: 0, leaked: [], events: [], seen: new Set() };
+  const counter: HitCounter = { blocked: 0, leaked: [], events: [], seen: new Set(), net: {}, dl: {}, recorders: new Set() };
   let browser: Browser | undefined;
+  // The step in progress, named in the timeout error.
+  let step = "launch";
+  // Seconds each step took, for the visit log line (poll.ts).
+  const stepMs: Record<string, number> = {};
+  let stepAt = Date.now();
+  // Landing pages keep their path, so a slow one can be named.
+  const keyOf = (st: string) => (st.startsWith("landing ") ? `landing ${decodeURIComponent(st.slice(8).replace(/^https?:\/\/[^/]+/, "")).slice(0, 40)}` : st.replace(/ .*/, ""));
+  const at = (next: string) => { const k = keyOf(step); stepMs[k] = (stepMs[k] ?? 0) + Date.now() - stepAt; step = next; stepAt = Date.now(); };
   const work = (async (): Promise<StoreEvidence> => {
     browser = await puppeteer.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars"] });
     // Throwaway context: no cookies in, nothing kept after close().
     const context = await browser.createBrowserContext();
     const page = await preparePage(context, counter, MOBILE_PROFILE);
     const pages: PageEvidence[] = [];
+    let cartDrawer: PageEvidence | undefined;
 
     const findLinks = async (): Promise<{ product: string | null; collection: string | null }> =>
       ((await page.evaluate(FIND_LINKS_JS).catch(() => null)) as { product: string | null; collection: string | null } | null) ?? { product: null, collection: null };
 
     counter.page = "home";
+    at("home");
     pages.push(await visit(page, "home", homepage, "h"));
     counter.page = undefined;
     // Discovery found no product or listing URL (non-Shopify URL shapes):
@@ -971,17 +1373,23 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       }
     }
     counter.page = "product";
+    at("product");
     const product = productUrl ? await visit(page, "product", productUrl, "p") : failed("product", homepage, "no product page found on the site");
     // App pixels (Shopify web pixels) send view_item late: wait so it lands
     // with the product page and not with the Add-to-Cart tap (round 19).
     if (product.loaded) await sleep(3000);
+    if (product.loaded) counter.dl.view = (((await page.evaluate(dlPushesJs(0)).catch(() => [])) as DataLayerPush[]) ?? []).filter(x => x.event === "view_item");
+    if (product.loaded) counter.dl.seq = ((await page.evaluate(DL_ECOMMERCE_SEQ_JS).catch(() => null)) as string[] | null) ?? undefined;
     counter.page = undefined;
     if (product.loaded && !product.cta && !product.jsonLd.types.some(t => /product/i.test(t))) product.note = "could not confirm this is a product page (no buy button found)";
     pages.push(product);
-    const { cart, atc, atcEvents, atcHits } = await addToCartAndCapture(page, product, cartUrl!, counter);
+    at("add to cart");
+    const { cart, drawer, atc, atcEvents, atcHits } = await addToCartAndCapture(page, product, cartUrl!, counter);
     pages.push(cart);
+    if (drawer) cartDrawer = drawer;
     // First checkout screen, right after the cart so the item is still in it.
     counter.page = "checkout";
+    at("checkout");
     const checkout = await captureCheckout(page, Boolean(cart.loaded && cart.cart && !cart.cart.empty), homepage).catch(() => failed("checkout", homepage, "checkout did not load"));
     pages.push(checkout);
     // Checkout pixels (Shopify web pixels) fire late: give them time before
@@ -991,6 +1399,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // After the cart, so a slow listing page can never cost the cart rules
     // (unless it was already needed above to find a product).
     if (!collection && collectionUrl) counter.page = "collection";
+    at("collection");
     pages.push(collection ?? (collectionUrl ? await visit(page, "collection", collectionUrl, "l") : failed("collection", homepage, "no collection page found on the site")));
     counter.page = undefined;
 
@@ -1001,7 +1410,13 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
       if (seen) { pages.push(asLanding(seen, l.source)); continue; }
       if (pages.some(p => p.pageType === "landing" && pathKey(p.url) === pathKey(l.url))) continue;
       counter.page = "landing";
-      const ev = await visit(page, "landing", l.url, `g${pages.filter(p => p.pageType === "landing").length}`).catch(() => failed("landing", l.url, "landing page did not load"));
+      at(`landing ${l.url}`);
+      // Capped: a landing page normally takes 8-10 s, but a slow one once took
+      // 200 s and left the probes no time (Regal, 24 Nov).
+      const ev = await Promise.race([
+        visit(page, "landing", l.url, `g${pages.filter(p => p.pageType === "landing").length}`),
+        sleep(LANDING_MAX_MS).then(() => { throw new Error("timeout"); }),
+      ]).catch(err => failed("landing", l.url, err instanceof Error && err.message === "timeout" ? `landing page took over ${LANDING_MAX_MS / 1000}s` : "landing page did not load"));
       counter.page = undefined;
       ev.landing = { source: l.source };
       pages.push(ev);
@@ -1010,6 +1425,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     // Search test (rule N2): search for a word from the product's name and
     // count product links on the results page.
     let searchTest: StoreEvidence["searchTest"];
+    at("search test");
     const home = pages.find(p => p.pageType === "home" && p.loaded);
     if (home?.facts?.search.present && product.loaded) {
       const source = product.facts?.h1[0] || product.title || "";
@@ -1031,25 +1447,69 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
         }
       }
     }
+    // The returns and shipping policy pages, read in the browser (many stores
+    // fill them in with script), for TRUST-01 and TRUST-07.
+    const policies: NonNullable<StoreEvidence["policies"]> = [];
+    const policyKinds = new Set<string>();
+    at("policy pages");
+    for (const pg of pages) {
+      for (const l of pg.policyLinks ?? []) {
+        if ((l.kind !== "returns" && l.kind !== "shipping") || policyKinds.has(l.kind)) continue;
+        let url: string;
+        try { url = new URL(l.href, pg.url).href; } catch { continue; }
+        policyKinds.add(l.kind);
+        try {
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+          await sleep(1500);
+          const text = ((await page.evaluate(`(document.querySelector("main") || document.body).innerText`)) as string) ?? "";
+          policies.push({ kind: l.kind, url: page.url(), text: text.replace(/\s+/g, " ").trim().slice(0, 3000) });
+        } catch {
+          // a policy page that won't load just isn't in the evidence
+        }
+      }
+    }
     await context.close().catch(() => {});
 
     // Desktop: text and positions only, in its own throwaway context.
     let desktop: PageEvidence[] | undefined;
-    if (opts.desktop !== false) {
+    at("desktop");
+    // Its own time cap: desktop is optional, and a hang here used to time out
+    // the whole visit and lose every phone page with it (Regal, 23 Nov).
+    const desktopMs = Math.min(DESKTOP_MAX_MS, startedAt + TOTAL_TIMEOUT_MS - 15_000 - Date.now());
+    if (opts.desktop !== false && desktopMs > 10_000) {
+      const b = browser;
+      let dctx: Awaited<ReturnType<Browser["createBrowserContext"]>> | undefined;
       try {
-        const dctx = await browser.createBrowserContext();
-        const dpage = await preparePage(dctx, counter, DESKTOP_PROFILE);
-        desktop = [await visit(dpage, "home", homepage, "dh", false)];
-        if (productUrl) desktop.push(await visit(dpage, "product", productUrl, "dp", false));
-        await dctx.close().catch(() => {});
-      } catch {
+        desktop = await Promise.race([
+          (async () => {
+            dctx = await b.createBrowserContext();
+            const dpage = await preparePage(dctx, counter, DESKTOP_PROFILE);
+            const out = [await visit(dpage, "home", homepage, "dh", false)];
+            if (productUrl) out.push(await visit(dpage, "product", productUrl, "dp", false));
+            return out;
+          })(),
+          sleep(desktopMs).then(() => { throw new Error("desktop timed out"); }),
+        ]);
+      } catch (err) {
+        console.warn(`[audit-worker] Desktop visit skipped: ${err instanceof Error ? err.message : err}`);
         desktop = undefined;
+      } finally {
+        await (dctx as { close(): Promise<void> } | undefined)?.close().catch(() => {});
       }
     }
 
+    // Extra probes (collect-probes.ts) get the time left; they never fail the visit.
+    at("probes");
+    const probes = PROBES_ON && Date.now() + 20_000 < startedAt + TOTAL_TIMEOUT_MS
+      ? await runProbes({ browser, homepage, productUrl, collectionUrl, cartUrl: cartUrl!, deps: { isBlocked: isBlockedHit, hitEvents }, deadline: startedAt + TOTAL_TIMEOUT_MS - 10_000 }).catch(() => undefined)
+      : undefined;
     const focusUrls = opts.focus?.productUrl || opts.focus?.collectionUrl ? { product: opts.focus.productUrl, collection: opts.focus.collectionUrl } : undefined;
+    const attachNet = (list: PageEvidence[] | undefined, side: "phone" | "desktop") => list?.forEach(p => { const n = counter.net[`${side}|${p.pageType}`]; if (n && !p.net) p.net = n; });
+    attachNet(pages, "phone");
+    attachNet(desktop, "desktop");
     const pageHits = counter.events.filter(e => e.page).map(({ page: p, vendor, name, id, q }) => ({ page: p!, vendor, name, ...(id && { id }), ...(q && { q }) }));
-    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, pageHits, focusUrls, searchTest, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt };
+    at("done");
+    return { website, pages, desktop, addToCart: atc, atcEvents, atcHits, ...((counter.dl.view || counter.dl.atc) && { dlPushes: { view: counter.dl.view, atc: counter.dl.atc } }), ...(counter.dl.seq && { dlEcommerce: counter.dl.seq }), recorders: [...counter.recorders], pageHits, focusUrls, ...(cartDrawer && { cartDrawer }), ...(policies.length && { policies }), searchTest, probes, blockedHits: counter.blocked, leakedHits: counter.leaked, durationMs: Date.now() - startedAt, stepMs };
   })();
   // On timeout the race below rejects first and closes the browser, which
   // makes `work` reject later — swallow that so it isn't an unhandled rejection.
@@ -1059,7 +1519,7 @@ export async function collectStoreEvidence(website: string, discoveredPages: str
     return await Promise.race([
       work,
       sleep(TOTAL_TIMEOUT_MS).then(() => {
-        throw new Error(`collector timed out after ${TOTAL_TIMEOUT_MS / 1000}s`);
+        throw new Error(`collector timed out after ${TOTAL_TIMEOUT_MS / 1000}s (at: ${step})`);
       }),
     ]);
   } finally {

@@ -28,6 +28,22 @@ export interface ClaudeRunOptions {
   model?: "main" | "writer";
   // Name for this call in the [claude-usage] log and run-metrics summary.
   label?: string;
+  // A file that REPLACES Claude Code's own system prompt (--system-prompt-file):
+  // its ~28K tokens of coding-agent instructions are no use to a judging call
+  // and cost a cache write each run. Calls that share the file share one
+  // prompt-cache entry (points/ai-judge.ts).
+  systemPromptFile?: string;
+  // Extra folders the call may read from (--add-dir), e.g. page pictures.
+  addDirs?: string[];
+  // Built-in tools the model may see (--tools). [] = none; their definitions
+  // are then left out of the prompt, which saves tens of thousands of tokens
+  // per call. Unset = none when allowedTools is empty, else the CLI default.
+  // null = the CLI default even with no allowed tools (keeps a prompt cache
+  // shared with another call that has the built-ins).
+  builtinTools?: string[] | null;
+  // Called once, when the model's first answer block arrives. By then the
+  // prompt is in the cache, so a call sharing it can start and read it.
+  onFirstAnswer?: () => void;
 }
 
 // How much raw stdout to keep for error messages. stream-json writes every
@@ -128,9 +144,20 @@ export function writerModel(env: NodeJS.ProcessEnv = process.env): string | unde
   return env.CLAUDE_WRITER_MODEL?.trim() || claudeModel(env);
 }
 
-/** The child's environment: with promptCache false, Claude Code's DISABLE_PROMPT_CACHING is set. */
+/**
+ * The child's environment. promptCache false sets DISABLE_PROMPT_CACHING.
+ * Otherwise the cache lives 5 minutes, as it does by default on the API key:
+ * an audit's calls reuse the cache within minutes, and a 1-hour write costs
+ * more (2x input vs 1.25x). A subscription login would default to 1 hour, so
+ * local runs would cost more than production. Set either variable to override.
+ */
 export function childEnv(promptCache: boolean | undefined, env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  return promptCache === false ? { ...env, DISABLE_PROMPT_CACHING: "1" } : env;
+  if (promptCache === false) return { ...env, DISABLE_PROMPT_CACHING: "1" };
+  return {
+    ...env,
+    CLAUDE_CODE_PROMPT_CACHE_TTL: env.CLAUDE_CODE_PROMPT_CACHE_TTL ?? "5m",
+    CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL: env.CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL ?? "5m",
+  };
 }
 
 export interface ApiKeyStatus {
@@ -228,6 +255,16 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
   if (model) {
     args.push("--model", model);
   }
+  if (opts.systemPromptFile) {
+    args.push("--system-prompt-file", opts.systemPromptFile);
+  }
+  for (const dir of opts.addDirs ?? []) args.push("--add-dir", dir);
+  // A call that allows no tools gets no built-in tool definitions either
+  // (about 33K tokens per call, 23 Nov 2026). Only for these: on a call that
+  // uses tools over many turns, --tools stopped the cache being reused
+  // between turns (Regal, 23 Nov: 8x the cost).
+  const builtins = opts.builtinTools === null ? undefined : opts.builtinTools ?? (opts.allowedTools.length === 0 ? [] : undefined);
+  if (builtins) args.push("--tools", builtins.join(","));
 
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"], env: childEnv(opts.promptCache) });
@@ -276,6 +313,11 @@ export async function runClaudeHeadless(opts: ClaudeRunOptions): Promise<string>
       }
       const hadSource = info.authSource !== undefined;
       readStreamEvent(info, event);
+      if (event?.type === "assistant" && opts.onFirstAnswer) {
+        const cb = opts.onFirstAnswer;
+        opts.onFirstAnswer = undefined;
+        cb();
+      }
       // The worker must bill the API key. With the key set, the CLI always
       // uses it, so this only fires if something unexpected wins.
       if (!hadSource && info.authSource !== undefined && info.authSource !== "ANTHROPIC_API_KEY") {

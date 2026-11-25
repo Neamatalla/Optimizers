@@ -5,6 +5,7 @@ import type { CategoryResult, CategoryFinding, ToolId, CategoryKey, Ga4Metrics, 
 import { buildAction, defaultProtect, repairActions, type RawAction } from "./actions.js";
 import { ga4FactsPromptBlock, ga4MetricsFromOAuth } from "./ga4-facts.js";
 import { siteChecksPromptBlock } from "./site-checks.js";
+import { browserFactFor, browserFactsPromptLines } from "./browser-facts.js";
 import { compactGa4, compactGtm, json, sizeLine } from "./prompt-data.js";
 import { clarityFactsPromptBlock, type ClarityFacts } from "./clarity-facts.js";
 import { personaChecklistFor, personaOf } from "./persona-checklist.js";
@@ -95,6 +96,13 @@ function checklistFor(category: CategoryKey, tools: ToolId[], role?: AudienceRol
   if (category === "GTM") return GTM_CHECKLIST;
 
   return tools.length === 0 ? WEBSITE_CHECKLIST : WEBSITE_CODE_CHECKLIST;
+}
+
+// The browser points code decided this run: the model writes their text,
+// the status is fixed (computeCategoryResult enforces it).
+function decidedBrowserBlock(ids: string[], s: SiteChecks): string {
+  const lines = browserFactsPromptLines(ids, s);
+  return lines.length ? `Decided by code from these facts. Use exactly this status and write the finding to match it:\n${lines.join("\n")}\n` : "";
 }
 
 function formatChecklist(category: CategoryKey, tools: ToolId[], role?: AudienceRole | null): string {
@@ -437,7 +445,7 @@ These come from a separate phone-sized visit that clicked Add to Cart on a
 real product. Use them for the points that cite "Browser facts"; they are
 "live" evidence.
 ${siteChecksPromptBlock(input.siteChecks)}
-
+${decidedBrowserBlock(categories.flatMap(c => checklistFor(c, input.tools, input.audienceRole).map(p => p.id)), input.siteChecks)}
 ` : ""}${input.clarityFacts ? `## Clarity facts (the store's own Microsoft Clarity, computed by code)
 What real shoppers did on the store. Use these as "live" evidence for any
 point about what shoppers experience (errors, taps that do nothing, leaving
@@ -684,6 +692,8 @@ interface RawCategoryResult {
  */
 export interface ComputeOptions {
   ga4Facts?: Ga4Facts | null;
+  // Our own visit to the store: decides the browser points (browser-facts.ts).
+  siteChecks?: SiteChecks | null;
   // Filled with the ids whose model-written action failed the actionability
   // rule (actions.ts), for the repair call.
   rejected?: Array<{ category: string; id: string }>;
@@ -731,10 +741,15 @@ export function computeCategoryResult(raw: RawCategoryResult, checklist: Checkli
         console.warn(`[audit-prompt] ${point.id}: model said ${status}, computed fact says ${fact.status} — using the fact`);
         status = fact.status;
       }
+      const seen = browserFactFor(point.id, opts.siteChecks);
+      if (seen && seen.status !== status) {
+        console.warn(`[audit-prompt] ${point.id}: model said ${status}, browser fact says ${seen.status} (${seen.reason}) — using the fact`);
+        status = seen.status;
+      }
       const finding: CategoryFinding = {
         checklistId: point.id,
         ...normalizeVoices(f, point, raw.category),
-        dataSource: fact && fact.status !== "no_data" ? "live" : f.dataSource,
+        dataSource: (fact && fact.status !== "no_data") || seen ? "live" : f.dataSource,
         severity: point.severity,
         status,
         opportunity: point.opportunity,
@@ -895,7 +910,7 @@ export async function runAudit(input: AuditPromptInput): Promise<AuditRunResult>
   }
 
   const rejected: Array<{ category: string; id: string }> = [];
-  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools, input.audienceRole), { ga4Facts: input.ga4Facts, rejected }));
+  const categories = parsed.categories.map(raw => computeCategoryResult(raw, checklistFor(raw.category, input.tools, input.audienceRole), { ga4Facts: input.ga4Facts, siteChecks: input.siteChecks, rejected }));
   if (rejected.length) {
     const fix = await repairActions(categories, rejected, `audit-${Date.now()}`);
     console.log(`[audit-prompt] ${rejected.length} action(s) failed the actionability rule; repaired ${fix.repaired}, checklist defaults kept for the rest${fix.error ? ` (repair error: ${fix.error})` : ""}`);

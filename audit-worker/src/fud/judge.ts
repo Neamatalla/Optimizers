@@ -51,7 +51,21 @@ export function marketHint(website: string): string {
 export function pageBlock(p: PageEvidence): string {
   if (!p.loaded) return `### ${p.pageType.toUpperCase()} — NOT AVAILABLE (${p.note ?? "did not load"})\n`;
   const near = new Set(p.cta?.nearbyBlockIds ?? []);
-  const lines = p.blocks.map(b => `[${b.id}${b.aboveFold ? "|fold" : ""}${near.has(b.id) ? "|cta" : ""}${b.tag === "img" ? "|img" : ""}] ${b.text}`);
+  // A marker line each time the text moves to the next phone screen (844px),
+  // so "within the first 2 screens" can be read from the text.
+  const lines: string[] = [];
+  let screen = 1;
+  for (const b of p.blocks) {
+    const at = b.box ? Math.floor(Math.max(0, b.box.y) / 844) + 1 : screen;
+    if (at > screen) {
+      screen = at;
+      lines.push(`--- phone screen ${screen} (from ${(screen - 1) * 844}px) ---`);
+    }
+    lines.push(`[${b.id}${b.aboveFold ? "|fold" : ""}${near.has(b.id) ? "|cta" : ""}${b.tag === "img" ? "|img" : ""}] ${b.text}`);
+  }
+  const hidden = p.hiddenSections?.length
+    ? `\nClosed tabs and sections (their text, read from the page code; the shopper opens them with a tap):\n${p.hiddenSections.map(h => `- ${h.label ? `«${h.label}»: ` : ""}${h.text}`).join("\n")}`
+    : "";
   const meta = [
     `url: ${p.url}`,
     p.note ? `note: ${p.note}` : "",
@@ -64,7 +78,7 @@ export function pageBlock(p: PageEvidence): string {
     p.cart ? `cart source: ${p.cart.source}${p.cart.empty ? " — EMPTY, the item could not be added" : " — holds the added item"}` : "",
     ...factLines(p),
   ].filter(Boolean);
-  return `### ${p.pageType.toUpperCase()}\n${meta.join("\n")}\nVisible text (in reading order; |fold = on the first phone screen, |img = image/icon label):\n${lines.join("\n")}\n`;
+  return `### ${p.pageType.toUpperCase()}\n${meta.join("\n")}\nVisible text (in reading order; |fold = on the first phone screen, |img = image/icon label; marker lines show where each phone screen starts):\n${lines.join("\n")}${hidden}\n`;
 }
 
 /** Layout facts measured in the browser (facts-js.ts), as plain sentences. */
@@ -80,11 +94,22 @@ function factLines(p: PageEvidence): string[] {
       out.push(`search: ${f.search.present ? (f.search.visible ? "visible on the phone" : "present but not visible without opening the menu") : "none found"}`);
       out.push(`signup: email field ${f.capture.email ? "yes" : "no"}, phone field ${f.capture.phone ? "yes" : "no"}, account/login link ${f.capture.account ? "yes" : "no"}`);
     }
+    if (p.pageType === "landing" || p.pageType === "product") {
+      // nav is the header row only, empty on a phone when the menu sits
+      // behind an icon; menuLinks counts the whole menu, drawer included.
+      out.push(f.menuLinks === undefined
+        ? `main menu: not measured on this page`
+        : `main menu: ${f.menuIcon ? "a menu icon in the header" : "no menu icon in the header"}; ${f.menuLinks} menu links on this page (phone drawer included)${f.nav.length ? `; visible in the header row: ${f.nav.slice(0, 12).map(n => `«${n}»`).join(", ")}` : ""}`);
+    }
     if (p.pageType === "product") {
       out.push(`product media: ${f.media.images} distinct images near the top, video ${f.media.video ? "yes" : "no"}, zoom/lightbox ${f.media.zoom ? "yes" : "no"}`);
       out.push(`organised info: ${f.infoSections.details} expandable sections, ${f.infoSections.expanders} tabs/toggles`);
     }
   }
+  const m = p.interactions?.menu;
+  if (m) out.push(m.found ? `phone menu test: tapped the menu icon, it ${m.opened ? `opened (${m.linksShown} more links on screen)` : "showed no visible change to our headless browser (may be our browser, not the store: not proof of a broken menu)"}` : "phone menu test: no menu icon found in the header");
+  const q = p.interactions?.quantity;
+  if (q) out.push(`cart quantity test: + button ${q.plusFound ? (q.plusChanged ? "found, pressing it changed the cart" : "found, pressing it changed nothing") : "not found"}; − button ${q.minusFound ? (q.minusChanged ? "found, pressing it changed the cart" : "found, pressing it changed nothing") : "not found"}; remove control ${q.removeFound ? "found" : "not found"}`);
   if (p.sticky !== undefined) out.push(`sticky buy button after scrolling: ${p.sticky ? `yes («${p.sticky}»)` : "no"}`);
   if (p.popups) {
     out.push(
